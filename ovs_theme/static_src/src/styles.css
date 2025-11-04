@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Base styles for dark mode compatibility */
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+  }
+
+  [data-theme="dark"] {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+  }
+}
+
+@layer components {
+  /* Custom form styles that work with Tailwind/DaisyUI dark mode */
+  .form-input {
+    @apply bg-base-200 border-base-300 text-base-content;
+  }
+
+  .form-field {
+    @apply mb-4;
+  }
+
+  .form-label {
+    @apply block text-sm font-medium mb-1 text-base-content;
+  }
+
+  .form-error {
+    @apply text-error text-sm mt-1;
+  }
+
+  .form-help {
+    @apply text-sm text-base-content/70 mt-1;
+  }
+}
+
+/* Custom styles that respect dark mode */
+.auth-form {
+  @apply bg-base-100 p-6 rounded-lg shadow-lg max-w-md mx-auto mt-10;
+}
+
+.auth-fieldset {
+  @apply border border-base-300 rounded-lg p-4;
+}
+
+.auth-legend {
+  @apply text-xl font-semibold px-2 text-primary;
+}
+
+.auth-input {
+  @apply input input-bordered w-full bg-base-200 text-base-content;
+}
+
+.auth-button {
+  @apply btn btn-primary w-full mt-4;
+}
+
+/* Error state styles */
+.auth-input.error {
+  @apply input-error;
+}
+
+/* Loading state */
+.auth-button[disabled] {
+  @apply btn-disabled;
+}
+
+/* Success feedback */
+.auth-success {
+  @apply text-success text-sm mt-2;
+}

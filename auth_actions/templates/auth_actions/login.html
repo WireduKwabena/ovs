@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load form_tags %}
+
+{% block extrahead %}
+<link rel="stylesheet" href="{% static 'auth_actions/css/auth.css' %}">
+{% endblock extrahead %}
+
+{% block content %}
+<div class="auth-form">
+  <form method="post" class="space-y-6">
+    {% csrf_token %}
+    <fieldset class="auth-fieldset">
+      <legend class="auth-legend">Login</legend>
+      
+      {% for field in form %}
+        <div class="form-field">
+          <label for="{{ field.id_for_label }}" class="form-label">
+            {{ field.label }}
+          </label>
+          {{ field|addclass:"auth-input" }}
+          {% if field.help_text %}
+            <p class="form-help">{{ field.help_text }}</p>
+          {% endif %}
+          {% if field.errors %}
+            <div class="form-error">
+              {{ field.errors }}
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+
+      <button type="submit" class="auth-button">
+        Login
+      </button>
+    </fieldset>
+  </form>
+
+  <div class="text-center mt-6">
+    <p class="text-base-content/70">
+      Don't have an account? 
+      <a href="{% url 'auth_actions:signup' %}" class="link-primary">
+        Sign up
+      </a>
+    </p>
+  </div>
+  {% include 'widgets/social_logins.html' %}
+</div>
+{% endblock %}

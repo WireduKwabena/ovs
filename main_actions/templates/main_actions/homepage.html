@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load form_tags %}
+
+{% block extrahead %}
+<link rel="stylesheet" href="{% static 'main_actions/css/homepage.css' %}">
+{% endblock extrahead %}
+{% block content %}
+<div class="homepage-content">  
+    <h2 class="text-3xl font-bold mb-6 text-center text-primary">Welcome to Our Platform</h2>
+    <p class="text-lg mb-4 text-center">Discover the features and benefits of using our services. Join us today to get started!</p>
+    <div class="flex justify-center mt-6">
+        <a href="{% url 'auth_actions:signup' %}" class="btn btn-primary btn-lg">Get Started</a>
+    </div>
+    <!-- Logout -->
+    <div class="flex justify-center mt-6">
+        <a href="{% url 'auth_actions:logout' %}" class="link link-secondary">Logout</a>
+    </div>
+</div>
+{% endblock %}

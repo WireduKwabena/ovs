@@ -1,0 +1,194 @@
+body {
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+}
+
+/* Base transitions for smooth mode switching */
+body, input, button, fieldset, select, textarea {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Form elements base styles */
+fieldset {
+    border: 1px solid #ddd;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="email"],
+select,
+textarea {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+button {
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* Error messages */
+.errorlist {
+    color: #dc3545;
+    list-style: none;
+    padding: 0;
+    margin: 5px 0;
+}
+
+/* Help text */
+.helptext {
+    font-size: 0.875rem;
+    color: #666;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: #121212;
+        color: #fff;
+    }
+
+    fieldset {
+        background-color: #1a1a1a;
+        border-color: #333;
+        color: #fff;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    
+    input[type="text"],
+    input[type="password"],
+    input[type="email"],
+    select,
+    textarea {
+        background-color: #333;
+        color: #fff;
+        border-color: #444;
+    }
+
+    input[type="text"]:hover,
+    input[type="password"]:hover,
+    input[type="email"]:hover,
+    select:hover,
+    textarea:hover {
+        border-color: #555;
+    }
+
+    input[type="text"]:focus,
+    input[type="password"]:focus,
+    input[type="email"]:focus,
+    select:focus,
+    textarea:focus {
+        border-color: #666;
+        outline-color: #666;
+        background-color: #404040;
+    }
+
+    legend {
+        color: #fff;
+        background-color: #1a1a1a;
+        padding: 0 10px;
+    }
+
+    label {
+        color: #fff;
+    }
+
+    /* Buttons in dark mode */
+    button {
+        background-color: #404040;
+        color: #fff;
+        border: 1px solid #555;
+    }
+
+    button:hover {
+        background-color: #505050;
+        border-color: #666;
+    }
+
+    button:active {
+        background-color: #606060;
+    }
+
+    /* Error messages in dark mode */
+    .errorlist {
+        color: #ff6b6b;
+    }
+
+    /* Help text in dark mode */
+    .helptext {
+        color: #aaa;
+    }
+
+    /* Links in dark mode */
+    a {
+        color: #66b3ff;
+    }
+
+    a:hover {
+        color: #99ccff;
+    }
+
+    /* Form validation states */
+    input:invalid {
+        border-color: #dc3545;
+    }
+
+    /* Success states */
+    .success-message {
+        color: #28a745;
+    }
+
+    /* Warning states */
+    .warning-message {
+        color: #ffc107;
+    }
+}
+
+header {
+    background: #333;
+    color: #fff;
+    padding: 10px 0;
+}
+
+header h1 {
+    text-align: center;
+}
+
+nav {
+    text-align: center;
+}
+
+nav ul {
+    list-style: none;
+    padding: 0;
+}
+
+nav ul li {
+    display: inline;
+    margin: 0 15px;
+}
+
+nav ul li a {
+    color: #fff;
+    text-decoration: none;
+}
+
+main {
+    padding: 20px;
+}
+
+footer {
+    text-align: center;
+    padding: 10px 0;
+    background: #333;
+    color: #fff;
+}
