@@ -227,9 +227,14 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+STATICFILES_DIRS = [
+    BASE_DIR / 'static', 
+    BASE_DIR / 'theme/static/css/dist', 
+    BASE_DIR / 'theme/static_src/src', 
+    BASE_DIR / 'theme/static_src/js'
+    ]
 
-MEDIAL_URL = '/media/'
+MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
@@ -267,12 +272,20 @@ SESSION_CACHE_ALIAS = 'default'
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
+SITE_ID = 1
+
+LOGIN_REDIRECT_URL = 'main_actions:home'
+LOGOUT_REDIRECT_URL = 'auth_actions:login'
+
+ACCOUNT_LOGIN_METHODS = {'email'}
+ACCOUNT_EMAIL_REQUIRED = True
 SOCIALACCOUNT_LOGIN_ON_GET = True
+
 SOCIALACCOUNT_AUTO_SIGNUP = True
 ACCOUNT_UNIQUE_EMAIL = True
 SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
 SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
 SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
 
-ACCOUNT_ADAPTER = "OVS.adapters.CustomAccountAdapter"
+# ACCOUNT_ADAPTER = "OVS.adapters.CustomAccountAdapter"
 SOCIALACCOUNT_ADAPTER = "OVS.adapters.SocialAccountAdapter"
