@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'auth_base.html' %}
 {% load static %}
 {% load form_tags %}
 
@@ -38,6 +38,6 @@
       <a href="{% url 'auth_actions:login' %}" class="link-primary">Login here</a>
     </p>
   </div>
-  {% include 'widgets/social_logins.html' %}
+  {% comment %} {% include 'widgets/social_logins.html' %} {% endcomment %}
 </div>
 {% endblock %}

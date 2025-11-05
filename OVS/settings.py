@@ -117,7 +117,7 @@ ROOT_URLCONF = 'OVS.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [ BASE_DIR / 'ovs_theme' / 'templates', BASE_DIR / 'templates_aux'],
+        'DIRS': [ BASE_DIR / 'ovs_theme' / 'templates', BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -131,6 +131,8 @@ TEMPLATES = [
         },
     },
 ]
+
+LOGIN_REDIRECT_URL = 'main_actions:home'
 
 # WSGI_APPLICATION = 'OVS.wsgi.application'
 ASGI_APPLICATION = 'OVS.asgi.application'

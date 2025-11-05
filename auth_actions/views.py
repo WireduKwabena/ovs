@@ -2,11 +2,30 @@ from django.contrib import messages
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth import authenticate, login, logout
-
+from django.conf import settings
+# from django.contrib.auth.decorators 
 
 from auth_actions.forms import LoginForm, RegistrationForm
+
+
+
+def unauthenticated_user_required(view_func):
+    """
+    Decorator that redirects authenticated users to settings.LOGIN_REDIRECT_URL
+    (or '/home/' if not set).
+    """
+    def wrapper_func(request, *args, **kwargs):
+        if request.user.is_authenticated:
+            # If the user is logged in, redirect them away
+            return redirect(settings.LOGIN_REDIRECT_URL or 'main_actions:home')
+        else:
+            # If not logged in, proceed to the view function (login/signup)
+            return view_func(request, *args, **kwargs)
+    return wrapper_func
 # Create your views here.
 
+
+@unauthenticated_user_required
 @require_http_methods(["GET", "POST"])
 def login_view(request):
     next_page =  request.GET.get("next")
@@ -24,7 +43,9 @@ def login_view(request):
                 return redirect('main_actions:home')
             else:
                 form.add_error(None, "Invalid username or password.")
-        
+    
+    
+    
     return render(request, 'auth_actions/login.html', {'form': form})
 
 
