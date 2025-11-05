@@ -43,7 +43,7 @@ INSTALLED_APPS = [
     'auth_actions.apps.AuthActionsConfig',
     'main_actions.apps.MainActionsConfig',
     'tailwind',
-    'ovs_theme',
+    'theme',
     'django.contrib.messages',
     'allauth',
     'allauth.account',
@@ -72,6 +72,12 @@ MIDDLEWARE = [
     # Add the account middleware:
     "allauth.account.middleware.AccountMiddleware",
 ]
+
+if DEBUG:
+    # Add django_browser_reload middleware only in DEBUG mode
+    MIDDLEWARE += [
+        "django_browser_reload.middleware.BrowserReloadMiddleware",
+    ]
 
 # Provider specific settings
 SOCIALACCOUNT_PROVIDERS = {
@@ -108,7 +114,7 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
-TAILWIND_APP_NAME = "ovs_theme"
+TAILWIND_APP_NAME = "theme"
 
 NPM_BIN_PATH = "C:/Program Files/nodejs/npm.cmd"
 
@@ -117,7 +123,7 @@ ROOT_URLCONF = 'OVS.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [ BASE_DIR / 'ovs_theme' / 'templates', BASE_DIR / 'templates'],
+        'DIRS': [ BASE_DIR / 'theme' / 'templates', BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
