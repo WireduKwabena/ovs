@@ -1,0 +1,438 @@
+[DEBUG] 2026-02-17 00:17:48,284 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-17 00:19:03,146 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-17 00:19:54,958 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-17 00:20:40,261 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-17 00:21:01,505 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-17 00:21:12,555 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-17 00:21:25,276 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-17 00:21:38,147 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-17 00:21:52,088 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-17 00:22:11,066 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-17 00:22:13,738 functional 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-17 00:22:13,744 functional 
+def xstarmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-17 00:22:13,745 functional 
+def chain(*args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-17 00:22:13,751 functional 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-17 00:22:13,752 functional 
+def chunks(task, it, n):
+    return 1
+
+[DEBUG] 2026-02-17 00:22:13,753 functional 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-17 00:22:13,754 functional 
+def debug_task(self):
+    return 1
+
+[DEBUG] 2026-02-17 00:22:13,755 functional 
+def backend_cleanup():
+    return 1
+
+[DEBUG] 2026-02-17 00:22:13,757 functional 
+def xmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-17 00:22:13,758 functional 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+[DEBUG] 2026-02-17 00:22:13,759 functional 
+def send_invitation_task(self, invitation_id):
+    return 1
+
+[ERROR] 2026-02-17 00:23:00,144 redis Connection to Redis lost: Retry (0/20) now.
+[ERROR] 2026-02-17 00:23:23,225 redis Connection to Redis lost: Retry (1/20) in 1.00 second.
+[ERROR] 2026-02-17 00:23:47,325 redis Connection to Redis lost: Retry (2/20) in 1.00 second.
+[ERROR] 2026-02-17 00:24:11,412 redis Connection to Redis lost: Retry (3/20) in 1.00 second.
+[ERROR] 2026-02-17 00:24:35,486 redis Connection to Redis lost: Retry (4/20) in 1.00 second.
+[DEBUG] 2026-02-17 00:24:46,984 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-17 00:24:49,655 functional 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-17 00:24:49,660 functional 
+def xstarmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-17 00:24:49,661 functional 
+def chain(*args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-17 00:24:49,666 functional 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-17 00:24:49,667 functional 
+def chunks(task, it, n):
+    return 1
+
+[DEBUG] 2026-02-17 00:24:49,669 functional 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-17 00:24:49,670 functional 
+def debug_task(self):
+    return 1
+
+[DEBUG] 2026-02-17 00:24:49,670 functional 
+def backend_cleanup():
+    return 1
+
+[DEBUG] 2026-02-17 00:24:49,671 functional 
+def xmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-17 00:24:49,673 functional 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+[DEBUG] 2026-02-17 00:24:49,673 functional 
+def send_invitation_task(self, invitation_id):
+    return 1
+
+[INFO] 2026-02-17 00:24:50,758 trace Task apps.invitations.tasks.send_invitation_task[80690f4b-a07c-4fdf-b4fa-92e4778f1a21] succeeded in 0.9451334000041243s: {'status': 'sent', 'invitation_id': 2}
+[WARNING] 2026-02-17 00:24:50,786 log Unauthorized: /api/invitations/accept/
+[ERROR] 2026-02-17 00:24:59,565 redis Connection to Redis lost: Retry (5/20) in 1.00 second.
+[DEBUG] 2026-02-17 00:25:13,287 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-17 00:25:15,907 functional 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-17 00:25:15,915 functional 
+def xstarmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-17 00:25:15,916 functional 
+def chain(*args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-17 00:25:15,921 functional 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-17 00:25:15,922 functional 
+def chunks(task, it, n):
+    return 1
+
+[DEBUG] 2026-02-17 00:25:15,923 functional 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-17 00:25:15,924 functional 
+def debug_task(self):
+    return 1
+
+[DEBUG] 2026-02-17 00:25:15,924 functional 
+def backend_cleanup():
+    return 1
+
+[DEBUG] 2026-02-17 00:25:15,925 functional 
+def xmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-17 00:25:15,927 functional 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+[DEBUG] 2026-02-17 00:25:15,928 functional 
+def send_invitation_task(self, invitation_id):
+    return 1
+
+[INFO] 2026-02-17 00:25:17,036 trace Task apps.invitations.tasks.send_invitation_task[381a33e2-7f2e-40e6-b6b0-4e1ddbb87b93] succeeded in 0.9467732000048272s: {'status': 'sent', 'invitation_id': 3}
+[ERROR] 2026-02-17 00:25:23,646 redis Connection to Redis lost: Retry (6/20) in 1.00 second.
+[ERROR] 2026-02-17 00:25:47,744 redis Connection to Redis lost: Retry (7/20) in 1.00 second.
+[ERROR] 2026-02-17 00:26:11,784 redis Connection to Redis lost: Retry (8/20) in 1.00 second.
+[ERROR] 2026-02-17 00:26:35,834 redis Connection to Redis lost: Retry (9/20) in 1.00 second.
+[DEBUG] 2026-02-17 00:26:54,023 selector_events Using selector: SelectSelector
+[ERROR] 2026-02-17 00:26:59,925 redis Connection to Redis lost: Retry (10/20) in 1.00 second.
+[ERROR] 2026-02-17 00:27:24,004 redis Connection to Redis lost: Retry (11/20) in 1.00 second.
+[ERROR] 2026-02-17 00:27:48,094 redis Connection to Redis lost: Retry (12/20) in 1.00 second.
+[DEBUG] 2026-02-17 00:27:54,056 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-17 00:28:08,125 selector_events Using selector: SelectSelector
+[ERROR] 2026-02-17 00:28:12,183 redis Connection to Redis lost: Retry (13/20) in 1.00 second.
+[ERROR] 2026-02-17 00:28:36,257 redis Connection to Redis lost: Retry (14/20) in 1.00 second.
+[ERROR] 2026-02-17 00:29:00,341 redis Connection to Redis lost: Retry (15/20) in 1.00 second.
+[ERROR] 2026-02-17 00:29:24,409 redis Connection to Redis lost: Retry (16/20) in 1.00 second.
+[ERROR] 2026-02-17 00:29:48,616 redis Connection to Redis lost: Retry (17/20) in 1.00 second.
+[ERROR] 2026-02-17 00:30:12,688 redis Connection to Redis lost: Retry (18/20) in 1.00 second.
+[ERROR] 2026-02-17 00:30:36,840 redis Connection to Redis lost: Retry (19/20) in 1.00 second.
+[CRITICAL] 2026-02-17 00:31:01,434 redis 
+Retry limit exceeded while trying to reconnect to the Celery redis result store backend. The Celery application must be restarted.
+
+[ERROR] 2026-02-17 00:31:01,880 log Internal Server Error: /api/invitations/
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\connection.py", line 1133, in read_response
+    response = self._parser.read_response(disable_decoding=disable_decoding)
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\_parsers\resp2.py", line 15, in read_response
+    result = self._read_response(disable_decoding=disable_decoding)
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\_parsers\resp2.py", line 25, in _read_response
+    raw = self._buffer.readline()
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\_parsers\socket.py", line 115, in readline
+    self._read_from_socket()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\_parsers\socket.py", line 65, in _read_from_socket
+    data = self._sock.recv(socket_read_size)
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\celery\backends\redis.py", line 130, in reconnect_on_error
+    yield
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\celery\backends\redis.py", line 180, in _consume_from
+    self._pubsub.subscribe(key)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\client.py", line 1090, in subscribe
+    ret_val = self.execute_command("SUBSCRIBE", *new_channels.keys())
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\client.py", line 914, in execute_command
+    self.connection = self.connection_pool.get_connection()
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\utils.py", line 196, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\connection.py", line 2603, in get_connection
+    connection.connect()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\connection.py", line 846, in connect
+    self.connect_check_health(check_health=True)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\connection.py", line 869, in connect_check_health
+    self.on_connect_check_health(check_health=check_health)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\connection.py", line 994, in on_connect_check_health
+    self.read_response()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\connection.py", line 1141, in read_response
+    raise ConnectionError(f"Error while reading from {host_error} : {e.args}")
+redis.exceptions.ConnectionError: Error while reading from localhost:6379 : (10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\connection.py", line 1133, in read_response
+    response = self._parser.read_response(disable_decoding=disable_decoding)
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\_parsers\resp2.py", line 15, in read_response
+    result = self._read_response(disable_decoding=disable_decoding)
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\_parsers\resp2.py", line 25, in _read_response
+    raw = self._buffer.readline()
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\_parsers\socket.py", line 115, in readline
+    self._read_from_socket()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\_parsers\socket.py", line 65, in _read_from_socket
+    data = self._sock.recv(socket_read_size)
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\celery\backends\redis.py", line 133, in reconnect_on_error
+    self._ensure(self._reconnect_pubsub, ())
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\celery\backends\redis.py", line 428, in ensure
+    return retry_over_time(
+        fun, self.connection_errors, args, {},
+        partial(self.on_connection_error, max_retries),
+        **retry_policy)
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\kombu\utils\functional.py", line 318, in retry_over_time
+    return fun(*args, **kwargs)
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\celery\backends\redis.py", line 109, in _reconnect_pubsub
+    metas = self.backend.client.mget(self.subscribed_to)
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\commands\core.py", line 2091, in mget
+    return self.execute_command("MGET", *args, **options)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\client.py", line 657, in execute_command
+    return self._execute_command(*args, **options)
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\client.py", line 663, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\utils.py", line 196, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\connection.py", line 2603, in get_connection
+    connection.connect()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\connection.py", line 846, in connect
+    self.connect_check_health(check_health=True)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\connection.py", line 869, in connect_check_health
+    self.on_connect_check_health(check_health=check_health)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\connection.py", line 994, in on_connect_check_health
+    self.read_response()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\redis\connection.py", line 1141, in read_response
+    raise ConnectionError(f"Error while reading from {host_error} : {e.args}")
+redis.exceptions.ConnectionError: Error while reading from localhost:6379 : (10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\django\core\handlers\base.py", line 198, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\rest_framework\mixins.py", line 19, in create
+    self.perform_create(serializer)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Project Setup\Django\OVS-Redo\backend\apps\invitations\views.py", line 41, in perform_create
+    send_invitation_task.delay(invitation.id)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\celery\app\task.py", line 444, in delay
+    return self.apply_async(args, kwargs)
+           ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\celery\app\task.py", line 608, in apply_async
+    return app.send_task(
+           ~~~~~~~~~~~~~^
+        self.name, args, kwargs, task_id=task_id, producer=producer,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        **options
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\celery\app\base.py", line 946, in send_task
+    self.backend.on_task_call(P, task_id)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\celery\backends\redis.py", line 417, in on_task_call
+    self.result_consumer.consume_from(task_id)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\celery\backends\redis.py", line 172, in consume_from
+    return self.start(task_id)
+           ~~~~~~~~~~^^^^^^^^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\celery\backends\redis.py", line 150, in start
+    self._consume_from(initial_task_id)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\celery\backends\redis.py", line 179, in _consume_from
+    with self.reconnect_on_error():
+         ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Project Setup\Django\OVS-Redo\.venv\Lib\site-packages\celery\backends\redis.py", line 136, in reconnect_on_error
+    raise RuntimeError(E_RETRY_LIMIT_EXCEEDED) from e
+RuntimeError: 
+Retry limit exceeded while trying to reconnect to the Celery redis result store backend. The Celery application must be restarted.
+
+[DEBUG] 2026-02-17 00:33:02,032 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-17 00:33:11,306 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-17 00:34:10,332 selector_events Using selector: SelectSelector
+[WARNING] 2026-02-17 00:34:14,010 log Bad Request: /api/campaigns/5/rubrics/versions/
+[DEBUG] 2026-02-17 00:34:24,265 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-17 00:34:36,212 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-17 00:34:50,561 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-17 00:35:08,445 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-17 00:35:11,629 functional 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-17 00:35:11,632 functional 
+def xstarmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-17 00:35:11,633 functional 
+def chain(*args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-17 00:35:11,634 functional 
+def send_invitation_task(self, invitation_id):
+    return 1
+
+[DEBUG] 2026-02-17 00:35:11,642 functional 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-17 00:35:11,643 functional 
+def chunks(task, it, n):
+    return 1
+
+[DEBUG] 2026-02-17 00:35:11,644 functional 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-17 00:35:11,645 functional 
+def debug_task(self):
+    return 1
+
+[DEBUG] 2026-02-17 00:35:11,647 functional 
+def backend_cleanup():
+    return 1
+
+[DEBUG] 2026-02-17 00:35:11,648 functional 
+def xmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-17 00:35:11,649 functional 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+[DEBUG] 2026-02-17 00:36:59,896 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-17 00:37:04,154 functional 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-17 00:37:04,157 functional 
+def xstarmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-17 00:37:04,158 functional 
+def chain(*args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-17 00:37:04,159 functional 
+def send_invitation_task(self, invitation_id):
+    return 1
+
+[DEBUG] 2026-02-17 00:37:04,165 functional 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-17 00:37:04,166 functional 
+def chunks(task, it, n):
+    return 1
+
+[DEBUG] 2026-02-17 00:37:04,166 functional 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-17 00:37:04,167 functional 
+def debug_task(self):
+    return 1
+
+[DEBUG] 2026-02-17 00:37:04,168 functional 
+def backend_cleanup():
+    return 1
+
+[DEBUG] 2026-02-17 00:37:04,170 functional 
+def xmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-17 00:37:04,171 functional 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+[INFO] 2026-02-17 00:37:05,264 trace Task apps.invitations.tasks.send_invitation_task[f595c500-a715-4238-82bc-6d75ab513aa1] succeeded in 0.922437400004128s: {'status': 'sent', 'invitation_id': 5}

@@ -1,0 +1,35 @@
+Django
+djangorestframework
+django-cors-headers
+# Database
+psycopg2-binary
+# Async Processing
+celery
+redis
+
+# AI/ML (Simplified)
+openai-whisper  # Speech-to-text
+transformers   # Sentiment analysis
+torch              # ML backend
+scikit-learn       # CNN for document authenticity
+
+# Computer Vision
+opencv-python   # Face detection
+mediapipe         # Facial landmarks (optional)
+
+# OCR
+pytesseract
+easyocr
+pdf2image
+
+# LLM Integration
+# openai             # For GPT-4 evaluation
+#anthropic     # For Claude evaluation
+
+# Utilities
+Pillow
+python-decouple
+boto3             # S3 storage (optional)
+
+# PDF Generation
+reportlab

@@ -1,0 +1,125 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ovs_db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-vetai_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-vetai_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: ovs_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ovs_backend
+    command: >
+      sh -c "python manage.py migrate &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
+    env_file:
+      - backend/.env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.development
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - ./backend:/app
+      - media_data:/app/media
+      - logs_data:/app/logs
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ovs_celery_worker
+    command: celery -A config worker -l info --concurrency=2
+    env_file:
+      - backend/.env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.development
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - ./backend:/app
+      - media_data:/app/media
+      - logs_data:/app/logs
+    depends_on:
+      backend:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ovs_celery_beat
+    command: celery -A config beat -l info
+    env_file:
+      - backend/.env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.development
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - ./backend:/app
+      - logs_data:/app/logs
+    depends_on:
+      backend:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
+  frontend:
+    image: node:20-alpine
+    container_name: ovs_frontend
+    working_dir: /workspace
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 3000"
+    volumes:
+      - ./frontend:/workspace
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:
+  media_data:
+  logs_data:

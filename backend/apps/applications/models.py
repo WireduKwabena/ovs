@@ -1,0 +1,725 @@
+"""
+Applications Models
+===================
+Core vetting case and document models.
+
+Academic Note:
+--------------
+Central models for the document vetting pipeline. Implements:
+1. VettingCase: Main application/case entity
+2. Document: Uploaded documents with metadata
+3. VerificationResult: AI analysis results
+4. ConsistencyCheck: Cross-document validation
+5. InterrogationFlag: Inconsistencies requiring interview follow-up
+"""
+
+from django.db import models
+from django.core.validators import MinValueValidator, MaxValueValidator, FileExtensionValidator
+from django.utils import timezone
+from apps.authentication.models import User
+import uuid
+import os
+
+
+def document_upload_path(instance, filename):
+    """Generate upload path for documents."""
+    ext = filename.split('.')[-1]
+    filename = f"{uuid.uuid4()}.{ext}"
+    return os.path.join('documents', instance.case.case_id, filename)
+
+
+class VettingCase(models.Model):
+    """
+    Main vetting case model.
+    
+    Represents a complete background verification case for an applicant.
+    Contains all documents, analysis results, and final decision.
+    
+    Academic Note:
+    --------------
+    State machine pattern: pending → processing → completed/failed
+    Tracks entire vetting lifecycle with timestamps for performance analysis.
+    """
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('document_upload', 'Document Upload'),
+        ('document_analysis', 'Document Analysis'),
+        ('interview_scheduled', 'Interview Scheduled'),
+        ('interview_in_progress', 'Interview In Progress'),
+        ('under_review', 'Under Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('on_hold', 'On Hold'),
+    ]
+    
+    PRIORITY_CHOICES = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('urgent', 'Urgent'),
+    ]
+    
+    # Identification
+    case_id = models.CharField(
+        max_length=50,
+        unique=True,
+        db_index=True,
+        editable=False
+    )
+    
+    # Relationships
+    applicant = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='vetting_cases',
+        limit_choices_to={'user_type': 'applicant'}
+    )
+    
+    assigned_to = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_cases',
+        limit_choices_to={'user_type__in': ['hr_manager', 'admin']}
+    )
+    
+    # Case details
+    position_applied = models.CharField(max_length=200)
+    department = models.CharField(max_length=100, blank=True)
+    job_description = models.TextField(blank=True)
+    
+    # Status tracking
+    status = models.CharField(
+        max_length=30,
+        choices=STATUS_CHOICES,
+        default='pending',
+        db_index=True
+    )
+    priority = models.CharField(
+        max_length=20,
+        choices=PRIORITY_CHOICES,
+        default='medium'
+    )
+    
+    # Scores (calculated from AI analysis)
+    overall_score = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Overall vetting score (0-100)"
+    )
+    
+    document_authenticity_score = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    
+    consistency_score = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    
+    fraud_risk_score = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Higher score = higher fraud risk"
+    )
+    
+    interview_score = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    
+    # Flags and notes
+    red_flags_count = models.IntegerField(default=0)
+    requires_manual_review = models.BooleanField(default=False)
+    notes = models.TextField(blank=True)
+    internal_comments = models.TextField(blank=True)
+    
+    # Completion tracking
+    documents_uploaded = models.BooleanField(default=False)
+    documents_verified = models.BooleanField(default=False)
+    interview_completed = models.BooleanField(default=False)
+    
+    # Final decision
+    final_decision = models.CharField(
+        max_length=20,
+        choices=[
+            ('approved', 'Approved'),
+            ('rejected', 'Rejected'),
+            ('pending', 'Pending'),
+        ],
+        default='pending'
+    )
+    decision_rationale = models.TextField(blank=True)
+    decided_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='decided_cases'
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    # SLA tracking
+    expected_completion_date = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['case_id', 'status']),
+            models.Index(fields=['applicant', 'status']),
+            models.Index(fields=['assigned_to', 'status']),
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['status', 'priority']),
+        ]
+        verbose_name = 'Vetting Case'
+        verbose_name_plural = 'Vetting Cases'
+    
+    def __str__(self):
+        return f"{self.case_id} - {self.applicant.get_full_name()}"
+    
+    def save(self, *args, **kwargs):
+        # Generate case_id if not exists
+        if not self.case_id:
+            self.case_id = self._generate_case_id()
+        
+        # Auto-calculate overall score
+        if self.document_authenticity_score and self.consistency_score:
+            self._calculate_overall_score()
+        
+        # Auto-set completion date
+        if self.status in ['approved', 'rejected'] and not self.completed_at:
+            self.completed_at = timezone.now()
+        
+        super().save(*args, **kwargs)
+    
+    def _generate_case_id(self):
+        """Generate unique case ID."""
+        prefix = 'VET'
+        timestamp = timezone.now().strftime('%Y%m%d')
+        random_suffix = uuid.uuid4().hex[:6].upper()
+        return f"{prefix}-{timestamp}-{random_suffix}"
+    
+    def _calculate_overall_score(self):
+        """Calculate weighted overall score."""
+        weights = {
+            'authenticity': 0.35,
+            'consistency': 0.25,
+            'fraud': 0.20,
+            'interview': 0.20,
+        }
+        
+        score = 0
+        total_weight = 0
+        
+        if self.document_authenticity_score is not None:
+            score += self.document_authenticity_score * weights['authenticity']
+            total_weight += weights['authenticity']
+        
+        if self.consistency_score is not None:
+            score += self.consistency_score * weights['consistency']
+            total_weight += weights['consistency']
+        
+        if self.fraud_risk_score is not None:
+            # Invert fraud score (lower risk = higher score)
+            score += (100 - self.fraud_risk_score) * weights['fraud']
+            total_weight += weights['fraud']
+        
+        if self.interview_score is not None:
+            score += self.interview_score * weights['interview']
+            total_weight += weights['interview']
+        
+        if total_weight > 0:
+            self.overall_score = score / total_weight
+    
+    @property
+    def processing_time_days(self):
+        """Calculate processing time in days."""
+        if self.completed_at and self.created_at:
+            delta = self.completed_at - self.created_at
+            return delta.days
+        return None
+    
+    @property
+    def is_overdue(self):
+        """Check if case is overdue."""
+        if self.expected_completion_date and self.status not in ['approved', 'rejected']:
+            return timezone.now() > self.expected_completion_date
+        return False
+
+
+class Document(models.Model):
+    """
+    Uploaded document model.
+    
+    Stores documents with metadata and processing status.
+    Links to verification results and analysis.
+    
+    Academic Note:
+    --------------
+    Supports multiple document types commonly used in HR vetting.
+    Tracks processing pipeline stages for performance metrics.
+    """
+    
+    DOCUMENT_TYPE_CHOICES = [
+        ('id_card', 'National ID Card'),
+        ('passport', 'Passport'),
+        ('drivers_license', 'Driver\'s License'),
+        ('birth_certificate', 'Birth Certificate'),
+        ('degree', 'Educational Degree/Certificate'),
+        ('transcript', 'Academic Transcript'),
+        ('employment_letter', 'Employment Letter'),
+        ('reference_letter', 'Reference Letter'),
+        ('pay_slip', 'Pay Slip'),
+        ('bank_statement', 'Bank Statement'),
+        ('utility_bill', 'Utility Bill'),
+        ('other', 'Other'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('uploaded', 'Uploaded'),
+        ('queued', 'Queued for Processing'),
+        ('processing', 'Processing'),
+        ('verified', 'Verified'),
+        ('failed', 'Verification Failed'),
+        ('flagged', 'Flagged for Review'),
+    ]
+    
+    # Relationships
+    case = models.ForeignKey(
+        VettingCase,
+        on_delete=models.CASCADE,
+        related_name='documents'
+    )
+    
+    # Document information
+    document_type = models.CharField(
+        max_length=50,
+        choices=DOCUMENT_TYPE_CHOICES,
+        db_index=True
+    )
+    
+    file = models.FileField(
+        upload_to=document_upload_path,
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=['pdf', 'jpg', 'jpeg', 'png', 'tiff']
+            )
+        ]
+    )
+    
+    original_filename = models.CharField(max_length=255)
+    file_size = models.IntegerField(help_text="File size in bytes")
+    mime_type = models.CharField(max_length=100)
+    
+    # Processing status
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='uploaded',
+        db_index=True
+    )
+    
+    # Processing metadata
+    ocr_completed = models.BooleanField(default=False)
+    authenticity_check_completed = models.BooleanField(default=False)
+    fraud_check_completed = models.BooleanField(default=False)
+    
+    # Error tracking
+    processing_error = models.TextField(blank=True)
+    retry_count = models.IntegerField(default=0)
+    
+    # Extracted information (from OCR)
+    extracted_text = models.TextField(blank=True)
+    extracted_data = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Structured data extracted from document"
+    )
+    
+    # Timestamps
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['case', 'uploaded_at']
+        indexes = [
+            models.Index(fields=['case', 'document_type']),
+            models.Index(fields=['status']),
+            models.Index(fields=['-uploaded_at']),
+        ]
+        verbose_name = 'Document'
+        verbose_name_plural = 'Documents'
+    
+    def __str__(self):
+        return f"{self.get_document_type_display()} - {self.case.case_id}"
+    
+    def save(self, *args, **kwargs):
+        # Extract metadata on first save
+        if not self.pk and self.file:
+            self.file_size = self.file.size
+            self.original_filename = self.file.name
+        
+        super().save(*args, **kwargs)
+    
+    @property
+    def file_url(self):
+        """Get URL for file access."""
+        if self.file:
+            return self.file.url
+        return None
+
+
+class VerificationResult(models.Model):
+    """
+    AI verification results for a document.
+    
+    Stores detailed results from AI/ML analysis including:
+    - OCR text extraction
+    - Authenticity detection
+    - Fraud risk assessment
+    
+    Academic Note:
+    --------------
+    Central model for storing ML model predictions and confidence scores.
+    Used for model performance evaluation and result auditing.
+    """
+    
+    # Relationship
+    document = models.OneToOneField(
+        Document,
+        on_delete=models.CASCADE,
+        related_name='verification_result'
+    )
+    
+    # OCR Results
+    ocr_text = models.TextField(blank=True)
+    ocr_confidence = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    ocr_language = models.CharField(max_length=10, default='en')
+    
+    # Authenticity Detection (CNN model)
+    authenticity_score = models.FloatField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Likelihood document is authentic (0-100)"
+    )
+    authenticity_confidence = models.FloatField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    is_authentic = models.BooleanField()
+    
+    # Authenticity sub-checks
+    metadata_check_passed = models.BooleanField(default=False)
+    visual_check_passed = models.BooleanField(default=False)
+    tampering_detected = models.BooleanField(default=False)
+    
+    # Fraud Detection (ML classifier)
+    fraud_risk_score = models.FloatField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Probability of fraud (0-100)"
+    )
+    fraud_prediction = models.CharField(
+        max_length=20,
+        choices=[
+            ('legitimate', 'Legitimate'),
+            ('suspicious', 'Suspicious'),
+            ('fraudulent', 'Fraudulent'),
+        ]
+    )
+    
+    # Fraud indicators
+    fraud_indicators = models.JSONField(
+        default=list,
+        help_text="List of detected fraud indicators"
+    )
+    
+    # Detailed results (full model output)
+    detailed_results = models.JSONField(
+        default=dict,
+        help_text="Complete analysis results from AI models"
+    )
+    
+    # Model versions (for tracking)
+    ocr_model_version = models.CharField(max_length=50, blank=True)
+    authenticity_model_version = models.CharField(max_length=50, blank=True)
+    fraud_model_version = models.CharField(max_length=50, blank=True)
+    
+    # Timing
+    created_at = models.DateTimeField(auto_now_add=True)
+    processing_time_seconds = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Time taken for analysis"
+    )
+    
+    class Meta:
+        verbose_name = 'Verification Result'
+        verbose_name_plural = 'Verification Results'
+    
+    def __str__(self):
+        return f"Results: {self.document}"
+    
+    @property
+    def requires_review(self):
+        """Determine if results require manual review."""
+        return (
+            self.authenticity_score < 70 or
+            self.fraud_risk_score > 50 or
+            not self.is_authentic or
+            self.fraud_prediction in ['suspicious', 'fraudulent']
+        )
+
+
+class ConsistencyCheck(models.Model):
+    """
+    Cross-document consistency validation.
+    
+    Compares information across multiple documents to detect
+    inconsistencies (e.g., different names, dates, IDs).
+    
+    Academic Note:
+    --------------
+    Implements entity resolution and consistency checking algorithms.
+    Key for detecting forged documents with conflicting information.
+    """
+    
+    SEVERITY_CHOICES = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('critical', 'Critical'),
+    ]
+    
+    # Relationship
+    case = models.ForeignKey(
+        VettingCase,
+        on_delete=models.CASCADE,
+        related_name='consistency_checks'
+    )
+    
+    # Check details
+    field_name = models.CharField(
+        max_length=100,
+        help_text="Field being checked (e.g., 'name', 'date_of_birth')"
+    )
+    
+    documents_compared = models.ManyToManyField(
+        Document,
+        related_name='consistency_checks'
+    )
+    
+    # Results
+    is_consistent = models.BooleanField()
+    severity = models.CharField(
+        max_length=20,
+        choices=SEVERITY_CHOICES
+    )
+    
+    discrepancy_description = models.TextField()
+    conflicting_values = models.JSONField(
+        default=list,
+        help_text="List of conflicting values found"
+    )
+    
+    # Resolution
+    resolved = models.BooleanField(default=False)
+    resolution_notes = models.TextField(blank=True)
+    resolved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='resolved_checks'
+    )
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-severity', 'created_at']
+        indexes = [
+            models.Index(fields=['case', 'is_consistent']),
+            models.Index(fields=['severity']),
+        ]
+        verbose_name = 'Consistency Check'
+        verbose_name_plural = 'Consistency Checks'
+    
+    def __str__(self):
+        status = "Consistent" if self.is_consistent else "Inconsistent"
+        return f"{self.field_name} - {status}"
+
+
+class InterrogationFlag(models.Model):
+    """
+    Flags requiring clarification in interview.
+    
+    Generated from document analysis inconsistencies or suspicious findings.
+    Used to generate interview questions dynamically.
+    
+    Academic Note:
+    --------------
+    Bridge between document analysis and interview components.
+    Enables adaptive questioning based on detected issues.
+    """
+    
+    FLAG_TYPE_CHOICES = [
+        ('consistency_mismatch', 'Consistency Mismatch'),
+        ('missing_information', 'Missing Information'),
+        ('suspicious_document', 'Suspicious Document'),
+        ('timeline_conflict', 'Timeline Conflict'),
+        ('credential_issue', 'Credential Issue'),
+        ('employment_gap', 'Employment Gap'),
+        ('reference_discrepancy', 'Reference Discrepancy'),
+        ('authenticity_concern', 'Authenticity Concern'),
+        ('fraud_indicator', 'Fraud Indicator'),
+        ('other', 'Other'),
+    ]
+    
+    SEVERITY_CHOICES = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('critical', 'Critical'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('addressed', 'Addressed in Interview'),
+        ('resolved', 'Resolved'),
+        ('unresolved', 'Unresolved'),
+        ('dismissed', 'Dismissed'),
+    ]
+    
+    # Relationships
+    case = models.ForeignKey(
+        VettingCase,
+        on_delete=models.CASCADE,
+        related_name='interrogation_flags'
+    )
+    
+    related_documents = models.ManyToManyField(
+        Document,
+        related_name='flags',
+        blank=True
+    )
+    
+    related_consistency_check = models.ForeignKey(
+        ConsistencyCheck,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='generated_flags'
+    )
+    
+    # Flag details
+    flag_type = models.CharField(
+        max_length=50,
+        choices=FLAG_TYPE_CHOICES,
+        db_index=True
+    )
+    
+    severity = models.CharField(
+        max_length=20,
+        choices=SEVERITY_CHOICES,
+        db_index=True
+    )
+    
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending'
+    )
+    
+    # Context and description
+    title = models.CharField(max_length=200)
+    description = models.TextField(
+        help_text="Detailed description of the issue"
+    )
+    
+    data_point = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Specific data point causing the flag"
+    )
+    
+    evidence = models.JSONField(
+        default=dict,
+        help_text="Supporting evidence for the flag"
+    )
+    
+    # Interview integration
+    suggested_questions = models.JSONField(
+        default=list,
+        help_text="Suggested interview questions to address this flag"
+    )
+    
+    # Resolution
+    resolution_summary = models.TextField(blank=True)
+    resolution_confidence = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    
+    resolved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='resolved_flags'
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    addressed_at = models.DateTimeField(null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-severity', 'created_at']
+        indexes = [
+            models.Index(fields=['case', 'status']),
+            models.Index(fields=['severity', 'status']),
+            models.Index(fields=['flag_type']),
+        ]
+        verbose_name = 'Interrogation Flag'
+        verbose_name_plural = 'Interrogation Flags'
+    
+    def __str__(self):
+        return f"{self.get_flag_type_display()} - {self.case.case_id}"
+    
+    def mark_addressed(self):
+        """Mark flag as addressed in interview."""
+        self.status = 'addressed'
+        self.addressed_at = timezone.now()
+        self.save()
+    
+    def mark_resolved(self, summary, confidence):
+        """Mark flag as resolved."""
+        self.status = 'resolved'
+        self.resolved_at = timezone.now()
+        self.resolution_summary = summary
+        self.resolution_confidence = confidence
+        self.save()
+    
+    def mark_unresolved(self, summary):
+        """Mark flag as unresolved."""
+        self.status = 'unresolved'
+        self.resolution_summary = summary
+        self.save()
