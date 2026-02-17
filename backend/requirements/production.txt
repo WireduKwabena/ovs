@@ -1,0 +1,16 @@
+# ============================================================================
+# Production Requirements
+# Additional packages for production deployment
+# ============================================================================
+
+-r base.txt
+
+# Production Optimizations
+gevent==23.9.1
+psycogreen==1.0.2
+
+# Monitoring & Error Tracking
+sentry-sdk==1.38.0
+
+# Production Web Server
+gunicorn[gevent]==21.2.0
