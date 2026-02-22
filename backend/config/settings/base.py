@@ -12,7 +12,19 @@ Environment-specific settings in separate files.
 import os
 import importlib.util
 from pathlib import Path
-from decouple import config
+
+try:
+    from decouple import config
+except ModuleNotFoundError:  # pragma: no cover - optional in lightweight dev/test envs
+    def config(name, default=None, cast=None):
+        value = os.getenv(name, default)
+        if cast is None:
+            return value
+        if cast is bool:
+            if isinstance(value, bool):
+                return value
+            return str(value).strip().lower() in {"1", "true", "t", "yes", "y", "on"}
+        return cast(value)
 
 # Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -33,10 +45,18 @@ def _has_module(module_name: str) -> bool:
     return importlib.util.find_spec(module_name) is not None
 
 
+def _redis_db_url(redis_url: str, db_index: int) -> str:
+    """Swap Redis DB index while preserving host/auth query parts."""
+    if not isinstance(redis_url, str):
+        return redis_url
+    parts = redis_url.rsplit("/", 1)
+    if len(parts) == 2 and parts[1].isdigit():
+        return f"{parts[0]}/{db_index}"
+    return redis_url
+
+
 # Application definition
 INSTALLED_APPS = [
-    "daphne",
-    "channels",
     # Django apps
     "django.contrib.admin",
     "django.contrib.auth",
@@ -50,7 +70,17 @@ INSTALLED_APPS = [
     "apps.campaigns",
     "apps.candidates",
     "apps.invitations",
+    "apps.applications",
+    "apps.interviews",
+    "apps.rubrics",
+    "apps.notifications.apps.NotificationsConfig",
+    "ai_ml_services.apps.AiMlServicesConfig",
 ]
+
+if _has_module("daphne"):
+    INSTALLED_APPS.insert(0, "daphne")
+if _has_module("channels"):
+    INSTALLED_APPS.insert(1 if "daphne" in INSTALLED_APPS else 0, "channels")
 
 INSTALLED_APPS.append("rest_framework")
 if _has_module("rest_framework_simplejwt"):
@@ -63,12 +93,18 @@ if _has_module("django_celery_beat"):
     INSTALLED_APPS.append("django_celery_beat")
 if _has_module("django_celery_results"):
     INSTALLED_APPS.append("django_celery_results")
+if _has_module("drf_spectacular"):
+    INSTALLED_APPS.append("drf_spectacular")
+
+USE_REDIS = config("USE_REDIS", default=True, cast=bool)
 
 MIDDLEWARE = ["django.middleware.security.SecurityMiddleware"]
 if _has_module("whitenoise"):
     MIDDLEWARE.append("whitenoise.middleware.WhiteNoiseMiddleware")
 if _has_module("corsheaders"):
     MIDDLEWARE.append("corsheaders.middleware.CorsMiddleware")
+if _has_module("redis") and USE_REDIS:
+    MIDDLEWARE.append("ai_ml_services.middleware.rate_limit.DjangoRateLimitMiddleware")
 MIDDLEWARE += [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -106,12 +142,6 @@ try:
 except ImportError:  # pragma: no cover - optional in local/dev
     dj_database_url = None
 
-# DATABASES = {
-#     'default': dj_database_url.config(
-#         default=config('DATABASE_URL', default='sqlite:///db.sqlite3'),
-#         conn_max_age=600
-#     )
-# }
 
 # Custom User Model
 AUTH_USER_MODEL = 'authentication.User'
@@ -184,6 +214,18 @@ REST_FRAMEWORK = {
     ],
     'EXCEPTION_HANDLER': 'apps.core.exceptions.custom_exception_handler',
 }
+if _has_module("drf_spectacular"):
+    REST_FRAMEWORK["DEFAULT_SCHEMA_CLASS"] = "drf_spectacular.openapi.AutoSchema"
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "AI Vetting System API",
+    "DESCRIPTION": "API schema for campaign orchestration and vetting workflows.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "ENUM_NAME_OVERRIDES": {
+        "CommunicationChannelEnum": "apps.candidates.models.Candidate.CHANNEL_CHOICES",
+    },
+}
 
 # JWT Configuration
 from datetime import timedelta
@@ -211,6 +253,15 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
+CELERY_WORKER_SEND_TASK_EVENTS = config(
+    "CELERY_WORKER_SEND_TASK_EVENTS", default=True, cast=bool
+)
+CELERY_TASK_SEND_SENT_EVENT = config(
+    "CELERY_TASK_SEND_SENT_EVENT", default=True, cast=bool
+)
+CELERY_BEAT_MAX_LOOP_INTERVAL = config(
+    "CELERY_BEAT_MAX_LOOP_INTERVAL", default=60, cast=int
+)
 if _has_module("django_celery_beat"):
     CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 if _has_module("django_celery_results"):
@@ -218,6 +269,61 @@ if _has_module("django_celery_results"):
 
 # Redis Configuration
 REDIS_URL = config('REDIS_URL', default='redis://localhost:6379/0')
+CHANNELS_REDIS_URL = config('CHANNELS_REDIS_URL', default=REDIS_URL)
+if _has_module("channels_redis") and USE_REDIS:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [CHANNELS_REDIS_URL],
+            },
+        }
+    }
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        }
+    }
+AI_ML_RATE_LIMIT_PER_MINUTE = config('AI_ML_RATE_LIMIT_PER_MINUTE', default=120, cast=int)
+AI_ML_RATE_LIMIT_REDIS_URL = config('AI_ML_RATE_LIMIT_REDIS_URL', default=REDIS_URL)
+AI_ML_RATE_LIMIT_PATH_PREFIXES = tuple(
+    config('AI_ML_RATE_LIMIT_PATH_PREFIXES', default='/api/', cast=lambda v: [s.strip() for s in v.split(',') if s.strip()])
+)
+AI_ML_MONITOR_ENABLED = config("AI_ML_MONITOR_ENABLED", default=True, cast=bool)
+AI_ML_MONITOR_USE_REDIS = config(
+    "AI_ML_MONITOR_USE_REDIS", default=USE_REDIS, cast=bool
+)
+AI_ML_MONITOR_REDIS_URL = config(
+    "AI_ML_MONITOR_REDIS_URL", default=_redis_db_url(REDIS_URL, 2)
+)
+AI_ML_MONITOR_WINDOW_SIZE = config("AI_ML_MONITOR_WINDOW_SIZE", default=1000, cast=int)
+AI_ML_MONITOR_MIN_CONFIDENCE_THRESHOLD = config(
+    "AI_ML_MONITOR_MIN_CONFIDENCE_THRESHOLD", default=0.7, cast=float
+)
+AI_ML_MONITOR_MAX_PROCESSING_TIME = config(
+    "AI_ML_MONITOR_MAX_PROCESSING_TIME", default=5.0, cast=float
+)
+AI_ML_MONITOR_DRIFT_WINDOW_SIZE = config(
+    "AI_ML_MONITOR_DRIFT_WINDOW_SIZE", default=100, cast=int
+)
+AI_ML_MONITOR_DRIFT_THRESHOLD = config(
+    "AI_ML_MONITOR_DRIFT_THRESHOLD", default=0.1, cast=float
+)
+AI_ML_APPROVAL_THRESHOLD = config("AI_ML_APPROVAL_THRESHOLD", default=85.0, cast=float)
+AI_ML_MANUAL_REVIEW_THRESHOLD = config(
+    "AI_ML_MANUAL_REVIEW_THRESHOLD", default=70.0, cast=float
+)
+AI_ML_CONSISTENCY_WEIGHTS = {
+    "name": config("AI_ML_CONSISTENCY_WEIGHT_NAME", default=0.60, cast=float),
+    "date": config("AI_ML_CONSISTENCY_WEIGHT_DATE", default=0.40, cast=float),
+}
+AI_ML_CONSISTENCY_THRESHOLDS = {
+    "approve": config("AI_ML_CONSISTENCY_APPROVE_THRESHOLD", default=85.0, cast=float),
+    "manual_review": config(
+        "AI_ML_CONSISTENCY_MANUAL_REVIEW_THRESHOLD", default=70.0, cast=float
+    ),
+}
 
 # AWS S3 Configuration (Optional)
 USE_S3 = config('USE_S3', default=False, cast=bool)
@@ -299,6 +405,41 @@ LOGGING = {
 # AI/ML Model Paths
 MODEL_PATH = BASE_DIR / 'models'
 MODEL_PATH.mkdir(exist_ok=True)
+AI_ML_AUTHENTICITY_MODEL_PATH = config(
+    "AI_ML_AUTHENTICITY_MODEL_PATH",
+    default=str(MODEL_PATH / "authenticity_best.h5"),
+)
+AI_ML_AUTHENTICITY_TORCH_MODEL_PATH = config(
+    "AI_ML_AUTHENTICITY_TORCH_MODEL_PATH",
+    default=str(MODEL_PATH / "authenticity_detector.pth"),
+)
+AI_ML_FRAUD_MODEL_PATH = config(
+    "AI_ML_FRAUD_MODEL_PATH",
+    default=str(MODEL_PATH / "fraud_classifier.pkl"),
+)
+AI_ML_SIGNATURE_MODEL_PATH = config(
+    "AI_ML_SIGNATURE_MODEL_PATH",
+    default=str(MODEL_PATH / "signature_authenticity.pkl"),
+)
+AI_ML_POPPLER_PATH = config("AI_ML_POPPLER_PATH", default="")
+AI_ML_IDENTITY_MATCH_THRESHOLD = config(
+    "AI_ML_IDENTITY_MATCH_THRESHOLD",
+    default=0.72,
+    cast=float,
+)
+AI_ML_IDENTITY_EMBEDDING_BACKEND = config(
+    "AI_ML_IDENTITY_EMBEDDING_BACKEND",
+    default="auto",
+)
+AI_ML_IDENTITY_FACENET_WEIGHTS = config(
+    "AI_ML_IDENTITY_FACENET_WEIGHTS",
+    default="vggface2",
+)
+AI_ML_IDENTITY_VIDEO_SAMPLE_RATE = config(
+    "AI_ML_IDENTITY_VIDEO_SAMPLE_RATE",
+    default=8,
+    cast=int,
+)
 
 # Security Settings (will be overridden in production)
 SECURE_SSL_REDIRECT = False
@@ -321,35 +462,14 @@ VETTING_SETTINGS = {
     'REQUIRE_EMAIL_VERIFICATION': True,
 }
 
-# OAuth Settings
-GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')
-GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', default='')
-GOOGLE_CLIENT_ID_2 = config('GOOGLE_CLIENT_ID_2', default='')
-
-GITHUB_CLIENT_ID = config('GITHUB_CLIENT_ID', default='')
-GITHUB_CLIENT_SECRET = config('GITHUB_CLIENT_SECRET', default='')
-
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
+CANDIDATE_ACCESS_FRONTEND_PATH = config("CANDIDATE_ACCESS_FRONTEND_PATH", default="/candidate/access")
+CANDIDATE_ACCESS_PASS_TTL_HOURS = config("CANDIDATE_ACCESS_PASS_TTL_HOURS", default=72, cast=int)
+CANDIDATE_ACCESS_SESSION_TTL_HOURS = config("CANDIDATE_ACCESS_SESSION_TTL_HOURS", default=12, cast=int)
+CANDIDATE_ACCESS_MAX_USES = config("CANDIDATE_ACCESS_MAX_USES", default=50, cast=int)
 
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# -------------------------------------------------------------------
-# Database
-# -------------------------------------------------------------------
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('POSTGRES_DB', 'vetai_db'),
-        'USER': config('POSTGRES_USER', 'postgres'),
-        'PASSWORD': config('POSTGRES_PASSWORD', 'postgres'),
-        'HOST': config('POSTGRES_HOST', 'localhost'),
-        'PORT': config('POSTGRES_PORT', '5432'),
-        
-    }
-}
 
-# backend/config/settings/base.py
 
 # AI Interview Settings
 AI_INTERVIEW_SETTINGS = {
@@ -374,3 +494,8 @@ GOOGLE_APPLICATION_CREDENTIALS = config("GOOGLE_APPLICATION_CREDENTIALS", defaul
 HEYGEN_API_KEY = config("HEYGEN_API_KEY", default="")
 HEYGEN_AVATAR_ID = config('HEYGEN_AVATAR_ID', default='default_professional_avatar')
 HEYGEN_VOICE_ID = config('HEYGEN_VOICE_ID', default='40532bc2b15c49f2b0f4deee08ce674d')  # Professional male
+DJANGO_API_URL = config("DJANGO_API_URL", default="http://localhost:8000")
+SERVICE_TOKEN = config("SERVICE_TOKEN", default="")
+
+
+

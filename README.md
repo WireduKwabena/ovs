@@ -28,6 +28,35 @@ This project explores:
 3. Scalable microservices architecture
 4. Real-world application of NLP and Computer Vision
 
+### Integration Guide
+
+See `INTEGRATION_MAP.md` for the repo-specific ownership model showing how
+`campaigns` orchestrates `applications`, `rubrics`, and `interviews` without
+replacing their responsibilities.
+
+### Re-enabled Domain APIs
+
+The legacy domain apps are now wired back into runtime:
+
+- `GET/POST /api/applications/cases/`
+- `POST /api/applications/cases/{id}/upload-document/`
+- `GET /api/applications/cases/{id}/verification-status/`
+- `GET /api/applications/documents/`
+- `GET/POST /api/interviews/sessions/`
+- `POST /api/interviews/sessions/{id}/start/`
+- `POST /api/interviews/sessions/{id}/complete/`
+- `GET/POST /api/interviews/questions/`
+- `GET/POST /api/interviews/responses/`
+- `POST /api/interviews/responses/{id}/analyze/`
+- `GET/POST /api/interviews/feedback/`
+- `GET/POST /api/rubrics/vetting-rubrics/`
+- `POST /api/rubrics/vetting-rubrics/{id}/criteria/`
+- `POST /api/rubrics/vetting-rubrics/{id}/evaluate-case/`
+- `GET /api/rubrics/criteria/`
+- `GET /api/rubrics/evaluations/`
+- `POST /api/rubrics/evaluations/{id}/rerun/`
+- `POST /api/rubrics/evaluations/{id}/override-criterion/`
+
 ---
 
 ## 🎯 Key Features
@@ -143,11 +172,15 @@ The backend now includes a phase-1 orchestration layer for campaign-driven vetti
    cd backend
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install -r requirements/development.txt
+   pip install -r requirements/development.txt -c requirements/constraints.lock.txt
+
+   # Optional: refresh lock after dependency updates
+   # python -m pip freeze | sort > requirements/constraints.lock.txt
    
    # Create .env file
    cp .env.example .env
    # Edit .env with your database credentials
+   # For worker/beat/flower, ensure: CELERY_EAGER=false
    
    # Run migrations
    python manage.py migrate
@@ -164,16 +197,62 @@ The backend now includes a phase-1 orchestration layer for campaign-driven vetti
 
    ```bash
    cd backend
-   celery -A config worker -l info
+   celery -A config worker -l info -E
    ```
 
-5. **Start Django development server**
+5. **Start Celery Beat** (in separate terminal)
+
+   ```bash
+   cd backend
+   celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+   ```
+
+6. **Start Flower** (optional monitoring UI)
+
+   ```bash
+   cd backend
+   celery -A config flower --port=5555
+   ```
+
+7. **Start Django development server**
 
    ```bash
    python manage.py runserver
    ```
 
-6. **Setup frontend** (in separate terminal)
+### Realtime (WebSocket) Setup
+
+For interview realtime communication, keep Redis enabled and run an ASGI server.
+
+1. **Set env vars in `backend/.env`**
+
+   ```env
+   USE_REDIS=true
+   REDIS_URL=redis://localhost:6379/0
+   CHANNELS_REDIS_URL=redis://localhost:6379/0
+   ```
+
+2. **Start Redis** (if not already running)
+
+   ```bash
+   redis-server
+   ```
+
+3. **Run ASGI app with Daphne** (recommended)
+
+   ```bash
+   cd backend
+   daphne -b 0.0.0.0 -p 8000 config.asgi:application
+   ```
+
+4. **Connect from frontend/client**
+
+   - `ws://localhost:8000/ws/interview/{session_id}/`
+   - `ws://localhost:8000/ws/interviews/{session_id}/`
+
+`python manage.py runserver` can work for basic local tests, but Daphne is recommended for stable websocket behavior.
+
+8. **Setup frontend** (in separate terminal)
 
    ```bash
    cd frontend
@@ -181,10 +260,11 @@ The backend now includes a phase-1 orchestration layer for campaign-driven vetti
    npm run dev
    ```
 
-7. **Access the application**
+9. **Access the application**
    - Frontend: <http://localhost:3000>
    - Backend API: <http://localhost:8000/api/>
    - Django Admin: <http://localhost:8000/admin/>
+   - Flower: <http://localhost:5555>
 
 ---
 
@@ -217,6 +297,22 @@ Architecture: ResNet-based CNN
 Training data: ~10,000 authentic + synthetic forgeries
 ```
 
+Raw authenticity datasets can also be used directly from
+`backend/ai_ml_services/datasets/raw_dataset/` by building a normalized
+`metadata.csv` first:
+
+```bash
+cd backend
+python ai_ml_services/datasets/create_dataset.py \
+  --output_dir ai_ml_services/datasets/processed/main \
+  --authentic_sources ai_ml_services/datasets/raw_dataset/CASIA2/Au \
+  --forged_sources ai_ml_services/datasets/raw_dataset/CASIA2/Tp \
+  --auto_labeled_sources ai_ml_services/datasets/raw_dataset/Dataset ai_ml_services/datasets/raw_dataset/ImSpliceDataset \
+  --num_forgeries 2000
+
+python manage.py train_ai_models --metadata-file ai_ml_services/datasets/processed/main/metadata.csv
+```
+
 ### 2. Fraud Detection
 
 ```python
@@ -227,7 +323,16 @@ Algorithm: Random Forest / XGBoost
 Features: 50+ engineered features
 ```
 
-### 3. Video Interview Analysis
+### 3. Signature Authenticity
+
+```python
+# Dedicated signature verification model (CEDAR/GPDS-ready)
+Input: Cropped signature image
+Output: Genuine vs forged probability (0-100)
+Algorithm: Handcrafted signature features + RandomForest
+```
+
+### 4. Video Interview Analysis
 
 ```python
 # Multi-modal analysis pipeline
@@ -247,6 +352,9 @@ Features: 50+ engineered features
 # Backend tests
 cd backend
 python manage.py test
+
+# Focused orchestration + domain integration suites
+python manage.py test apps.campaigns apps.candidates apps.invitations apps.applications apps.interviews apps.rubrics
 
 # With coverage
 coverage run --source='.' manage.py test
@@ -326,6 +434,9 @@ docker-compose exec backend python manage.py migrate
 # Create superuser
 docker-compose exec backend python manage.py createsuperuser
 ```
+
+Docker Compose now runs `backend`, `celery_worker`, `celery_beat`, and `flower`.
+Flower UI is available at `http://localhost:5555`.
 
 ### Manual Deployment
 

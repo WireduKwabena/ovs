@@ -5,11 +5,7 @@ try:
     from rest_framework_simplejwt.views import TokenRefreshView
 except Exception:
     TokenRefreshView = None
-from apps.authentication.views import views
-try:
-    from apps.authentication.views import oauth_views
-except Exception:
-    oauth_views = None
+from apps.authentication import views
 
 app_name = 'authentication'
 
@@ -38,10 +34,4 @@ urlpatterns = [
 if TokenRefreshView:
     urlpatterns += [
         path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
-    ]
-
-if oauth_views:
-    urlpatterns += [
-        path("google/login/", oauth_views.GoogleLoginView.as_view(), name="google-login"),
-        path("github/login/", oauth_views.GitHubLoginView.as_view(), name="github-login"),
     ]

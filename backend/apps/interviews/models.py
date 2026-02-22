@@ -636,3 +636,11 @@ class InterviewFeedback(models.Model):
     
     def __str__(self):
         return f"Feedback: {self.session.session_id} by {self.reviewer}"
+
+
+# Legacy aliases kept for backward compatibility with older interview modules.
+DynamicInterviewSession = InterviewSession
+InterviewExchange = InterviewResponse
+NonVerbalAnalysis = VideoAnalysis
+
+

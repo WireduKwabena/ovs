@@ -18,7 +18,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
-    """Serializer for user registration"""
+    """Serializer for firm registration"""
     password = serializers.CharField(
         write_only=True, 
         required=True, 
@@ -30,7 +30,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'email', 'password', 'password_confirm', 
-            'first_name', 'last_name', 'phone_number'
+            'first_name', 'last_name', 'phone_number', 'organization', 'department'
         ]
     
     def validate(self, attrs):
@@ -42,6 +42,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         validated_data.pop('password_confirm')
+        validated_data.setdefault("user_type", "hr_manager")
         user = User.objects.create_user(**validated_data)
         return user
 
@@ -130,3 +131,54 @@ class AdminLoginSerializer(serializers.Serializer):
 class TwoFactorVerificationSerializer(serializers.Serializer):
     token = serializers.CharField(required=True)
     otp = serializers.CharField(required=True)
+
+
+class TwoFactorEnableRequestSerializer(serializers.Serializer):
+    otp = serializers.CharField(required=True)
+
+
+class LogoutRequestSerializer(serializers.Serializer):
+    refresh = serializers.CharField(required=True)
+
+
+class TokenPairSerializer(serializers.Serializer):
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+
+
+class UserAuthResponseSerializer(serializers.Serializer):
+    user = UserSerializer()
+    tokens = TokenPairSerializer()
+
+
+class AdminAuthResponseSerializer(serializers.Serializer):
+    user = AdminUserSerializer()
+    tokens = TokenPairSerializer()
+
+
+class RegisterResponseSerializer(serializers.Serializer):
+    user = UserSerializer()
+    tokens = TokenPairSerializer()
+    message = serializers.CharField()
+
+
+class TwoFactorChallengeSerializer(serializers.Serializer):
+    message = serializers.CharField()
+    token = serializers.CharField()
+
+
+class MessageResponseSerializer(serializers.Serializer):
+    message = serializers.CharField()
+
+
+class ErrorResponseSerializer(serializers.Serializer):
+    error = serializers.CharField()
+
+
+class TwoFactorSetupResponseSerializer(serializers.Serializer):
+    provisioning_uri = serializers.CharField()
+
+
+class ProfileResponseSerializer(serializers.Serializer):
+    user = serializers.DictField()
+    user_type = serializers.ChoiceField(choices=["admin", "hr_manager", "applicant"])

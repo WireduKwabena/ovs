@@ -1,143 +1,166 @@
-# backend/apps/interviews/context_extractor.py
+from __future__ import annotations
+
+from typing import Any
+
 
 class ApplicantContextExtractor:
-    """Extract relevant context from documents for interview"""
+    """Extract interview context from a vetting case and its documents."""
 
-    @staticmethod
-    def extract_from_application(application):
-        """Build comprehensive applicant context"""
+    SKILL_KEYWORDS = (
+        "python",
+        "javascript",
+        "java",
+        "management",
+        "leadership",
+        "communication",
+        "analysis",
+        "project management",
+        "sql",
+        "excel",
+        "research",
+        "design",
+        "marketing",
+    )
 
-        context = {
-            'basic_info': ApplicantContextExtractor._extract_basic_info(application),
-            'education': ApplicantContextExtractor._extract_education(application),
-            'experience': ApplicantContextExtractor._extract_experience(application),
-            'skills': ApplicantContextExtractor._extract_skills(application),
-            'documents_submitted': ApplicantContextExtractor._list_documents(application),
-            'inconsistencies_from_docs': ApplicantContextExtractor._find_doc_inconsistencies(application)
-        }
-
-        return context
-
-    @staticmethod
-    def _extract_basic_info(application):
-        """Extract basic applicant information"""
+    @classmethod
+    def extract_from_case(cls, case) -> dict[str, Any]:
         return {
-            'name': application.applicant.full_name,
-            'email': application.applicant.email,
-            'phone': application.applicant.phone_number,
-            'dob': str(application.applicant.date_of_birth) if hasattr(application.applicant,
-                                                                       'date_of_birth') else None,
-            'application_type': application.application_type
+            "basic_info": cls._extract_basic_info(case),
+            "education": cls._extract_education(case),
+            "experience": cls._extract_experience(case),
+            "skills": cls._extract_skills(case),
+            "documents_submitted": cls._list_documents(case),
+            "inconsistencies_from_docs": cls._find_doc_inconsistencies(case),
+        }
+
+    @classmethod
+    def extract_from_application(cls, application) -> dict[str, Any]:
+        # Backward-compatible alias for old callers.
+        return cls.extract_from_case(application)
+
+    @staticmethod
+    def _extract_basic_info(case) -> dict[str, Any]:
+        applicant = case.applicant
+        return {
+            "name": applicant.get_full_name(),
+            "email": applicant.email,
+            "phone": applicant.phone_number,
+            "position_applied": case.position_applied,
+            "department": case.department,
+            "case_id": case.case_id,
         }
 
     @staticmethod
-    def _extract_education(application):
-        """Extract education information from documents"""
-        education = []
+    def _verification_data(document) -> dict[str, Any]:
+        verification = getattr(document, "verification_result", None)
+        if not verification:
+            return {}
+        return {
+            "ocr_text": verification.ocr_text,
+            "authenticity_score": verification.authenticity_score,
+            "fraud_risk_score": verification.fraud_risk_score,
+            "detailed_results": verification.detailed_results or {},
+        }
 
-        cert_docs = application.documents.filter(
-            document_type__in=['certificate', 'diploma', 'transcript']
-        )
+    @classmethod
+    def _extract_education(cls, case) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        for document in case.documents.filter(document_type__in=["degree", "transcript"]).order_by("uploaded_at"):
+            rows.append(
+                {
+                    "document_type": document.document_type,
+                    "extracted_data": document.extracted_data or {},
+                    "verification": cls._verification_data(document),
+                }
+            )
+        return rows
 
-        for doc in cert_docs:
-            verification = doc.verification_results.first()
-            if verification and verification.details:
-                education.append({
-                    'document': doc.document_type,
-                    'data': verification.details
-                })
+    @classmethod
+    def _extract_experience(cls, case) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        for document in case.documents.filter(
+            document_type__in=["employment_letter", "reference_letter", "other"]
+        ).order_by("uploaded_at"):
+            verification = getattr(document, "verification_result", None)
+            rows.append(
+                {
+                    "document_type": document.document_type,
+                    "text_extract": (verification.ocr_text[:500] if verification and verification.ocr_text else ""),
+                    "extracted_data": document.extracted_data or {},
+                    "verification": cls._verification_data(document),
+                }
+            )
+        return rows
 
-        return education
+    @classmethod
+    def _extract_skills(cls, case) -> list[str]:
+        text_parts: list[str] = []
+        for document in case.documents.all():
+            if document.extracted_text:
+                text_parts.append(document.extracted_text)
+            verification = getattr(document, "verification_result", None)
+            if verification and verification.ocr_text:
+                text_parts.append(verification.ocr_text)
 
-    @staticmethod
-    def _extract_experience(application):
-        """Extract work experience from documents"""
-        experience = []
+        corpus = " ".join(text_parts).lower()
+        return [keyword for keyword in cls.SKILL_KEYWORDS if keyword in corpus]
 
-        work_docs = application.documents.filter(
-            document_type__in=['employment_letter', 'reference_letter', 'resume']
-        )
+    @classmethod
+    def _list_documents(cls, case) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        for document in case.documents.all().order_by("uploaded_at"):
+            verification = getattr(document, "verification_result", None)
+            rows.append(
+                {
+                    "type": document.document_type,
+                    "status": document.status,
+                    "authenticity_score": (
+                        verification.authenticity_score if verification else None
+                    ),
+                    "fraud_risk_score": (
+                        verification.fraud_risk_score if verification else None
+                    ),
+                }
+            )
+        return rows
 
-        for doc in work_docs:
-            verification = doc.verification_results.first()
-            if verification:
-                experience.append({
-                    'document': doc.document_type,
-                    'text_extract': verification.ocr_text[:500],  # First 500 chars
-                    'data': verification.details
-                })
+    @classmethod
+    def _extract_name_candidates(cls, document) -> list[str]:
+        values: list[str] = []
+        data_sources = [document.extracted_data or {}]
+        verification = getattr(document, "verification_result", None)
+        if verification and isinstance(verification.detailed_results, dict):
+            data_sources.append(verification.detailed_results)
 
-        return experience
+        for source in data_sources:
+            for key in ("name", "full_name", "candidate_name", "applicant_name", "recipient_name"):
+                value = source.get(key)
+                if isinstance(value, str) and value.strip():
+                    values.append(value.strip())
 
-    @staticmethod
-    def _extract_skills(application):
-        """Extract mentioned skills from all documents"""
-        import re
+        seen = set()
+        normalized: list[str] = []
+        for value in values:
+            key = value.lower()
+            if key not in seen:
+                seen.add(key)
+                normalized.append(value)
+        return normalized
 
-        all_text = ''
-        for doc in application.documents.all():
-            verification = doc.verification_results.first()
-            if verification:
-                all_text += verification.ocr_text + ' '
+    @classmethod
+    def _find_doc_inconsistencies(cls, case) -> list[dict[str, Any]]:
+        inconsistencies: list[dict[str, Any]] = []
 
-        # Common skill keywords
-        skill_keywords = [
-            'python', 'javascript', 'java', 'management', 'leadership',
-            'communication', 'analysis', 'project management', 'sql',
-            'excel', 'powerpoint', 'research', 'design', 'marketing'
-        ]
-
-        found_skills = []
-        text_lower = all_text.lower()
-
-        for skill in skill_keywords:
-            if skill in text_lower:
-                found_skills.append(skill)
-
-        return found_skills
-
-    @staticmethod
-    def _list_documents(application):
-        """List all submitted documents"""
-        return [
-            {
-                'type': doc.document_type,
-                'authenticity_score': doc.verification_results.first().authenticity_score if doc.verification_results.exists() else None
-            }
-            for doc in application.documents.all()
-        ]
-
-    @staticmethod
-    def _find_doc_inconsistencies(application):
-        """Find inconsistencies across documents"""
-        inconsistencies = []
-
-        # Check for name variations
-        names_found = set()
-        for doc in application.documents.all():
-            verification = doc.verification_results.first()
-            if verification and verification.details:
-                name = verification.details.get('name') or verification.details.get('recipient_name')
-                if name:
-                    names_found.add(name.lower().strip())
-
-        if len(names_found) > 1:
-            inconsistencies.append({
-                'type': 'name_variation',
-                'details': f"Different names found: {', '.join(names_found)}"
-            })
-
-        # Check for date inconsistencies
-        dates_found = []
-        for doc in application.documents.all():
-            verification = doc.verification_results.first()
-            if verification and verification.details:
-                if 'date_issued' in verification.details:
-                    dates_found.append({
-                        'document': doc.document_type,
-                        'date': verification.details['date_issued']
-                    })
-
-        # Add more consistency checks as needed
+        names = set()
+        for document in case.documents.all():
+            for candidate in cls._extract_name_candidates(document):
+                names.add(candidate.lower())
+        if len(names) > 1:
+            inconsistencies.append(
+                {
+                    "type": "name_variation",
+                    "details": f"Different names found across documents: {', '.join(sorted(names))}",
+                }
+            )
 
         return inconsistencies

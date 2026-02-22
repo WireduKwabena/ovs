@@ -1,12 +1,13 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from .views import VettingRubricViewSet,  RubricEvaluationViewSet # , RubricCriteriaViewSet, CriteriaOverrideViewSet
+from .views import RubricCriteriaViewSet, RubricEvaluationViewSet, VettingRubricViewSet
+
 router = DefaultRouter()
-router.register(r'vetting-rubrics', VettingRubricViewSet, basename='vettingrubric')
-# router.register(r'criteria', RubricCriteriaViewSet, basename='rubriccriteria')
-router.register(r'evaluations', RubricEvaluationViewSet, basename='rubricevaluation')
-# router.register(r'overrides', CriteriaOverrideViewSet, basename='criteriaoverride')
+router.register(r"vetting-rubrics", VettingRubricViewSet, basename="vetting-rubric")
+router.register(r"criteria", RubricCriteriaViewSet, basename="rubric-criteria")
+router.register(r"evaluations", RubricEvaluationViewSet, basename="rubric-evaluation")
+
 urlpatterns = [
-    path('', include(router.urls)),
+    path("", include(router.urls)),
 ]

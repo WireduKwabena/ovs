@@ -1,250 +1,179 @@
-# backend/apps/interviews/analytics_service.py
-from django.db.models import Avg, Count, Q, F, Sum
-from datetime import datetime, timedelta
-from apps.interviews.models import (
-    DynamicInterviewSession, 
-    InterviewExchange,
-    InterrogationFlag,
-    NonVerbalAnalysis
-)
+"""Analytics services aligned with current interview/applications models."""
+
+from __future__ import annotations
+
+from datetime import timedelta
+from typing import Dict, List
+
+from django.db.models import Avg, Count, Q, Sum
+from django.db.models.functions import TruncDate
+from django.utils import timezone
+
+from apps.applications.models import InterrogationFlag
+from apps.interviews.models import InterviewResponse, InterviewSession, VideoAnalysis
+
 
 class InterviewAnalytics:
-    """Comprehensive analytics for AI interviews"""
-    
+    """Aggregate analytics for interviews and related case flags."""
+
     @staticmethod
-    def get_dashboard_metrics(days=30):
-        """Get high-level dashboard metrics"""
-        
-        start_date = datetime.now() - timedelta(days=days)
-        
-        sessions = DynamicInterviewSession.objects.filter(
-            created_at__gte=start_date
-        )
-        
-        # Core metrics
+    def _window_start(days: int) -> timezone.datetime:
+        return timezone.now() - timedelta(days=max(1, int(days)))
+
+    @classmethod
+    def get_dashboard_metrics(cls, days: int = 30) -> Dict:
+        start_date = cls._window_start(days)
+        sessions = InterviewSession.objects.filter(created_at__gte=start_date)
+        responses = InterviewResponse.objects.filter(session__created_at__gte=start_date)
+        analyses = VideoAnalysis.objects.filter(response__session__created_at__gte=start_date)
+        flags = InterrogationFlag.objects.filter(
+            case__interview_sessions__created_at__gte=start_date
+        ).distinct()
+
         total_interviews = sessions.count()
-        completed_interviews = sessions.filter(status='completed').count()
-        completion_rate = (completed_interviews / total_interviews * 100) if total_interviews > 0 else 0
-        
-        # Average metrics
-        avg_duration = sessions.filter(
-            status='completed'
-        ).aggregate(
-            avg_duration=Avg('duration_seconds')
-        )['avg_duration'] or 0
-        
-        avg_questions = sessions.filter(
-            status='completed'
-        ).aggregate(
-            avg_questions=Avg('current_question_number')
-        )['avg_questions'] or 0
-        
-        # Scoring metrics
-        avg_overall_score = sessions.filter(
-            overall_score__isnull=False
-        ).aggregate(
-            avg_score=Avg('overall_score')
-        )['avg_score'] or 0
-        
-        avg_deception = NonVerbalAnalysis.objects.filter(
-            exchange__session__created_at__gte=start_date
-        ).aggregate(
-            avg_deception=Avg('deception_score')
-        )['avg_deception'] or 0
-        
-        # Flag resolution
-        total_flags = InterrogationFlag.objects.filter(
-            session__created_at__gte=start_date
-        ).count()
-        
-        resolved_flags = InterrogationFlag.objects.filter(
-            session__created_at__gte=start_date,
-            status='resolved'
-        ).count()
-        
-        flag_resolution_rate = (resolved_flags / total_flags * 100) if total_flags > 0 else 0
-        
-        # Cost calculation
-        total_minutes = sessions.aggregate(
-            total_minutes=Sum(F('duration_seconds') / 60)
-        )['total_minutes'] or 0
-        
-        estimated_cost = total_minutes * 0.50  # $0.50 per minute HeyGen
-        
-        return {
-            'overview': {
-                'total_interviews': total_interviews,
-                'completed_interviews': completed_interviews,
-                'completion_rate': round(completion_rate, 1),
-                'in_progress': sessions.filter(status='in_progress').count(),
-                'abandoned': sessions.filter(status='abandoned').count()
-            },
-            'performance': {
-                'avg_duration_minutes': round(avg_duration / 60, 1),
-                'avg_questions_asked': round(avg_questions, 1),
-                'avg_overall_score': round(avg_overall_score, 1),
-                'avg_deception_score': round(avg_deception, 1)
-            },
-            'flags': {
-                'total_flags': total_flags,
-                'resolved_flags': resolved_flags,
-                'resolution_rate': round(flag_resolution_rate, 1),
-                'critical_flags': InterrogationFlag.objects.filter(
-                    session__created_at__gte=start_date,
-                    severity='critical'
-                ).count()
-            },
-            'cost': {
-                'total_minutes': round(total_minutes, 1),
-                'estimated_cost': round(estimated_cost, 2),
-                'cost_per_interview': round(estimated_cost / total_interviews, 2) if total_interviews > 0 else 0
-            }
-        }
-    
-    @staticmethod
-    def get_trend_data(days=30):
-        """Get time-series data for charts"""
-        
-        start_date = datetime.now() - timedelta(days=days)
-        
-        # Daily interview counts
-        daily_interviews = DynamicInterviewSession.objects.filter(
-            created_at__gte=start_date
-        ).extra(
-            select={'day': 'DATE(created_at)'}
-        ).values('day').annotate(
-            count=Count('id'),
-            completed=Count('id', filter=Q(status='completed')),
-            avg_score=Avg('overall_score')
-        ).order_by('day')
-        
-        # Format for chart
-        trend_data = {
-            'dates': [item['day'].strftime('%Y-%m-%d') for item in daily_interviews],
-            'interviews': [item['count'] for item in daily_interviews],
-            'completed': [item['completed'] for item in daily_interviews],
-            'avg_scores': [round(item['avg_score'], 1) if item['avg_score'] else 0 for item in daily_interviews]
-        }
-        
-        return trend_data
-    
-    @staticmethod
-    def get_flag_breakdown():
-        """Get breakdown of interrogation flags"""
-        
-        flags_by_type = InterrogationFlag.objects.values(
-            'flag_type'
-        ).annotate(
-            count=Count('id'),
-            resolved=Count('id', filter=Q(status='resolved')),
-            critical=Count('id', filter=Q(severity='critical'))
-        ).order_by('-count')
-        
-        return list(flags_by_type)
-    
-    @staticmethod
-    def get_deception_analysis():
-        """Analyze deception patterns"""
-        
-        # Deception score distribution
-        deception_ranges = {
-            'low': NonVerbalAnalysis.objects.filter(deception_score__lt=30).count(),
-            'medium': NonVerbalAnalysis.objects.filter(
-                deception_score__gte=30,
-                deception_score__lt=70
-            ).count(),
-            'high': NonVerbalAnalysis.objects.filter(deception_score__gte=70).count()
-        }
-        
-        # Common behavioral red flags
-        red_flags = NonVerbalAnalysis.objects.exclude(
-            behavioral_red_flags=[]
-        ).values_list('behavioral_red_flags', flat=True)
-        
-        from collections import Counter
-        flag_counter = Counter()
-        for flags_list in red_flags:
-            flag_counter.update(flags_list)
-        
-        return {
-            'distribution': deception_ranges,
-            'common_red_flags': dict(flag_counter.most_common(10))
-        }
-    
-    @staticmethod
-    def get_interview_quality_metrics():
-        """Get quality metrics for interviews"""
-        
-        exchanges = InterviewExchange.objects.filter(
-            response_quality_score__isnull=False
+        completed_sessions = sessions.filter(status="completed")
+        completed_interviews = completed_sessions.count()
+
+        completion_rate = (
+            (completed_interviews / total_interviews) * 100 if total_interviews else 0.0
         )
-        
+        avg_duration_seconds = (
+            completed_sessions.aggregate(v=Avg("duration_seconds")).get("v") or 0.0
+        )
+        total_duration_seconds = sessions.aggregate(v=Sum("duration_seconds")).get("v") or 0.0
+
+        avg_questions = completed_sessions.aggregate(v=Avg("total_questions_asked")).get("v") or 0.0
+        avg_overall = sessions.aggregate(v=Avg("overall_score")).get("v") or 0.0
+        avg_response_quality = responses.aggregate(v=Avg("response_quality_score")).get("v") or 0.0
+        avg_eye_contact = analyses.aggregate(v=Avg("eye_contact_percentage")).get("v") or 0.0
+        avg_stress = analyses.aggregate(v=Avg("stress_level")).get("v") or 0.0
+
+        resolved_flags = flags.filter(status="resolved").count()
+        total_flags = flags.count()
+        unresolved_flags = flags.exclude(status__in=["resolved", "dismissed"]).count()
+        flag_resolution_rate = ((resolved_flags / total_flags) * 100) if total_flags else 0.0
+
+        estimated_cost = (total_duration_seconds / 60.0) * 0.50
+
         return {
-            'avg_response_quality': round(
-                exchanges.aggregate(Avg('response_quality_score'))['response_quality_score__avg'] or 0,
-                1
-            ),
-            'avg_relevance': round(
-                exchanges.aggregate(Avg('relevance_score'))['relevance_score__avg'] or 0,
-                1
-            ),
-            'avg_confidence': round(
-                exchanges.aggregate(Avg('confidence_level'))['confidence_level__avg'] or 0,
-                1
-            )
+            "window_days": int(days),
+            "overview": {
+                "total_interviews": total_interviews,
+                "completed_interviews": completed_interviews,
+                "completion_rate": round(completion_rate, 2),
+                "in_progress": sessions.filter(status="in_progress").count(),
+                "failed": sessions.filter(status="failed").count(),
+                "cancelled": sessions.filter(status="cancelled").count(),
+            },
+            "performance": {
+                "avg_duration_minutes": round(avg_duration_seconds / 60.0, 2),
+                "avg_questions_asked": round(avg_questions, 2),
+                "avg_overall_score": round(avg_overall, 2),
+                "avg_response_quality": round(avg_response_quality, 2),
+                "avg_eye_contact_percentage": round(avg_eye_contact, 2),
+                "avg_stress_level": round(avg_stress, 2),
+            },
+            "flags": {
+                "total_flags": total_flags,
+                "resolved_flags": resolved_flags,
+                "unresolved_flags": unresolved_flags,
+                "resolution_rate": round(flag_resolution_rate, 2),
+                "critical_flags": flags.filter(severity="critical").count(),
+            },
+            "cost": {
+                "total_minutes": round(total_duration_seconds / 60.0, 2),
+                "estimated_cost": round(estimated_cost, 2),
+                "cost_per_interview": round(
+                    estimated_cost / total_interviews, 2
+                )
+                if total_interviews
+                else 0.0,
+            },
         }
 
+    @classmethod
+    def get_trend_data(cls, days: int = 30) -> Dict:
+        start_date = cls._window_start(days)
+        rows = (
+            InterviewSession.objects.filter(created_at__gte=start_date)
+            .annotate(day=TruncDate("created_at"))
+            .values("day")
+            .annotate(
+                interviews=Count("id"),
+                completed=Count("id", filter=Q(status="completed")),
+                avg_score=Avg("overall_score"),
+            )
+            .order_by("day")
+        )
 
-# API endpoint for dashboard
-from fastapi import APIRouter
-from fastapi.responses import JSONResponse
+        return {
+            "dates": [row["day"].isoformat() for row in rows],
+            "interviews": [int(row["interviews"]) for row in rows],
+            "completed": [int(row["completed"]) for row in rows],
+            "avg_scores": [round(float(row["avg_score"] or 0.0), 2) for row in rows],
+        }
 
-analytics_router = APIRouter(prefix="/api/analytics", tags=["analytics"])
+    @classmethod
+    def get_flag_breakdown(cls, days: int = 30) -> List[Dict]:
+        start_date = cls._window_start(days)
+        rows = (
+            InterrogationFlag.objects.filter(
+                case__interview_sessions__created_at__gte=start_date
+            )
+            .values("flag_type")
+            .annotate(
+                count=Count("id", distinct=True),
+                resolved=Count("id", filter=Q(status="resolved"), distinct=True),
+                critical=Count("id", filter=Q(severity="critical"), distinct=True),
+            )
+            .order_by("-count")
+        )
+        return list(rows)
 
-@analytics_router.get("/dashboard")
-async def get_analytics_dashboard(days: int = 30):
-    """Get comprehensive analytics dashboard data"""
+    @classmethod
+    def get_behavioral_analysis(cls, days: int = 30) -> Dict:
+        start_date = cls._window_start(days)
+        analyses = VideoAnalysis.objects.filter(response__session__created_at__gte=start_date)
 
-    return JSONResponse({
-        'metrics': InterviewAnalytics.get_dashboard_metrics(days),
-        'trends': InterviewAnalytics.get_trend_data(days),
-        'flags': InterviewAnalytics.get_flag_breakdown(),
-        'deception': InterviewAnalytics.get_deception_analysis(),
-        'quality': InterviewAnalytics.get_interview_quality_metrics()
-    })
+        low_stress = analyses.filter(stress_level__lt=30).count()
+        medium_stress = analyses.filter(stress_level__gte=30, stress_level__lt=70).count()
+        high_stress = analyses.filter(stress_level__gte=70).count()
+        fidget_count = analyses.filter(fidgeting_detected=True).count()
+        total = analyses.count()
 
-@analytics_router.get("/interview/{session_id}")
-async def get_interview_details(session_id: str):
-    """Get detailed analytics for specific interview"""
+        return {
+            "stress_distribution": {
+                "low": low_stress,
+                "medium": medium_stress,
+                "high": high_stress,
+            },
+            "fidgeting_rate": round((fidget_count / total) * 100, 2) if total else 0.0,
+            "average_confidence_level": round(
+                float(analyses.aggregate(v=Avg("confidence_level")).get("v") or 0.0), 2
+            ),
+        }
 
-    session = DynamicInterviewSession.objects.get(session_id=session_id)
-    exchanges = session.exchanges.all()
+    @classmethod
+    def get_interview_quality_metrics(cls, days: int = 30) -> Dict:
+        start_date = cls._window_start(days)
+        responses = InterviewResponse.objects.filter(session__created_at__gte=start_date)
 
-    return JSONResponse({
-        'session': {
-            'id': session.session_id,
-            'status': session.status,
-            'duration': session.duration_seconds,
-            'overall_score': session.overall_score,
-            'questions_asked': session.current_question_number
-        },
-        'exchanges': [
-            {
-                'question': ex.question_text,
-                'transcript': ex.transcript,
-                'quality_score': ex.response_quality_score,
-                'deception_score': ex.nonverbal_analysis.deception_score if hasattr(ex, 'nonverbal_analysis') else None,
-                'sentiment': ex.sentiment
-            }
-            for ex in exchanges
-        ],
-        'flags': [
-            {
-                'type': flag.flag_type,
-                'severity': flag.severity,
-                'context': flag.context,
-                'status': flag.status
-            }
-            for flag in session.interrogation_flags.all()
-        ]
-    })
+        return {
+            "avg_response_quality": round(
+                float(responses.aggregate(v=Avg("response_quality_score")).get("v") or 0.0),
+                2,
+            ),
+            "avg_relevance": round(
+                float(responses.aggregate(v=Avg("relevance_score")).get("v") or 0.0),
+                2,
+            ),
+            "avg_completeness": round(
+                float(responses.aggregate(v=Avg("completeness_score")).get("v") or 0.0),
+                2,
+            ),
+            "avg_coherence": round(
+                float(responses.aggregate(v=Avg("coherence_score")).get("v") or 0.0),
+                2,
+            ),
+        }
+

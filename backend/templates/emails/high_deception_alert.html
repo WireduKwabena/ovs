@@ -1,0 +1,63 @@
+{% comment %} # backend/templates/emails/high_deception_alert.html {% endcomment %}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #EF4444; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+        .content { background: #f9f9f9; padding: 20px; border-radius: 0 0 8px 8px; }
+        .metric { background: white; padding: 15px; margin: 10px 0; border-left: 4px solid #EF4444; }
+        .button { display: inline-block; background: #3B82F6; color: white; padding: 12px 24px; 
+                  text-decoration: none; border-radius: 6px; margin-top: 20px; }
+        .warning { background: #FEF2F2; border: 1px solid #FCA5A5; padding: 15px; border-radius: 6px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚨 HIGH DECEPTION ALERT</h1>
+            <p>Session: {{ session_id }}</p>
+        </div>
+        <div class="content">
+            <h2>Applicant: {{ applicant_name }}</h2>
+            
+            <div class="warning">
+                <strong>⚠️ Critical Alert:</strong> Deception score has exceeded the threshold during the interview.
+            </div>
+            
+            <div class="metric">
+                <strong>Deception Score:</strong> {{ deception_score }}% 
+                <span style="color: #EF4444; font-weight: bold;">(CRITICAL)</span>
+            </div>
+            
+            <div class="metric">
+                <strong>Question Asked:</strong><br>
+                {{ question }}
+            </div>
+            
+            <div class="metric">
+                <strong>Applicant's Response:</strong><br>
+                "{{ transcript }}"
+            </div>
+            
+            <h3>Behavioral Indicators:</h3>
+            <ul>
+                <li>Eye Contact: {{ eye_contact }}%</li>
+                <li>Stress Level: {{ stress_level }}%</li>
+                {% for flag in behavioral_flags %}
+                <li style="color: #DC2626;">{{ flag }}</li>
+                {% endfor %}
+            </ul>
+            
+            <a href="{{ dashboard_url }}" class="button">View Full Interview →</a>
+            
+            <p style="margin-top: 20px; font-size: 12px; color: #666;">
+                This is an automated alert from the AI Vetting System. 
+                Please review the interview immediately and take appropriate action.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

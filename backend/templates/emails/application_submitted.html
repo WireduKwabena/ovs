@@ -1,0 +1,89 @@
+<!-- backend/templates/emails/application_submitted.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application Submitted</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+        }
+        .content {
+            background: #f9fafb;
+            padding: 30px;
+            border-radius: 0 0 10px 10px;
+        }
+        .case-id {
+            background: #eef2ff;
+            padding: 15px;
+            border-left: 4px solid #667eea;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .button {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .footer {
+            text-align: center;
+            color: #6b7280;
+            font-size: 12px;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Application Submitted Successfully</h1>
+    </div>
+    <div class="content">
+        <p>Dear {{ user.full_name }},</p>
+        
+        <p>Your vetting application has been successfully submitted and received.</p>
+        
+        <div class="case-id">
+            Application ID: {{ case_id }}
+        </div>
+        
+        <p><strong>Application Type:</strong> {{ application_type }}</p>
+        
+        <p>Our AI-powered system is now processing your documents. You will receive notifications as your application progresses through the following stages:</p>
+        
+        <ul>
+            <li>Document Verification (OCR & Authenticity Check)</li>
+            <li>Consistency Analysis</li>
+            <li>Fraud Detection</li>
+            <li>Rubric Evaluation</li>
+            <li>Final Review</li>
+        </ul>
+        
+        <p>You can track your application status at any time by logging into your dashboard.</p>
+        
+        <a href="http://localhost:3000/applications/{{ case_id }}" class="button">
+            View Application Status
+        </a>
+    </div>
+    <div class="footer">
+        <p>© 2024 Online Vetting System. All rights reserved.</p>
+        <p>This is an automated email. Please do not reply.</p>
+    </div>
+</body>
+</html>

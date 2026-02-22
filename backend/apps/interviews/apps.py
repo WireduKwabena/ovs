@@ -6,4 +6,4 @@ class InterviewsConfig(AppConfig):
     name = 'apps.interviews'
 
     def ready(self):
-        import apps.interviews.signals
+        import apps.interviews.signals  # noqa: F401

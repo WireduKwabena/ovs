@@ -1,171 +1,265 @@
-# backend/apps/interviews/tasks.py
-import json
-from datetime import timezone
+from statistics import mean
+from pathlib import Path
 
 from celery import shared_task
-from google.cloud import speech_v1
-import openai
-from .models import InterviewExchange, DynamicInterviewSession
-from .ai_engine import DynamicInterviewEngine
+from django.utils import timezone
+
+from .case_sync import sync_case_interview_outcome
+from .models import InterviewResponse, InterviewSession, VideoAnalysis
 
 
-@shared_task
-def transcribe_and_analyze(exchange_id):
-    """Transcribe video and analyze response in real-time"""
+IDENTITY_DOCUMENT_TYPE_PRIORITY = ("id_card", "passport", "drivers_license")
 
-    exchange = InterviewExchange.objects.get(id=exchange_id)
-    session = exchange.session
+
+def _resolve_file_path(file_field) -> str | None:
+    if not file_field:
+        return None
+    try:
+        path = file_field.path
+    except Exception:
+        return None
+    if not path:
+        return None
+    return path if Path(path).exists() else None
+
+
+def _select_identity_document_path(case) -> tuple[str | None, str | None]:
+    seen_ids = set()
+    candidates = list(
+        case.documents.filter(document_type__in=IDENTITY_DOCUMENT_TYPE_PRIORITY).order_by(
+            "uploaded_at",
+            "id",
+        )
+    ) + list(case.documents.exclude(document_type__in=IDENTITY_DOCUMENT_TYPE_PRIORITY).order_by("uploaded_at", "id"))
+
+    for document in candidates:
+        if document.id in seen_ids:
+            continue
+        seen_ids.add(document.id)
+        path = _resolve_file_path(document.file)
+        if path:
+            return path, document.document_type
+    return None, None
+
+
+def _run_identity_match(response: InterviewResponse) -> dict:
+    video_path = _resolve_file_path(response.video_file)
+    if not video_path:
+        return {
+            "enabled": False,
+            "success": False,
+            "is_match": False,
+            "reason": "No local interview video file available for identity matching.",
+        }
+
+    case = response.session.case
+    document_path, document_type = _select_identity_document_path(case)
+    if not document_path:
+        return {
+            "enabled": False,
+            "success": False,
+            "is_match": False,
+            "reason": "No local identity document (id_card/passport/drivers_license) found.",
+        }
 
     try:
-        # 1. Extract audio from video
-        audio_path = extract_audio(exchange.video_url)
+        from ai_ml_services.video.identity_matcher import IdentityMatcher
 
-        # 2. Transcribe (Google Speech-to-Text)
-        transcript, confidence = transcribe_audio_google(audio_path)
-
-        # 3. Analyze response with AI
-        engine = DynamicInterviewEngine(session)
-        analysis = engine.analyze_response(transcript, exchange.question_intent)
-
-        # 4. Update exchange
-        exchange.transcript = transcript
-        exchange.confidence_level = confidence
-        exchange.sentiment = analysis['sentiment']
-        exchange.key_points_extracted = analysis['key_points']
-        exchange.inconsistencies_detected = analysis['inconsistencies']
-        exchange.response_quality_score = analysis['quality_score']
-        exchange.relevance_score = analysis['relevance_score']
-        exchange.answered_at = timezone.now()
-        exchange.save()
-
+        matcher = IdentityMatcher()
+        result = matcher.match_document_to_interview(
+            document_path=document_path,
+            interview_video_path=video_path,
+        )
+    except Exception as exc:
         return {
-            'transcript': transcript,
-            'analysis': analysis
+            "enabled": True,
+            "success": False,
+            "is_match": False,
+            "error": str(exc),
+            "document_type": document_type,
         }
 
-    except Exception as e:
-        return {
-            'error': str(e),
-            'transcript': '',
-            'analysis': {}
-        }
+    result["document_type"] = document_type
+    return result
 
 
-def transcribe_audio_google(audio_path):
-    """Transcribe using Google Speech-to-Text"""
-    client = speech_v1.SpeechClient()
+def _simple_sentiment(transcript: str) -> tuple[str, float]:
+    text = (transcript or "").lower()
+    positive_tokens = {"yes", "confident", "success", "achieved", "led", "improved"}
+    negative_tokens = {"no", "not", "failed", "problem", "struggled", "unclear"}
 
-    with open(audio_path, 'rb') as audio_file:
-        content = audio_file.read()
+    positive_hits = sum(token in text for token in positive_tokens)
+    negative_hits = sum(token in text for token in negative_tokens)
+    score = 50 + ((positive_hits - negative_hits) * 8)
+    bounded = max(0, min(100, score))
 
-    audio = speech_v1.RecognitionAudio(content=content)
-    config = speech_v1.RecognitionConfig(
-        encoding=speech_v1.RecognitionConfig.AudioEncoding.LINEAR16,
-        sample_rate_hertz=44100,
-        language_code='en-US',
-        enable_automatic_punctuation=True,
-        model='video'
+    if bounded >= 60:
+        return "positive", float(bounded)
+    if bounded <= 40:
+        return "negative", float(bounded)
+    return "neutral", float(bounded)
+
+
+@shared_task(bind=True, max_retries=1)
+def analyze_response_task(self, response_id: int):
+    try:
+        response = InterviewResponse.objects.select_related(
+            "question",
+            "session",
+            "session__case",
+        ).get(id=response_id)
+    except InterviewResponse.DoesNotExist:
+        return {"success": False, "error": f"InterviewResponse {response_id} not found"}
+
+    transcript = (response.transcript or "").strip()
+    if not transcript:
+        transcript = "No transcript provided."
+        response.transcript = transcript
+
+    words = [w for w in transcript.split() if w]
+    word_count = len(words)
+    unique_terms = []
+    for word in words:
+        normalized = word.strip(".,!?").lower()
+        if len(normalized) > 3 and normalized not in unique_terms:
+            unique_terms.append(normalized)
+
+    sentiment, sentiment_score = _simple_sentiment(transcript)
+    relevance_score = min(100.0, max(20.0, word_count * 3.0))
+    completeness_score = min(100.0, max(10.0, word_count * 2.5))
+    coherence_score = min(100.0, max(25.0, 55.0 + (len(unique_terms) * 2.0)))
+    response_quality_score = round((relevance_score + completeness_score + coherence_score + sentiment_score) / 4.0, 2)
+
+    concerns = []
+    if word_count < 8:
+        concerns.append("Response is very short and may require follow-up.")
+    if sentiment == "negative":
+        concerns.append("Tone indicates potential uncertainty or stress.")
+
+    identity_match = _run_identity_match(response)
+    if identity_match.get("enabled") and identity_match.get("success") and not identity_match.get("is_match"):
+        concerns.append("Identity mismatch detected between document face and interview face.")
+
+    llm_evaluation = {
+        "pipeline": "baseline-heuristic",
+        "word_count": word_count,
+        "response_quality_score": response_quality_score,
+    }
+
+    now = timezone.now()
+    if not response.answered_at:
+        response.answered_at = now
+    response.sentiment = sentiment
+    response.sentiment_score = sentiment_score
+    response.response_quality_score = response_quality_score
+    response.relevance_score = relevance_score
+    response.completeness_score = completeness_score
+    response.coherence_score = coherence_score
+    response.key_points_extracted = unique_terms[:6]
+    response.concerns_detected = concerns
+    response.llm_evaluation = llm_evaluation
+    response.processed_at = now
+    response.save(
+        update_fields=[
+            "transcript",
+            "answered_at",
+            "sentiment",
+            "sentiment_score",
+            "response_quality_score",
+            "relevance_score",
+            "completeness_score",
+            "coherence_score",
+            "key_points_extracted",
+            "concerns_detected",
+            "llm_evaluation",
+            "processed_at",
+        ]
     )
 
-    response = client.recognize(config=config, audio=audio)
+    VideoAnalysis.objects.update_or_create(
+        response=response,
+        defaults={
+            "face_detected": True,
+            "face_detection_confidence": 80.0,
+            "eye_contact_percentage": min(95.0, max(35.0, response_quality_score - 10.0)),
+            "gaze_direction_changes": max(0, int((100 - response_quality_score) / 10)),
+            "dominant_emotion": sentiment,
+            "emotion_distribution": {sentiment: 1.0},
+            "confidence_level": min(100.0, max(20.0, response_quality_score)),
+            "stress_level": max(0.0, 100.0 - response_quality_score),
+            "head_movement_count": max(0, int((100 - response_quality_score) / 8)),
+            "fidgeting_detected": response_quality_score < 45,
+            "behavioral_indicators": concerns,
+            "raw_analysis_data": {
+                "source": "baseline-heuristic",
+                "identity_match": identity_match,
+            },
+            "frames_analyzed": 0,
+            "analysis_duration_seconds": 0.0,
+        },
+    )
 
-    transcript = ''
-    total_confidence = 0
-
-    for result in response.results:
-        transcript += result.alternatives[0].transcript + ' '
-        total_confidence += result.alternatives[0].confidence
-
-    avg_confidence = total_confidence / len(response.results) if response.results else 0
-
-    return transcript.strip(), avg_confidence * 100
+    generate_session_summary_task.delay(response.session_id)
+    return {"success": True, "response_id": response.id, "quality_score": response_quality_score}
 
 
-@shared_task
-def generate_final_report(session_id):
-    """Generate comprehensive interview report after completion"""
-
-    session = DynamicInterviewSession.objects.get(id=session_id)
-    exchanges = session.exchanges.all().order_by('sequence_number')
-
-    # Compile conversation
-    full_conversation = []
-    for exchange in exchanges:
-        full_conversation.append({
-            'question': exchange.question_text,
-            'answer': exchange.transcript,
-            'quality_score': exchange.response_quality_score,
-            'sentiment': exchange.sentiment,
-            'key_points': exchange.key_points_extracted
-        })
-
-    # Generate comprehensive analysis
-    prompt = f"""You are an expert HR analyst. Analyze this complete interview:
-
-INTERVIEW TRANSCRIPT:
-{json.dumps(full_conversation, indent=2)}
-
-APPLICANT CONTEXT:
-{json.dumps(session.applicant_context, indent=2)}
-
-INCONSISTENCIES DETECTED:
-{json.dumps(session.inconsistencies_found, indent=2)}
-
-Provide a comprehensive evaluation:
-
-1. OVERALL ASSESSMENT (score 0-100)
-2. KEY STRENGTHS (3-5 points)
-3. AREAS OF CONCERN (if any)
-4. CONSISTENCY ANALYSIS
-5. COMPLETENESS (did they provide sufficient information?)
-6. RED FLAGS (if any)
-7. RECOMMENDATION (Strongly Recommend / Recommend / Neutral / Not Recommend / Reject)
-8. SUMMARY (2-3 paragraphs)
-
-Return as JSON:
-{{
-    "overall_score": 0-100,
-    "confidence_score": 0-100,
-    "consistency_score": 0-100,
-    "completeness_score": 0-100,
-    "strengths": ["strength1", "strength2"],
-    "concerns": ["concern1", "concern2"],
-    "red_flags": ["flag1", "flag2"],
-    "recommendation": "Strongly Recommend/Recommend/Neutral/Not Recommend/Reject",
-    "summary": "Detailed summary text",
-    "interviewer_notes": "Notes for HR team"
-}}
-"""
-
+@shared_task(bind=True, max_retries=1)
+def generate_session_summary_task(self, session_id: int):
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are an expert HR analyst."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.3,
-            max_tokens=1500
+        session = InterviewSession.objects.get(id=session_id)
+    except InterviewSession.DoesNotExist:
+        return {"success": False, "error": f"InterviewSession {session_id} not found"}
+
+    responses = list(session.responses.select_related("video_analysis").all().order_by("sequence_number"))
+    if not responses:
+        return {"success": True, "session_id": session_id, "message": "No responses yet"}
+
+    quality_scores = [r.response_quality_score for r in responses if r.response_quality_score is not None]
+    completeness_scores = [r.completeness_score for r in responses if r.completeness_score is not None]
+    coherence_scores = [r.coherence_score for r in responses if r.coherence_score is not None]
+    confidence_scores = [
+        r.video_analysis.confidence_level
+        for r in responses
+        if hasattr(r, "video_analysis") and r.video_analysis and r.video_analysis.confidence_level is not None
+    ]
+
+    session.total_questions_asked = len(responses)
+    session.current_question_number = len(responses)
+    session.overall_score = round(mean(quality_scores), 2) if quality_scores else None
+    session.communication_score = round(mean(completeness_scores), 2) if completeness_scores else None
+    session.consistency_score = round(mean(coherence_scores), 2) if coherence_scores else None
+    session.confidence_score = round(mean(confidence_scores), 2) if confidence_scores else session.overall_score
+
+    session.key_findings = [f"Processed {len(responses)} responses."]
+    unresolved_flags = session.case.interrogation_flags.exclude(status__in=["resolved", "dismissed"]).count()
+    session.flags_unresolved_count = unresolved_flags
+    session.flags_resolved_count = session.case.interrogation_flags.filter(status="resolved").count()
+    session.red_flags_detected = [c for response in responses for c in (response.concerns_detected or [])]
+    session.interview_summary = (
+        f"Session analyzed with {len(responses)} responses. "
+        f"Overall score: {session.overall_score if session.overall_score is not None else 'n/a'}."
+    )
+
+    session.save(
+        update_fields=[
+            "total_questions_asked",
+            "current_question_number",
+            "overall_score",
+            "communication_score",
+            "consistency_score",
+            "confidence_score",
+            "key_findings",
+            "flags_unresolved_count",
+            "flags_resolved_count",
+            "red_flags_detected",
+            "interview_summary",
+        ]
+    )
+
+    if session.status == "completed" and session.overall_score is not None:
+        sync_case_interview_outcome(
+            case=session.case,
+            interview_score=session.overall_score,
         )
 
-        report = json.loads(response.choices[0].message.content)
-
-        # Update session
-        session.overall_score = report['overall_score']
-        session.confidence_score = report['confidence_score']
-        session.consistency_score = report['consistency_score']
-        session.completeness_score = report['completeness_score']
-        session.interview_summary = report['summary']
-        session.red_flags = report['red_flags']
-        session.recommendations = report['recommendation']
-        session.save()
-
-        # Send notification
-        from apps.notifications.services import NotificationService
-        NotificationService.send_interview_complete(session)
-
-        return report
-
-    except Exception as e:
-        print(f"Error generating report: {e}")
-        return None
+    return {"success": True, "session_id": session.id, "responses": len(responses)}

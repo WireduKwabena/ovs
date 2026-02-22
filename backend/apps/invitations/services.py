@@ -1,7 +1,189 @@
+import hashlib
+import secrets
+from datetime import timedelta
+
 from django.conf import settings
 from django.core.mail import send_mail
+from django.db import transaction
+from django.utils import timezone
 
-from .models import Invitation
+from .models import CandidateAccessPass, CandidateAccessSession, Invitation
+
+
+class CandidateAccessError(Exception):
+    def __init__(self, message: str, code: str = "invalid"):
+        super().__init__(message)
+        self.code = code
+
+
+def _hash_token(raw_token: str) -> str:
+    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
+
+def _token_hint(raw_token: str) -> str:
+    return raw_token[-8:] if len(raw_token) >= 8 else raw_token
+
+
+def build_candidate_access_url(raw_token: str) -> str:
+    frontend = getattr(settings, "FRONTEND_URL", "http://localhost:3000").rstrip("/")
+    path = getattr(settings, "CANDIDATE_ACCESS_FRONTEND_PATH", "/candidate/access")
+    if not path.startswith("/"):
+        path = f"/{path}"
+    return f"{frontend}{path}?token={raw_token}"
+
+
+def issue_candidate_access_pass(
+    *,
+    enrollment,
+    invitation: Invitation | None = None,
+    pass_type: str = "portal",
+    issued_by=None,
+    expires_at=None,
+    max_uses: int | None = None,
+    metadata: dict | None = None,
+    revoke_existing: bool = True,
+) -> tuple[CandidateAccessPass, str]:
+    now = timezone.now()
+    max_uses = max_uses or int(getattr(settings, "CANDIDATE_ACCESS_MAX_USES", 50))
+    if expires_at is None:
+        ttl_hours = int(getattr(settings, "CANDIDATE_ACCESS_PASS_TTL_HOURS", 72))
+        expires_at = now + timedelta(hours=ttl_hours)
+
+    with transaction.atomic():
+        if revoke_existing:
+            CandidateAccessPass.objects.filter(
+                enrollment=enrollment,
+                pass_type=pass_type,
+                status="issued",
+            ).update(status="revoked", revoked_at=now, revoked_reason="superseded", updated_at=now)
+
+        for _ in range(5):
+            raw_token = secrets.token_urlsafe(32)
+            token_hash = _hash_token(raw_token)
+            if not CandidateAccessPass.objects.filter(token_hash=token_hash).exists():
+                access_pass = CandidateAccessPass.objects.create(
+                    enrollment=enrollment,
+                    invitation=invitation,
+                    pass_type=pass_type,
+                    token_hash=token_hash,
+                    token_hint=_token_hint(raw_token),
+                    max_uses=max_uses,
+                    expires_at=expires_at,
+                    issued_by=issued_by,
+                    metadata=metadata or {},
+                )
+                return access_pass, raw_token
+
+    raise CandidateAccessError("Failed to issue candidate access pass.", code="issue_failed")
+
+
+def consume_candidate_access_token(
+    *,
+    raw_token: str,
+    ip_address: str | None = None,
+    user_agent: str = "",
+    begin_vetting: bool = True,
+) -> tuple[CandidateAccessSession, CandidateAccessPass]:
+    token_hash = _hash_token(raw_token)
+    now = timezone.now()
+
+    with transaction.atomic():
+        access_pass = (
+            CandidateAccessPass.objects.select_for_update()
+            .select_related("enrollment__campaign", "enrollment__candidate")
+            .filter(token_hash=token_hash)
+            .first()
+        )
+        if access_pass is None:
+            raise CandidateAccessError("Invalid access token.", code="invalid")
+
+        if access_pass.status != "issued":
+            raise CandidateAccessError("Access token is not active.", code="inactive")
+
+        if access_pass.is_expired:
+            access_pass.status = "expired"
+            access_pass.save(update_fields=["status", "updated_at"])
+            raise CandidateAccessError("Access token has expired.", code="expired")
+
+        if access_pass.use_count >= access_pass.max_uses:
+            access_pass.status = "revoked"
+            access_pass.revoked_at = now
+            access_pass.revoked_reason = "usage_limit_reached"
+            access_pass.save(update_fields=["status", "revoked_at", "revoked_reason", "updated_at"])
+            raise CandidateAccessError("Access token usage limit reached.", code="exhausted")
+
+        access_pass.use_count += 1
+        access_pass.first_used_at = access_pass.first_used_at or now
+        access_pass.last_used_at = now
+        access_pass.save(update_fields=["use_count", "first_used_at", "last_used_at", "updated_at"])
+
+        session_ttl = int(getattr(settings, "CANDIDATE_ACCESS_SESSION_TTL_HOURS", 12))
+        candidate_session = CandidateAccessSession.objects.create(
+            access_pass=access_pass,
+            enrollment=access_pass.enrollment,
+            ip_address=ip_address,
+            user_agent=user_agent[:2000] if user_agent else "",
+            expires_at=now + timedelta(hours=session_ttl),
+            last_seen_at=now,
+        )
+
+        invitation = access_pass.invitation
+        if invitation and invitation.status in {"pending", "sent", "failed"} and not invitation.is_expired:
+            invitation.status = "accepted"
+            invitation.accepted_at = now
+            invitation.save(update_fields=["status", "accepted_at", "updated_at"])
+
+        enrollment = access_pass.enrollment
+        enrollment_fields = []
+        if enrollment.status == "invited":
+            enrollment.status = "registered"
+            enrollment_fields.append("status")
+            if not enrollment.registered_at:
+                enrollment.registered_at = now
+                enrollment_fields.append("registered_at")
+        if begin_vetting and enrollment.status == "registered":
+            enrollment.status = "in_progress"
+            if "status" not in enrollment_fields:
+                enrollment_fields.append("status")
+        if enrollment_fields:
+            enrollment.save(update_fields=[*enrollment_fields, "updated_at"])
+
+        return candidate_session, access_pass
+
+
+def resolve_candidate_access_session(session_key: str | None) -> CandidateAccessSession | None:
+    if not session_key:
+        return None
+
+    session = (
+        CandidateAccessSession.objects.select_related("enrollment__campaign", "enrollment__candidate", "access_pass")
+        .filter(session_key=session_key, status="active")
+        .first()
+    )
+    if session is None:
+        return None
+
+    if session.is_expired:
+        session.status = "expired"
+        session.closed_at = timezone.now()
+        session.closed_reason = "expired"
+        session.save(update_fields=["status", "closed_at", "closed_reason"])
+        return None
+    return session
+
+
+def touch_candidate_access_session(candidate_session: CandidateAccessSession) -> None:
+    candidate_session.last_seen_at = timezone.now()
+    candidate_session.save(update_fields=["last_seen_at"])
+
+
+def close_candidate_access_session(candidate_session: CandidateAccessSession, reason: str = "logout") -> None:
+    if candidate_session.status != "active":
+        return
+    candidate_session.status = "closed"
+    candidate_session.closed_reason = reason
+    candidate_session.closed_at = timezone.now()
+    candidate_session.save(update_fields=["status", "closed_reason", "closed_at"])
 
 
 def send_invitation(invitation: Invitation) -> None:
@@ -10,6 +192,13 @@ def send_invitation(invitation: Invitation) -> None:
     SMS integration is left as a provider adapter and currently logs as sent.
     """
     accept_url = f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:3000').rstrip('/')}/invite/{invitation.token}"
+    access_pass, raw_access_token = issue_candidate_access_pass(
+        enrollment=invitation.enrollment,
+        invitation=invitation,
+        pass_type="portal",
+        issued_by=invitation.created_by,
+    )
+    access_url = build_candidate_access_url(raw_access_token)
 
     if invitation.channel == "email":
         subject = f"Invitation: {invitation.enrollment.campaign.name}"
@@ -17,7 +206,8 @@ def send_invitation(invitation: Invitation) -> None:
             f"You have been invited to a vetting process.\n\n"
             f"Campaign: {invitation.enrollment.campaign.name}\n"
             f"Candidate: {invitation.enrollment.candidate.first_name} {invitation.enrollment.candidate.last_name}\n"
-            f"Accept invitation: {accept_url}\n"
+            f"Start vetting / view results: {access_url}\n\n"
+            f"Legacy invitation URL: {accept_url}\n"
         )
         send_mail(
             subject=subject,
@@ -29,5 +219,12 @@ def send_invitation(invitation: Invitation) -> None:
         return
 
     # Placeholder for SMS provider integration.
-    # This marks the invitation as sent for now.
+    # This marks the invitation as sent for now and records a fresh token issue.
+    access_pass.metadata = {
+        **(access_pass.metadata or {}),
+        "delivery_channel": "sms",
+        "delivery_target": invitation.send_to,
+        "access_url": access_url,
+    }
+    access_pass.save(update_fields=["metadata", "updated_at"])
     return

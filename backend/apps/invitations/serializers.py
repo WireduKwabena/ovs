@@ -44,7 +44,7 @@ class InvitationSerializer(serializers.ModelSerializer):
             "accept_url",
         ]
 
-    def get_accept_url(self, obj):
+    def get_accept_url(self, obj) -> str:
         frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
         return f"{frontend_url.rstrip('/')}/invite/{obj.token}"
 
@@ -73,3 +73,12 @@ class InvitationCreateSerializer(serializers.ModelSerializer):
 
 class AcceptInvitationSerializer(serializers.Serializer):
     token = serializers.UUIDField()
+
+
+class CandidateAccessConsumeSerializer(serializers.Serializer):
+    token = serializers.CharField(max_length=255)
+    begin_vetting = serializers.BooleanField(default=True, required=False)
+
+
+class EmptySerializer(serializers.Serializer):
+    pass

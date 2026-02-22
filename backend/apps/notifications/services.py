@@ -1,284 +1,373 @@
-# backend/apps/notifications/services.py
-# From: Development Guide PDF - Notification Service COMPLETE
+"""Notification delivery service (in-app + email audit records)."""
 
-from django.core.mail import send_mail
+from __future__ import annotations
+
+import logging
+from typing import Any
+
 from django.conf import settings
+from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+
 from apps.notifications.models import Notification
-import logging
 
 logger = logging.getLogger(__name__)
 
+
 class NotificationService:
-    """
-    Service for sending notifications (email + in-app)
-    From: Development Guide PDF
-    COMPLETE IMPLEMENTATION
-    """
-    
+    """Service methods used by workflow tasks to notify users."""
+
+    @staticmethod
+    def _create_in_app_notification(
+        *,
+        recipient,
+        subject: str,
+        message: str,
+        related_case=None,
+        related_interview=None,
+        metadata: dict[str, Any] | None = None,
+        priority: str = "normal",
+    ) -> Notification:
+        return Notification.objects.create(
+            recipient=recipient,
+            subject=subject,
+            message=message,
+            notification_type="in_app",
+            status="sent",
+            priority=priority,
+            related_case=related_case,
+            related_interview=related_interview,
+            metadata=metadata or {},
+        )
+
+    @staticmethod
+    def _send_email_notification(
+        *,
+        recipient,
+        subject: str,
+        fallback_message: str,
+        template_name: str | None = None,
+        context: dict[str, Any] | None = None,
+        related_case=None,
+        related_interview=None,
+        metadata: dict[str, Any] | None = None,
+        priority: str = "normal",
+    ) -> Notification | None:
+        email = getattr(recipient, "email", "")
+        if not email:
+            return None
+
+        email_notification = Notification.objects.create(
+            recipient=recipient,
+            subject=subject,
+            message=fallback_message,
+            notification_type="email",
+            status="pending",
+            priority=priority,
+            related_case=related_case,
+            related_interview=related_interview,
+            email_to=email,
+            metadata=metadata or {},
+        )
+
+        html_message = None
+        plain_message = fallback_message
+        if template_name:
+            try:
+                html_message = render_to_string(template_name, context or {})
+                plain_message = strip_tags(html_message) or fallback_message
+            except Exception:
+                logger.exception("Failed to render email template '%s'.", template_name)
+
+        try:
+            send_mail(
+                subject=subject,
+                message=plain_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                html_message=html_message,
+                fail_silently=False,
+            )
+            email_notification.mark_sent()
+            logger.info("Email notification sent to %s", email)
+        except Exception as exc:
+            email_notification.mark_failed(str(exc))
+            logger.exception("Failed to send email notification to %s", email)
+
+        return email_notification
+
+    @staticmethod
+    def _get_case_and_recipient(application):
+        case = application
+        recipient = getattr(case, "applicant", None)
+        return case, recipient
+
     @staticmethod
     def send_application_submitted(application):
-        """
-        Send notification when application is submitted
-        From: Development Guide PDF
-        """
-        user = application.applicant
-        
-        # Create in-app notification
-        Notification.objects.create(
-            user=user,
-            notification_type='application_submitted',
-            title='Application Submitted Successfully',
-            message=f'Your application {application.case_id} has been submitted and is pending review.',
-            metadata={'case_id': application.case_id}
+        """Notify candidate when a vetting case is submitted."""
+        case, recipient = NotificationService._get_case_and_recipient(application)
+        if recipient is None:
+            logger.warning("Skipping send_application_submitted: case has no applicant.")
+            return None
+
+        subject = "Application Submitted - Online Vetting System"
+        message = f"Your application {case.case_id} has been submitted and is pending review."
+        metadata = {"case_id": case.case_id, "event_type": "application_submitted"}
+
+        NotificationService._create_in_app_notification(
+            recipient=recipient,
+            subject=subject,
+            message=message,
+            related_case=case,
+            metadata=metadata,
         )
-        
-        # Send email
-        try:
-            subject = 'Application Submitted - Online Vetting System'
-            html_message = render_to_string('emails/application_submitted.html', {
-                'user': user,
-                'case_id': application.case_id,
-                'application_type': application.get_application_type_display()
-            })
-            plain_message = strip_tags(html_message)
-            
-            send_mail(
-                subject=subject,
-                message=plain_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                html_message=html_message,
-                fail_silently=False
-            )
-            
-            logger.info(f"✓ Email sent to {user.email}")
-        
-        except Exception as e:
-            logger.error(f"Failed to send email: {e}")
-    
+        NotificationService._send_email_notification(
+            recipient=recipient,
+            subject=subject,
+            fallback_message=message,
+            template_name="emails/application_submitted.html",
+            context={"user": recipient, "case_id": case.case_id},
+            related_case=case,
+            metadata=metadata,
+        )
+        return True
+
     @staticmethod
     def send_document_verified(document):
-        """Notification when document verification completes"""
-        user = document.case.applicant
-        
-        Notification.objects.create(
-            user=user,
-            notification_type='document_verified',
-            title='Document Verified',
-            message=f'Your {document.get_document_type_display()} has been verified.',
-            metadata={
-                'case_id': document.case.case_id,
-                'document_type': document.document_type,
-                'verification_status': document.verification_status
-            }
+        """Notify candidate when a document verification is completed."""
+        case = document.case
+        recipient = case.applicant
+        document_type_display = (
+            document.get_document_type_display()
+            if hasattr(document, "get_document_type_display")
+            else str(document.document_type)
         )
-        
-        # Send email
-        try:
-            subject = 'Document Verified - Online Vetting System'
-            html_message = render_to_string('emails/document_verified.html', {
-                'user': user,
-                'case_id': document.case.case_id,
-                'document_type': document.get_document_type_display(),
-                'status': document.verification_status
-            })
-            plain_message = strip_tags(html_message)
-            
-            send_mail(
-                subject=subject,
-                message=plain_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                html_message=html_message,
-                fail_silently=False
-            )
-        
-        except Exception as e:
-            logger.error(f"Failed to send email: {e}")
-    
+        document_status = getattr(document, "status", "")
+
+        subject = "Document Verification Update - Online Vetting System"
+        message = f"Your {document_type_display} status is now '{document_status}'."
+        metadata = {
+            "case_id": case.case_id,
+            "event_type": "document_verified",
+            "document_id": document.id,
+            "document_type": document.document_type,
+            "document_status": document_status,
+        }
+
+        NotificationService._create_in_app_notification(
+            recipient=recipient,
+            subject=subject,
+            message=message,
+            related_case=case,
+            metadata=metadata,
+        )
+        NotificationService._send_email_notification(
+            recipient=recipient,
+            subject=subject,
+            fallback_message=message,
+            template_name="emails/document_verified.html",
+            context={
+                "user": recipient,
+                "case_id": case.case_id,
+                "document_type": document_type_display,
+                "status": document_status,
+            },
+            related_case=case,
+            metadata=metadata,
+        )
+        return True
+
     @staticmethod
     def send_status_updated(application, old_status, new_status):
-        """Notification when application status changes"""
-        user = application.applicant
-        
-        Notification.objects.create(
-            user=user,
-            notification_type='status_updated',
-            title='Application Status Updated',
-            message=f'Your application {application.case_id} status changed from {old_status} to {new_status}.',
-            metadata={
-                'case_id': application.case_id,
-                'old_status': old_status,
-                'new_status': new_status
-            }
+        """Notify candidate when vetting-case status changes."""
+        case, recipient = NotificationService._get_case_and_recipient(application)
+        if recipient is None:
+            logger.warning("Skipping send_status_updated: case has no applicant.")
+            return None
+
+        subject = f"Application Status Update - {new_status}"
+        message = (
+            f"Your application {case.case_id} status changed from {old_status} to {new_status}."
         )
-        
-        # Send email
-        try:
-            subject = f'Application Status: {new_status.upper()}'
-            html_message = render_to_string('emails/status_updated.html', {
-                'user': user,
-                'case_id': application.case_id,
-                'old_status': old_status,
-                'new_status': new_status
-            })
-            plain_message = strip_tags(html_message)
-            
-            send_mail(
-                subject=subject,
-                message=plain_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                html_message=html_message,
-                fail_silently=False
-            )
-        
-        except Exception as e:
-            logger.error(f"Failed to send email: {e}")
-    
+        metadata = {
+            "case_id": case.case_id,
+            "event_type": "status_updated",
+            "old_status": old_status,
+            "new_status": new_status,
+        }
+
+        NotificationService._create_in_app_notification(
+            recipient=recipient,
+            subject=subject,
+            message=message,
+            related_case=case,
+            metadata=metadata,
+        )
+        NotificationService._send_email_notification(
+            recipient=recipient,
+            subject=subject,
+            fallback_message=message,
+            template_name="emails/status_updated.html",
+            context={
+                "user": recipient,
+                "case_id": case.case_id,
+                "old_status": old_status,
+                "new_status": new_status,
+            },
+            related_case=case,
+            metadata=metadata,
+        )
+        return True
+
     @staticmethod
     def send_evaluation_complete(application, evaluation):
-        """
-        Notification when rubric evaluation completes
-        From: Rubrics PDF
-        """
-        user = application.applicant
-        
-        Notification.objects.create(
-            user=user,
-            notification_type='evaluation_complete',
-            title='Evaluation Complete',
-            message=f'Your application has been evaluated. Score: {evaluation.overall_score:.1f}%',
-            metadata={
-                'case_id': application.case_id,
-                'overall_score': evaluation.overall_score,
-                'passed': evaluation.passed,
-                'recommendation': evaluation.ai_recommendation
-            }
+        """Notify candidate when rubric evaluation is completed."""
+        case, recipient = NotificationService._get_case_and_recipient(application)
+        if recipient is None:
+            logger.warning("Skipping send_evaluation_complete: case has no applicant.")
+            return None
+
+        score = getattr(evaluation, "overall_score", None)
+        if score is None:
+            score = getattr(evaluation, "total_weighted_score", None)
+
+        recommendation = getattr(evaluation, "ai_recommendation", None)
+        if recommendation is None:
+            recommendation = getattr(evaluation, "final_decision", "")
+
+        passed = getattr(evaluation, "passed", None)
+        if passed is None:
+            passed = getattr(evaluation, "passes_threshold", None)
+
+        score_text = f"{float(score):.1f}%" if score is not None else "N/A"
+        subject = "Application Evaluation Complete"
+        message = f"Your application {case.case_id} has been evaluated. Score: {score_text}."
+        metadata = {
+            "case_id": case.case_id,
+            "event_type": "evaluation_complete",
+            "evaluation_id": getattr(evaluation, "id", None),
+            "score": score,
+            "passed": passed,
+            "recommendation": recommendation,
+        }
+
+        NotificationService._create_in_app_notification(
+            recipient=recipient,
+            subject=subject,
+            message=message,
+            related_case=case,
+            metadata=metadata,
         )
-        
-        # Send email
-        try:
-            subject = 'Application Evaluation Complete'
-            html_message = render_to_string('emails/evaluation_complete.html', {
-                'user': user,
-                'case_id': application.case_id,
-                'overall_score': evaluation.overall_score,
-                'passed': evaluation.passed,
-                'recommendation': evaluation.ai_recommendation
-            })
-            plain_message = strip_tags(html_message)
-            
-            send_mail(
-                subject=subject,
-                message=plain_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                html_message=html_message,
-                fail_silently=False
-            )
-        
-        except Exception as e:
-            logger.error(f"Failed to send email: {e}")
-    
+        NotificationService._send_email_notification(
+            recipient=recipient,
+            subject=subject,
+            fallback_message=message,
+            template_name="emails/evaluation_complete.html",
+            context={
+                "user": recipient,
+                "case_id": case.case_id,
+                "overall_score": score,
+                "passed": passed,
+                "recommendation": recommendation,
+            },
+            related_case=case,
+            metadata=metadata,
+        )
+        return True
+
     @staticmethod
     def send_admin_notification(admin_user, notification_type, title, message, metadata=None):
-        """Send notification to admin users"""
-        Notification.objects.create(
-            admin_user=admin_user,
-            notification_type=notification_type,
-            title=title,
+        """Send notification to an admin/staff recipient."""
+        if admin_user is None:
+            logger.warning("Skipping send_admin_notification: missing admin user.")
+            return None
+
+        payload = {"event_type": notification_type, **(metadata or {})}
+
+        NotificationService._create_in_app_notification(
+            recipient=admin_user,
+            subject=title,
             message=message,
-            metadata=metadata or {}
+            metadata=payload,
+            priority="high",
         )
-        
-        # Send email to admin
-        try:
-            send_mail(
-                subject=f'[Admin] {title}',
-                message=message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[admin_user.email],
-                fail_silently=False
-            )
-        
-        except Exception as e:
-            logger.error(f"Failed to send admin email: {e}")
-    
+        NotificationService._send_email_notification(
+            recipient=admin_user,
+            subject=f"[Admin] {title}",
+            fallback_message=message,
+            metadata=payload,
+            priority="high",
+        )
+        return True
+
     @staticmethod
     def send_approval_notification(application):
-        """Notification when application is approved"""
-        user = application.applicant
-        
-        Notification.objects.create(
-            user=user,
-            notification_type='approval',
-            title='Application Approved!',
-            message=f'Congratulations! Your application {application.case_id} has been approved.',
-            metadata={'case_id': application.case_id}
+        """Notify candidate when application is approved."""
+        case, recipient = NotificationService._get_case_and_recipient(application)
+        if recipient is None:
+            logger.warning("Skipping send_approval_notification: case has no applicant.")
+            return None
+
+        subject = "Application Approved - Online Vetting System"
+        message = f"Your application {case.case_id} has been approved."
+        metadata = {"case_id": case.case_id, "event_type": "approval"}
+
+        NotificationService._create_in_app_notification(
+            recipient=recipient,
+            subject=subject,
+            message=message,
+            related_case=case,
+            metadata=metadata,
+            priority="high",
         )
-        
-        # Send email
-        try:
-            subject = '🎉 Application Approved - Online Vetting System'
-            html_message = render_to_string('emails/application_approved.html', {
-                'user': user,
-                'case_id': application.case_id
-            })
-            plain_message = strip_tags(html_message)
-            
-            send_mail(
-                subject=subject,
-                message=plain_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                html_message=html_message,
-                fail_silently=False
-            )
-        
-        except Exception as e:
-            logger.error(f"Failed to send email: {e}")
-    
+        NotificationService._send_email_notification(
+            recipient=recipient,
+            subject=subject,
+            fallback_message=message,
+            template_name="emails/application_approved.html",
+            context={"user": recipient, "case_id": case.case_id},
+            related_case=case,
+            metadata=metadata,
+            priority="high",
+        )
+        return True
+
     @staticmethod
     def send_rejection_notification(application, reason=None):
-        """Notification when application is rejected"""
-        user = application.applicant
-        
-        message = f'Your application {application.case_id} has been rejected.'
+        """Notify candidate when application is rejected."""
+        case, recipient = NotificationService._get_case_and_recipient(application)
+        if recipient is None:
+            logger.warning("Skipping send_rejection_notification: case has no applicant.")
+            return None
+
+        message = f"Your application {case.case_id} has been rejected."
         if reason:
-            message += f' Reason: {reason}'
-        
-        Notification.objects.create(
-            user=user,
-            notification_type='rejection',
-            title='Application Rejected',
+            message = f"{message} Reason: {reason}"
+
+        subject = "Application Status Update - Online Vetting System"
+        metadata = {
+            "case_id": case.case_id,
+            "event_type": "rejection",
+            "reason": reason,
+        }
+
+        NotificationService._create_in_app_notification(
+            recipient=recipient,
+            subject=subject,
             message=message,
-            metadata={
-                'case_id': application.case_id,
-                'reason': reason
-            }
+            related_case=case,
+            metadata=metadata,
+            priority="high",
         )
-        
-        # Send email
-        try:
-            subject = 'Application Status - Online Vetting System'
-            html_message = render_to_string('emails/application_rejected.html', {
-                'user': user,
-                'case_id': application.case_id,
-                'reason': reason
-            })
-            plain_message = strip_tags(html_message)
-            
-            send_mail(
-                subject=subject,
-                message=plain_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                html_message=html_message,
-                fail_silently=False
-            )
-        
-        except Exception as e:
-            logger.error(f"Failed to send email: {e}")
+        NotificationService._send_email_notification(
+            recipient=recipient,
+            subject=subject,
+            fallback_message=message,
+            template_name="emails/application_rejected.html",
+            context={"user": recipient, "case_id": case.case_id, "reason": reason},
+            related_case=case,
+            metadata=metadata,
+            priority="high",
+        )
+        return True

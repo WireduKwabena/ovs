@@ -1,224 +1,153 @@
-# ============================================================================
-# PART 6: APPLICANT COMPARISON TOOL
-# ============================================================================
+"""Side-by-side comparison service for completed interview sessions."""
 
-# backend/apps/interviews/comparison_service.py
-import numpy as np
-from collections import Counter
-from datetime import datetime
+from __future__ import annotations
 
-from apps.interviews.models import DynamicInterviewSession
+from statistics import mean
+from typing import Dict, Iterable, List
+
+from django.db.models import Q
+
+from apps.interviews.models import InterviewSession
 
 
 class ApplicantComparisonService:
-    """
-    Compare multiple applicants side-by-side
-    """
+    """Compare completed interview sessions across normalized metrics."""
 
-    @staticmethod
-    def compare_applicants(session_ids: list):
-        """
-        Compare multiple applicants across key metrics
+    RANK_METRICS = (
+        ("overall_score", "desc", 0.35),
+        ("avg_response_quality", "desc", 0.20),
+        ("avg_confidence_level", "desc", 0.15),
+        ("avg_eye_contact", "desc", 0.10),
+        ("avg_stress_level", "asc", 0.10),
+        ("open_concerns", "asc", 0.10),
+    )
 
-        Args:
-            session_ids: List of session IDs to compare
+    @classmethod
+    def compare_sessions(cls, session_identifiers: Iterable[str | int]) -> Dict:
+        sessions = cls._load_sessions(session_identifiers)
+        if not sessions:
+            return {"error": "No completed sessions found for supplied identifiers."}
 
-        Returns:
-            Comprehensive comparison data
-        """
-
-        sessions = DynamicInterviewSession.objects.filter(
-            session_id__in=session_ids,
-            status='completed'
-        ).prefetch_related('exchanges', 'interrogation_flags')
-
-        if not sessions.exists():
-            return {'error': 'No completed sessions found'}
-
-        comparisons = []
-
-        for session in sessions:
-            comparison_data = ApplicantComparisonService._build_comparison_profile(session)
-            comparisons.append(comparison_data)
-
-        # Add rankings
-        comparisons = ApplicantComparisonService._add_rankings(comparisons)
-
-        # Generate recommendation
-        recommendation = ApplicantComparisonService._generate_recommendation(comparisons)
+        profiles = [cls._build_profile(session) for session in sessions]
+        cls._add_rankings(profiles)
+        recommendation = cls._build_recommendation(profiles)
 
         return {
-            'applicants': comparisons,
-            'recommendation': recommendation,
-            'comparison_date': datetime.now().isoformat()
+            "sessions": profiles,
+            "recommendation": recommendation,
         }
 
     @staticmethod
-    def _build_comparison_profile(session):
-        """Build complete profile for single applicant"""
-
-        exchanges = session.exchanges.all()
-        flags = session.interrogation_flags.all()
-
-        # Calculate aggregate metrics
-        deception_scores = [
-            ex.nonverbal_analysis.deception_score
-            for ex in exchanges
-            if hasattr(ex, 'nonverbal_analysis') and ex.nonverbal_analysis.deception_score is not None
-        ]
-
-        response_qualities = [
-            ex.response_quality_score
-            for ex in exchanges
-            if ex.response_quality_score is not None
-        ]
-
-        eye_contacts = [
-            ex.nonverbal_analysis.eye_contact_percentage
-            for ex in exchanges
-            if hasattr(ex, 'nonverbal_analysis') and ex.nonverbal_analysis.eye_contact_percentage is not None
-        ]
-
-        # Count behavioral indicators
-        all_red_flags = []
-        for ex in exchanges:
-            if hasattr(ex, 'nonverbal_analysis') and ex.nonverbal_analysis.behavioral_red_flags:
-                all_red_flags.extend(ex.nonverbal_analysis.behavioral_red_flags)
-
-        return {
-            'session_id': session.session_id,
-            'applicant_name': session.application.applicant.full_name,
-            'applicant_email': session.application.applicant.email,
-
-            # Core scores
-            'overall_score': session.overall_score,
-            'confidence_score': session.confidence_score,
-            'consistency_score': session.consistency_score,
-            'completeness_score': session.completeness_score,
-
-            # Behavioral metrics
-            'avg_deception_score': round(np.mean(deception_scores), 1) if deception_scores else 0,
-            'max_deception_score': round(np.max(deception_scores), 1) if deception_scores else 0,
-            'avg_eye_contact': round(np.mean(eye_contacts), 1) if eye_contacts else 0,
-            'avg_response_quality': round(np.mean(response_qualities), 1) if response_qualities else 0,
-
-            # Interview metrics
-            'duration_minutes': round(session.duration_seconds / 60, 1),
-            'questions_asked': session.current_question_number,
-            'avg_response_time': round(session.duration_seconds / session.current_question_number, 0) if session.current_question_number > 0 else 0,
-
-            # Flags
-            'total_flags': flags.count(),
-            'critical_flags': flags.filter(severity='critical').count(),
-            'resolved_flags': flags.filter(status='resolved').count(),
-            'unresolved_flags': flags.filter(status='unresolved').count(),
-            'flag_resolution_rate': round((flags.filter(status='resolved').count() / flags.count() * 100), 1) if flags.count() > 0 else 100,
-
-            # Behavioral analysis
-            'total_red_flags': len(all_red_flags),
-            'unique_red_flags': len(set(all_red_flags)),
-            'most_common_red_flags': ApplicantComparisonService._count_most_common(all_red_flags, 3),
-
-            # Final assessment
-            'recommendation': session.recommendations,
-            'ai_summary': session.interview_summary[:200] + '...' if session.interview_summary and len(session.interview_summary) > 200 else session.interview_summary
-        }
-
-    @staticmethod
-    def _add_rankings(comparisons):
-        """Add rankings for each metric"""
-
-        metrics_to_rank = [
-            ('overall_score', 'desc'),
-            ('avg_deception_score', 'asc'),
-            ('avg_response_quality', 'desc'),
-            ('flag_resolution_rate', 'desc'),
-            ('avg_eye_contact', 'desc'),
-            ('total_flags', 'asc'),
-            ('total_red_flags', 'asc')
-        ]
-
-        for metric, direction in metrics_to_rank:
-            # Sort and assign ranks
-            sorted_comparisons = sorted(
-                comparisons,
-                key=lambda x: x[metric] if x[metric] is not None else (0 if direction == 'desc' else 999),
-                reverse=(direction == 'desc')
-            )
-
-            for i, comp in enumerate(sorted_comparisons, start=1):
-                # Find the original comparison object and update it
-                for original_comp in comparisons:
-                    if original_comp['session_id'] == comp['session_id']:
-                        original_comp[f'{metric}_rank'] = i
-                        break
-
-        return comparisons
-
-    @staticmethod
-    def _count_most_common(items: list, n: int) -> list:
-        """Count the n most common items in a list."""
-        if not items:
+    def _load_sessions(session_identifiers: Iterable[str | int]) -> List[InterviewSession]:
+        raw_values = [str(value).strip() for value in session_identifiers if str(value).strip()]
+        if not raw_values:
             return []
-        counter = Counter(items)
-        return [{'item': item, 'count': count} for item, count in counter.most_common(n)]
+
+        numeric_ids = [int(value) for value in raw_values if value.isdigit()]
+        string_ids = [value for value in raw_values if not value.isdigit()]
+
+        query = Q(status="completed")
+        id_filter = Q()
+        if numeric_ids:
+            id_filter |= Q(id__in=numeric_ids)
+        if string_ids:
+            id_filter |= Q(session_id__in=string_ids)
+
+        queryset = (
+            InterviewSession.objects.filter(query & id_filter)
+            .select_related("case", "case__applicant")
+            .prefetch_related("responses__video_analysis", "case__interrogation_flags")
+        )
+        return list(queryset)
 
     @staticmethod
-    def _generate_recommendation(comparisons):
-        """
-        Generate a final recommendation based on a weighted score of ranks.
-        """
-        if not comparisons:
-            return {
-                'top_candidate': None,
-                'reasoning': 'No applicants to compare.',
-                'confidence': 0.0
-            }
+    def _build_profile(session: InterviewSession) -> Dict:
+        responses = list(session.responses.all())
+        analyses = [response.video_analysis for response in responses if hasattr(response, "video_analysis")]
 
-        # Define weights for each rank
-        rank_weights = {
-            'overall_score_rank': 0.4,
-            'avg_deception_score_rank': 0.2,
-            'avg_response_quality_rank': 0.2,
-            'flag_resolution_rate_rank': 0.1,
-            'total_flags_rank': 0.05,
-            'total_red_flags_rank': 0.05
-        }
+        quality_scores = [
+            float(response.response_quality_score)
+            for response in responses
+            if response.response_quality_score is not None
+        ]
+        confidence_levels = [
+            float(analysis.confidence_level)
+            for analysis in analyses
+            if analysis.confidence_level is not None
+        ]
+        eye_contact_scores = [
+            float(analysis.eye_contact_percentage)
+            for analysis in analyses
+            if analysis.eye_contact_percentage is not None
+        ]
+        stress_scores = [
+            float(analysis.stress_level)
+            for analysis in analyses
+            if analysis.stress_level is not None
+        ]
 
-        # Calculate a weighted rank score for each applicant
-        for comp in comparisons:
-            weighted_score = 0
-            for metric, weight in rank_weights.items():
-                # Lower rank is better, so we use the rank directly
-                weighted_score += comp.get(metric, len(comparisons)) * weight
-            comp['weighted_rank_score'] = weighted_score
+        concerns = sum(len(response.concerns_detected or []) for response in responses)
+        open_flags = session.case.interrogation_flags.exclude(
+            status__in=["resolved", "dismissed"]
+        ).count()
 
-        # The applicant with the lowest weighted_rank_score is the best
-        top_candidate = sorted(comparisons, key=lambda x: x['weighted_rank_score'])[0]
-
-        # Generate reasoning
-        reasoning = (
-            f"Based on a side-by-side comparison, {top_candidate['applicant_name']} is the top candidate. "
-            f"They ranked highest in Overall Score (Rank: {top_candidate.get('overall_score_rank', 'N/A')}) "
-            f"and demonstrated strong performance in Response Quality (Rank: {top_candidate.get('avg_response_quality_rank', 'N/A')}) "
-            f"and low Deception Score (Rank: {top_candidate.get('avg_deception_score_rank', 'N/A')})."
-        )
-
-        # Calculate confidence based on the score difference between the top two candidates
-        if len(comparisons) > 1:
-            second_candidate = sorted(comparisons, key=lambda x: x['weighted_rank_score'])[1]
-            score_diff = second_candidate['weighted_rank_score'] - top_candidate['weighted_rank_score']
-            # Normalize the confidence score (this is a heuristic)
-            confidence = min(1.0, score_diff / 2.0) * 100
-        else:
-            confidence = 100.0
+        applicant = session.case.applicant
+        full_name = applicant.get_full_name().strip() if hasattr(applicant, "get_full_name") else ""
+        applicant_name = full_name or getattr(applicant, "email", "")
 
         return {
-            'top_candidate': {
-                'name': top_candidate['applicant_name'],
-                'email': top_candidate['applicant_email'],
-                'session_id': top_candidate['session_id']
-            },
-            'reasoning': reasoning,
-            'confidence': round(confidence, 1)
+            "session_id": session.session_id,
+            "session_pk": session.id,
+            "applicant_name": applicant_name,
+            "applicant_email": getattr(applicant, "email", ""),
+            "overall_score": float(session.overall_score or 0.0),
+            "avg_response_quality": mean(quality_scores) if quality_scores else 0.0,
+            "avg_confidence_level": mean(confidence_levels) if confidence_levels else 0.0,
+            "avg_eye_contact": mean(eye_contact_scores) if eye_contact_scores else 0.0,
+            "avg_stress_level": mean(stress_scores) if stress_scores else 0.0,
+            "questions_asked": int(session.total_questions_asked or 0),
+            "open_concerns": int(concerns + open_flags),
+            "duration_seconds": int(session.duration_seconds or 0),
+            "flags_resolved_count": int(session.flags_resolved_count or 0),
+            "flags_unresolved_count": int(session.flags_unresolved_count or 0),
         }
+
+    @classmethod
+    def _add_rankings(cls, profiles: List[Dict]) -> None:
+        for metric, direction, _weight in cls.RANK_METRICS:
+            sorted_profiles = sorted(
+                profiles,
+                key=lambda row: row.get(metric, 0.0),
+                reverse=(direction == "desc"),
+            )
+            for rank, row in enumerate(sorted_profiles, start=1):
+                row[f"{metric}_rank"] = rank
+
+        for row in profiles:
+            score = 0.0
+            for metric, _direction, weight in cls.RANK_METRICS:
+                score += row.get(f"{metric}_rank", len(profiles)) * weight
+            row["weighted_rank_score"] = round(score, 4)
+
+    @staticmethod
+    def _build_recommendation(profiles: List[Dict]) -> Dict:
+        best = min(profiles, key=lambda row: row["weighted_rank_score"])
+        ordered = sorted(profiles, key=lambda row: row["weighted_rank_score"])
+        runner_up = ordered[1] if len(ordered) > 1 else None
+
+        confidence = 100.0
+        if runner_up is not None:
+            gap = runner_up["weighted_rank_score"] - best["weighted_rank_score"]
+            confidence = max(0.0, min(100.0, gap * 50.0))
+
+        return {
+            "top_session_id": best["session_id"],
+            "top_applicant_name": best["applicant_name"],
+            "top_applicant_email": best["applicant_email"],
+            "confidence": round(confidence, 2),
+            "reasoning": (
+                f"{best['applicant_name']} ranked highest on weighted interview quality, "
+                "confidence, behavioral stability, and concern minimization."
+            ),
+        }
+

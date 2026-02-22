@@ -14,7 +14,11 @@ Implements role-based access control (RBAC) with three user types:
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 from django.core.validators import RegexValidator
+from django.utils import timezone
+from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
+from datetime import timedelta
+import uuid
 try:
     import pyotp
 except ImportError:  # pragma: no cover - dependency may be optional in some setups
@@ -93,7 +97,6 @@ class User(AbstractUser):
             )
         ]
     )
-    
     organization = models.CharField(max_length=200, blank=True)
     department = models.CharField(max_length=100, blank=True)
     
@@ -252,3 +255,37 @@ class LoginHistory(models.Model):
     
     def __str__(self):
         return f"{self.user.email} - {self.timestamp}"
+
+
+class PasswordResetToken(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    slug = models.SlugField("Slug Field", max_length=255, null=True, blank=False)
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="password_reset_tokens", null=True
+    )
+    admin_user = models.ForeignKey(
+        UserProfile, on_delete=models.CASCADE, related_name="password_reset_tokens", null=True
+    )
+    token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    def save(self, *args, **kwargs):
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(
+                hours=1
+            )  # Token expires in 1 hour
+        if not self.slug:
+            self.slug = slugify(f"token - {str(self.id)[:8]}")
+        super().save(*args, **kwargs)
+
+    def is_valid(self):
+        return timezone.now() <= self.expires_at
+
+    class Meta:
+        verbose_name = "Password Reset Token"
+        verbose_name_plural = "Password Reset Tokens"
+        indexes = [models.Index(fields=["user", "token"])]
+
+    def __str__(self):
+        return f"Token for {self.user.get_full_name()} (Expires: {self.expires_at})"

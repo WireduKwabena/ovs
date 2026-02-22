@@ -2,7 +2,7 @@
 # From: AI/ML Implementation PDF
 import uuid
 from django.db import models
-from apps.applications import VettingCase
+from apps.applications.models import VettingCase
 
 class FraudDetectionResult(models.Model):
     """Fraud detection results - from AI/ML PDF"""
@@ -34,6 +34,7 @@ class FraudDetectionResult(models.Model):
     
     class Meta:
         db_table = 'fraud_detection_results'
+        app_label = 'fraud'
 
 
 class ConsistencyCheckResult(models.Model):
@@ -54,3 +55,4 @@ class ConsistencyCheckResult(models.Model):
     
     class Meta:
         db_table = 'consistency_check_results'
+        app_label = 'fraud'

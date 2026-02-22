@@ -4,87 +4,109 @@
 # ============================================================================
 
 # Django Core
-Django==4.2.7
-djangorestframework==4.14.0
-djangorestframework-simplejwt==5.3.0
-daphne==4.1.2
-channels==4.1.0
-django-cors-headers==4.3.0
-django-filter==23.3
+Django
+django-cors-headers
+djangorestframework
+djangorestframework-simplejwt
+daphne
+channels
+channels-redis
+django-filter
 
 # Database
-psycopg2-binary==2.9.9
-dj-database-url==2.1.0
+psycopg2-binary
+dj-database-url
 
 # Celery & Redis
-celery==5.3.4
-redis==5.0.1
-django-celery-beat==2.5.0
-django-celery-results==2.5.1
+celery
+flower
+redis
+django-celery-beat
+django-celery-results
 
 # AWS S3 Storage (Optional)
-boto3==1.29.7
-django-storages==1.14.2
+boto3
+django-storages
 
 # Authentication & Security
-python-decouple==3.8
-PyJWT==2.8.0
-cryptography==41.0.7
-pyotp==2.9.0
-google-auth==2.38.0
-oauth2client==4.1.3
+python-decouple
+cryptography
+pyotp
+reportlab
 
 # API & HTTP
-httpx==0.25.2
-requests==2.31.0
+httpx
+requests
+aiohttp
 
 # Utilities
-python-dateutil==2.8.2
-pytz==2023.3
-Pillow==10.1.0
+python-dateutil
+pytz
+Pillow==10.2.0
 
 # Production Server
-gunicorn==21.2.0
-whitenoise==6.6.0
+gunicorn
+whitenoise
 
-# ===========================================================================
+# ============================================================================
 # AI/ML Dependencies
-# ===========================================================================
+# ============================================================================
 
 # Deep Learning Frameworks
-torch==2.1.1
-torchvision==0.16.1
-tensorflow==2.15.0
-scikit-learn==1.3.2
+torch==2.2.2
+torchvision==0.17.2
+tensorflow; python_version < "3.13"
+scikit-learn
 
 # Computer Vision
-opencv-python==4.8.1.78
-mediapipe==0.10.8
+opencv-python==4.10.0.84
+opencv-contrib-python==4.10.0.84
+opencv-python-headless==4.10.0.84
+mediapipe
+facenet-pytorch==2.6.0
 
 # OCR
-pytesseract==0.3.10
-easyocr==1.7.1
-pdf2image==1.16.3
-PyPDF2==3.0.1
+pytesseract
+easyocr
+pdf2image
+PyPDF2
 
 # NLP & Transformers
-transformers==4.35.2
-sentencepiece==0.1.99
-tokenizers==0.15.0
+transformers<5.0.0
+sentencepiece
+tokenizers
 
 # Audio Processing (for Whisper)
-openai-whisper==20231117
-librosa==0.10.1
-soundfile==0.12.1
+openai-whisper
+moviepy
+librosa
+soundfile
 
 # LLM Integration
-openai==1.3.7
-# anthropic==0.8.0  # Uncomment if using Claude
+openai
+# anthropic  # Uncomment if using Claude
 
 # Data Processing
-numpy==1.24.3
-pandas==2.1.4
+numpy==1.26.4
+pandas
+seaborn
 
 # Additional ML Tools
-scipy==1.11.4
-joblib==1.3.2
+scipy
+joblib
+albumentations
+python-magic
+
+# API Schema
+drf-yasg
+drf-spectacular
+
+# requirements.txt additions
+piexif
+imagehash
+spacy
+
+wandb           # For train.py (optional)
+python-magic    # For validators.py
+seaborn
+moviepy

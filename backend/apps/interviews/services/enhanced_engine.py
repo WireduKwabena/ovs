@@ -1,153 +1,191 @@
-# backend/apps/interviews/enhanced_engine.py
-from datetime import timezone
-import json
+"""Heuristic interview engine aligned with current Django models."""
 
-import openai
+from __future__ import annotations
 
-from apps.interviews.models import InterrogationFlag
+from dataclasses import dataclass
+from typing import Dict, List, Optional
 
+from django.db.models import Case, IntegerField, Value, When
+from django.utils import timezone
+
+from apps.applications.models import InterrogationFlag
+from apps.interviews.models import InterviewSession
+
+
+@dataclass(frozen=True)
+class ResolutionAssessment:
+    resolved: bool
+    confidence: float
+    resolution_summary: str
+    credibility_assessment: str
+    requires_follow_up: bool
+    follow_up_angle: str
+    red_flags: List[str]
 
 
 class EnhancedInterviewEngine:
-    """AI engine with flag-driven interrogation logic"""
+    """Generate flag-focused questions and heuristic resolution assessments."""
 
-    def __init__(self, session):
+    SEVERITY_RANK = Case(
+        When(severity="critical", then=Value(0)),
+        When(severity="high", then=Value(1)),
+        When(severity="medium", then=Value(2)),
+        default=Value(3),
+        output_field=IntegerField(),
+    )
+
+    def __init__(self, session: InterviewSession):
         self.session = session
-        self.pending_flags = session.interrogation_flags.filter(status='pending')
-        self.conversation_history = session.conversation_history
+        self.conversation_history = list(session.conversation_history or [])
 
-    def generate_next_question(self):
-        """Generate question targeting unresolved flags"""
-
-        # Priority: Address high/critical severity flags first
-        priority_flag = self.pending_flags.filter(
-            severity__in=['high', 'critical']
-        ).first()
-
-        if priority_flag:
-            return self._generate_flag_question(priority_flag)
-
-        # Medium severity flags
-        medium_flag = self.pending_flags.filter(severity='medium').first()
-        if medium_flag:
-            return self._generate_flag_question(medium_flag)
-
-        # All flags resolved - general follow-up
-        if not self.pending_flags.exists():
-            return self._generate_closing_question()
-
-        return None
-
-    def _generate_flag_question(self, flag):
-        """Generate specific question to address a flag"""
-
-        system_prompt = f"""You are a professional vetting investigator conducting a live interrogation.
-
-CRITICAL FLAG TO ADDRESS:
-Type: {flag.flag_type}
-Severity: {flag.severity}
-Context: {flag.context}
-Data: {json.dumps(flag.data_point, indent=2)}
-
-CONVERSATION SO FAR:
-{self._format_conversation()}
-
-Your task:
-1. Generate ONE specific question that directly addresses this inconsistency
-2. Be tactful but firm - this is a professional investigation
-3. Ask for clarification and specific details
-4. Do not accuse, but probe for explanation
-
-Return JSON:
-{{
-    "question": "Your tactical question here",
-    "intent": "resolve_flag_{flag.id}",
-    "topic": "{flag.flag_type}",
-    "expected_info": ["what you expect to learn"],
-    "follow_up_needed": true/false
-}}
-"""
-
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": "Generate the interrogation question."}
-            ],
-            temperature=0.5
+    def _pending_flags(self):
+        addressed_ids = set(
+            self.session.flags_addressed.values_list("id", flat=True)
         )
+        queryset = self.session.case.interrogation_flags.exclude(
+            status__in=["resolved", "dismissed"]
+        )
+        if addressed_ids:
+            queryset = queryset.exclude(id__in=addressed_ids)
+        return queryset.order_by(self.SEVERITY_RANK, "created_at")
 
-        question_data = json.loads(response.choices[0].message.content)
-        question_data['target_flag_id'] = flag.id
+    def generate_next_question(self) -> Optional[Dict]:
+        flag = self._pending_flags().first()
+        if flag is None:
+            return {
+                "question": "Before we close, is there any detail you want to clarify about your submitted records?",
+                "intent": "general_closure",
+                "topic": "general",
+                "target_flag_id": None,
+                "reasoning": "No unresolved flags remain.",
+            }
+        return self._question_for_flag(flag)
 
-        # Mark flag as "addressed"
-        flag.status = 'addressed'
-        flag.questions_asked.append(question_data['question'])
-        flag.save()
+    def _question_for_flag(self, flag: InterrogationFlag) -> Dict:
+        title = (flag.title or "").strip()
+        description = (flag.description or "").strip()
+        prompt_basis = title or description or f"{flag.flag_type} issue"
 
-        return question_data
+        if flag.flag_type == "consistency_mismatch":
+            question = (
+                f"We identified a consistency issue: {prompt_basis}. "
+                "Can you explain the discrepancy and what the correct record should be?"
+            )
+        elif flag.flag_type == "authenticity_concern":
+            question = (
+                f"Regarding document authenticity concerns ({prompt_basis}), "
+                "can you provide context on where and how that document was issued?"
+            )
+        elif flag.flag_type == "missing_information":
+            question = (
+                f"We are missing required information ({prompt_basis}). "
+                "Can you explain why it is missing and when you can provide it?"
+            )
+        else:
+            question = (
+                f"We need clarification on the following issue: {prompt_basis}. "
+                "Please provide a clear and specific explanation."
+            )
 
-    def analyze_response_for_flag_resolution(self, transcript, flag_id, nonverbal_data):
-        """Determine if applicant's response resolves the flag"""
+        self.session.flags_addressed.add(flag)
+        if flag.status == "pending":
+            flag.mark_addressed()
 
+        return {
+            "question": question,
+            "intent": "resolve_flag",
+            "topic": flag.flag_type,
+            "target_flag_id": flag.id,
+            "reasoning": f"Prioritized unresolved {flag.severity} severity flag.",
+        }
+
+    def analyze_response_for_flag_resolution(
+        self,
+        transcript: str,
+        flag_id: int,
+        nonverbal_data: Optional[Dict] = None,
+    ) -> Dict:
+        nonverbal_data = nonverbal_data or {}
+        transcript = (transcript or "").strip()
         flag = InterrogationFlag.objects.get(id=flag_id)
 
-        prompt = f"""Analyze if this response resolves the flagged inconsistency.
-
-FLAG:
-{flag.context}
-Data: {json.dumps(flag.data_point)}
-
-APPLICANT'S RESPONSE:
-"{transcript}"
-
-NON-VERBAL INDICATORS:
-- Deception Score: {nonverbal_data.get('deception_score', 'N/A')}
-- Stress Level: {nonverbal_data.get('stress_level', 'N/A')}
-- Eye Contact: {nonverbal_data.get('eye_contact_percentage', 'N/A')}%
-- Behavioral Flags: {nonverbal_data.get('behavioral_red_flags', [])}
-
-Evaluate:
-1. Does the explanation logically resolve the inconsistency?
-2. Is the response consistent with previous statements?
-3. Do non-verbal cues suggest deception or stress?
-4. Is additional clarification needed?
-
-Return JSON:
-{{
-    "resolved": true/false,
-    "confidence": 0-100,
-    "resolution_summary": "Brief summary of explanation",
-    "credibility_assessment": "high/medium/low",
-    "requires_follow_up": true/false,
-    "follow_up_angle": "What to probe next if needed",
-    "red_flags": ["any new concerns raised"]
-}}
-"""
-
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are an expert interrogator and behavioral analyst."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.3
+        word_count = len(transcript.split())
+        contains_detail_tokens = any(
+            token in transcript.lower()
+            for token in ("because", "since", "when", "issued", "document", "record")
         )
+        deception_score = float(nonverbal_data.get("deception_score", 50) or 50)
+        eye_contact = float(nonverbal_data.get("eye_contact_percentage", 50) or 50)
 
-        assessment = json.loads(response.choices[0].message.content)
+        base = min(100.0, word_count * 3.5)
+        if contains_detail_tokens:
+            base += 15.0
+        base -= max(0.0, deception_score - 50.0) * 0.5
+        base += max(0.0, eye_contact - 50.0) * 0.2
+        confidence = max(0.0, min(100.0, base))
 
-        # Update flag
-        flag.applicant_explanation = transcript
-        flag.resolution_summary = assessment['resolution_summary']
-        flag.ai_resolution_confidence = assessment['confidence']
+        resolved = confidence >= 65 and word_count >= 12
+        requires_follow_up = not resolved or confidence < 78
+        credibility = "high" if confidence >= 80 else ("medium" if confidence >= 60 else "low")
 
-        if assessment['resolved'] and assessment['confidence'] > 70:
-            flag.status = 'resolved'
+        if resolved:
+            flag.status = "resolved"
             flag.resolved_at = timezone.now()
-        elif not assessment['requires_follow_up']:
-            flag.status = 'unresolved'
-            flag.requires_human_review = True
+            flag.resolution_summary = "Issue appears clarified from interview response."
+            flag.resolution_confidence = confidence
+            flag.save(
+                update_fields=[
+                    "status",
+                    "resolved_at",
+                    "resolution_summary",
+                    "resolution_confidence",
+                ]
+            )
+        elif not requires_follow_up:
+            flag.status = "unresolved"
+            flag.resolution_summary = "Response did not provide enough evidence to resolve the issue."
+            flag.save(update_fields=["status", "resolution_summary"])
 
-        flag.save()
+        assessment = ResolutionAssessment(
+            resolved=resolved,
+            confidence=round(confidence, 2),
+            resolution_summary=(
+                "Response provides sufficient detail to address the flag."
+                if resolved
+                else "Response needs additional clarification before the flag can be closed."
+            ),
+            credibility_assessment=credibility,
+            requires_follow_up=requires_follow_up,
+            follow_up_angle=(
+                "Request verifiable specifics (dates, issuer, and supporting documents)."
+                if requires_follow_up
+                else ""
+            ),
+            red_flags=(
+                ["low_response_detail"] if word_count < 12 else []
+            )
+            + (["elevated_deception_signal"] if deception_score > 70 else []),
+        )
+        return assessment.__dict__
 
-        return assessment
+    def update_conversation_history(self, question: str, answer: str, nonverbal: Optional[Dict] = None) -> None:
+        self.conversation_history.append(
+            {
+                "question": question,
+                "answer": answer,
+                "nonverbal": nonverbal or {},
+                "timestamp": timezone.now().isoformat(),
+            }
+        )
+        self.session.conversation_history = self.conversation_history
+        self.session.save(update_fields=["conversation_history"])
+
+    def get_interview_context(self) -> Dict:
+        pending = self._pending_flags().count()
+        return {
+            "session_id": self.session.session_id,
+            "pending_flags": pending,
+            "questions_asked": self.session.total_questions_asked,
+            "status": self.session.status,
+        }
+

@@ -1,91 +1,49 @@
-# backend/apps/rubrics/tasks.py
 from celery import shared_task
-from .models import VettingRubric
+
+from apps.applications.models import VettingCase
+
 from .engine import RubricEvaluationEngine
-from apps.applications import VettingCase
-from apps.notifications.services import NotificationService
+from .models import VettingRubric
 
-@shared_task
-def evaluate_application_with_rubric(application_id, rubric_id):
-    """Evaluate application using specified rubric"""
+
+@shared_task(bind=True, max_retries=1)
+def evaluate_case_with_rubric(self, case_id: int, rubric_id: int, evaluator_id: int | None = None):
     try:
-        application = VettingCase.objects.get(id=application_id)
+        case = VettingCase.objects.get(id=case_id)
         rubric = VettingRubric.objects.get(id=rubric_id)
-        
-        # Run evaluation
-        engine = RubricEvaluationEngine(application, rubric)
-        evaluation = engine.evaluate()
-        
-        # Update application status based on evaluation
-        if evaluation.ai_recommendation == 'AUTO_APPROVE':
-            application.status = 'approved'
-            application.notes = f'Auto-approved (Score: {evaluation.overall_score:.1f}%)'
-        elif evaluation.ai_recommendation == 'AUTO_REJECT':
-            application.status = 'rejected'
-            application.notes = f'Auto-rejected (Score: {evaluation.overall_score:.1f}%)'
-        else:
-            application.status = 'under_review'
-            application.notes = f'Manual review required (Score: {evaluation.overall_score:.1f}%)'
-        
-        application.save()
-        
-        # Send notification
-        NotificationService.send_evaluation_complete(
-            application=application,
-            evaluation=evaluation
-        )
-        
-        return {
-            'success': True,
-            'evaluation_id': evaluation.id,
-            'overall_score': evaluation.overall_score,
-            'recommendation': evaluation.ai_recommendation
-        }
-    
-    except Exception as e:
-        return {
-            'success': False,
-            'error': str(e)
-        }
+    except (VettingCase.DoesNotExist, VettingRubric.DoesNotExist) as exc:
+        return {"success": False, "error": str(exc)}
 
-@shared_task
-def auto_assign_rubric(application_id):
-    """Automatically assign appropriate rubric based on application type"""
+    evaluated_by = None
+    if evaluator_id:
+        try:
+            from django.contrib.auth import get_user_model
+
+            evaluated_by = get_user_model().objects.get(id=evaluator_id)
+        except Exception:
+            evaluated_by = None
+
+    evaluation = RubricEvaluationEngine(case=case, rubric=rubric).evaluate(evaluated_by=evaluated_by)
+    return {
+        "success": True,
+        "evaluation_id": evaluation.id,
+        "total_weighted_score": evaluation.total_weighted_score,
+        "final_decision": evaluation.final_decision,
+        "requires_manual_review": evaluation.requires_manual_review,
+    }
+
+
+@shared_task(bind=True, max_retries=1)
+def auto_assign_rubric(self, case_id: int):
     try:
-        application = VettingCase.objects.get(id=application_id)
-        
-        # Find matching rubric
-        rubrics = VettingRubric.objects.filter(
-            status='active',
-            rubric_type=application.application_type
-        )
-        
-        # Filter by department/position if available
-        if hasattr(application, 'department') and application.department:
-            rubrics = rubrics.filter(department=application.department)
-        
-        if hasattr(application, 'position_level') and application.position_level:
-            rubrics = rubrics.filter(position_level=application.position_level)
-        
-        # Get the most recently updated active rubric
-        rubric = rubrics.order_by('-updated_at').first()
-        
-        if rubric:
-            # Assign and evaluate
-            evaluate_application_with_rubric.delay(application_id, rubric.id)
-            return {
-                'success': True,
-                'rubric_id': rubric.id,
-                'rubric_name': rubric.name
-            }
-        else:
-            return {
-                'success': False,
-                'error': 'No matching rubric found'
-            }
-    
-    except Exception as e:
-        return {
-            'success': False,
-            'error': str(e)
-        }
+        case = VettingCase.objects.get(id=case_id)
+    except VettingCase.DoesNotExist:
+        return {"success": False, "error": f"Case {case_id} not found"}
+
+    rubric = VettingRubric.objects.filter(is_active=True, is_default=True).order_by("-updated_at").first()
+    if rubric is None:
+        rubric = VettingRubric.objects.filter(is_active=True).order_by("-updated_at").first()
+    if rubric is None:
+        return {"success": False, "error": "No active rubric available"}
+
+    return evaluate_case_with_rubric(case.id, rubric.id)
