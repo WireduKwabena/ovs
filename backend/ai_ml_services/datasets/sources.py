@@ -55,6 +55,14 @@ LOCAL_RAW_DATASET_LAYOUTS = {
         "authentic_prefixes": ["Au-"],
         "forged_prefixes": ["Sp-"],
     },
+    "coverage": {
+        "root": "COVERAGE",
+        "special_parser": "coverage_pairs",
+        "notes": [
+            "image/{id}.tif => authentic",
+            "image/{id}t.tif => forged",
+        ],
+    },
     "cedar_signatures": {
         "root": "signatures",
         "authentic_dirs": ["full_org"],
@@ -66,5 +74,13 @@ LOCAL_RAW_DATASET_LAYOUTS = {
         "authentic_dirs": ["train/genuine", "test/*/genuine"],
         "forged_dirs": ["train/forge", "test/*/forge"],
         "filename_hints": ["c-*.jpg => authentic", "cf-*.jpg => forged"],
+    },
+    "resumes_pdf": {
+        "root": "Resumes PDF",
+        "special_parser": "resume_metadata",
+        "notes": [
+            "Folder names map to resume categories.",
+            "Use create_resume_metadata.py for normalization and train/val/test split.",
+        ],
     },
 }

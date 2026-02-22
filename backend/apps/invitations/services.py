@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import secrets
 from datetime import timedelta
 
@@ -8,6 +9,8 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import CandidateAccessPass, CandidateAccessSession, Invitation
+
+logger = logging.getLogger(__name__)
 
 
 class CandidateAccessError(Exception):
@@ -216,9 +219,21 @@ def send_invitation(invitation: Invitation) -> None:
             recipient_list=[invitation.send_to],
             fail_silently=False,
         )
+        logger.info("Invitation email sent for invitation_id=%s", invitation.id)
         return
 
     # Placeholder for SMS provider integration.
+    if invitation.channel == "sms":
+        logger.warning(
+            "SMS delivery adapter is not configured. Marking invitation_id=%s as sent placeholder.",
+            invitation.id,
+        )
+        return
+
+    raise CandidateAccessError(
+        f"Unsupported invitation channel '{invitation.channel}'.",
+        code="unsupported_channel",
+    )
     # This marks the invitation as sent for now and records a fresh token issue.
     access_pass.metadata = {
         **(access_pass.metadata or {}),

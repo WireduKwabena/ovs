@@ -1,0 +1,4 @@
+Critical flags alert for session {{ session_id }}.
+Applicant: {{ applicant_name }}
+Flag count: {{ flag_count }}
+Dashboard: {{ dashboard_url }}

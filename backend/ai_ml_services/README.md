@@ -136,11 +136,13 @@ def process_verification_result(task_result):
 Verify a single document for authenticity.
 
 **Parameters:**
+
 - `file_path` (str): Path to the document file
 - `document_type` (str): Type of document (id_card, passport, certificate, etc.)
 - `case_id` (str, optional): Case ID for tracking
 
 **Returns:**
+
 ```python
 {
     'success': True,
@@ -169,9 +171,11 @@ Verify a single document for authenticity.
 Detect fraud in application data.
 
 **Parameters:**
+
 - `application_data` (dict): Application information
 
 **Returns:**
+
 ```python
 {
     'is_fraud': False,
@@ -190,9 +194,11 @@ Detect fraud in application data.
 Check consistency across multiple documents.
 
 **Parameters:**
+
 - `documents` (list): List of document dicts with 'text' and 'document_type'
 
 **Returns:**
+
 ```python
 {
     'overall_consistent': True,
@@ -356,9 +362,15 @@ python ai_ml_services/datasets/create_dataset.py \
   --authentic_sources ai_ml_services/datasets/raw_dataset/CASIA2/Au \
   --forged_sources ai_ml_services/datasets/raw_dataset/CASIA2/Tp \
   --auto_labeled_sources ai_ml_services/datasets/raw_dataset/Dataset ai_ml_services/datasets/raw_dataset/ImSpliceDataset \
+  --coverage_sources ai_ml_services/datasets/raw_dataset/COVERAGE \
   --num_forgeries 2000 \
   --random_seed 42
 ```
+
+`--coverage_sources` uses explicit COVERAGE parsing:
+
+- `image/{id}.tif` -> authentic
+- `image/{id}t.tif` -> forged
 
 Then train directly from that metadata:
 
@@ -369,6 +381,23 @@ python manage.py train_ai_models \
   --tf-epochs 10 \
   --fraud-samples 10000
 ```
+
+For resume taxonomy data (for OCR/NLP and category modeling), create normalized resume metadata:
+
+```bash
+python ai_ml_services/datasets/create_resume_metadata.py \
+  --source_dir ai_ml_services/datasets/raw_dataset/Resumes\ PDF \
+  --output_dir ai_ml_services/datasets/processed/resumes \
+  --val_ratio 0.15 \
+  --test_ratio 0.15 \
+  --min_samples_per_label 5
+```
+
+This writes:
+
+- `metadata.csv` (filepath, normalized label, split)
+- `labels.csv` (label to label_id mapping)
+- `raw_to_normalized_labels.csv` (folder-name normalization map)
 
 ## Architecture
 
@@ -403,6 +432,7 @@ ai_ml_services/
 If you were previously using the FastAPI version:
 
 **Old (FastAPI):**
+
 ```python
 response = requests.post(
     'http://ai-service:8000/api/verify-document',
@@ -412,6 +442,7 @@ response = requests.post(
 ```
 
 **New (Django Service):**
+
 ```python
 from ai_ml_services import verify_document
 

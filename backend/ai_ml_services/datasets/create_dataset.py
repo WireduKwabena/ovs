@@ -55,6 +55,8 @@ FORGED_HINTS = {
     "manipulated",
 }
 
+COVERAGE_FILENAME_PATTERN = re.compile(r"^(?P<pair_id>\d+)(?P<tampered>t?)$", re.IGNORECASE)
+
 
 class DocumentDatasetCreator:
     """Create a normalized dataset with `authentic/` and `forged/` buckets."""
@@ -188,6 +190,75 @@ class DocumentDatasetCreator:
             counts["forged"],
             counts["skipped"],
         )
+        return counts
+
+    def collect_coverage_documents(
+        self,
+        source_dirs: List[str],
+        max_pairs_per_source: int = 0,
+    ) -> Dict[str, int]:
+        """
+        Ingest COVERAGE dataset pairs.
+
+        Expected naming inside each source root:
+        - image/{id}.tif   -> authentic
+        - image/{id}t.tif  -> forged
+        """
+
+        counts = {"authentic": 0, "forged": 0, "skipped": 0}
+        next_indices = {
+            "authentic": len(list(self._iter_images(self.authentic_dir))),
+            "forged": len(list(self._iter_images(self.forged_dir))),
+        }
+        if not source_dirs:
+            return counts
+
+        for source in source_dirs:
+            source_root = Path(source)
+            image_dir = source_root / "image" if (source_root / "image").is_dir() else source_root
+            if not image_dir.exists():
+                logger.warning("COVERAGE source path not found: %s", source_root)
+                counts["skipped"] += 1
+                continue
+
+            pair_map: Dict[str, Dict[str, Path]] = {}
+            invalid_names = 0
+            for image_path in self._iter_images(image_dir):
+                match = COVERAGE_FILENAME_PATTERN.fullmatch(image_path.stem.lower())
+                if not match:
+                    invalid_names += 1
+                    continue
+                pair_id = match.group("pair_id")
+                label = "forged" if match.group("tampered") == "t" else "authentic"
+                pair_map.setdefault(pair_id, {})[label] = image_path
+
+            pair_ids = sorted(pair_map.keys(), key=lambda value: int(value))
+            if max_pairs_per_source > 0 and len(pair_ids) > max_pairs_per_source:
+                pair_ids = random.sample(pair_ids, max_pairs_per_source)
+                pair_ids.sort(key=lambda value: int(value))
+
+            for pair_id in pair_ids:
+                pair = pair_map[pair_id]
+                for label in ("authentic", "forged"):
+                    image_path = pair.get(label)
+                    if image_path is None:
+                        counts["skipped"] += 1
+                        continue
+                    idx = next_indices[label]
+                    if self._copy_image(image_path, label, idx) is not None:
+                        counts[label] += 1
+                        next_indices[label] += 1
+                    else:
+                        counts["skipped"] += 1
+
+            logger.info(
+                "Processed COVERAGE source %s -> authentic=%d forged=%d skipped=%d invalid_names=%d",
+                source_root,
+                counts["authentic"],
+                counts["forged"],
+                counts["skipped"],
+                invalid_names,
+            )
         return counts
 
     def collect_authentic_documents(
@@ -405,6 +476,15 @@ def main():
         help="Sources that include mixed labels in path names (e.g. Au/Tp, real/fake).",
     )
     parser.add_argument(
+        "--coverage_sources",
+        nargs="*",
+        default=[],
+        help=(
+            "COVERAGE dataset roots. Each root may contain image/{id}.tif (authentic) "
+            "and image/{id}t.tif (forged)."
+        ),
+    )
+    parser.add_argument(
         "--num_forgeries",
         type=int,
         default=0,
@@ -449,6 +529,12 @@ def main():
     )
     authentic_count += auto_counts["authentic"]
     forged_count += auto_counts["forged"]
+    coverage_counts = creator.collect_coverage_documents(
+        source_dirs=args.coverage_sources,
+        max_pairs_per_source=args.max_images_per_source,
+    )
+    authentic_count += coverage_counts["authentic"]
+    forged_count += coverage_counts["forged"]
 
     if authentic_count == 0:
         logger.error("No authentic samples collected. Cannot build dataset.")

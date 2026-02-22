@@ -19,12 +19,12 @@ class AuditLogSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at']
     
-    def get_user_name(self, obj):
+    def get_user_name(self, obj) -> str | None:
         if not obj.user:
             return None
         return obj.user.get_full_name() if hasattr(obj.user, "get_full_name") else obj.user.email
     
-    def get_admin_user_name(self, obj):
+    def get_admin_user_name(self, obj) -> str | None:
         if not obj.admin_user:
             return None
         return (

@@ -1,8 +1,12 @@
+from unittest.mock import patch
+
+from django.test import TestCase
 from rest_framework.test import APITestCase
 
 from apps.applications.models import VettingCase
 from apps.authentication.models import User
-from apps.rubrics.models import RubricEvaluation
+from apps.rubrics.models import RubricEvaluation, VettingRubric
+from apps.rubrics.tasks import auto_assign_rubric
 
 
 class RubricsApiTests(APITestCase):
@@ -36,33 +40,39 @@ class RubricsApiTests(APITestCase):
         )
         self.client.force_authenticate(self.hr)
 
-    def test_create_rubric_evaluate_case_and_override_criterion(self):
-        create_rubric = self.client.post(
+    def _rubric_payload(self, name: str) -> dict:
+        return {
+            "name": name,
+            "description": "Baseline rubric for tests",
+            "rubric_type": "general",
+            "document_authenticity_weight": 25,
+            "consistency_weight": 20,
+            "fraud_detection_weight": 20,
+            "interview_weight": 25,
+            "manual_review_weight": 10,
+            "passing_score": 70,
+            "auto_approve_threshold": 90,
+            "auto_reject_threshold": 40,
+            "minimum_document_score": 60,
+            "maximum_fraud_score": 50,
+            "require_interview": True,
+            "critical_flags_auto_fail": True,
+            "max_unresolved_flags": 2,
+            "is_active": True,
+            "is_default": False,
+        }
+
+    def _create_rubric(self, name: str) -> int:
+        response = self.client.post(
             "/api/rubrics/vetting-rubrics/",
-            {
-                "name": "Test Rubric",
-                "description": "Baseline rubric for tests",
-                "rubric_type": "general",
-                "document_authenticity_weight": 25,
-                "consistency_weight": 20,
-                "fraud_detection_weight": 20,
-                "interview_weight": 25,
-                "manual_review_weight": 10,
-                "passing_score": 70,
-                "auto_approve_threshold": 90,
-                "auto_reject_threshold": 40,
-                "minimum_document_score": 60,
-                "maximum_fraud_score": 50,
-                "require_interview": True,
-                "critical_flags_auto_fail": True,
-                "max_unresolved_flags": 2,
-                "is_active": True,
-                "is_default": False,
-            },
+            self._rubric_payload(name),
             format="json",
         )
-        self.assertEqual(create_rubric.status_code, 201)
-        rubric_id = create_rubric.json()["id"]
+        self.assertEqual(response.status_code, 201)
+        return response.json()["id"]
+
+    def test_create_rubric_evaluate_case_and_override_criterion(self):
+        rubric_id = self._create_rubric("Test Rubric")
 
         add_criterion = self.client.post(
             f"/api/rubrics/vetting-rubrics/{rubric_id}/criteria/",
@@ -106,31 +116,7 @@ class RubricsApiTests(APITestCase):
         self.assertEqual(evaluation.status, "requires_review")
 
     def test_override_rejects_out_of_range_score(self):
-        rubric = self.client.post(
-            "/api/rubrics/vetting-rubrics/",
-            {
-                "name": "Negative Test Rubric",
-                "description": "Negative path test",
-                "rubric_type": "general",
-                "document_authenticity_weight": 25,
-                "consistency_weight": 20,
-                "fraud_detection_weight": 20,
-                "interview_weight": 25,
-                "manual_review_weight": 10,
-                "passing_score": 70,
-                "auto_approve_threshold": 90,
-                "auto_reject_threshold": 40,
-                "minimum_document_score": 60,
-                "maximum_fraud_score": 50,
-                "require_interview": True,
-                "critical_flags_auto_fail": True,
-                "max_unresolved_flags": 2,
-                "is_active": True,
-                "is_default": False,
-            },
-            format="json",
-        )
-        rubric_id = rubric.json()["id"]
+        rubric_id = self._create_rubric("Negative Test Rubric")
         criterion = self.client.post(
             f"/api/rubrics/vetting-rubrics/{rubric_id}/criteria/",
             {
@@ -163,3 +149,87 @@ class RubricsApiTests(APITestCase):
             format="json",
         )
         self.assertEqual(bad_override.status_code, 400)
+
+    @patch("apps.rubrics.views.evaluate_case_with_rubric.delay")
+    def test_evaluate_case_async_string_true_queues_task(self, mock_delay):
+        rubric_id = self._create_rubric("Async Queue Rubric")
+
+        response = self.client.post(
+            f"/api/rubrics/vetting-rubrics/{rubric_id}/evaluate-case/",
+            {"case_id": self.case.id, "async": "true"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.json()["message"], "Evaluation queued.")
+        mock_delay.assert_called_once_with(self.case.id, rubric_id, self.hr.id)
+
+    @patch("apps.rubrics.views.evaluate_case_with_rubric.delay")
+    def test_evaluate_case_async_string_false_runs_synchronously(self, mock_delay):
+        rubric_id = self._create_rubric("Async Sync Rubric")
+
+        response = self.client.post(
+            f"/api/rubrics/vetting-rubrics/{rubric_id}/evaluate-case/",
+            {"case_id": self.case.id, "async": "false"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("id", response.json())
+        mock_delay.assert_not_called()
+
+
+class RubricTaskTests(TestCase):
+    def setUp(self):
+        self.hr = User.objects.create_user(
+            email="rubric-task-hr@example.com",
+            password="Pass1234!",
+            first_name="Task",
+            last_name="HR",
+            user_type="hr_manager",
+            is_staff=True,
+        )
+        self.applicant = User.objects.create_user(
+            email="rubric-task-applicant@example.com",
+            password="Pass1234!",
+            first_name="Task",
+            last_name="Applicant",
+            user_type="applicant",
+        )
+        self.case = VettingCase.objects.create(
+            applicant=self.applicant,
+            assigned_to=self.hr,
+            position_applied="Risk Analyst",
+            department="Compliance",
+            priority="high",
+            status="under_review",
+            document_authenticity_score=86,
+            consistency_score=80,
+            fraud_risk_score=18,
+            interview_score=74,
+        )
+        self.default_rubric = VettingRubric.objects.create(
+            name="Default Task Rubric",
+            is_active=True,
+            is_default=True,
+            created_by=self.hr,
+        )
+        VettingRubric.objects.create(
+            name="Secondary Task Rubric",
+            is_active=True,
+            is_default=False,
+            created_by=self.hr,
+        )
+
+    def test_auto_assign_rubric_uses_default_rubric(self):
+        result = auto_assign_rubric.run(self.case.id)
+
+        self.assertTrue(result["success"])
+        evaluation = RubricEvaluation.objects.get(case=self.case)
+        self.assertEqual(evaluation.rubric_id, self.default_rubric.id)
+
+    def test_auto_assign_rubric_returns_error_for_missing_case(self):
+        result = auto_assign_rubric.run(case_id=999999)
+
+        self.assertFalse(result["success"])
+        self.assertIn("not found", result["error"].lower())

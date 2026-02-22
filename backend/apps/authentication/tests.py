@@ -1,3 +1,8 @@
+from types import SimpleNamespace
+from unittest.mock import patch
+
+from django.contrib.auth.tokens import default_token_generator
+from django.core.signing import Signer
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -61,3 +66,62 @@ class EmailAuthEndpointTests(APITestCase):
 
         self.assertEqual(google.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(github.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_password_reset_confirm_with_signed_token_changes_password(self):
+        raw_token = default_token_generator.make_token(self.user)
+        signed_token = Signer().sign(f"{self.user.pk}:{raw_token}")
+        new_password = "NewPass1234!"
+
+        response = self.client.post(
+            "/api/auth/password-reset-confirm/",
+            {
+                "token": signed_token,
+                "new_password": new_password,
+                "new_password_confirm": new_password,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(new_password))
+
+    def test_password_reset_confirm_rejects_invalid_token(self):
+        response = self.client.post(
+            "/api/auth/password-reset-confirm/",
+            {
+                "token": "invalid-token",
+                "new_password": "NewPass1234!",
+                "new_password_confirm": "NewPass1234!",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", response.data)
+
+    def test_two_factor_setup_stores_plain_totp_secret(self):
+        admin = User.objects.create_user(
+            email="admin2fa@example.com",
+            password=self.password,
+            first_name="Admin",
+            last_name="2FA",
+            user_type="admin",
+            is_staff=True,
+        )
+        self.client.force_authenticate(user=admin)
+
+        with patch(
+            "apps.authentication.views.pyotp",
+            SimpleNamespace(random_base32=lambda: "A" * 32),
+        ), patch.object(
+            User,
+            "get_totp_uri",
+            return_value="otpauth://totp/OVS-Redo:admin2fa@example.com",
+        ):
+            response = self.client.get("/api/auth/admin/2fa/setup/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        admin.refresh_from_db()
+        self.assertEqual(admin.two_factor_secret, "A" * 32)
+        self.assertIn("provisioning_uri", response.data)

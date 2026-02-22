@@ -19,7 +19,6 @@ This flexibility is crucial for adapting to different:
 
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
-from django.utils import timezone
 from apps.authentication.models import User
 from apps.applications.models import VettingCase
 

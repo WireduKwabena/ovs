@@ -228,17 +228,9 @@ class NotificationService:
             logger.warning("Skipping send_evaluation_complete: case has no applicant.")
             return None
 
-        score = getattr(evaluation, "overall_score", None)
-        if score is None:
-            score = getattr(evaluation, "total_weighted_score", None)
-
-        recommendation = getattr(evaluation, "ai_recommendation", None)
-        if recommendation is None:
-            recommendation = getattr(evaluation, "final_decision", "")
-
-        passed = getattr(evaluation, "passed", None)
-        if passed is None:
-            passed = getattr(evaluation, "passes_threshold", None)
+        score = evaluation.total_weighted_score
+        recommendation = evaluation.final_decision
+        passed = evaluation.passes_threshold
 
         score_text = f"{float(score):.1f}%" if score is not None else "N/A"
         subject = "Application Evaluation Complete"

@@ -1,44 +1,72 @@
-# backend/apps/rubrics/management/commands/create_rubrics_from_templates.py
-# Command to create rubrics from templates
+"""Create rubric records from curated template definitions."""
+
+from __future__ import annotations
 
 from django.core.management.base import BaseCommand
+
+from apps.authentication.models import User
 from apps.rubrics.templates import RUBRIC_TEMPLATES, create_rubric_from_template
-from apps.auth_actions import AdminUser
+
 
 class Command(BaseCommand):
-    help = 'Create rubrics from pre-defined templates'
-    
-    def handle(self, *args, **options):
-        # Get or create HR manager
-        hr_manager = AdminUser.objects.filter(role='hr_manager').first()
-        
-        if not hr_manager:
-            self.stdout.write(self.style.ERROR('No HR manager found. Creating default...'))
-            hr_manager = AdminUser.objects.create_user(
-                username='hr_manager',
-                email='hr@system.com',
-                password='hr123',
-                role='hr_manager'
-            )
-        
-        self.stdout.write('Creating rubrics from templates...')
-        
-        created_count = 0
-        for template_key in RUBRIC_TEMPLATES.keys():
-            try:
-                rubric = create_rubric_from_template(
-                    template_key,
-                    created_by=hr_manager
-                )
-                self.stdout.write(
-                    self.style.SUCCESS(f'✓ Created: {rubric.name}')
-                )
-                created_count += 1
-            except Exception as e:
-                self.stdout.write(
-                    self.style.ERROR(f'✗ Failed to create {template_key}: {e}')
-                )
-        
-        self.stdout.write(
-            self.style.SUCCESS(f'\n✅ Successfully created {created_count} rubrics')
+    help = "Create or refresh rubrics from predefined templates"
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--owner-email",
+            type=str,
+            default="hr@system.local",
+            help="Email of rubric owner (created as HR manager if missing).",
         )
+        parser.add_argument(
+            "--template",
+            type=str,
+            default="",
+            help="Optional template key to create a single template only.",
+        )
+
+    def _get_or_create_owner(self, email: str) -> User:
+        owner = User.objects.filter(email=email).first()
+        if owner:
+            if owner.user_type not in {"hr_manager", "admin"}:
+                owner.user_type = "hr_manager"
+                owner.is_staff = True
+                owner.save(update_fields=["user_type", "is_staff", "updated_at"])
+            return owner
+
+        owner = User.objects.create_user(
+            email=email,
+            password="ChangeMe123!",
+            first_name="HR",
+            last_name="Manager",
+            user_type="hr_manager",
+            is_staff=True,
+            email_verified=True,
+        )
+        self.stdout.write(
+            self.style.WARNING(
+                f"Created owner user '{email}' with temporary password 'ChangeMe123!'."
+            )
+        )
+        return owner
+
+    def handle(self, *args, **options):
+        owner = self._get_or_create_owner(options["owner_email"])
+        template_key = (options.get("template") or "").strip()
+
+        keys = [template_key] if template_key else list(RUBRIC_TEMPLATES.keys())
+        created = 0
+        failed = 0
+
+        for key in keys:
+            try:
+                rubric = create_rubric_from_template(key, created_by=owner)
+                self.stdout.write(self.style.SUCCESS(f"Created/updated: {rubric.name}"))
+                created += 1
+            except Exception as exc:
+                self.stdout.write(self.style.ERROR(f"Failed template '{key}': {exc}"))
+                failed += 1
+
+        if failed:
+            self.stdout.write(self.style.WARNING(f"Completed with {failed} failure(s)."))
+        self.stdout.write(self.style.SUCCESS(f"Processed {created} template(s) successfully."))

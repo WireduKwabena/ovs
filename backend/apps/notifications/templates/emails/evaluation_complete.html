@@ -1,0 +1,9 @@
+<!doctype html>
+<html>
+<body>
+<p>Hello {{ user.first_name|default:"Candidate" }},</p>
+<p>Your application <strong>{{ case_id }}</strong> has been evaluated.</p>
+<p>Overall score: <strong>{{ overall_score|default:"N/A" }}</strong></p>
+<p>Recommendation: <strong>{{ recommendation|default:"Pending manual review" }}</strong></p>
+</body>
+</html>

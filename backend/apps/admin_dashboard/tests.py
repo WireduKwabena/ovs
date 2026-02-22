@@ -74,3 +74,18 @@ class AdminDashboardAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(response.data["results"][0]["status"], "pending")
+
+    def test_analytics_invalid_months_falls_back_to_default_window(self):
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.get("/api/admin/analytics/?months=invalid")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["monthly_trend"]), 6)
+
+    def test_cases_invalid_page_and_page_size_use_defaults(self):
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.get("/api/admin/cases/?page=abc&page_size=-5")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["page"], 1)
+        self.assertEqual(response.data["page_size"], 20)

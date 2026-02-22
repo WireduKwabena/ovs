@@ -204,6 +204,7 @@ class CandidateAccessConsumeAPIView(APIView):
 
         session_ttl_hours = int(getattr(settings, "CANDIDATE_ACCESS_SESSION_TTL_HOURS", 12))
 
+        request.session.cycle_key()
         request.session["candidate_access_session_key"] = str(candidate_session.session_key)
         request.session.set_expiry(session_ttl_hours * 3600)
 
@@ -219,7 +220,7 @@ class CandidateAccessConsumeAPIView(APIView):
 
 
 class CandidateAccessContextAPIView(APIView):
-    permission_classes = [AllowAny, HasCandidateAccessSession]
+    permission_classes = [HasCandidateAccessSession]
 
     @extend_schema(
         responses={
@@ -235,7 +236,7 @@ class CandidateAccessContextAPIView(APIView):
 
 
 class CandidateAccessResultsAPIView(APIView):
-    permission_classes = [AllowAny, HasCandidateAccessSession]
+    permission_classes = [HasCandidateAccessSession]
 
     @extend_schema(
         responses={
@@ -311,7 +312,7 @@ class CandidateAccessResultsAPIView(APIView):
 
 
 class CandidateAccessLogoutAPIView(APIView):
-    permission_classes = [AllowAny, HasCandidateAccessSession]
+    permission_classes = [HasCandidateAccessSession]
     serializer_class = EmptySerializer
 
     @extend_schema(

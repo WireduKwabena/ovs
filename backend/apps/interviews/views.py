@@ -171,7 +171,7 @@ class InterviewSessionViewSet(viewsets.ModelViewSet):
             },
         )
 
-        response, _ = InterviewResponse.objects.update_or_create(
+        response, created = InterviewResponse.objects.update_or_create(
             session=session,
             sequence_number=sequence_number,
             defaults={
@@ -179,7 +179,8 @@ class InterviewSessionViewSet(viewsets.ModelViewSet):
                 "target_flag": target_flag,
             },
         )
-        question.increment_usage()
+        if created:
+            question.increment_usage()
 
         fields_to_update = []
         if session.current_question_number < sequence_number:

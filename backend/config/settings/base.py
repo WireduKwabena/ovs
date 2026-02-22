@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Custom apps
     "apps.core",
+    "apps.admin_dashboard",
     "apps.authentication",
     "apps.campaigns",
     "apps.candidates",
@@ -74,6 +75,9 @@ INSTALLED_APPS = [
     "apps.interviews",
     "apps.rubrics",
     "apps.notifications.apps.NotificationsConfig",
+    "apps.audit",
+    "apps.fraud",
+    "apps.ml_monitoring",
     "ai_ml_services.apps.AiMlServicesConfig",
 ]
 

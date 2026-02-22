@@ -1,0 +1,5 @@
+Poor response quality alert for session {{ session_id }}.
+Applicant: {{ applicant_name }}
+Quality score: {{ quality_score }}
+Question: {{ question }}
+Dashboard: {{ dashboard_url }}

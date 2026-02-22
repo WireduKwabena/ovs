@@ -37,10 +37,6 @@ try:
     import pyotp
 except ImportError:  # pragma: no cover - dependency may be optional in some setups
     pyotp = None
-try:
-    from cryptography.fernet import Fernet
-except ImportError:  # pragma: no cover - dependency may be optional in some setups
-    Fernet = None
 from django.core.signing import Signer, BadSignature
 
 logger = logging.getLogger(__name__)
@@ -196,13 +192,11 @@ def two_factor_setup_view(request):
     user = request.user
     if not user.is_staff:
         return Response({'error': 'Only admin users can set up 2FA.'}, status=status.HTTP_403_FORBIDDEN)
-    if pyotp is None or Fernet is None:
+    if pyotp is None:
         return Response({'error': '2FA dependency is not installed.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     secret = pyotp.random_base32()
-    f = Fernet(settings.SECRET_KEY.encode())
-    
-    user.two_factor_secret = f.encrypt(secret.encode()).decode()
+    user.two_factor_secret = secret
     user.save()
     
     return Response({'provisioning_uri': user.get_totp_uri()})
@@ -381,9 +375,10 @@ def password_reset_request_view(request):
             
             # Generate reset token
             token = default_token_generator.make_token(user)
+            signed_token = Signer().sign(f"{user.pk}:{token}")
             
             # Send email
-            reset_link = f"{settings.FRONTEND_URL}/reset-password/{user.id}/{token}/"
+            reset_link = f"{settings.FRONTEND_URL}/reset-password/{signed_token}/"
             
             send_mail(
                 subject='Password Reset Request',
@@ -397,7 +392,7 @@ def password_reset_request_view(request):
             
         except User.DoesNotExist:
             # Don't reveal that user doesn't exist
-            pass
+            logger.info("Password reset requested for non-existent email: %s", email)
         
         return Response({
             'message': 'If an account exists with this email, a password reset link has been sent.'
@@ -425,8 +420,27 @@ def password_reset_confirm_view(request):
     serializer = PasswordResetConfirmSerializer(data=request.data)
     
     if serializer.is_valid():
-        # Validate token and reset password
-        # Implementation depends on your token strategy
+        signed_token = serializer.validated_data['token']
+        signer = Signer()
+
+        try:
+            payload = signer.unsign(signed_token)
+            user_id_str, reset_token = payload.split(":", 1)
+            user = User.objects.get(pk=int(user_id_str))
+        except (BadSignature, ValueError, User.DoesNotExist):
+            return Response(
+                {'error': 'Invalid or expired reset token.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not default_token_generator.check_token(user, reset_token):
+            return Response(
+                {'error': 'Invalid or expired reset token.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(serializer.validated_data['new_password'])
+        user.save(update_fields=['password', 'updated_at'])
         return Response({'message': 'Password has been reset successfully'})
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

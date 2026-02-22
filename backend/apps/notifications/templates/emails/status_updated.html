@@ -1,0 +1,8 @@
+<!doctype html>
+<html>
+<body>
+<p>Hello {{ user.first_name|default:"Candidate" }},</p>
+<p>Your application <strong>{{ case_id }}</strong> status changed from
+<strong>{{ old_status }}</strong> to <strong>{{ new_status }}</strong>.</p>
+</body>
+</html>

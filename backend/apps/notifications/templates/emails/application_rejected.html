@@ -1,0 +1,10 @@
+<!doctype html>
+<html>
+<body>
+<p>Hello {{ user.first_name|default:"Candidate" }},</p>
+<p>Your application <strong>{{ case_id }}</strong> was not approved at this stage.</p>
+{% if reason %}
+<p>Reason: {{ reason }}</p>
+{% endif %}
+</body>
+</html>

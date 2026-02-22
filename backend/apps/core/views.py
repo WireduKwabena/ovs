@@ -1,3 +1,4 @@
-from django.shortcuts import render
+"""Core app views placeholder.
 
-# Create your views here.
+No HTTP views are currently exposed from this app.
+"""

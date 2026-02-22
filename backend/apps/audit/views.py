@@ -1,12 +1,15 @@
 # backend/apps/audit/views.py
 
-from rest_framework import viewsets, filters
+from django.db.models import Count
+from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
+
 from .models import AuditLog
 from .serializers import AuditLogSerializer
+
 
 class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -17,7 +20,7 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     by_entity: GET /api/audit/logs/by-entity/?entity_type=VettingCase&entity_id=1
     by_user: GET /api/audit/logs/by-user/?user_id=1
     """
-    queryset = AuditLog.objects.all()
+    queryset = AuditLog.objects.select_related("user", "admin_user").all()
     serializer_class = AuditLogSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -42,7 +45,7 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(user=user)
         # Admins can see all logs
         
-        return queryset.select_related('user', 'admin_user')
+        return queryset
     
     @action(detail=False, methods=['get'])
     def by_entity(self, request):
@@ -56,7 +59,7 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
         if not entity_type or not entity_id:
             return Response(
                 {'error': 'entity_type and entity_id are required'},
-                status=400
+                status=status.HTTP_400_BAD_REQUEST,
             )
         
         logs = self.get_queryset().filter(
@@ -84,8 +87,6 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
         GET /api/audit/logs/statistics/
         """
         queryset = self.get_queryset()
-        
-        from django.db.models import Count
         
         action_counts = queryset.values('action').annotate(
             count=Count('id')

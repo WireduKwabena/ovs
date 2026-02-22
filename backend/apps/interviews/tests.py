@@ -191,6 +191,49 @@ class InterviewsApiTests(APITestCase):
         )
         self.assertEqual(invalid_save.status_code, 400)
 
+    def test_save_exchange_same_sequence_does_not_double_increment_question_usage(self):
+        create_session = self.client.post(
+            "/api/interviews/sessions/",
+            {
+                "case": self.case.id,
+                "use_dynamic_questions": True,
+                "max_questions": 5,
+            },
+            format="json",
+        )
+        self.assertEqual(create_session.status_code, 201)
+        session_pk = create_session.json()["id"]
+
+        question_text = "Please explain the document inconsistency."
+
+        first_save = self.client.post(
+            f"/api/interviews/sessions/{session_pk}/save-exchange/",
+            {
+                "sequence_number": 1,
+                "question_text": question_text,
+                "question_intent": "resolve_flag",
+            },
+            format="json",
+        )
+        self.assertEqual(first_save.status_code, 200)
+
+        question = InterviewQuestion.objects.get(question_text=question_text)
+        self.assertEqual(question.times_used, 1)
+
+        second_save = self.client.post(
+            f"/api/interviews/sessions/{session_pk}/save-exchange/",
+            {
+                "sequence_number": 1,
+                "question_text": question_text,
+                "question_intent": "resolve_flag",
+            },
+            format="json",
+        )
+        self.assertEqual(second_save.status_code, 200)
+
+        question.refresh_from_db()
+        self.assertEqual(question.times_used, 1)
+
     @patch("apps.interviews.signals.analyze_response_task.delay")
     def test_response_signal_skips_empty_created_response(self, mock_delay):
         session = InterviewSession.objects.create(

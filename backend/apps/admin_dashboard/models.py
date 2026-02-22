@@ -1,3 +1,4 @@
-from django.db import models
+"""Database models for admin_dashboard.
 
-# Create your models here.
+This app currently provides API aggregation over models in other apps.
+"""
