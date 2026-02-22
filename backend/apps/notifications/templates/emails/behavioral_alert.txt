@@ -1,0 +1,5 @@
+Behavioral red flags detected for session {{ session_id }}.
+Applicant: {{ applicant_name }}
+Question: {{ question }}
+Flags: {{ red_flags }}
+Dashboard: {{ dashboard_url }}

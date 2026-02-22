@@ -17,6 +17,22 @@ from .serializers import (
 from .tasks import evaluate_case_with_rubric
 
 
+def _parse_boolean(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "y", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "n", "off", ""}:
+            return False
+    return bool(value)
+
+
 class VettingRubricViewSet(viewsets.ModelViewSet):
     serializer_class = VettingRubricSerializer
     permission_classes = [IsAuthenticated]
@@ -48,7 +64,7 @@ class VettingRubricViewSet(viewsets.ModelViewSet):
     def evaluate_case(self, request, pk=None):
         rubric = self.get_object()
         case_id = request.data.get("case_id")
-        run_async = bool(request.data.get("async", False))
+        run_async = _parse_boolean(request.data.get("async", False))
 
         if not case_id:
             return Response({"error": "case_id is required"}, status=status.HTTP_400_BAD_REQUEST)

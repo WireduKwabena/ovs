@@ -1,16 +1,48 @@
 # backend/apps/admin_dashboard/views.py
 
+from datetime import timedelta
+
+from django.core.paginator import Paginator
+from django.db.models import Avg, Count, Q
+from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from apps.auth_actions import IsAdminUser
-from django.db.models import Count, Avg, Q, Prefetch
-from django.utils import timezone
-from datetime import timedelta
-from apps.applications import VettingCase, Document
-from apps.rubrics import RubricEvaluation
-from apps.fraud.models import FraudDetectionResult
-from .serializers import VettingCaseAdminSerializer
 
+from apps.applications.models import Document, VettingCase
+from apps.auth_actions import IsAdminUser
+from apps.fraud.models import FraudDetectionResult
+from apps.rubrics.models import RubricEvaluation
+
+from .serializers import (
+    AdminAnalyticsResponseSerializer,
+    AdminCasesResponseSerializer,
+    AdminDashboardResponseSerializer,
+    VettingCaseAdminSerializer,
+)
+
+try:
+    from drf_spectacular.utils import extend_schema
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    def extend_schema(*args, **kwargs):  # type: ignore[override]
+        def decorator(func):
+            return func
+
+        return decorator
+
+
+def _parse_positive_int(value, *, default: int, minimum: int = 1, maximum: int | None = None) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    if parsed < minimum:
+        return default
+    if maximum is not None:
+        parsed = min(maximum, parsed)
+    return parsed
+
+
+@extend_schema(responses={200: AdminDashboardResponseSerializer})
 @api_view(['GET'])
 @permission_classes([IsAdminUser])
 def admin_dashboard(request):
@@ -28,13 +60,13 @@ def admin_dashboard(request):
     )
 
     # Recent applications
-    recent_applications = VettingCase.objects.select_related('applicant').prefetch_related(
-        Prefetch('rubric_evaluations', queryset=RubricEvaluation.objects.order_by('-created_at'))
-    ).order_by('-created_at')[:10]
+    recent_applications = VettingCase.objects.select_related(
+        "applicant", "rubric_evaluation"
+    ).order_by("-created_at")[:10]
     
     recent_apps_data = []
     for app in recent_applications:
-        rubric_eval = app.rubric_evaluations.first()
+        rubric_eval = getattr(app, "rubric_evaluation", None)
         recent_apps_data.append({
             'id': app.id,
             'case_id': app.case_id,
@@ -42,7 +74,7 @@ def admin_dashboard(request):
             'application_type': app.position_applied,
             'status': app.status,
             'created_at': app.created_at,
-            'rubric_score': rubric_eval.overall_score if rubric_eval else None
+            'rubric_score': rubric_eval.total_weighted_score if rubric_eval else None
         })
     
     # Documents statistics
@@ -89,6 +121,7 @@ def admin_dashboard(request):
     })
 
 
+@extend_schema(responses={200: AdminAnalyticsResponseSerializer})
 @api_view(['GET'])
 @permission_classes([IsAdminUser])
 def admin_analytics(request):
@@ -113,13 +146,13 @@ def admin_analytics(request):
     
     # Rubric evaluation statistics
     rubric_stats = RubricEvaluation.objects.aggregate(
-        avg_score=Avg('overall_score'),
-        pass_count=Count('id', filter=Q(passed=True)),
-        fail_count=Count('id', filter=Q(passed=False))
+        avg_score=Avg("total_weighted_score"),
+        pass_count=Count("id", filter=Q(passes_threshold=True)),
+        fail_count=Count("id", filter=Q(passes_threshold=False)),
     )
     
     # Monthly application trend
-    months = int(request.query_params.get('months', 6))
+    months = _parse_positive_int(request.query_params.get('months'), default=6, minimum=1, maximum=24)
     monthly_trend = []
     for i in range(months):
         month_start = timezone.now() - timedelta(days=30 * (i + 1))
@@ -148,6 +181,7 @@ def admin_analytics(request):
     })
 
 
+@extend_schema(responses={200: AdminCasesResponseSerializer})
 @api_view(['GET'])
 @permission_classes([IsAdminUser])
 def admin_cases(request):
@@ -156,7 +190,7 @@ def admin_cases(request):
     GET /api/admin/cases/
     Supports filtering: ?status=pending&application_type=employment
     """
-    cases = VettingCase.objects.select_related('applicant', 'admin').all()
+    cases = VettingCase.objects.select_related("applicant", "assigned_to").all()
     
     # Apply filters
     status_filter = request.query_params.get('status')
@@ -172,9 +206,8 @@ def admin_cases(request):
         cases = cases.filter(priority=priority_filter)
     
     # Pagination
-    from django.core.paginator import Paginator
-    page = int(request.query_params.get('page', 1))
-    page_size = int(request.query_params.get('page_size', 20))
+    page = _parse_positive_int(request.query_params.get('page'), default=1, minimum=1)
+    page_size = _parse_positive_int(request.query_params.get('page_size'), default=20, minimum=1, maximum=200)
     
     paginator = Paginator(cases.order_by('-created_at'), page_size)
     page_obj = paginator.get_page(page)

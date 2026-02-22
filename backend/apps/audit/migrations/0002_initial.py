@@ -11,7 +11,6 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("audit", "0001_initial"),
-        ("auth_actions", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -23,7 +22,7 @@ class Migration(migrations.Migration):
                 blank=True,
                 null=True,
                 on_delete=django.db.models.deletion.SET_NULL,
-                to="auth_actions.adminuser",
+                to=settings.AUTH_USER_MODEL,
             ),
         ),
         migrations.AddField(

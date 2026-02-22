@@ -139,7 +139,7 @@ class InterviewPlaybackService:
             return None
         try:
             return file_field.url
-        except Exception:
+        except (AttributeError, OSError, NotImplementedError, TypeError, ValueError):
             return None
 
     @staticmethod
@@ -181,4 +181,3 @@ class InterviewPlaybackService:
                 }
             )
         return highlights
-

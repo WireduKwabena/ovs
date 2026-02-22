@@ -1,3 +1,4 @@
-from django.contrib import admin
+"""Admin registrations for admin_dashboard.
 
-# No concrete models in this app at the moment.
+No concrete models are currently exposed in this app.
+"""

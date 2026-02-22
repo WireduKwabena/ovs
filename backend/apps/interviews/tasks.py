@@ -16,7 +16,7 @@ def _resolve_file_path(file_field) -> str | None:
         return None
     try:
         path = file_field.path
-    except Exception:
+    except (AttributeError, OSError, NotImplementedError, TypeError, ValueError):
         return None
     if not path:
         return None

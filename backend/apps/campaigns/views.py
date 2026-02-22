@@ -12,7 +12,7 @@ from apps.candidates.models import Candidate, CandidateEnrollment
 from apps.invitations.models import Invitation
 from apps.invitations.tasks import send_invitation_task
 
-from .models import CampaignRubricVersion, VettingCampaign
+from .models import VettingCampaign
 from .serializers import CampaignRubricVersionSerializer, VettingCampaignSerializer
 
 

@@ -4,6 +4,61 @@ info:
   version: 1.0.0
   description: API schema for campaign orchestration and vetting workflows.
 paths:
+  /api/admin/analytics/:
+    get:
+      operationId: admin_analytics_retrieve
+      description: |-
+        Detailed analytics for admin
+        GET /api/admin/analytics/
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAnalyticsResponse'
+          description: ''
+  /api/admin/cases/:
+    get:
+      operationId: admin_cases_retrieve
+      description: |-
+        Get all cases for admin review
+        GET /api/admin/cases/
+        Supports filtering: ?status=pending&application_type=employment
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCasesResponse'
+          description: ''
+  /api/admin/dashboard/:
+    get:
+      operationId: admin_dashboard_retrieve
+      description: |-
+        Main admin dashboard with statistics
+        GET /api/admin/dashboard/
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDashboardResponse'
+          description: ''
   /api/ai-monitor/health/:
     get:
       operationId: ai_monitor_health_retrieve
@@ -316,6 +371,157 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Document'
+          description: ''
+  /api/audit/logs/:
+    get:
+      operationId: audit_logs_list
+      description: |-
+        API endpoints for audit logs (read-only)
+
+        list: GET /api/audit/logs/
+        retrieve: GET /api/audit/logs/{id}/
+        by_entity: GET /api/audit/logs/by-entity/?entity_type=VettingCase&entity_id=1
+        by_user: GET /api/audit/logs/by-user/?user_id=1
+      parameters:
+      - in: query
+        name: action
+        schema:
+          type: string
+          enum:
+          - create
+          - delete
+          - login
+          - logout
+          - other
+          - update
+        description: |-
+          * `create` - Create
+          * `update` - Update
+          * `delete` - Delete
+          * `login` - Login
+          * `logout` - Logout
+          * `other` - Other
+      - in: query
+        name: entity_id
+        schema:
+          type: string
+      - in: query
+        name: entity_type
+        schema:
+          type: string
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - audit
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAuditLogList'
+          description: ''
+  /api/audit/logs/{id}/:
+    get:
+      operationId: audit_logs_retrieve
+      description: |-
+        API endpoints for audit logs (read-only)
+
+        list: GET /api/audit/logs/
+        retrieve: GET /api/audit/logs/{id}/
+        by_entity: GET /api/audit/logs/by-entity/?entity_type=VettingCase&entity_id=1
+        by_user: GET /api/audit/logs/by-user/?user_id=1
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this audit log.
+        required: true
+      tags:
+      - audit
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLog'
+          description: ''
+  /api/audit/logs/by_entity/:
+    get:
+      operationId: audit_logs_by_entity_retrieve
+      description: |-
+        Get audit logs for a specific entity
+        GET /api/audit/logs/by-entity/?entity_type=VettingCase&entity_id=1
+      tags:
+      - audit
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLog'
+          description: ''
+  /api/audit/logs/recent_activity/:
+    get:
+      operationId: audit_logs_recent_activity_retrieve
+      description: |-
+        Get recent activity (last 50 logs)
+        GET /api/audit/logs/recent-activity/
+      tags:
+      - audit
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLog'
+          description: ''
+  /api/audit/logs/statistics/:
+    get:
+      operationId: audit_logs_statistics_retrieve
+      description: |-
+        Get audit log statistics
+        GET /api/audit/logs/statistics/
+      tags:
+      - audit
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLog'
           description: ''
   /api/auth/admin/2fa/enable/:
     post:
@@ -1422,6 +1628,194 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CandidateEnrollment'
+          description: ''
+  /api/fraud/consistency/:
+    get:
+      operationId: fraud_consistency_list
+      description: |-
+        API endpoints for consistency check results.
+
+        list: GET /api/fraud/consistency/
+        retrieve: GET /api/fraud/consistency/{id}/
+        by_application: GET /api/fraud/consistency/by-application/?case_id=XXX
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - fraud
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedConsistencyCheckResultList'
+          description: ''
+  /api/fraud/consistency/{id}/:
+    get:
+      operationId: fraud_consistency_retrieve
+      description: |-
+        API endpoints for consistency check results.
+
+        list: GET /api/fraud/consistency/
+        retrieve: GET /api/fraud/consistency/{id}/
+        by_application: GET /api/fraud/consistency/by-application/?case_id=XXX
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this consistency check result.
+        required: true
+      tags:
+      - fraud
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsistencyCheckResult'
+          description: ''
+  /api/fraud/consistency/history/:
+    get:
+      operationId: fraud_consistency_history_retrieve
+      description: |-
+        Optional endpoint for recent consistency checks.
+        GET /api/fraud/consistency/history/?limit=20
+      tags:
+      - fraud
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsistencyCheckResult'
+          description: ''
+  /api/fraud/consistency/statistics/:
+    get:
+      operationId: fraud_consistency_statistics_retrieve
+      description: Get consistency check statistics.
+      tags:
+      - fraud
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsistencyCheckResult'
+          description: ''
+  /api/fraud/results/:
+    get:
+      operationId: fraud_results_list
+      description: |-
+        API endpoints for fraud detection results.
+
+        list: GET /api/fraud/results/
+        retrieve: GET /api/fraud/results/{id}/
+        by_application: GET /api/fraud/results/by-application/?case_id=XXX
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - fraud
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedFraudDetectionResultList'
+          description: ''
+  /api/fraud/results/{id}/:
+    get:
+      operationId: fraud_results_retrieve
+      description: |-
+        API endpoints for fraud detection results.
+
+        list: GET /api/fraud/results/
+        retrieve: GET /api/fraud/results/{id}/
+        by_application: GET /api/fraud/results/by-application/?case_id=XXX
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this fraud detection result.
+        required: true
+      tags:
+      - fraud
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FraudDetectionResult'
+          description: ''
+  /api/fraud/results/statistics/:
+    get:
+      operationId: fraud_results_statistics_retrieve
+      description: Get fraud detection statistics.
+      tags:
+      - fraud
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FraudDetectionResult'
           description: ''
   /api/interviews/feedback/:
     get:
@@ -2632,7 +3026,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - {}
       responses:
         '200':
           content:
@@ -2663,7 +3056,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - {}
       responses:
         '200':
           content:
@@ -2694,7 +3086,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - {}
       responses:
         '200':
           content:
@@ -2716,6 +3107,260 @@ paths:
               schema:
                 type: object
                 additionalProperties: {}
+          description: ''
+  /api/ml-monitoring/:
+    get:
+      operationId: ml_monitoring_list
+      description: |-
+        API endpoints for ML model metrics.
+
+        list: GET /api/ml-monitoring/
+        retrieve: GET /api/ml-monitoring/{id}/
+        latest: GET /api/ml-monitoring/latest/
+        performance summary: GET /api/ml-monitoring/performance-summary/
+        history: GET /api/ml-monitoring/history/?model_name=authenticity_detector
+
+        Legacy alias routes are also available under /api/ml-monitoring/metrics/.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - ml-monitoring
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMLModelMetricsList'
+          description: ''
+  /api/ml-monitoring/{id}/:
+    get:
+      operationId: ml_monitoring_retrieve
+      description: |-
+        API endpoints for ML model metrics.
+
+        list: GET /api/ml-monitoring/
+        retrieve: GET /api/ml-monitoring/{id}/
+        latest: GET /api/ml-monitoring/latest/
+        performance summary: GET /api/ml-monitoring/performance-summary/
+        history: GET /api/ml-monitoring/history/?model_name=authenticity_detector
+
+        Legacy alias routes are also available under /api/ml-monitoring/metrics/.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this ml model metrics.
+        required: true
+      tags:
+      - ml-monitoring
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLModelMetrics'
+          description: ''
+  /api/ml-monitoring/history/:
+    get:
+      operationId: ml_monitoring_history_retrieve
+      description: |-
+        Get performance history for a specific model.
+        GET /api/ml-monitoring/history/?model_name=authenticity_detector&limit=10
+      tags:
+      - ml-monitoring
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLModelMetrics'
+          description: ''
+  /api/ml-monitoring/latest/:
+    get:
+      operationId: ml_monitoring_latest_retrieve
+      description: Get latest metrics for each model.
+      tags:
+      - ml-monitoring
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLModelMetrics'
+          description: ''
+  /api/ml-monitoring/metrics/:
+    get:
+      operationId: ml_monitoring_metrics_list
+      description: |-
+        API endpoints for ML model metrics.
+
+        list: GET /api/ml-monitoring/
+        retrieve: GET /api/ml-monitoring/{id}/
+        latest: GET /api/ml-monitoring/latest/
+        performance summary: GET /api/ml-monitoring/performance-summary/
+        history: GET /api/ml-monitoring/history/?model_name=authenticity_detector
+
+        Legacy alias routes are also available under /api/ml-monitoring/metrics/.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - ml-monitoring
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMLModelMetricsList'
+          description: ''
+  /api/ml-monitoring/metrics/{id}/:
+    get:
+      operationId: ml_monitoring_metrics_retrieve
+      description: |-
+        API endpoints for ML model metrics.
+
+        list: GET /api/ml-monitoring/
+        retrieve: GET /api/ml-monitoring/{id}/
+        latest: GET /api/ml-monitoring/latest/
+        performance summary: GET /api/ml-monitoring/performance-summary/
+        history: GET /api/ml-monitoring/history/?model_name=authenticity_detector
+
+        Legacy alias routes are also available under /api/ml-monitoring/metrics/.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this ml model metrics.
+        required: true
+      tags:
+      - ml-monitoring
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLModelMetrics'
+          description: ''
+  /api/ml-monitoring/metrics/history/:
+    get:
+      operationId: ml_monitoring_metrics_history_retrieve
+      description: |-
+        Get performance history for a specific model.
+        GET /api/ml-monitoring/history/?model_name=authenticity_detector&limit=10
+      tags:
+      - ml-monitoring
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLModelMetrics'
+          description: ''
+  /api/ml-monitoring/metrics/latest/:
+    get:
+      operationId: ml_monitoring_metrics_latest_retrieve
+      description: Get latest metrics for each model.
+      tags:
+      - ml-monitoring
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLModelMetrics'
+          description: ''
+  /api/ml-monitoring/metrics/performance-summary/:
+    get:
+      operationId: ml_monitoring_metrics_performance_summary_retrieve
+      description: Get performance summary for all models.
+      tags:
+      - ml-monitoring
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLModelMetrics'
+          description: ''
+  /api/ml-monitoring/performance-summary/:
+    get:
+      operationId: ml_monitoring_performance_summary_retrieve
+      description: Get performance summary for all models.
+      tags:
+      - ml-monitoring
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLModelMetrics'
           description: ''
   /api/notifications/:
     get:
@@ -3451,6 +4096,55 @@ components:
           format: uuid
       required:
       - token
+    ActionEnum:
+      enum:
+      - create
+      - update
+      - delete
+      - login
+      - logout
+      - other
+      type: string
+      description: |-
+        * `create` - Create
+        * `update` - Update
+        * `delete` - Delete
+        * `login` - Login
+        * `logout` - Logout
+        * `other` - Other
+    AdminAnalyticsResponse:
+      type: object
+      properties:
+        status_distribution:
+          type: array
+          items:
+            $ref: '#/components/schemas/DistributionItem'
+        type_distribution:
+          type: array
+          items:
+            $ref: '#/components/schemas/DistributionItem'
+        priority_distribution:
+          type: array
+          items:
+            $ref: '#/components/schemas/DistributionItem'
+        rubric_statistics:
+          $ref: '#/components/schemas/RubricStatistics'
+        monthly_trend:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthlyTrendItem'
+        total_applications:
+          type: integer
+        total_users:
+          type: integer
+      required:
+      - monthly_trend
+      - priority_distribution
+      - rubric_statistics
+      - status_distribution
+      - total_applications
+      - total_users
+      - type_distribution
     AdminAuthResponse:
       type: object
       properties:
@@ -3461,6 +4155,60 @@ components:
       required:
       - tokens
       - user
+    AdminCasesResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/VettingCaseAdmin'
+        count:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total_pages:
+          type: integer
+      required:
+      - count
+      - page
+      - page_size
+      - results
+      - total_pages
+    AdminDashboardResponse:
+      type: object
+      properties:
+        total_applications:
+          type: integer
+        pending:
+          type: integer
+        under_review:
+          type: integer
+        approved:
+          type: integer
+        rejected:
+          type: integer
+        recent_applications:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardRecentApplication'
+        documents:
+          $ref: '#/components/schemas/DashboardDocuments'
+        fraud_detection:
+          $ref: '#/components/schemas/DashboardFraud'
+        trends:
+          $ref: '#/components/schemas/DashboardTrends'
+      required:
+      - approved
+      - documents
+      - fraud_detection
+      - pending
+      - recent_applications
+      - rejected
+      - total_applications
+      - trends
+      - under_review
     AdminLogin:
       type: object
       properties:
@@ -3518,6 +4266,55 @@ components:
         * `admin` - System Administrator
         * `hr_manager` - HR Manager
         * `applicant` - Applicant
+    AuditLog:
+      type: object
+      description: Serializer for audit logs
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        user:
+          type: integer
+          nullable: true
+        user_name:
+          type: string
+          nullable: true
+          readOnly: true
+        admin_user:
+          type: integer
+          nullable: true
+        admin_user_name:
+          type: string
+          nullable: true
+          readOnly: true
+        action:
+          $ref: '#/components/schemas/ActionEnum'
+        action_display:
+          type: string
+          readOnly: true
+        entity_type:
+          type: string
+          maxLength: 100
+        entity_id:
+          type: string
+          maxLength: 100
+        changes: {}
+        ip_address:
+          type: string
+          nullable: true
+        user_agent:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - action_display
+      - admin_user_name
+      - created_at
+      - id
+      - user_name
     Candidate:
       type: object
       properties:
@@ -3679,6 +4476,42 @@ components:
       description: |-
         * `email` - Email
         * `sms` - SMS
+    ConsistencyCheckResult:
+      type: object
+      description: Serializer for consistency check results
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        application:
+          type: integer
+        application_case_id:
+          type: string
+          readOnly: true
+        overall_consistent:
+          type: boolean
+        overall_score:
+          type: number
+          format: double
+        name_consistency: {}
+        date_consistency: {}
+        entity_consistency: {}
+        recommendation:
+          type: string
+          maxLength: 20
+        checked_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - application
+      - application_case_id
+      - checked_at
+      - id
+      - overall_consistent
+      - overall_score
+      - recommendation
     CriteriaOverride:
       type: object
       properties:
@@ -3744,6 +4577,73 @@ components:
         * `behavioral` - Behavioral Assessment
         * `technical` - Technical Competency
         * `custom` - Custom Criterion
+    DashboardDocuments:
+      type: object
+      properties:
+        total:
+          type: integer
+        verified:
+          type: integer
+        verification_rate:
+          type: number
+          format: double
+      required:
+      - total
+      - verification_rate
+      - verified
+    DashboardFraud:
+      type: object
+      properties:
+        total_scans:
+          type: integer
+        high_risk_count:
+          type: integer
+        high_risk_rate:
+          type: number
+          format: double
+      required:
+      - high_risk_count
+      - high_risk_rate
+      - total_scans
+    DashboardRecentApplication:
+      type: object
+      properties:
+        id:
+          type: integer
+        case_id:
+          type: string
+        applicant_name:
+          type: string
+        application_type:
+          type: string
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        rubric_score:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - applicant_name
+      - application_type
+      - case_id
+      - created_at
+      - id
+      - rubric_score
+      - status
+    DashboardTrends:
+      type: object
+      properties:
+        monthly_applications:
+          type: integer
+        avg_consistency_score:
+          type: number
+          format: double
+      required:
+      - avg_consistency_score
+      - monthly_applications
     DifficultyEnum:
       enum:
       - easy
@@ -3754,6 +4654,19 @@ components:
         * `easy` - Easy
         * `medium` - Medium
         * `hard` - Hard
+    DistributionItem:
+      type: object
+      properties:
+        count:
+          type: integer
+        status:
+          type: string
+        position_applied:
+          type: string
+        priority:
+          type: string
+      required:
+      - count
     Document:
       type: object
       properties:
@@ -3894,6 +4807,64 @@ components:
           type: string
       required:
       - error
+    FraudDetectionResult:
+      type: object
+      description: Serializer for fraud detection results
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        application:
+          type: integer
+        application_case_id:
+          type: string
+          readOnly: true
+        is_fraud:
+          type: boolean
+        fraud_probability:
+          type: number
+          format: double
+        anomaly_score:
+          type: number
+          format: double
+        risk_level:
+          $ref: '#/components/schemas/RiskLevelEnum'
+        risk_level_display:
+          type: string
+          readOnly: true
+        recommendation:
+          $ref: '#/components/schemas/FraudDetectionResultRecommendationEnum'
+        recommendation_display:
+          type: string
+          readOnly: true
+        feature_scores: {}
+        detected_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - anomaly_score
+      - application
+      - application_case_id
+      - detected_at
+      - fraud_probability
+      - id
+      - is_fraud
+      - recommendation
+      - recommendation_display
+      - risk_level
+      - risk_level_display
+    FraudDetectionResultRecommendationEnum:
+      enum:
+      - PROCEED
+      - MANUAL_REVIEW
+      - REJECT
+      type: string
+      description: |-
+        * `PROCEED` - Proceed
+        * `MANUAL_REVIEW` - Manual Review
+        * `REJECT` - Reject
     FraudPredictionEnum:
       enum:
       - legitimate
@@ -3939,7 +4910,7 @@ components:
         general_comments:
           type: string
         recommendation:
-          $ref: '#/components/schemas/RecommendationEnum'
+          $ref: '#/components/schemas/InterviewFeedbackRecommendationEnum'
         decision_rationale:
           type: string
         agrees_with_ai:
@@ -3964,6 +4935,20 @@ components:
       - rating
       - recommendation
       - session
+    InterviewFeedbackRecommendationEnum:
+      enum:
+      - strongly_approve
+      - approve
+      - neutral
+      - reject
+      - strongly_reject
+      type: string
+      description: |-
+        * `strongly_approve` - Strongly Approve
+        * `approve` - Approve
+        * `neutral` - Neutral
+        * `reject` - Reject
+        * `strongly_reject` - Strongly Reject
     InterviewQuestion:
       type: object
       properties:
@@ -4381,6 +5366,50 @@ components:
           type: string
       required:
       - refresh
+    MLModelMetrics:
+      type: object
+      description: Serializer for ML model metrics
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        model_name:
+          type: string
+          maxLength: 100
+        model_version:
+          type: string
+          maxLength: 50
+        accuracy:
+          type: number
+          format: double
+        precision:
+          type: number
+          format: double
+        recall:
+          type: number
+          format: double
+        f1_score:
+          type: number
+          format: double
+        confusion_matrix: {}
+        trained_at:
+          type: string
+          format: date-time
+        evaluated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - accuracy
+      - evaluated_at
+      - f1_score
+      - id
+      - model_name
+      - model_version
+      - precision
+      - recall
+      - trained_at
     MessageResponse:
       type: object
       properties:
@@ -4388,6 +5417,16 @@ components:
           type: string
       required:
       - message
+    MonthlyTrendItem:
+      type: object
+      properties:
+        month:
+          type: string
+        count:
+          type: integer
+      required:
+      - count
+      - month
     Notification:
       type: object
       description: Serializer for user notification records.
@@ -4537,6 +5576,29 @@ components:
         * `email` - Email
         * `sms` - SMS
         * `in_app` - In-App Notification
+    PaginatedAuditLogList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLog'
     PaginatedCandidateEnrollmentList:
       type: object
       required:
@@ -4583,6 +5645,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Candidate'
+    PaginatedConsistencyCheckResultList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConsistencyCheckResult'
     PaginatedDocumentList:
       type: object
       required:
@@ -4606,6 +5691,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Document'
+    PaginatedFraudDetectionResultList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/FraudDetectionResult'
     PaginatedInterviewFeedbackList:
       type: object
       required:
@@ -4721,6 +5829,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Invitation'
+    PaginatedMLModelMetricsList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/MLModelMetrics'
     PaginatedNotificationList:
       type: object
       required:
@@ -5031,7 +6162,7 @@ components:
         general_comments:
           type: string
         recommendation:
-          $ref: '#/components/schemas/RecommendationEnum'
+          $ref: '#/components/schemas/InterviewFeedbackRecommendationEnum'
         decision_rationale:
           type: string
         agrees_with_ai:
@@ -5486,12 +6617,12 @@ components:
         job_description:
           type: string
         status:
-          $ref: '#/components/schemas/VettingCaseStatusEnum'
+          $ref: '#/components/schemas/StatusDebEnum'
         status_display:
           type: string
           readOnly: true
         priority:
-          $ref: '#/components/schemas/VettingCasePriorityEnum'
+          $ref: '#/components/schemas/PriorityD67Enum'
         priority_display:
           type: string
           readOnly: true
@@ -5678,6 +6809,18 @@ components:
         total_weight:
           type: integer
           readOnly: true
+    PriorityD67Enum:
+      enum:
+      - low
+      - medium
+      - high
+      - urgent
+      type: string
+      description: |-
+        * `low` - Low
+        * `medium` - Medium
+        * `high` - High
+        * `urgent` - Urgent
     ProfileResponse:
       type: object
       properties:
@@ -5725,20 +6868,16 @@ components:
         * `flag_specific` - Flag-Specific Clarification
         * `behavioral` - Behavioral Assessment
         * `situational` - Situational Question
-    RecommendationEnum:
+    RiskLevelEnum:
       enum:
-      - strongly_approve
-      - approve
-      - neutral
-      - reject
-      - strongly_reject
+      - LOW
+      - MEDIUM
+      - HIGH
       type: string
       description: |-
-        * `strongly_approve` - Strongly Approve
-        * `approve` - Approve
-        * `neutral` - Neutral
-        * `reject` - Reject
-        * `strongly_reject` - Strongly Reject
+        * `LOW` - Low Risk
+        * `MEDIUM` - Medium Risk
+        * `HIGH` - High Risk
     RubricCriteria:
       type: object
       properties:
@@ -5963,6 +7102,21 @@ components:
         * `in_progress` - In Progress
         * `completed` - Completed
         * `requires_review` - Requires Manual Review
+    RubricStatistics:
+      type: object
+      properties:
+        avg_score:
+          type: number
+          format: double
+          nullable: true
+        pass_count:
+          type: integer
+        fail_count:
+          type: integer
+      required:
+      - avg_score
+      - fail_count
+      - pass_count
     RubricTypeEnum:
       enum:
       - general
@@ -5989,6 +7143,28 @@ components:
         * `manual_rating` - Manual Rating
         * `binary` - Pass/Fail
         * `calculated` - Calculated from Sub-Criteria
+    StatusDebEnum:
+      enum:
+      - pending
+      - document_upload
+      - document_analysis
+      - interview_scheduled
+      - interview_in_progress
+      - under_review
+      - approved
+      - rejected
+      - on_hold
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `document_upload` - Document Upload
+        * `document_analysis` - Document Analysis
+        * `interview_scheduled` - Interview Scheduled
+        * `interview_in_progress` - Interview In Progress
+        * `under_review` - Under Review
+        * `approved` - Approved
+        * `rejected` - Rejected
+        * `on_hold` - On Hold
     TokenPair:
       type: object
       properties:
@@ -6294,12 +7470,12 @@ components:
         job_description:
           type: string
         status:
-          $ref: '#/components/schemas/VettingCaseStatusEnum'
+          $ref: '#/components/schemas/StatusDebEnum'
         status_display:
           type: string
           readOnly: true
         priority:
-          $ref: '#/components/schemas/VettingCasePriorityEnum'
+          $ref: '#/components/schemas/PriorityD67Enum'
         priority_display:
           type: string
           readOnly: true
@@ -6405,6 +7581,60 @@ components:
       - rubric_evaluation
       - status_display
       - updated_at
+    VettingCaseAdmin:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        case_id:
+          type: string
+          readOnly: true
+        applicant_name:
+          type: string
+          readOnly: true
+        applicant_email:
+          type: string
+        status:
+          $ref: '#/components/schemas/StatusDebEnum'
+        application_type:
+          type: string
+        priority:
+          $ref: '#/components/schemas/PriorityD67Enum'
+        consistency_score:
+          type: number
+          format: double
+          maximum: 100
+          minimum: 0
+          nullable: true
+        fraud_risk_score:
+          type: number
+          format: double
+          maximum: 100
+          minimum: 0
+          nullable: true
+          description: Higher score = higher fraud risk
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        admin:
+          type: string
+          nullable: true
+          readOnly: true
+      required:
+      - admin
+      - applicant_email
+      - applicant_name
+      - application_type
+      - case_id
+      - created_at
+      - id
+      - updated_at
     VettingCaseFinalDecisionEnum:
       enum:
       - approved
@@ -6415,40 +7645,6 @@ components:
         * `approved` - Approved
         * `rejected` - Rejected
         * `pending` - Pending
-    VettingCasePriorityEnum:
-      enum:
-      - low
-      - medium
-      - high
-      - urgent
-      type: string
-      description: |-
-        * `low` - Low
-        * `medium` - Medium
-        * `high` - High
-        * `urgent` - Urgent
-    VettingCaseStatusEnum:
-      enum:
-      - pending
-      - document_upload
-      - document_analysis
-      - interview_scheduled
-      - interview_in_progress
-      - under_review
-      - approved
-      - rejected
-      - on_hold
-      type: string
-      description: |-
-        * `pending` - Pending
-        * `document_upload` - Document Upload
-        * `document_analysis` - Document Analysis
-        * `interview_scheduled` - Interview Scheduled
-        * `interview_in_progress` - Interview In Progress
-        * `under_review` - Under Review
-        * `approved` - Approved
-        * `rejected` - Rejected
-        * `on_hold` - On Hold
     VettingRubric:
       type: object
       properties:

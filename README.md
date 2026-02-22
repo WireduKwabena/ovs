@@ -56,6 +56,18 @@ The legacy domain apps are now wired back into runtime:
 - `GET /api/rubrics/evaluations/`
 - `POST /api/rubrics/evaluations/{id}/rerun/`
 - `POST /api/rubrics/evaluations/{id}/override-criterion/`
+- `GET /api/audit/logs/`
+- `GET /api/audit/logs/recent-activity/`
+- `GET /api/audit/logs/statistics/`
+- `GET /api/fraud/results/`
+- `GET /api/fraud/results/statistics/`
+- `GET /api/fraud/consistency/`
+- `GET /api/fraud/consistency/statistics/`
+- `GET /api/ml-monitoring/`
+- `GET /api/ml-monitoring/latest/`
+- `GET /api/ml-monitoring/performance-summary/`
+- `GET /api/ml-monitoring/history/?model_name=<name>`
+- `GET /api/ml-monitoring/metrics/` (legacy alias)
 
 ---
 
@@ -100,6 +112,14 @@ The backend now includes a phase-1 orchestration layer for campaign-driven vetti
 - `GET/POST /api/invitations/` - invitation creation/listing
 - `POST /api/invitations/{id}/send/` - resend invitation
 - `POST /api/invitations/accept/` - candidate invitation acceptance
+- `POST /api/invitations/access/consume/` - candidate token/session bootstrap
+- `GET /api/invitations/access/me/` - candidate session context
+- `GET /api/invitations/access/results/` - candidate results endpoint
+- `POST /api/invitations/access/logout/` - candidate session close
+- `GET /api/audit/logs/` - audit history and statistics
+- `GET /api/fraud/results/` - fraud model outputs per case
+- `GET /api/fraud/consistency/` - consistency outputs per case
+- `GET /api/ml-monitoring/` - current model metrics (admin/staff)
 
 ---
 
@@ -181,11 +201,28 @@ The backend now includes a phase-1 orchestration layer for campaign-driven vetti
    cp .env.example .env
    # Edit .env with your database credentials
    # For worker/beat/flower, ensure: CELERY_EAGER=false
+   # For S3-backed document operations, configure USE_S3 and AWS_* vars
    
    # Run migrations
    python manage.py migrate
    python manage.py createsuperuser
    ```
+
+### S3 Document Storage Configuration
+
+`documents.services.DocumentService` now expects S3 mode to be explicitly enabled.
+
+Add these values in `backend/.env` when you want document upload/download/listing via S3:
+
+```env
+USE_S3=true
+AWS_STORAGE_BUCKET_NAME=your-bucket-name
+AWS_S3_REGION_NAME=us-east-1
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
+```
+
+If `USE_S3=false` or the bucket is missing, `DocumentService` intentionally fails fast.
 
 3. **Start Redis** (in separate terminal)
 
@@ -355,6 +392,9 @@ python manage.py test
 
 # Focused orchestration + domain integration suites
 python manage.py test apps.campaigns apps.candidates apps.invitations apps.applications apps.interviews apps.rubrics
+
+# Monitoring/audit/fraud suites
+python manage.py test apps.audit apps.fraud apps.ml_monitoring
 
 # With coverage
 coverage run --source='.' manage.py test

@@ -1,0 +1,6 @@
+High interview alert for session {{ session_id }}.
+Applicant: {{ applicant_name }}
+Stress score: {{ deception_score }}
+Question: {{ question }}
+Transcript: {{ transcript }}
+Dashboard: {{ dashboard_url }}

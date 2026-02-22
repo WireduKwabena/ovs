@@ -1,4 +1,5 @@
 from django.apps import AppConfig
+from importlib import import_module
 
 
 class ApplicationsConfig(AppConfig):
@@ -6,4 +7,4 @@ class ApplicationsConfig(AppConfig):
     name = 'apps.applications'
 
     def ready(self):
-        import apps.applications.signal
+        import_module("apps.applications.signal")

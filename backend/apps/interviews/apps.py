@@ -1,4 +1,5 @@
 from django.apps import AppConfig
+from importlib import import_module
 
 
 class InterviewsConfig(AppConfig):
@@ -6,4 +7,4 @@ class InterviewsConfig(AppConfig):
     name = 'apps.interviews'
 
     def ready(self):
-        import apps.interviews.signals  # noqa: F401
+        import_module("apps.interviews.signals")

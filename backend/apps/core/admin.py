@@ -1,3 +1,4 @@
-from django.contrib import admin
+"""Admin registrations for core app.
 
-# No concrete models in this app (abstract base models only).
+No concrete models are registered in this app.
+"""

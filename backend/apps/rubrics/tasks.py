@@ -1,9 +1,14 @@
+import logging
+
 from celery import shared_task
+from django.contrib.auth import get_user_model
 
 from apps.applications.models import VettingCase
 
 from .engine import RubricEvaluationEngine
 from .models import VettingRubric
+
+logger = logging.getLogger(__name__)
 
 
 @shared_task(bind=True, max_retries=1)
@@ -16,12 +21,13 @@ def evaluate_case_with_rubric(self, case_id: int, rubric_id: int, evaluator_id: 
 
     evaluated_by = None
     if evaluator_id:
+        user_model = get_user_model()
         try:
-            from django.contrib.auth import get_user_model
-
-            evaluated_by = get_user_model().objects.get(id=evaluator_id)
-        except Exception:
-            evaluated_by = None
+            evaluated_by = user_model.objects.get(id=evaluator_id)
+        except user_model.DoesNotExist:
+            logger.warning("Rubric evaluation requested with missing evaluator_id=%s", evaluator_id)
+        except (TypeError, ValueError):
+            logger.warning("Rubric evaluation requested with invalid evaluator_id=%s", evaluator_id)
 
     evaluation = RubricEvaluationEngine(case=case, rubric=rubric).evaluate(evaluated_by=evaluated_by)
     return {
@@ -46,4 +52,4 @@ def auto_assign_rubric(self, case_id: int):
     if rubric is None:
         return {"success": False, "error": "No active rubric available"}
 
-    return evaluate_case_with_rubric(case.id, rubric.id)
+    return evaluate_case_with_rubric.run(case.id, rubric.id)

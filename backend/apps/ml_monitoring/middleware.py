@@ -1,46 +1,51 @@
-# backend/apps/monitoring/middleware.py
-# Performance monitoring middleware
-
-import time
 import logging
+import time
+
 from django.utils.deprecation import MiddlewareMixin
 
 logger = logging.getLogger(__name__)
+_REQUEST_START_ATTR = "_request_start_time"
+
 
 class PerformanceMonitoringMiddleware(MiddlewareMixin):
-    """
-    Monitor API performance
-    From: Best practices for production monitoring
-    """
-    
+    """Attach request-duration telemetry and warn on slow requests."""
+
     def process_request(self, request):
-        request._start_time = time.time()
+        setattr(request, _REQUEST_START_ATTR, time.perf_counter())
         return None
-    
+
     def process_response(self, request, response):
-        if hasattr(request, '_start_time'):
-            duration = time.time() - request._start_time
-            
-            # Log slow requests (> 1 second)
+        start_time = getattr(request, _REQUEST_START_ATTR, None)
+        if start_time is not None:
+            duration = time.perf_counter() - start_time
             if duration > 1.0:
                 logger.warning(
-                    f"Slow request: {request.method} {request.path} "
-                    f"took {duration:.2f}s - Status: {response.status_code}"
+                    "Slow request: %s %s took %.2fs - Status: %s",
+                    request.method,
+                    request.path,
+                    duration,
+                    response.status_code,
                 )
-            
-            # Add performance header
-            response['X-Request-Duration'] = f"{duration:.3f}s"
-        
+
+            response["X-Request-Duration"] = f"{duration:.3f}s"
         return response
 
 
 class RequestLoggingMiddleware(MiddlewareMixin):
     """Log all API requests"""
-    
+
     def process_request(self, request):
+        user = getattr(request, "user", None)
+        if user is not None and getattr(user, "is_authenticated", False):
+            user_label = str(user)
+        else:
+            user_label = "Anonymous"
+
         logger.info(
-            f"Request: {request.method} {request.path} "
-            f"from {request.META.get('REMOTE_ADDR')} "
-            f"User: {request.user if request.user.is_authenticated else 'Anonymous'}"
+            "Request: %s %s from %s User: %s",
+            request.method,
+            request.path,
+            request.META.get("REMOTE_ADDR", "unknown"),
+            user_label,
         )
         return None
