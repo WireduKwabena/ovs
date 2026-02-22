@@ -17,6 +17,7 @@ from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator, FileExtensionValidator
 from django.utils import timezone
 from apps.authentication.models import User
+from apps.candidates.models import CandidateEnrollment
 import uuid
 import os
 
@@ -74,6 +75,14 @@ class VettingCase(models.Model):
         on_delete=models.CASCADE,
         related_name='vetting_cases',
         limit_choices_to={'user_type': 'applicant'}
+    )
+
+    candidate_enrollment = models.ForeignKey(
+        CandidateEnrollment,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='vetting_cases'
     )
     
     assigned_to = models.ForeignKey(

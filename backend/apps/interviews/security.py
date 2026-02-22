@@ -1,41 +1,55 @@
-# backend/apps/interviews/security.py
+from __future__ import annotations
+
 from django.conf import settings
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import ImproperlyConfigured, PermissionDenied
+
+from .permissions import is_hr_admin_user
+
+
+def can_access_session(user, session) -> bool:
+    """Check whether a user is allowed to access an interview session."""
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if is_hr_admin_user(user):
+        return True
+    return bool(
+        session.case.applicant_id == user.id
+        or session.case.assigned_to_id == user.id
+    )
 
 
 class InterviewSecurityMiddleware:
-    """Security measures for interview sessions"""
+    """
+    Backward-compatible security utility wrapper.
+
+    Note: this is not a Django request middleware class; it is an interview
+    security helper kept for compatibility with legacy imports.
+    """
 
     @staticmethod
     def validate_session_access(user, session):
-        """Ensure user can only access their own interview"""
-        if session.application.applicant != user:
-            raise PermissionDenied("Access denied to this interview session")
+        if not can_access_session(user, session):
+            raise PermissionDenied("Access denied to this interview session.")
 
     @staticmethod
     def check_recording_environment():
-        """Verify recording environment integrity"""
-        # Check for:
-        # - Screen recording software
-        # - Multiple monitors
-        # - Virtual cameras
-        # Implementation depends on requirements
-        pass
+        return {
+            "supported": False,
+            "checks": [],
+            "message": "Client-side recording environment checks are not configured on the backend.",
+        }
 
     @staticmethod
     def encrypt_video_storage(video_file):
-        """Encrypt videos at rest"""
-        from cryptography.fernet import Fernet
+        try:
+            from cryptography.fernet import Fernet
+        except ImportError as exc:  # pragma: no cover - optional dependency
+            raise ImproperlyConfigured(
+                "cryptography is required to encrypt interview media."
+            ) from exc
 
-        key = settings.VIDEO_ENCRYPTION_KEY
-        fernet = Fernet(key)
-
-        encrypted_data = fernet.encrypt(video_file.read())
-        return encrypted_data
-
-
-# Privacy settings in settings.py
-VIDEO_RETENTION_DAYS = 90  # Delete videos after 90 days
-TRANSCRIPT_RETENTION_DAYS = 365  # Keep transcripts longer
-ENABLE_VIDEO_WATERMARKING = True
-ALLOW_VIDEO_DOWNLOAD = False  # Only HR can download
+        key = getattr(settings, "VIDEO_ENCRYPTION_KEY", "")
+        if not key:
+            raise ImproperlyConfigured("VIDEO_ENCRYPTION_KEY is not configured.")
+        data = video_file.read() if hasattr(video_file, "read") else bytes(video_file)
+        return Fernet(key).encrypt(data)

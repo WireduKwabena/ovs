@@ -1,113 +1,101 @@
-# backend/apps/rubrics/engine.py
-# From: Dynamic Vetting Rubrics PDF - Complete evaluation logic
+from __future__ import annotations
 
-from typing import Dict, List, Any
-from .models import VettingRubric, RubricCriteria, RubricEvaluation
-from apps.applications import VettingCase
-import logging
+from django.utils import timezone
 
-logger = logging.getLogger(__name__)
+from apps.applications.models import VettingCase
+
+from .models import RubricEvaluation, VettingRubric
+
 
 class RubricEvaluationEngine:
-    """
-    Core engine for evaluating applications against HR-defined rubrics
-    From: Rubrics PDF - Rubric Evaluation Engine section
-    """
-    
-    def __init__(self, application: VettingCase, rubric: VettingRubric):
-        self.application = application
+    def __init__(self, case: VettingCase, rubric: VettingRubric):
+        self.case = case
         self.rubric = rubric
-        self.criteria = rubric.criteria.all().order_by('order')
-    
-    def evaluate(self) -> RubricEvaluation:
-        """
-        Evaluate application against rubric
-        From: Rubrics PDF - main evaluation logic
-        """
+
+    def evaluate(self, evaluated_by=None) -> RubricEvaluation:
+        evaluation, _ = RubricEvaluation.objects.get_or_create(case=self.case, defaults={"rubric": self.rubric})
+        evaluation.rubric = self.rubric
+        evaluation.status = "in_progress"
+
+        # Snapshot case scores into evaluation input fields.
+        evaluation.document_authenticity_score = self.case.document_authenticity_score
+        evaluation.consistency_score = self.case.consistency_score
+        evaluation.fraud_risk_score = self.case.fraud_risk_score
+        evaluation.interview_score = self.case.interview_score
+
+        unresolved_flags = self.case.interrogation_flags.exclude(status__in=["resolved", "dismissed"])
+        critical_exists = unresolved_flags.filter(severity="critical").exists()
+
+        evaluation.unresolved_flags_count = unresolved_flags.count()
+        evaluation.critical_flags_present = critical_exists
+        evaluation.review_reasons = []
+
+        baseline_avg = None
+        available = [
+            value
+            for value in [
+                evaluation.document_authenticity_score,
+                evaluation.consistency_score,
+                (100 - evaluation.fraud_risk_score) if evaluation.fraud_risk_score is not None else None,
+                evaluation.interview_score,
+            ]
+            if value is not None
+        ]
+        if available:
+            baseline_avg = sum(available) / len(available)
+
         criteria_scores = {}
-        total_weighted_score = 0
-        total_weight = 0
-        flags = []
-        warnings = []
-        
-        # Evaluate each criterion
-        for criterion in self.criteria:
-            logger.info(f"Evaluating criterion: {criterion.name}")
-            
-            try:
-                score, criterion_flags = self._evaluate_criterion(criterion)
-            except Exception as e:
-                logger.error(f"Error evaluating criterion {criterion.name}: {e}")
-                score = 0
-                criterion_flags = [{
-                    'type': 'evaluation_error',
-                    'criterion': criterion.name,
-                    'error': str(e)
-                }]
-            
-            # Store criterion score
-            criteria_scores[criterion.id] = {
-                'name': criterion.name,
-                'score': score,
-                'weight': criterion.weight,
-                'weighted_score': score * (criterion.weight / 100),
-                'minimum_required': criterion.minimum_score,
-                'passed': score >= criterion.minimum_score,
-                'is_mandatory': criterion.is_mandatory
+        for criterion in self.rubric.criteria.all().order_by("display_order", "id"):
+            if criterion.criteria_type == "document":
+                score = evaluation.document_authenticity_score
+            elif criterion.criteria_type == "consistency":
+                score = evaluation.consistency_score
+            elif criterion.criteria_type == "interview":
+                score = evaluation.interview_score
+            else:
+                score = baseline_avg
+
+            criteria_scores[str(criterion.id)] = {
+                "name": criterion.name,
+                "criteria_type": criterion.criteria_type,
+                "score": score,
+                "weight": criterion.weight,
+                "minimum_score": criterion.minimum_score,
+                "is_mandatory": criterion.is_mandatory,
+                "passed": True if criterion.minimum_score is None else (score is not None and score >= criterion.minimum_score),
             }
-            
-            total_weighted_score += score * (criterion.weight / 100)
-            total_weight += criterion.weight
-            
-            # Check mandatory criteria
-            if criterion.is_mandatory and score < criterion.minimum_score:
-                flags.append({
-                    'type': 'mandatory_failed',
-                    'criterion': criterion.name,
-                    'score': score,
-                    'required': criterion.minimum_score,
-                    'message': f"Mandatory criterion '{criterion.name}' not met (score: {score:.1f}%, required: {criterion.minimum_score}%)"
-                })
-            
-            # Add criterion-specific flags
-            flags.extend(criterion_flags)
-        
-        # Calculate overall score
-        overall_score = (total_weighted_score / total_weight * 100) if total_weight > 0 else 0
-        
-        # Determine pass/fail
-        passed = overall_score >= self.rubric.passing_score
-        
-        # Check for mandatory failures (overrides pass)
-        mandatory_failures = [f for f in flags if f['type'] == 'mandatory_failed']
-        if mandatory_failures:
-            passed = False
-        
-        # Get AI recommendation
-        ai_recommendation = self._get_recommendation(overall_score, flags)
-        
-        # Create evaluation record
-        evaluation = RubricEvaluation.objects.create(
-            application=self.application,
-            rubric=self.rubric,
-            overall_score=overall_score,
-            criteria_scores=criteria_scores,
-            passed=passed,
-            ai_recommendation=ai_recommendation,
-            evaluation_details={
-                'total_weighted_score': total_weighted_score,
-                'total_weight': total_weight,
-                'passing_score': self.rubric.passing_score,
-                'criteria_evaluated': len(self.criteria)
-            },
-            flags=flags,
-            warnings=warnings
+
+        evaluation.criterion_scores = criteria_scores
+
+        evaluation.status = "completed"
+        evaluation.evaluated_at = timezone.now()
+        evaluation.evaluated_by = evaluated_by
+        evaluation.save()
+        evaluation.refresh_from_db()
+
+        recommendation = []
+        if evaluation.final_decision == "auto_approved":
+            recommendation.append("Auto-approved by rubric threshold.")
+        elif evaluation.final_decision == "auto_rejected":
+            recommendation.append("Auto-rejected by rubric threshold.")
+        else:
+            recommendation.append("Manual HR decision required.")
+        if evaluation.requires_manual_review:
+            recommendation.append("Manual review required due to rules/flags.")
+
+        summary = (
+            f"Rubric evaluation complete. Score={evaluation.total_weighted_score}, "
+            f"decision={evaluation.final_decision}, unresolved_flags={evaluation.unresolved_flags_count}."
         )
-        
-        logger.info(f"Evaluation complete: {overall_score:.1f}% - {ai_recommendation}")
-        
+        RubricEvaluation.objects.filter(pk=evaluation.pk).update(
+            recommendations=" ".join(recommendation),
+            evaluation_summary=summary,
+        )
+        evaluation.refresh_from_db()
         return evaluation
+
     
+       
     def _evaluate_criterion(self, criterion: RubricCriteria) -> tuple:
         """
         Evaluate a single criterion
@@ -464,3 +452,6 @@ class RubricEvaluationEngine:
                 return data[field_name]
         
         return None
+
+
+    

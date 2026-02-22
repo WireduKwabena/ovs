@@ -4,6 +4,7 @@ from django.db.models import Max
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -20,12 +21,17 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return VettingCampaign.objects.none()
         user = self.request.user
-        if getattr(user, "is_staff", False) or getattr(user, "user_type", None) in {"admin", "hr_manager"}:
+        if getattr(user, "is_staff", False) or getattr(user, "is_superuser", False) or getattr(user, "user_type", None) == "admin":
             return VettingCampaign.objects.all().order_by("-created_at")
         return VettingCampaign.objects.filter(initiated_by=user).order_by("-created_at")
 
     def perform_create(self, serializer):
+        user = self.request.user
+        if getattr(user, "user_type", None) not in {"admin", "hr_manager"} and not getattr(user, "is_staff", False):
+            raise PermissionDenied("Only HR managers/admins can create campaigns.")
         serializer.save(initiated_by=self.request.user)
 
     @action(detail=True, methods=["post"], url_path="rubrics/versions")

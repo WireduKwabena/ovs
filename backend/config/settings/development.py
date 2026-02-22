@@ -5,6 +5,7 @@ Settings for local development environment.
 """
 
 import importlib.util
+from django.core.exceptions import ImproperlyConfigured
 
 from .base import *
 
@@ -12,11 +13,27 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
-# Database - use local PostgreSQL or SQLite
+# Database
+# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+
+postgres_driver_available = any(
+    importlib.util.find_spec(module_name) is not None
+    for module_name in ("psycopg", "psycopg2")
+)
+
+if not postgres_driver_available:
+    raise ImproperlyConfigured(
+        "PostgreSQL driver not installed. Install psycopg2-binary or psycopg."
+    )
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('POSTGRES_DB', 'vetai_db'),
+        'USER': config('POSTGRES_USER', 'postgres'),
+        'PASSWORD': config('POSTGRES_PASSWORD', 'postgres'),
+        'HOST': config('POSTGRES_HOST', 'localhost'),
+        'PORT': config('POSTGRES_PORT', '5432'),
     }
 }
 
@@ -53,3 +70,6 @@ LOGGING['root']['level'] = 'DEBUG'
 # Celery - use eager execution in development (synchronous)
 CELERY_TASK_ALWAYS_EAGER = config('CELERY_EAGER', default=True, cast=bool)
 CELERY_TASK_EAGER_PROPAGATES = True
+if CELERY_TASK_ALWAYS_EAGER:
+    CELERY_BROKER_URL = "memory://"
+    CELERY_RESULT_BACKEND = "cache+memory://"

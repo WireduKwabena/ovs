@@ -6,11 +6,12 @@
 -r base.txt
 
 # Production Optimizations
-gevent==23.9.1
-psycogreen==1.0.2
+gevent
+psycogreen
 
 # Monitoring & Error Tracking
-sentry-sdk==1.38.0
+sentry-sdk
 
 # Production Web Server
-gunicorn[gevent]==21.2.0
+gunicorn[gevent]
+whitenoise

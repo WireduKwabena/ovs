@@ -17,7 +17,7 @@ RUN apt-get update \
 
 COPY backend/requirements ./requirements
 RUN pip install --upgrade pip \
-    && pip install -r requirements/development.txt
+    && pip install -r requirements/development.txt -c requirements/constraints.lock.txt
 
 COPY backend/ .
 

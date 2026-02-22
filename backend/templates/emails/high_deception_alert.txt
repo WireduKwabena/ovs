@@ -1,0 +1,31 @@
+"""
+
+# backend/templates/emails/high_deception_alert.txt
+"""
+🚨 HIGH DECEPTION ALERT
+Session: {{ session_id }}
+
+Applicant: {{ applicant_name }}
+
+⚠️ CRITICAL: Deception score has exceeded the threshold during the interview.
+
+Deception Score: {{ deception_score }}% (CRITICAL)
+
+Question Asked:
+{{ question }}
+
+Applicant's Response:
+"{{ transcript }}"
+
+Behavioral Indicators:
+- Eye Contact: {{ eye_contact }}%
+- Stress Level: {{ stress_level }}%
+{% for flag in behavioral_flags %}- {{ flag }}
+{% endfor %}
+
+View Full Interview: {{ dashboard_url }}
+
+---
+This is an automated alert from the AI Vetting System.
+Please review the interview immediately.
+"""

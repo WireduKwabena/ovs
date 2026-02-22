@@ -1,119 +1,246 @@
-# backend/apps/applications/serializers.py
-# From: Development Guide PDF
-
+from django.contrib.auth import get_user_model
 from rest_framework import serializers
-from .models import VettingCase, Document, VerificationResult
-from apps.auth_actions.serializers import UserSerializer
+
+from apps.candidates.models import CandidateEnrollment
+
+try:
+    from drf_spectacular.utils import extend_schema_field
+except ModuleNotFoundError:  # pragma: no cover - optional in some setups
+    def extend_schema_field(*args, **kwargs):
+        def decorator(func):
+            return func
+
+        return decorator
+
+from .models import ConsistencyCheck, Document, InterrogationFlag, VerificationResult, VettingCase
+
+User = get_user_model()
+
 
 class VerificationResultSerializer(serializers.ModelSerializer):
-    """Serializer for AI verification results"""
-    
     class Meta:
         model = VerificationResult
         fields = [
-            'id', 'ocr_text', 'ocr_confidence', 'ocr_method',
-            'authenticity_score', 'is_authentic', 'extracted_data',
-            'cv_checks', 'details', 'verified_at'
+            "id",
+            "document",
+            "ocr_text",
+            "ocr_confidence",
+            "ocr_language",
+            "authenticity_score",
+            "authenticity_confidence",
+            "is_authentic",
+            "metadata_check_passed",
+            "visual_check_passed",
+            "tampering_detected",
+            "fraud_risk_score",
+            "fraud_prediction",
+            "fraud_indicators",
+            "detailed_results",
+            "ocr_model_version",
+            "authenticity_model_version",
+            "fraud_model_version",
+            "created_at",
+            "processing_time_seconds",
         ]
-        read_only_fields = ['id', 'verified_at']
+        read_only_fields = [
+            "id",
+            "created_at",
+            "processing_time_seconds",
+        ]
 
 
 class DocumentSerializer(serializers.ModelSerializer):
-    """Serializer for documents with nested verification results"""
-    verification_results = VerificationResultSerializer(many=True, read_only=True)
-    document_type_display = serializers.CharField(source='get_document_type_display', read_only=True)
-    verification_status_display = serializers.CharField(source='get_verification_status_display', read_only=True)
-    file_url = serializers.SerializerMethodField()
-    
+    verification_result = VerificationResultSerializer(read_only=True)
+    document_type_display = serializers.CharField(source="get_document_type_display", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    file_url = serializers.CharField(read_only=True)
+
     class Meta:
         model = Document
         fields = [
-            'id', 'document_type', 'document_type_display', 'file_name',
-            'file_path', 'file_size', 'verification_status', 
-            'verification_status_display', 'ai_confidence_score',
-            'verification_results', 'upload_date', 'updated_at', 'file_url'
+            "id",
+            "case",
+            "document_type",
+            "document_type_display",
+            "file",
+            "original_filename",
+            "file_size",
+            "mime_type",
+            "status",
+            "status_display",
+            "ocr_completed",
+            "authenticity_check_completed",
+            "fraud_check_completed",
+            "processing_error",
+            "retry_count",
+            "extracted_text",
+            "extracted_data",
+            "uploaded_at",
+            "processed_at",
+            "file_url",
+            "verification_result",
         ]
-        read_only_fields = ['id', 'file_path', 'verification_status', 'upload_date']
-    
-    def get_file_url(self, obj):
-        """Generate pre-signed URL for document viewing"""
-        from documents.services import DocumentService
-        doc_service = DocumentService()
-        try:
-            return doc_service.get_presigned_url(obj.file_path, expiration=3600)
-        except:
-            return None
+        read_only_fields = [
+            "id",
+            "original_filename",
+            "file_size",
+            "mime_type",
+            "status",
+            "ocr_completed",
+            "authenticity_check_completed",
+            "fraud_check_completed",
+            "processing_error",
+            "retry_count",
+            "uploaded_at",
+            "processed_at",
+            "file_url",
+            "verification_result",
+        ]
+
+
+class ConsistencyCheckSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ConsistencyCheck
+        fields = [
+            "id",
+            "case",
+            "field_name",
+            "documents_compared",
+            "is_consistent",
+            "severity",
+            "discrepancy_description",
+            "conflicting_values",
+            "resolved",
+            "resolution_notes",
+            "resolved_by",
+            "resolved_at",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at", "resolved_at"]
+
+
+class InterrogationFlagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InterrogationFlag
+        fields = [
+            "id",
+            "case",
+            "related_documents",
+            "related_consistency_check",
+            "flag_type",
+            "severity",
+            "status",
+            "title",
+            "description",
+            "data_point",
+            "evidence",
+            "suggested_questions",
+            "resolution_summary",
+            "resolution_confidence",
+            "resolved_by",
+            "created_at",
+            "addressed_at",
+            "resolved_at",
+        ]
+        read_only_fields = ["id", "created_at", "addressed_at", "resolved_at"]
 
 
 class VettingCaseSerializer(serializers.ModelSerializer):
-    """Main serializer for vetting applications"""
+    applicant_email = serializers.EmailField(source="applicant.email", read_only=True)
+    candidate_email = serializers.EmailField(source="candidate_enrollment.candidate.email", read_only=True)
+    assigned_to_email = serializers.EmailField(source="assigned_to.email", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    priority_display = serializers.CharField(source="get_priority_display", read_only=True)
     documents = DocumentSerializer(many=True, read_only=True)
-    applicant = UserSerializer(read_only=True)
-    status_display = serializers.CharField(source='get_status_display', read_only=True)
-    priority_display = serializers.CharField(source='get_priority_display', read_only=True)
-    
-    # Related data
-    fraud_result = serializers.SerializerMethodField()
-    consistency_result = serializers.SerializerMethodField()
-    rubric_evaluation = serializers.SerializerMethodField()
-    
+    applicant = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(user_type="applicant"),
+        required=False,
+    )
+    candidate_enrollment = serializers.PrimaryKeyRelatedField(
+        queryset=CandidateEnrollment.objects.select_related("candidate", "campaign"),
+        required=False,
+        allow_null=True,
+    )
+    rubric_evaluation = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = VettingCase
         fields = [
-            'id', 'case_id', 'applicant', 'status', 'status_display',
-            'application_type', 'priority', 'priority_display',
-            'consistency_score', 'fraud_risk_score', 'notes',
-            'documents', 'fraud_result', 'consistency_result',
-            'rubric_evaluation', 'created_at', 'updated_at'
+            "id",
+            "case_id",
+            "applicant",
+            "applicant_email",
+            "candidate_enrollment",
+            "candidate_email",
+            "assigned_to",
+            "assigned_to_email",
+            "position_applied",
+            "department",
+            "job_description",
+            "status",
+            "status_display",
+            "priority",
+            "priority_display",
+            "overall_score",
+            "document_authenticity_score",
+            "consistency_score",
+            "fraud_risk_score",
+            "interview_score",
+            "red_flags_count",
+            "requires_manual_review",
+            "notes",
+            "internal_comments",
+            "documents_uploaded",
+            "documents_verified",
+            "interview_completed",
+            "final_decision",
+            "decision_rationale",
+            "decided_by",
+            "decided_at",
+            "created_at",
+            "updated_at",
+            "submitted_at",
+            "completed_at",
+            "expected_completion_date",
+            "documents",
+            "rubric_evaluation",
         ]
-        read_only_fields = ['id', 'case_id', 'created_at', 'updated_at']
-    
-    def get_fraud_result(self, obj):
-        """Get fraud detection results if available"""
-        try:
-            fraud = obj.fraud_result
-            return {
-                'is_fraud': fraud.is_fraud,
-                'fraud_probability': fraud.fraud_probability,
-                'risk_level': fraud.risk_level,
-                'recommendation': fraud.recommendation
-            }
-        except:
+        read_only_fields = [
+            "id",
+            "case_id",
+            "applicant_email",
+            "candidate_email",
+            "assigned_to_email",
+            "status_display",
+            "priority_display",
+            "overall_score",
+            "document_authenticity_score",
+            "consistency_score",
+            "fraud_risk_score",
+            "interview_score",
+            "red_flags_count",
+            "created_at",
+            "updated_at",
+            "completed_at",
+            "documents",
+            "rubric_evaluation",
+        ]
+
+    @extend_schema_field(serializers.JSONField(allow_null=True))
+    def get_rubric_evaluation(self, obj) -> dict[str, object] | None:
+        evaluation = getattr(obj, "rubric_evaluation", None)
+        if not evaluation:
             return None
-    
-    def get_consistency_result(self, obj):
-        """Get consistency check results if available"""
-        try:
-            consistency = obj.consistency_result
-            return {
-                'overall_consistent': consistency.overall_consistent,
-                'overall_score': consistency.overall_score,
-                'recommendation': consistency.recommendation
-            }
-        except:
-            return None
-    
-    def get_rubric_evaluation(self, obj):
-        """Get latest rubric evaluation"""
-        evaluation = obj.rubric_evaluations.first()
-        if evaluation:
-            return {
-                'overall_score': evaluation.overall_score,
-                'passed': evaluation.passed,
-                'recommendation': evaluation.ai_recommendation,
-                'rubric_name': evaluation.rubric.name
-            }
-        return None
+        return {
+            "id": evaluation.id,
+            "rubric_id": evaluation.rubric_id,
+            "total_weighted_score": evaluation.total_weighted_score,
+            "passes_threshold": evaluation.passes_threshold,
+            "final_decision": evaluation.final_decision,
+            "requires_manual_review": evaluation.requires_manual_review,
+        }
 
 
-class VettingCaseCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating new applications"""
-    
-    class Meta:
-        model = VettingCase
-        fields = ['application_type', 'priority', 'notes']
-    
-    def create(self, validated_data):
-        # Applicant is set in view
-        validated_data['status'] = 'pending'
-        return super().create(validated_data)
+class DocumentUploadSerializer(serializers.Serializer):
+    document_type = serializers.ChoiceField(choices=Document.DOCUMENT_TYPE_CHOICES)
+    file = serializers.FileField()

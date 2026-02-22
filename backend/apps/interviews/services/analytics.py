@@ -1,18 +1,32 @@
-# backend/apps/interviews/analytics.py
-from apps.interviews.services import analytics_service
+"""Lightweight analytics logging helpers."""
+
+from __future__ import annotations
+
+import logging
+from typing import Dict
+
+from apps.interviews.models import InterviewSession
+
+logger = logging.getLogger(__name__)
 
 
-class InterviewAnalytics:
-    @staticmethod
-    def log_interview_metrics(session):
-        metrics = {
-            'session_id': session.session_id,
-            'duration': session.duration_seconds,
-            'questions_asked': session.current_question_number,
-            'flags_resolved': session.interrogation_flags.filter(status='resolved').count(),
-            'heygen_cost': calculate_heygen_cost(session),
-            'completion_rate': 1.0 if session.status == 'completed' else 0.0
-        }
-        
-        # Log to your analytics system
-        analytics_service.track('interview_completed', metrics)
+def build_interview_metrics(session: InterviewSession) -> Dict:
+    """Build a compact metrics payload for one interview session."""
+    return {
+        "session_id": session.session_id,
+        "status": session.status,
+        "duration_seconds": session.duration_seconds,
+        "questions_asked": session.total_questions_asked,
+        "overall_score": session.overall_score,
+        "confidence_score": session.confidence_score,
+        "flags_resolved": session.flags_resolved_count,
+        "flags_unresolved": session.flags_unresolved_count,
+    }
+
+
+def log_interview_metrics(session: InterviewSession) -> Dict:
+    """Emit structured interview metrics to app logs."""
+    metrics = build_interview_metrics(session)
+    logger.info("Interview metrics: %s", metrics)
+    return metrics
+

@@ -14,13 +14,45 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
 from django.contrib import admin
 from django.urls import path, include
+
+try:
+    from drf_spectacular.views import (
+        SpectacularAPIView,
+        SpectacularRedocView,
+        SpectacularSwaggerView,
+    )
+except ModuleNotFoundError:  # pragma: no cover - optional in some setups
+    SpectacularAPIView = None
+    SpectacularSwaggerView = None
+    SpectacularRedocView = None
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/auth/", include("apps.authentication.urls")),
     path("api/campaigns/", include("apps.campaigns.urls")),
+    path("api/applications/", include("apps.applications.urls")),
+    path("api/interviews/", include("apps.interviews.urls")),
+    path("api/rubrics/", include("apps.rubrics.urls")),
+    path("api/notifications/", include("apps.notifications.urls")),
+    path("api/ai-monitor/", include("ai_ml_services.urls")),
     path("api/", include("apps.candidates.urls")),
     path("api/invitations/", include("apps.invitations.urls")),
 ]
+
+if SpectacularAPIView and SpectacularSwaggerView and SpectacularRedocView:
+    urlpatterns += [
+        path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+        path(
+            "api/schema/swagger-ui/",
+            SpectacularSwaggerView.as_view(url_name="schema"),
+            name="swagger-ui",
+        ),
+        path(
+            "api/schema/redoc/",
+            SpectacularRedocView.as_view(url_name="schema"),
+            name="redoc",
+        ),
+    ]

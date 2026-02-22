@@ -1,0 +1,6645 @@
+openapi: 3.0.3
+info:
+  title: AI Vetting System API
+  version: 1.0.0
+  description: API schema for campaign orchestration and vetting workflows.
+paths:
+  /api/ai-monitor/health/:
+    get:
+      operationId: ai_monitor_health_retrieve
+      description: |-
+        Runtime health snapshot for AI monitoring backend.
+
+        Access:
+        - authenticated admin/staff user, or
+        - valid X-Service-Token header (matches SERVICE_TOKEN setting)
+      parameters:
+      - in: query
+        name: model_name
+        schema:
+          type: string
+          default: default
+          minLength: 1
+      tags:
+      - ai-monitor
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/applications/cases/:
+    get:
+      operationId: applications_cases_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - applications
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedVettingCaseList'
+          description: ''
+    post:
+      operationId: applications_cases_create
+      tags:
+      - applications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VettingCase'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VettingCase'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VettingCase'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingCase'
+          description: ''
+  /api/applications/cases/{id}/:
+    get:
+      operationId: applications_cases_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Vetting Case.
+        required: true
+      tags:
+      - applications
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingCase'
+          description: ''
+    put:
+      operationId: applications_cases_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Vetting Case.
+        required: true
+      tags:
+      - applications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VettingCase'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VettingCase'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VettingCase'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingCase'
+          description: ''
+    patch:
+      operationId: applications_cases_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Vetting Case.
+        required: true
+      tags:
+      - applications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedVettingCase'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedVettingCase'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedVettingCase'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingCase'
+          description: ''
+    delete:
+      operationId: applications_cases_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Vetting Case.
+        required: true
+      tags:
+      - applications
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/applications/cases/{id}/upload-document/:
+    post:
+      operationId: applications_cases_upload_document_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Vetting Case.
+        required: true
+      tags:
+      - applications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VettingCase'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VettingCase'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VettingCase'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingCase'
+          description: ''
+  /api/applications/cases/{id}/verification-status/:
+    get:
+      operationId: applications_cases_verification_status_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Vetting Case.
+        required: true
+      tags:
+      - applications
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingCase'
+          description: ''
+  /api/applications/documents/:
+    get:
+      operationId: applications_documents_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - applications
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDocumentList'
+          description: ''
+  /api/applications/documents/{id}/:
+    get:
+      operationId: applications_documents_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Document.
+        required: true
+      tags:
+      - applications
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: ''
+  /api/auth/admin/2fa/enable/:
+    post:
+      operationId: auth_admin_2fa_enable_create
+      description: |-
+        2FA enable endpoint
+        POST /api/auth/admin/2fa/enable/
+        Body: {"otp": "123456"}
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TwoFactorEnableRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TwoFactorEnableRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TwoFactorEnableRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/auth/admin/2fa/setup/:
+    get:
+      operationId: auth_admin_2fa_setup_retrieve
+      description: |-
+        2FA setup endpoint
+        GET /api/auth/admin/2fa/setup/
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TwoFactorSetupResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/auth/admin/login/:
+    post:
+      operationId: auth_admin_login_create
+      description: |-
+        Admin login endpoint
+        POST /api/auth/admin/login/
+        Body: {"email": "admin@example.com", "password": "password123"}
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminLogin'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdminLogin'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdminLogin'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminLoginResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/auth/admin/login/verify/:
+    post:
+      operationId: auth_admin_login_verify_create
+      description: |-
+        2FA verification endpoint
+        POST /api/auth/admin/login/verify/
+        Body: {"token": "temp_token", "otp": "123456"}
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TwoFactorVerification'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TwoFactorVerification'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TwoFactorVerification'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAuthResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/auth/change-password/:
+    post:
+      operationId: auth_change_password_create
+      description: |-
+        Change user password
+        POST /api/auth/change-password/
+        Body: {
+            "old_password": "old_pass",
+            "new_password": "new_pass",
+            "new_password_confirm": "new_pass"
+        }
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/auth/login/:
+    post:
+      operationId: auth_login_create
+      description: |-
+        User login endpoint
+        POST /api/auth/login/
+        Body: {"email": "user@example.com", "password": "password123"}
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Login'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Login'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAuthResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/auth/logout/:
+    post:
+      operationId: auth_logout_create
+      description: |-
+        User logout endpoint
+        POST /api/auth/logout/
+        Body: {"refresh": "refresh_token"}
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/auth/password-reset/:
+    post:
+      operationId: auth_password_reset_create
+      description: |-
+        Request password reset
+        POST /api/auth/password-reset/
+        Body: {"email": "user@example.com"}
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/auth/password-reset-confirm/:
+    post:
+      operationId: auth_password_reset_confirm_create
+      description: |-
+        Confirm password reset
+        POST /api/auth/password-reset-confirm/
+        Body: {
+            "token": "reset_token",
+            "new_password": "new_pass",
+            "new_password_confirm": "new_pass"
+        }
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirm'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirm'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirm'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/auth/profile/:
+    get:
+      operationId: auth_profile_retrieve
+      description: |-
+        Get current user profile
+        GET /api/auth/profile/
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+          description: ''
+  /api/auth/profile/update/:
+    put:
+      operationId: auth_profile_update_update
+      description: |-
+        Update user profile
+        PUT/PATCH /api/auth/profile/
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProfileUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProfileUpdateRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileUpdateResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+    patch:
+      operationId: auth_profile_update_partial_update
+      description: |-
+        Update user profile
+        PUT/PATCH /api/auth/profile/
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedProfileUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedProfileUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedProfileUpdateRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileUpdateResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/auth/register/:
+    post:
+      operationId: auth_register_create
+      description: |-
+        Firm registration endpoint
+        POST /api/auth/register/
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRegistration'
+          description: ''
+  /api/auth/token/refresh/:
+    post:
+      operationId: auth_token_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/campaigns/:
+    get:
+      operationId: campaigns_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - campaigns
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedVettingCampaignList'
+          description: ''
+    post:
+      operationId: campaigns_create
+      tags:
+      - campaigns
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VettingCampaign'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VettingCampaign'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VettingCampaign'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingCampaign'
+          description: ''
+  /api/campaigns/{id}/:
+    get:
+      operationId: campaigns_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this vetting campaign.
+        required: true
+      tags:
+      - campaigns
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingCampaign'
+          description: ''
+    put:
+      operationId: campaigns_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this vetting campaign.
+        required: true
+      tags:
+      - campaigns
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VettingCampaign'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VettingCampaign'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VettingCampaign'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingCampaign'
+          description: ''
+    patch:
+      operationId: campaigns_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this vetting campaign.
+        required: true
+      tags:
+      - campaigns
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedVettingCampaign'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedVettingCampaign'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedVettingCampaign'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingCampaign'
+          description: ''
+    delete:
+      operationId: campaigns_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this vetting campaign.
+        required: true
+      tags:
+      - campaigns
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/campaigns/{id}/candidates/import/:
+    post:
+      operationId: campaigns_candidates_import_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this vetting campaign.
+        required: true
+      tags:
+      - campaigns
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VettingCampaign'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VettingCampaign'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VettingCampaign'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingCampaign'
+          description: ''
+  /api/campaigns/{id}/dashboard/:
+    get:
+      operationId: campaigns_dashboard_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this vetting campaign.
+        required: true
+      tags:
+      - campaigns
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingCampaign'
+          description: ''
+  /api/campaigns/{id}/rubrics/versions/:
+    post:
+      operationId: campaigns_rubrics_versions_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this vetting campaign.
+        required: true
+      tags:
+      - campaigns
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VettingCampaign'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VettingCampaign'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VettingCampaign'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingCampaign'
+          description: ''
+  /api/candidates/:
+    get:
+      operationId: candidates_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - candidates
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCandidateList'
+          description: ''
+    post:
+      operationId: candidates_create
+      tags:
+      - candidates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Candidate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Candidate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Candidate'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Candidate'
+          description: ''
+  /api/candidates/{id}/:
+    get:
+      operationId: candidates_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate.
+        required: true
+      tags:
+      - candidates
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Candidate'
+          description: ''
+    put:
+      operationId: candidates_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate.
+        required: true
+      tags:
+      - candidates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Candidate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Candidate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Candidate'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Candidate'
+          description: ''
+    patch:
+      operationId: candidates_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate.
+        required: true
+      tags:
+      - candidates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidate'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Candidate'
+          description: ''
+    delete:
+      operationId: candidates_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate.
+        required: true
+      tags:
+      - candidates
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/enrollments/:
+    get:
+      operationId: enrollments_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - enrollments
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCandidateEnrollmentList'
+          description: ''
+    post:
+      operationId: enrollments_create
+      tags:
+      - enrollments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateEnrollment'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CandidateEnrollment'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CandidateEnrollment'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateEnrollment'
+          description: ''
+  /api/enrollments/{id}/:
+    get:
+      operationId: enrollments_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate enrollment.
+        required: true
+      tags:
+      - enrollments
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateEnrollment'
+          description: ''
+    put:
+      operationId: enrollments_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate enrollment.
+        required: true
+      tags:
+      - enrollments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateEnrollment'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CandidateEnrollment'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CandidateEnrollment'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateEnrollment'
+          description: ''
+    patch:
+      operationId: enrollments_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate enrollment.
+        required: true
+      tags:
+      - enrollments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidateEnrollment'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidateEnrollment'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidateEnrollment'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateEnrollment'
+          description: ''
+    delete:
+      operationId: enrollments_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate enrollment.
+        required: true
+      tags:
+      - enrollments
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/enrollments/{id}/mark-complete/:
+    post:
+      operationId: enrollments_mark_complete_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate enrollment.
+        required: true
+      tags:
+      - enrollments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateEnrollment'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CandidateEnrollment'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CandidateEnrollment'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateEnrollment'
+          description: ''
+  /api/interviews/feedback/:
+    get:
+      operationId: interviews_feedback_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - interviews
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedInterviewFeedbackList'
+          description: ''
+    post:
+      operationId: interviews_feedback_create
+      tags:
+      - interviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterviewFeedback'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InterviewFeedback'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InterviewFeedback'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewFeedback'
+          description: ''
+  /api/interviews/feedback/{id}/:
+    get:
+      operationId: interviews_feedback_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Feedback.
+        required: true
+      tags:
+      - interviews
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewFeedback'
+          description: ''
+    put:
+      operationId: interviews_feedback_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Feedback.
+        required: true
+      tags:
+      - interviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterviewFeedback'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InterviewFeedback'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InterviewFeedback'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewFeedback'
+          description: ''
+    patch:
+      operationId: interviews_feedback_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Feedback.
+        required: true
+      tags:
+      - interviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedInterviewFeedback'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedInterviewFeedback'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedInterviewFeedback'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewFeedback'
+          description: ''
+    delete:
+      operationId: interviews_feedback_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Feedback.
+        required: true
+      tags:
+      - interviews
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/interviews/questions/:
+    get:
+      operationId: interviews_questions_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - interviews
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedInterviewQuestionList'
+          description: ''
+    post:
+      operationId: interviews_questions_create
+      tags:
+      - interviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterviewQuestion'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InterviewQuestion'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InterviewQuestion'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewQuestion'
+          description: ''
+  /api/interviews/questions/{id}/:
+    get:
+      operationId: interviews_questions_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Question.
+        required: true
+      tags:
+      - interviews
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewQuestion'
+          description: ''
+    put:
+      operationId: interviews_questions_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Question.
+        required: true
+      tags:
+      - interviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterviewQuestion'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InterviewQuestion'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InterviewQuestion'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewQuestion'
+          description: ''
+    patch:
+      operationId: interviews_questions_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Question.
+        required: true
+      tags:
+      - interviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedInterviewQuestion'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedInterviewQuestion'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedInterviewQuestion'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewQuestion'
+          description: ''
+    delete:
+      operationId: interviews_questions_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Question.
+        required: true
+      tags:
+      - interviews
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/interviews/responses/:
+    get:
+      operationId: interviews_responses_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - interviews
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedInterviewResponseList'
+          description: ''
+    post:
+      operationId: interviews_responses_create
+      tags:
+      - interviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterviewResponse'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InterviewResponse'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InterviewResponse'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewResponse'
+          description: ''
+  /api/interviews/responses/{id}/:
+    get:
+      operationId: interviews_responses_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Response.
+        required: true
+      tags:
+      - interviews
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewResponse'
+          description: ''
+    put:
+      operationId: interviews_responses_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Response.
+        required: true
+      tags:
+      - interviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterviewResponse'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InterviewResponse'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InterviewResponse'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewResponse'
+          description: ''
+    patch:
+      operationId: interviews_responses_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Response.
+        required: true
+      tags:
+      - interviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedInterviewResponse'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedInterviewResponse'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedInterviewResponse'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewResponse'
+          description: ''
+    delete:
+      operationId: interviews_responses_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Response.
+        required: true
+      tags:
+      - interviews
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/interviews/responses/{id}/analyze/:
+    post:
+      operationId: interviews_responses_analyze_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Response.
+        required: true
+      tags:
+      - interviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterviewResponse'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InterviewResponse'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InterviewResponse'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewResponse'
+          description: ''
+  /api/interviews/sessions/:
+    get:
+      operationId: interviews_sessions_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - interviews
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedInterviewSessionList'
+          description: ''
+    post:
+      operationId: interviews_sessions_create
+      tags:
+      - interviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewSession'
+          description: ''
+  /api/interviews/sessions/{id}/:
+    get:
+      operationId: interviews_sessions_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Session.
+        required: true
+      tags:
+      - interviews
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewSession'
+          description: ''
+    put:
+      operationId: interviews_sessions_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Session.
+        required: true
+      tags:
+      - interviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewSession'
+          description: ''
+    patch:
+      operationId: interviews_sessions_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Session.
+        required: true
+      tags:
+      - interviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedInterviewSession'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedInterviewSession'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedInterviewSession'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewSession'
+          description: ''
+    delete:
+      operationId: interviews_sessions_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Session.
+        required: true
+      tags:
+      - interviews
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/interviews/sessions/{id}/complete/:
+    post:
+      operationId: interviews_sessions_complete_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Session.
+        required: true
+      tags:
+      - interviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewSession'
+          description: ''
+  /api/interviews/sessions/{id}/playback/:
+    get:
+      operationId: interviews_sessions_playback_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Session.
+        required: true
+      tags:
+      - interviews
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewSession'
+          description: ''
+  /api/interviews/sessions/{id}/save-exchange/:
+    post:
+      operationId: interviews_sessions_save_exchange_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Session.
+        required: true
+      tags:
+      - interviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewSession'
+          description: ''
+  /api/interviews/sessions/{id}/start/:
+    post:
+      operationId: interviews_sessions_start_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Session.
+        required: true
+      tags:
+      - interviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewSession'
+          description: ''
+  /api/interviews/sessions/{id}/update-exchange/:
+    post:
+      operationId: interviews_sessions_update_exchange_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Session.
+        required: true
+      tags:
+      - interviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewSession'
+          description: ''
+  /api/interviews/sessions/analytics-dashboard/:
+    get:
+      operationId: interviews_sessions_analytics_dashboard_retrieve
+      tags:
+      - interviews
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewSession'
+          description: ''
+  /api/interviews/sessions/compare/:
+    post:
+      operationId: interviews_sessions_compare_create
+      tags:
+      - interviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewSession'
+          description: ''
+  /api/interviews/sessions/generate-flags/:
+    post:
+      operationId: interviews_sessions_generate_flags_create
+      tags:
+      - interviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewSession'
+          description: ''
+  /api/invitations/:
+    get:
+      operationId: invitations_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - invitations
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedInvitationList'
+          description: ''
+    post:
+      operationId: invitations_create
+      tags:
+      - invitations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InvitationCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InvitationCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationCreate'
+          description: ''
+  /api/invitations/{id}/:
+    get:
+      operationId: invitations_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this invitation.
+        required: true
+      tags:
+      - invitations
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+          description: ''
+    put:
+      operationId: invitations_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this invitation.
+        required: true
+      tags:
+      - invitations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Invitation'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Invitation'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Invitation'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+          description: ''
+    patch:
+      operationId: invitations_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this invitation.
+        required: true
+      tags:
+      - invitations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedInvitation'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedInvitation'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedInvitation'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+          description: ''
+    delete:
+      operationId: invitations_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this invitation.
+        required: true
+      tags:
+      - invitations
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/invitations/{id}/send/:
+    post:
+      operationId: invitations_send_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this invitation.
+        required: true
+      tags:
+      - invitations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Invitation'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Invitation'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Invitation'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+          description: ''
+  /api/invitations/accept/:
+    post:
+      operationId: invitations_accept_create
+      tags:
+      - invitations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptInvitation'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AcceptInvitation'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AcceptInvitation'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/invitations/access/consume/:
+    post:
+      operationId: invitations_access_consume_create
+      tags:
+      - invitations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateAccessConsume'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CandidateAccessConsume'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CandidateAccessConsume'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/invitations/access/logout/:
+    post:
+      operationId: invitations_access_logout_create
+      tags:
+      - invitations
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/invitations/access/me/:
+    get:
+      operationId: invitations_access_me_retrieve
+      tags:
+      - invitations
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/invitations/access/results/:
+    get:
+      operationId: invitations_access_results_retrieve
+      tags:
+      - invitations
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/notifications/:
+    get:
+      operationId: notifications_list
+      description: |-
+        API endpoints for notifications
+
+        list: GET /api/notifications/
+        retrieve: GET /api/notifications/{id}/
+        mark_as_read: POST /api/notifications/mark-as-read/
+        mark_all_as_read: POST /api/notifications/mark-all-as-read/
+        unread_count: GET /api/notifications/unread-count/
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedNotificationList'
+          description: ''
+  /api/notifications/{id}/:
+    get:
+      operationId: notifications_retrieve
+      description: |-
+        API endpoints for notifications
+
+        list: GET /api/notifications/
+        retrieve: GET /api/notifications/{id}/
+        mark_as_read: POST /api/notifications/mark-as-read/
+        mark_all_as_read: POST /api/notifications/mark-all-as-read/
+        unread_count: GET /api/notifications/unread-count/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          description: ''
+  /api/notifications/{id}/archive/:
+    delete:
+      operationId: notifications_archive_destroy
+      description: |-
+        Delete (archive) a notification for the current user.
+
+        DELETE /api/notifications/{id}/archive/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/notifications/{id}/mark_read/:
+    post:
+      operationId: notifications_mark_read_create
+      description: |-
+        Mark single notification as read
+        POST /api/notifications/{id}/mark-read/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - notifications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Notification'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Notification'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Notification'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          description: ''
+  /api/notifications/mark-all-as-read/:
+    post:
+      operationId: notifications_mark_all_as_read_create
+      description: |-
+        Mark all notifications as read
+        POST /api/notifications/mark-all-as-read/
+      tags:
+      - notifications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Notification'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Notification'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Notification'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          description: ''
+  /api/notifications/mark-as-read/:
+    post:
+      operationId: notifications_mark_as_read_create
+      description: |-
+        Mark specific notifications as read
+        POST /api/notifications/mark-as-read/
+        Body: {"notification_ids": [1, 2, 3]}
+      tags:
+      - notifications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Notification'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Notification'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Notification'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          description: ''
+  /api/notifications/unread-count/:
+    get:
+      operationId: notifications_unread_count_retrieve
+      description: |-
+        Get count of unread notifications
+        GET /api/notifications/unread-count/
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          description: ''
+  /api/rubrics/criteria/:
+    get:
+      operationId: rubrics_criteria_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - rubrics
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedRubricCriteriaList'
+          description: ''
+    post:
+      operationId: rubrics_criteria_create
+      tags:
+      - rubrics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RubricCriteria'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RubricCriteria'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RubricCriteria'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RubricCriteria'
+          description: ''
+  /api/rubrics/criteria/{id}/:
+    get:
+      operationId: rubrics_criteria_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Rubric Criterion.
+        required: true
+      tags:
+      - rubrics
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RubricCriteria'
+          description: ''
+    put:
+      operationId: rubrics_criteria_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Rubric Criterion.
+        required: true
+      tags:
+      - rubrics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RubricCriteria'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RubricCriteria'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RubricCriteria'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RubricCriteria'
+          description: ''
+    patch:
+      operationId: rubrics_criteria_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Rubric Criterion.
+        required: true
+      tags:
+      - rubrics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedRubricCriteria'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedRubricCriteria'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedRubricCriteria'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RubricCriteria'
+          description: ''
+    delete:
+      operationId: rubrics_criteria_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Rubric Criterion.
+        required: true
+      tags:
+      - rubrics
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/rubrics/evaluations/:
+    get:
+      operationId: rubrics_evaluations_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - rubrics
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedRubricEvaluationList'
+          description: ''
+  /api/rubrics/evaluations/{id}/:
+    get:
+      operationId: rubrics_evaluations_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Rubric Evaluation.
+        required: true
+      tags:
+      - rubrics
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RubricEvaluation'
+          description: ''
+  /api/rubrics/evaluations/{id}/override-criterion/:
+    post:
+      operationId: rubrics_evaluations_override_criterion_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Rubric Evaluation.
+        required: true
+      tags:
+      - rubrics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RubricEvaluation'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RubricEvaluation'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RubricEvaluation'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RubricEvaluation'
+          description: ''
+  /api/rubrics/evaluations/{id}/rerun/:
+    post:
+      operationId: rubrics_evaluations_rerun_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Rubric Evaluation.
+        required: true
+      tags:
+      - rubrics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RubricEvaluation'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RubricEvaluation'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RubricEvaluation'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RubricEvaluation'
+          description: ''
+  /api/rubrics/vetting-rubrics/:
+    get:
+      operationId: rubrics_vetting_rubrics_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - rubrics
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedVettingRubricList'
+          description: ''
+    post:
+      operationId: rubrics_vetting_rubrics_create
+      tags:
+      - rubrics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingRubric'
+          description: ''
+  /api/rubrics/vetting-rubrics/{id}/:
+    get:
+      operationId: rubrics_vetting_rubrics_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Vetting Rubric.
+        required: true
+      tags:
+      - rubrics
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingRubric'
+          description: ''
+    put:
+      operationId: rubrics_vetting_rubrics_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Vetting Rubric.
+        required: true
+      tags:
+      - rubrics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingRubric'
+          description: ''
+    patch:
+      operationId: rubrics_vetting_rubrics_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Vetting Rubric.
+        required: true
+      tags:
+      - rubrics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedVettingRubric'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedVettingRubric'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedVettingRubric'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingRubric'
+          description: ''
+    delete:
+      operationId: rubrics_vetting_rubrics_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Vetting Rubric.
+        required: true
+      tags:
+      - rubrics
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/rubrics/vetting-rubrics/{id}/criteria/:
+    post:
+      operationId: rubrics_vetting_rubrics_criteria_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Vetting Rubric.
+        required: true
+      tags:
+      - rubrics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingRubric'
+          description: ''
+  /api/rubrics/vetting-rubrics/{id}/evaluate-case/:
+    post:
+      operationId: rubrics_vetting_rubrics_evaluate_case_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Vetting Rubric.
+        required: true
+      tags:
+      - rubrics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingRubric'
+          description: ''
+components:
+  schemas:
+    AcceptInvitation:
+      type: object
+      properties:
+        token:
+          type: string
+          format: uuid
+      required:
+      - token
+    AdminAuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/AdminUser'
+        tokens:
+          $ref: '#/components/schemas/TokenPair'
+      required:
+      - tokens
+      - user
+    AdminLogin:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - email
+      - password
+    AdminLoginResponse:
+      oneOf:
+      - $ref: '#/components/schemas/AdminAuthResponse'
+      - $ref: '#/components/schemas/TwoFactorChallenge'
+    AdminUser:
+      type: object
+      description: Serializer for admin users
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        user_type:
+          $ref: '#/components/schemas/AdminUserUserTypeEnum'
+        role_display:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - email
+      - id
+      - role_display
+    AdminUserUserTypeEnum:
+      enum:
+      - admin
+      - hr_manager
+      - applicant
+      type: string
+      description: |-
+        * `admin` - System Administrator
+        * `hr_manager` - HR Manager
+        * `applicant` - Applicant
+    Candidate:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        first_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        full_name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone_number:
+          type: string
+          maxLength: 20
+        preferred_channel:
+          $ref: '#/components/schemas/CommunicationChannelEnum'
+        consent_recording:
+          type: boolean
+        consent_ai_processing:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - email
+      - first_name
+      - full_name
+      - id
+      - last_name
+      - updated_at
+    CandidateAccessConsume:
+      type: object
+      properties:
+        token:
+          type: string
+          maxLength: 255
+        begin_vetting:
+          type: boolean
+          default: true
+      required:
+      - token
+    CandidateEnrollment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        campaign:
+          type: integer
+        campaign_name:
+          type: string
+          readOnly: true
+        candidate:
+          type: integer
+        candidate_email:
+          type: string
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/CandidateEnrollmentStatusEnum'
+        invited_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        registered_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reviewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        review_notes:
+          type: string
+        decision_by:
+          type: integer
+          nullable: true
+        metadata: {}
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - campaign
+      - campaign_name
+      - candidate
+      - candidate_email
+      - completed_at
+      - created_at
+      - id
+      - invited_at
+      - registered_at
+      - reviewed_at
+      - updated_at
+    CandidateEnrollmentStatusEnum:
+      enum:
+      - invited
+      - registered
+      - in_progress
+      - completed
+      - reviewed
+      - approved
+      - rejected
+      - escalated
+      type: string
+      description: |-
+        * `invited` - Invited
+        * `registered` - Registered
+        * `in_progress` - In Progress
+        * `completed` - Completed
+        * `reviewed` - Reviewed
+        * `approved` - Approved
+        * `rejected` - Rejected
+        * `escalated` - Escalated
+    ChangePassword:
+      type: object
+      description: Serializer for password change
+      properties:
+        old_password:
+          type: string
+        new_password:
+          type: string
+        new_password_confirm:
+          type: string
+      required:
+      - new_password
+      - new_password_confirm
+      - old_password
+    CommunicationChannelEnum:
+      enum:
+      - email
+      - sms
+      type: string
+      description: |-
+        * `email` - Email
+        * `sms` - SMS
+    CriteriaOverride:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        evaluation:
+          type: integer
+        criteria:
+          type: integer
+        criteria_name:
+          type: string
+          readOnly: true
+        original_score:
+          type: number
+          format: double
+          maximum: 100
+          minimum: 0
+        overridden_score:
+          type: number
+          format: double
+          maximum: 100
+          minimum: 0
+        justification:
+          type: string
+          description: Explanation for the override
+        overridden_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        overridden_by_email:
+          type: string
+          format: email
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - criteria
+      - criteria_name
+      - evaluation
+      - id
+      - justification
+      - original_score
+      - overridden_by
+      - overridden_by_email
+      - overridden_score
+    CriteriaTypeEnum:
+      enum:
+      - document
+      - consistency
+      - interview
+      - behavioral
+      - technical
+      - custom
+      type: string
+      description: |-
+        * `document` - Document Quality
+        * `consistency` - Data Consistency
+        * `interview` - Interview Performance
+        * `behavioral` - Behavioral Assessment
+        * `technical` - Technical Competency
+        * `custom` - Custom Criterion
+    DifficultyEnum:
+      enum:
+      - easy
+      - medium
+      - hard
+      type: string
+      description: |-
+        * `easy` - Easy
+        * `medium` - Medium
+        * `hard` - Hard
+    Document:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        case:
+          type: integer
+        document_type:
+          $ref: '#/components/schemas/DocumentTypeEnum'
+        document_type_display:
+          type: string
+          readOnly: true
+        file:
+          type: string
+          format: uri
+          pattern: (?:pdf|jpg|jpeg|png|tiff)$
+        original_filename:
+          type: string
+          readOnly: true
+        file_size:
+          type: integer
+          readOnly: true
+          description: File size in bytes
+        mime_type:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/DocumentStatusEnum'
+          readOnly: true
+        status_display:
+          type: string
+          readOnly: true
+        ocr_completed:
+          type: boolean
+          readOnly: true
+        authenticity_check_completed:
+          type: boolean
+          readOnly: true
+        fraud_check_completed:
+          type: boolean
+          readOnly: true
+        processing_error:
+          type: string
+          readOnly: true
+        retry_count:
+          type: integer
+          readOnly: true
+        extracted_text:
+          type: string
+        extracted_data:
+          description: Structured data extracted from document
+        uploaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+        processed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        file_url:
+          type: string
+          readOnly: true
+        verification_result:
+          allOf:
+          - $ref: '#/components/schemas/VerificationResult'
+          readOnly: true
+      required:
+      - authenticity_check_completed
+      - case
+      - document_type
+      - document_type_display
+      - file
+      - file_size
+      - file_url
+      - fraud_check_completed
+      - id
+      - mime_type
+      - ocr_completed
+      - original_filename
+      - processed_at
+      - processing_error
+      - retry_count
+      - status
+      - status_display
+      - uploaded_at
+      - verification_result
+    DocumentStatusEnum:
+      enum:
+      - uploaded
+      - queued
+      - processing
+      - verified
+      - failed
+      - flagged
+      type: string
+      description: |-
+        * `uploaded` - Uploaded
+        * `queued` - Queued for Processing
+        * `processing` - Processing
+        * `verified` - Verified
+        * `failed` - Verification Failed
+        * `flagged` - Flagged for Review
+    DocumentTypeEnum:
+      enum:
+      - id_card
+      - passport
+      - drivers_license
+      - birth_certificate
+      - degree
+      - transcript
+      - employment_letter
+      - reference_letter
+      - pay_slip
+      - bank_statement
+      - utility_bill
+      - other
+      type: string
+      description: |-
+        * `id_card` - National ID Card
+        * `passport` - Passport
+        * `drivers_license` - Driver's License
+        * `birth_certificate` - Birth Certificate
+        * `degree` - Educational Degree/Certificate
+        * `transcript` - Academic Transcript
+        * `employment_letter` - Employment Letter
+        * `reference_letter` - Reference Letter
+        * `pay_slip` - Pay Slip
+        * `bank_statement` - Bank Statement
+        * `utility_bill` - Utility Bill
+        * `other` - Other
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+      - error
+    FraudPredictionEnum:
+      enum:
+      - legitimate
+      - suspicious
+      - fraudulent
+      type: string
+      description: |-
+        * `legitimate` - Legitimate
+        * `suspicious` - Suspicious
+        * `fraudulent` - Fraudulent
+    InterviewFeedback:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        session:
+          type: integer
+        reviewer:
+          type: integer
+          nullable: true
+        rating:
+          type: integer
+          maximum: 5
+          minimum: 1
+          description: Overall rating (1-5 stars)
+        communication_rating:
+          type: integer
+          maximum: 5
+          minimum: 1
+        clarity_rating:
+          type: integer
+          maximum: 5
+          minimum: 1
+        consistency_rating:
+          type: integer
+          maximum: 5
+          minimum: 1
+        strengths:
+          type: string
+        weaknesses:
+          type: string
+        general_comments:
+          type: string
+        recommendation:
+          $ref: '#/components/schemas/RecommendationEnum'
+        decision_rationale:
+          type: string
+        agrees_with_ai:
+          type: boolean
+          description: Does reviewer agree with AI evaluation?
+        ai_override_reason:
+          type: string
+          description: If disagreeing with AI, explain why
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - agrees_with_ai
+      - clarity_rating
+      - communication_rating
+      - consistency_rating
+      - created_at
+      - decision_rationale
+      - general_comments
+      - id
+      - rating
+      - recommendation
+      - session
+    InterviewQuestion:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        question_text:
+          type: string
+        question_type:
+          $ref: '#/components/schemas/QuestionTypeEnum'
+        question_type_display:
+          type: string
+          readOnly: true
+        difficulty:
+          $ref: '#/components/schemas/DifficultyEnum'
+        difficulty_display:
+          type: string
+          readOnly: true
+        targets_flag_type:
+          type: string
+          description: Which type of flag this question addresses
+          maxLength: 50
+        evaluation_rubric:
+          type: string
+          description: Criteria for evaluating responses to this question
+        expected_keywords:
+          description: Keywords/phrases expected in good answers
+        times_used:
+          type: integer
+          readOnly: true
+        average_response_quality:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        is_active:
+          type: boolean
+        created_by:
+          type: integer
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - average_response_quality
+      - created_at
+      - difficulty_display
+      - evaluation_rubric
+      - id
+      - question_text
+      - question_type
+      - question_type_display
+      - times_used
+      - updated_at
+    InterviewResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        session:
+          type: integer
+        question:
+          type: integer
+        question_text:
+          type: string
+          readOnly: true
+        target_flag:
+          type: integer
+          nullable: true
+        sequence_number:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Order in the interview
+        video_file:
+          type: string
+          format: uri
+          nullable: true
+        video_url:
+          type: string
+          format: uri
+          description: URL if stored externally (S3)
+          maxLength: 200
+        audio_file:
+          type: string
+          format: uri
+          nullable: true
+        transcript:
+          type: string
+        transcript_confidence:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        sentiment:
+          type: string
+          description: Overall emotional sentiment
+          maxLength: 50
+        sentiment_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        response_quality_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+          description: Overall response quality from LLM evaluation
+        relevance_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+          description: How relevant the answer is to the question
+        completeness_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        coherence_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        llm_evaluation:
+          description: Detailed evaluation from LLM (GPT-4/Claude)
+        key_points_extracted:
+          description: Main points from the response
+        concerns_detected:
+          description: Any concerns or red flags in the response
+        response_duration_seconds:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: How long the candidate spoke
+        answered_at:
+          type: string
+          format: date-time
+          nullable: true
+        processed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        video_analysis:
+          allOf:
+          - $ref: '#/components/schemas/VideoAnalysis'
+          readOnly: true
+      required:
+      - coherence_score
+      - completeness_score
+      - id
+      - processed_at
+      - question
+      - question_text
+      - relevance_score
+      - response_quality_score
+      - sentiment_score
+      - sequence_number
+      - session
+      - transcript_confidence
+      - video_analysis
+    InterviewSession:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        session_id:
+          type: string
+          readOnly: true
+        case:
+          type: integer
+        case_id:
+          type: string
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/InterviewSessionStatusEnum'
+        use_dynamic_questions:
+          type: boolean
+          description: Generate questions based on flags vs. use predefined set
+        max_questions:
+          type: integer
+          maximum: 50
+          minimum: 1
+        current_question_number:
+          type: integer
+          readOnly: true
+        total_questions_asked:
+          type: integer
+          readOnly: true
+        overall_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        communication_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        consistency_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        confidence_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        interview_summary:
+          type: string
+        key_findings: {}
+        red_flags_detected: {}
+        flags_addressed:
+          type: array
+          items:
+            type: integer
+        flags_resolved_count:
+          type: integer
+          readOnly: true
+        flags_unresolved_count:
+          type: integer
+          readOnly: true
+        conversation_history:
+          description: Full Q&A history for context building
+        interrogation_flags:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        duration_seconds:
+          type: integer
+          readOnly: true
+        responses:
+          type: array
+          items:
+            $ref: '#/components/schemas/InterviewResponse'
+          readOnly: true
+      required:
+      - case
+      - case_id
+      - communication_score
+      - completed_at
+      - confidence_score
+      - consistency_score
+      - created_at
+      - current_question_number
+      - duration_seconds
+      - flags_resolved_count
+      - flags_unresolved_count
+      - id
+      - interrogation_flags
+      - overall_score
+      - responses
+      - session_id
+      - started_at
+      - total_questions_asked
+    InterviewSessionStatusEnum:
+      enum:
+      - created
+      - in_progress
+      - completed
+      - failed
+      - cancelled
+      type: string
+      description: |-
+        * `created` - Created
+        * `in_progress` - In Progress
+        * `completed` - Completed
+        * `failed` - Failed
+        * `cancelled` - Cancelled
+    Invitation:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        enrollment:
+          type: integer
+        token:
+          type: string
+          format: uuid
+          readOnly: true
+        channel:
+          $ref: '#/components/schemas/CommunicationChannelEnum'
+        status:
+          allOf:
+          - $ref: '#/components/schemas/InvitationStatusEnum'
+          readOnly: true
+        send_to:
+          type: string
+          readOnly: true
+        expires_at:
+          type: string
+          format: date-time
+        sent_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        accepted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        attempts:
+          type: integer
+          readOnly: true
+        last_error:
+          type: string
+          readOnly: true
+        created_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        accept_url:
+          type: string
+          readOnly: true
+      required:
+      - accept_url
+      - accepted_at
+      - attempts
+      - created_at
+      - created_by
+      - enrollment
+      - expires_at
+      - id
+      - last_error
+      - send_to
+      - sent_at
+      - status
+      - token
+      - updated_at
+    InvitationCreate:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        enrollment:
+          type: integer
+        channel:
+          $ref: '#/components/schemas/CommunicationChannelEnum'
+        expires_in_hours:
+          type: integer
+          maximum: 720
+          minimum: 1
+          writeOnly: true
+          default: 72
+      required:
+      - enrollment
+      - id
+    InvitationStatusEnum:
+      enum:
+      - pending
+      - sent
+      - failed
+      - accepted
+      - expired
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `sent` - Sent
+        * `failed` - Failed
+        * `accepted` - Accepted
+        * `expired` - Expired
+    Login:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - email
+      - password
+    LogoutRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+      required:
+      - refresh
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+      - message
+    Notification:
+      type: object
+      description: Serializer for user notification records.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        recipient:
+          type: integer
+          readOnly: true
+        recipient_email:
+          type: string
+          format: email
+          readOnly: true
+        template:
+          type: integer
+          readOnly: true
+          nullable: true
+        related_case:
+          type: integer
+          readOnly: true
+          nullable: true
+        related_interview:
+          type: integer
+          readOnly: true
+          nullable: true
+        subject:
+          type: string
+          readOnly: true
+        message:
+          type: string
+          readOnly: true
+        notification_type:
+          allOf:
+          - $ref: '#/components/schemas/NotificationTypeEnum'
+          readOnly: true
+        notification_type_display:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/NotificationStatusEnum'
+          readOnly: true
+        status_display:
+          type: string
+          readOnly: true
+        priority:
+          allOf:
+          - $ref: '#/components/schemas/NotificationPriorityEnum'
+          readOnly: true
+        priority_display:
+          type: string
+          readOnly: true
+        email_to:
+          type: string
+          format: email
+          readOnly: true
+        email_cc:
+          readOnly: true
+        metadata:
+          readOnly: true
+          description: Additional context data
+        sent_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        read_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        failed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        failure_reason:
+          type: string
+          readOnly: true
+        retry_count:
+          type: integer
+          readOnly: true
+        is_read:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - email_cc
+      - email_to
+      - failed_at
+      - failure_reason
+      - id
+      - is_read
+      - message
+      - metadata
+      - notification_type
+      - notification_type_display
+      - priority
+      - priority_display
+      - read_at
+      - recipient
+      - recipient_email
+      - related_case
+      - related_interview
+      - retry_count
+      - sent_at
+      - status
+      - status_display
+      - subject
+      - template
+    NotificationPriorityEnum:
+      enum:
+      - low
+      - normal
+      - high
+      - urgent
+      type: string
+      description: |-
+        * `low` - Low
+        * `normal` - Normal
+        * `high` - High
+        * `urgent` - Urgent
+    NotificationStatusEnum:
+      enum:
+      - pending
+      - sent
+      - failed
+      - read
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `sent` - Sent
+        * `failed` - Failed
+        * `read` - Read
+    NotificationTypeEnum:
+      enum:
+      - email
+      - sms
+      - in_app
+      type: string
+      description: |-
+        * `email` - Email
+        * `sms` - SMS
+        * `in_app` - In-App Notification
+    PaginatedCandidateEnrollmentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/CandidateEnrollment'
+    PaginatedCandidateList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Candidate'
+    PaginatedDocumentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Document'
+    PaginatedInterviewFeedbackList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/InterviewFeedback'
+    PaginatedInterviewQuestionList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/InterviewQuestion'
+    PaginatedInterviewResponseList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/InterviewResponse'
+    PaginatedInterviewSessionList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/InterviewSession'
+    PaginatedInvitationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Invitation'
+    PaginatedNotificationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+    PaginatedRubricCriteriaList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/RubricCriteria'
+    PaginatedRubricEvaluationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/RubricEvaluation'
+    PaginatedVettingCampaignList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/VettingCampaign'
+    PaginatedVettingCaseList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/VettingCase'
+    PaginatedVettingRubricList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/VettingRubric'
+    PasswordResetConfirm:
+      type: object
+      description: Serializer for password reset confirmation
+      properties:
+        token:
+          type: string
+        new_password:
+          type: string
+        new_password_confirm:
+          type: string
+      required:
+      - new_password
+      - new_password_confirm
+      - token
+    PasswordResetRequest:
+      type: object
+      description: Serializer for password reset request
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+      - email
+    PatchedAdminUser:
+      type: object
+      description: Serializer for admin users
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        user_type:
+          $ref: '#/components/schemas/AdminUserUserTypeEnum'
+        role_display:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedCandidate:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        first_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        full_name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone_number:
+          type: string
+          maxLength: 20
+        preferred_channel:
+          $ref: '#/components/schemas/CommunicationChannelEnum'
+        consent_recording:
+          type: boolean
+        consent_ai_processing:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedCandidateEnrollment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        campaign:
+          type: integer
+        campaign_name:
+          type: string
+          readOnly: true
+        candidate:
+          type: integer
+        candidate_email:
+          type: string
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/CandidateEnrollmentStatusEnum'
+        invited_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        registered_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reviewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        review_notes:
+          type: string
+        decision_by:
+          type: integer
+          nullable: true
+        metadata: {}
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedInterviewFeedback:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        session:
+          type: integer
+        reviewer:
+          type: integer
+          nullable: true
+        rating:
+          type: integer
+          maximum: 5
+          minimum: 1
+          description: Overall rating (1-5 stars)
+        communication_rating:
+          type: integer
+          maximum: 5
+          minimum: 1
+        clarity_rating:
+          type: integer
+          maximum: 5
+          minimum: 1
+        consistency_rating:
+          type: integer
+          maximum: 5
+          minimum: 1
+        strengths:
+          type: string
+        weaknesses:
+          type: string
+        general_comments:
+          type: string
+        recommendation:
+          $ref: '#/components/schemas/RecommendationEnum'
+        decision_rationale:
+          type: string
+        agrees_with_ai:
+          type: boolean
+          description: Does reviewer agree with AI evaluation?
+        ai_override_reason:
+          type: string
+          description: If disagreeing with AI, explain why
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedInterviewQuestion:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        question_text:
+          type: string
+        question_type:
+          $ref: '#/components/schemas/QuestionTypeEnum'
+        question_type_display:
+          type: string
+          readOnly: true
+        difficulty:
+          $ref: '#/components/schemas/DifficultyEnum'
+        difficulty_display:
+          type: string
+          readOnly: true
+        targets_flag_type:
+          type: string
+          description: Which type of flag this question addresses
+          maxLength: 50
+        evaluation_rubric:
+          type: string
+          description: Criteria for evaluating responses to this question
+        expected_keywords:
+          description: Keywords/phrases expected in good answers
+        times_used:
+          type: integer
+          readOnly: true
+        average_response_quality:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        is_active:
+          type: boolean
+        created_by:
+          type: integer
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedInterviewResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        session:
+          type: integer
+        question:
+          type: integer
+        question_text:
+          type: string
+          readOnly: true
+        target_flag:
+          type: integer
+          nullable: true
+        sequence_number:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Order in the interview
+        video_file:
+          type: string
+          format: uri
+          nullable: true
+        video_url:
+          type: string
+          format: uri
+          description: URL if stored externally (S3)
+          maxLength: 200
+        audio_file:
+          type: string
+          format: uri
+          nullable: true
+        transcript:
+          type: string
+        transcript_confidence:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        sentiment:
+          type: string
+          description: Overall emotional sentiment
+          maxLength: 50
+        sentiment_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        response_quality_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+          description: Overall response quality from LLM evaluation
+        relevance_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+          description: How relevant the answer is to the question
+        completeness_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        coherence_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        llm_evaluation:
+          description: Detailed evaluation from LLM (GPT-4/Claude)
+        key_points_extracted:
+          description: Main points from the response
+        concerns_detected:
+          description: Any concerns or red flags in the response
+        response_duration_seconds:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: How long the candidate spoke
+        answered_at:
+          type: string
+          format: date-time
+          nullable: true
+        processed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        video_analysis:
+          allOf:
+          - $ref: '#/components/schemas/VideoAnalysis'
+          readOnly: true
+    PatchedInterviewSession:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        session_id:
+          type: string
+          readOnly: true
+        case:
+          type: integer
+        case_id:
+          type: string
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/InterviewSessionStatusEnum'
+        use_dynamic_questions:
+          type: boolean
+          description: Generate questions based on flags vs. use predefined set
+        max_questions:
+          type: integer
+          maximum: 50
+          minimum: 1
+        current_question_number:
+          type: integer
+          readOnly: true
+        total_questions_asked:
+          type: integer
+          readOnly: true
+        overall_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        communication_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        consistency_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        confidence_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        interview_summary:
+          type: string
+        key_findings: {}
+        red_flags_detected: {}
+        flags_addressed:
+          type: array
+          items:
+            type: integer
+        flags_resolved_count:
+          type: integer
+          readOnly: true
+        flags_unresolved_count:
+          type: integer
+          readOnly: true
+        conversation_history:
+          description: Full Q&A history for context building
+        interrogation_flags:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        duration_seconds:
+          type: integer
+          readOnly: true
+        responses:
+          type: array
+          items:
+            $ref: '#/components/schemas/InterviewResponse'
+          readOnly: true
+    PatchedInvitation:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        enrollment:
+          type: integer
+        token:
+          type: string
+          format: uuid
+          readOnly: true
+        channel:
+          $ref: '#/components/schemas/CommunicationChannelEnum'
+        status:
+          allOf:
+          - $ref: '#/components/schemas/InvitationStatusEnum'
+          readOnly: true
+        send_to:
+          type: string
+          readOnly: true
+        expires_at:
+          type: string
+          format: date-time
+        sent_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        accepted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        attempts:
+          type: integer
+          readOnly: true
+        last_error:
+          type: string
+          readOnly: true
+        created_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        accept_url:
+          type: string
+          readOnly: true
+    PatchedProfileUpdateRequest:
+      oneOf:
+      - $ref: '#/components/schemas/PatchedUser'
+      - $ref: '#/components/schemas/PatchedAdminUser'
+    PatchedRubricCriteria:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        rubric:
+          type: integer
+        name:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+        criteria_type:
+          $ref: '#/components/schemas/CriteriaTypeEnum'
+        criteria_type_display:
+          type: string
+          readOnly: true
+        scoring_method:
+          $ref: '#/components/schemas/ScoringMethodEnum'
+        scoring_method_display:
+          type: string
+          readOnly: true
+        weight:
+          type: integer
+          maximum: 100
+          minimum: 0
+          description: Weight within parent rubric or category
+        minimum_score:
+          type: integer
+          maximum: 100
+          minimum: 0
+          nullable: true
+          description: Minimum required score for this criterion
+        is_mandatory:
+          type: boolean
+          description: Must pass this criterion to pass overall
+        evaluation_guidelines:
+          type: string
+          description: Instructions for manual evaluation
+        display_order:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+    PatchedUser:
+      type: object
+      description: Serializer for regular users (applicants)
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        full_name:
+          type: string
+          readOnly: true
+        phone_number:
+          type: string
+          pattern: ^\+?1?\d{9,15}$
+          maxLength: 20
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedVettingCampaign:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/VettingCampaignStatusEnum'
+        starts_at:
+          type: string
+          format: date-time
+          nullable: true
+        ends_at:
+          type: string
+          format: date-time
+          nullable: true
+        settings_json: {}
+        initiated_by:
+          type: integer
+          readOnly: true
+        initiated_by_email:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedVettingCase:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        case_id:
+          type: string
+          readOnly: true
+        applicant:
+          type: integer
+        applicant_email:
+          type: string
+          format: email
+          readOnly: true
+        candidate_enrollment:
+          type: integer
+          nullable: true
+        candidate_email:
+          type: string
+          format: email
+          readOnly: true
+        assigned_to:
+          type: integer
+          nullable: true
+        assigned_to_email:
+          type: string
+          format: email
+          readOnly: true
+        position_applied:
+          type: string
+          maxLength: 200
+        department:
+          type: string
+          maxLength: 100
+        job_description:
+          type: string
+        status:
+          $ref: '#/components/schemas/VettingCaseStatusEnum'
+        status_display:
+          type: string
+          readOnly: true
+        priority:
+          $ref: '#/components/schemas/VettingCasePriorityEnum'
+        priority_display:
+          type: string
+          readOnly: true
+        overall_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+          description: Overall vetting score (0-100)
+        document_authenticity_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        consistency_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        fraud_risk_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+          description: Higher score = higher fraud risk
+        interview_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        red_flags_count:
+          type: integer
+          readOnly: true
+        requires_manual_review:
+          type: boolean
+        notes:
+          type: string
+        internal_comments:
+          type: string
+        documents_uploaded:
+          type: boolean
+        documents_verified:
+          type: boolean
+        interview_completed:
+          type: boolean
+        final_decision:
+          $ref: '#/components/schemas/VettingCaseFinalDecisionEnum'
+        decision_rationale:
+          type: string
+        decided_by:
+          type: integer
+          nullable: true
+        decided_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        expected_completion_date:
+          type: string
+          format: date-time
+          nullable: true
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Document'
+          readOnly: true
+        rubric_evaluation:
+          nullable: true
+          readOnly: true
+    PatchedVettingRubric:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+        rubric_type:
+          $ref: '#/components/schemas/RubricTypeEnum'
+        rubric_type_display:
+          type: string
+          readOnly: true
+        document_authenticity_weight:
+          type: integer
+          maximum: 100
+          minimum: 0
+          description: Weight for document authenticity (0-100)
+        consistency_weight:
+          type: integer
+          maximum: 100
+          minimum: 0
+          description: Weight for cross-document consistency
+        fraud_detection_weight:
+          type: integer
+          maximum: 100
+          minimum: 0
+          description: Weight for fraud risk assessment
+        interview_weight:
+          type: integer
+          maximum: 100
+          minimum: 0
+          description: Weight for interview performance
+        manual_review_weight:
+          type: integer
+          maximum: 100
+          minimum: 0
+          description: Weight for manual HR review
+        passing_score:
+          type: integer
+          maximum: 100
+          minimum: 0
+          description: Minimum score to pass vetting
+        auto_approve_threshold:
+          type: integer
+          maximum: 100
+          minimum: 0
+          description: Score for automatic approval without review
+        auto_reject_threshold:
+          type: integer
+          maximum: 100
+          minimum: 0
+          description: Score for automatic rejection
+        minimum_document_score:
+          type: integer
+          maximum: 100
+          minimum: 0
+          description: Minimum acceptable document authenticity score
+        maximum_fraud_score:
+          type: integer
+          maximum: 100
+          minimum: 0
+          description: Maximum acceptable fraud risk score
+        require_interview:
+          type: boolean
+          description: Is interview mandatory?
+        critical_flags_auto_fail:
+          type: boolean
+          description: Automatically fail if critical flags detected
+        max_unresolved_flags:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Maximum unresolved flags before manual review required
+        is_active:
+          type: boolean
+        is_default:
+          type: boolean
+        created_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        criteria:
+          type: array
+          items:
+            $ref: '#/components/schemas/RubricCriteria'
+          readOnly: true
+        total_weight:
+          type: integer
+          readOnly: true
+    ProfileResponse:
+      type: object
+      properties:
+        user:
+          type: object
+          additionalProperties: {}
+        user_type:
+          $ref: '#/components/schemas/ProfileResponseUserTypeEnum'
+      required:
+      - user
+      - user_type
+    ProfileResponseUserTypeEnum:
+      enum:
+      - admin
+      - hr_manager
+      - applicant
+      type: string
+      description: |-
+        * `admin` - admin
+        * `hr_manager` - hr_manager
+        * `applicant` - applicant
+    ProfileUpdateRequest:
+      oneOf:
+      - $ref: '#/components/schemas/User'
+      - $ref: '#/components/schemas/AdminUser'
+    ProfileUpdateResponse:
+      oneOf:
+      - $ref: '#/components/schemas/User'
+      - $ref: '#/components/schemas/AdminUser'
+    QuestionTypeEnum:
+      enum:
+      - general
+      - education
+      - employment
+      - verification
+      - flag_specific
+      - behavioral
+      - situational
+      type: string
+      description: |-
+        * `general` - General Background
+        * `education` - Educational Background
+        * `employment` - Employment History
+        * `verification` - Document Verification
+        * `flag_specific` - Flag-Specific Clarification
+        * `behavioral` - Behavioral Assessment
+        * `situational` - Situational Question
+    RecommendationEnum:
+      enum:
+      - strongly_approve
+      - approve
+      - neutral
+      - reject
+      - strongly_reject
+      type: string
+      description: |-
+        * `strongly_approve` - Strongly Approve
+        * `approve` - Approve
+        * `neutral` - Neutral
+        * `reject` - Reject
+        * `strongly_reject` - Strongly Reject
+    RubricCriteria:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        rubric:
+          type: integer
+        name:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+        criteria_type:
+          $ref: '#/components/schemas/CriteriaTypeEnum'
+        criteria_type_display:
+          type: string
+          readOnly: true
+        scoring_method:
+          $ref: '#/components/schemas/ScoringMethodEnum'
+        scoring_method_display:
+          type: string
+          readOnly: true
+        weight:
+          type: integer
+          maximum: 100
+          minimum: 0
+          description: Weight within parent rubric or category
+        minimum_score:
+          type: integer
+          maximum: 100
+          minimum: 0
+          nullable: true
+          description: Minimum required score for this criterion
+        is_mandatory:
+          type: boolean
+          description: Must pass this criterion to pass overall
+        evaluation_guidelines:
+          type: string
+          description: Instructions for manual evaluation
+        display_order:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+      required:
+      - criteria_type
+      - criteria_type_display
+      - description
+      - id
+      - name
+      - rubric
+      - scoring_method_display
+      - weight
+    RubricEvaluation:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        case:
+          type: integer
+        case_id:
+          type: string
+          readOnly: true
+        rubric:
+          type: integer
+        rubric_name:
+          type: string
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/RubricEvaluationStatusEnum'
+        document_authenticity_score:
+          type: number
+          format: double
+          maximum: 100
+          minimum: 0
+          nullable: true
+        consistency_score:
+          type: number
+          format: double
+          maximum: 100
+          minimum: 0
+          nullable: true
+        fraud_risk_score:
+          type: number
+          format: double
+          maximum: 100
+          minimum: 0
+          nullable: true
+        interview_score:
+          type: number
+          format: double
+          maximum: 100
+          minimum: 0
+          nullable: true
+        manual_review_score:
+          type: number
+          format: double
+          maximum: 100
+          minimum: 0
+          nullable: true
+        weighted_document_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        weighted_consistency_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        weighted_fraud_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        weighted_interview_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        weighted_manual_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        total_weighted_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        passes_threshold:
+          type: boolean
+          readOnly: true
+          nullable: true
+        final_decision:
+          allOf:
+          - $ref: '#/components/schemas/RubricEvaluationFinalDecisionEnum'
+          readOnly: true
+        critical_flags_present:
+          type: boolean
+        unresolved_flags_count:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        requires_manual_review:
+          type: boolean
+          readOnly: true
+        review_reasons:
+          readOnly: true
+          description: Reasons requiring manual review
+        criterion_scores:
+          description: Individual criterion scores
+        evaluation_summary:
+          type: string
+        recommendations:
+          type: string
+        evaluated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        evaluated_by:
+          type: integer
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        overrides:
+          type: array
+          items:
+            $ref: '#/components/schemas/CriteriaOverride'
+          readOnly: true
+      required:
+      - case
+      - case_id
+      - created_at
+      - evaluated_at
+      - final_decision
+      - id
+      - overrides
+      - passes_threshold
+      - requires_manual_review
+      - review_reasons
+      - rubric
+      - rubric_name
+      - total_weighted_score
+      - updated_at
+      - weighted_consistency_score
+      - weighted_document_score
+      - weighted_fraud_score
+      - weighted_interview_score
+      - weighted_manual_score
+    RubricEvaluationFinalDecisionEnum:
+      enum:
+      - auto_approved
+      - auto_rejected
+      - manual_approved
+      - manual_rejected
+      - pending
+      type: string
+      description: |-
+        * `auto_approved` - Automatically Approved
+        * `auto_rejected` - Automatically Rejected
+        * `manual_approved` - Manually Approved
+        * `manual_rejected` - Manually Rejected
+        * `pending` - Pending Decision
+    RubricEvaluationStatusEnum:
+      enum:
+      - pending
+      - in_progress
+      - completed
+      - requires_review
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `in_progress` - In Progress
+        * `completed` - Completed
+        * `requires_review` - Requires Manual Review
+    RubricTypeEnum:
+      enum:
+      - general
+      - technical
+      - executive
+      - sensitive
+      - custom
+      type: string
+      description: |-
+        * `general` - General Purpose
+        * `technical` - Technical Position
+        * `executive` - Executive Level
+        * `sensitive` - High-Security Position
+        * `custom` - Custom
+    ScoringMethodEnum:
+      enum:
+      - ai_score
+      - manual_rating
+      - binary
+      - calculated
+      type: string
+      description: |-
+        * `ai_score` - AI-Generated Score
+        * `manual_rating` - Manual Rating
+        * `binary` - Pass/Fail
+        * `calculated` - Calculated from Sub-Criteria
+    TokenPair:
+      type: object
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    TwoFactorChallenge:
+      type: object
+      properties:
+        message:
+          type: string
+        token:
+          type: string
+      required:
+      - message
+      - token
+    TwoFactorEnableRequest:
+      type: object
+      properties:
+        otp:
+          type: string
+      required:
+      - otp
+    TwoFactorSetupResponse:
+      type: object
+      properties:
+        provisioning_uri:
+          type: string
+      required:
+      - provisioning_uri
+    TwoFactorVerification:
+      type: object
+      properties:
+        token:
+          type: string
+        otp:
+          type: string
+      required:
+      - otp
+      - token
+    User:
+      type: object
+      description: Serializer for regular users (applicants)
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        full_name:
+          type: string
+          readOnly: true
+        phone_number:
+          type: string
+          pattern: ^\+?1?\d{9,15}$
+          maxLength: 20
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - email
+      - full_name
+      - id
+    UserAuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        tokens:
+          $ref: '#/components/schemas/TokenPair'
+      required:
+      - tokens
+      - user
+    UserRegistration:
+      type: object
+      description: Serializer for firm registration
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        password:
+          type: string
+          writeOnly: true
+        password_confirm:
+          type: string
+          writeOnly: true
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        phone_number:
+          type: string
+          pattern: ^\+?1?\d{9,15}$
+          maxLength: 20
+        organization:
+          type: string
+          maxLength: 200
+        department:
+          type: string
+          maxLength: 100
+      required:
+      - email
+      - password
+      - password_confirm
+    VerificationResult:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        document:
+          type: integer
+        ocr_text:
+          type: string
+        ocr_confidence:
+          type: number
+          format: double
+          maximum: 100
+          minimum: 0
+          nullable: true
+        ocr_language:
+          type: string
+          maxLength: 10
+        authenticity_score:
+          type: number
+          format: double
+          maximum: 100
+          minimum: 0
+          description: Likelihood document is authentic (0-100)
+        authenticity_confidence:
+          type: number
+          format: double
+          maximum: 100
+          minimum: 0
+        is_authentic:
+          type: boolean
+        metadata_check_passed:
+          type: boolean
+        visual_check_passed:
+          type: boolean
+        tampering_detected:
+          type: boolean
+        fraud_risk_score:
+          type: number
+          format: double
+          maximum: 100
+          minimum: 0
+          description: Probability of fraud (0-100)
+        fraud_prediction:
+          $ref: '#/components/schemas/FraudPredictionEnum'
+        fraud_indicators:
+          description: List of detected fraud indicators
+        detailed_results:
+          description: Complete analysis results from AI models
+        ocr_model_version:
+          type: string
+          maxLength: 50
+        authenticity_model_version:
+          type: string
+          maxLength: 50
+        fraud_model_version:
+          type: string
+          maxLength: 50
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        processing_time_seconds:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+          description: Time taken for analysis
+      required:
+      - authenticity_confidence
+      - authenticity_score
+      - created_at
+      - document
+      - fraud_prediction
+      - fraud_risk_score
+      - id
+      - is_authentic
+      - processing_time_seconds
+    VettingCampaign:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/VettingCampaignStatusEnum'
+        starts_at:
+          type: string
+          format: date-time
+          nullable: true
+        ends_at:
+          type: string
+          format: date-time
+          nullable: true
+        settings_json: {}
+        initiated_by:
+          type: integer
+          readOnly: true
+        initiated_by_email:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - initiated_by
+      - initiated_by_email
+      - name
+      - updated_at
+    VettingCampaignStatusEnum:
+      enum:
+      - draft
+      - active
+      - closed
+      - archived
+      type: string
+      description: |-
+        * `draft` - Draft
+        * `active` - Active
+        * `closed` - Closed
+        * `archived` - Archived
+    VettingCase:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        case_id:
+          type: string
+          readOnly: true
+        applicant:
+          type: integer
+        applicant_email:
+          type: string
+          format: email
+          readOnly: true
+        candidate_enrollment:
+          type: integer
+          nullable: true
+        candidate_email:
+          type: string
+          format: email
+          readOnly: true
+        assigned_to:
+          type: integer
+          nullable: true
+        assigned_to_email:
+          type: string
+          format: email
+          readOnly: true
+        position_applied:
+          type: string
+          maxLength: 200
+        department:
+          type: string
+          maxLength: 100
+        job_description:
+          type: string
+        status:
+          $ref: '#/components/schemas/VettingCaseStatusEnum'
+        status_display:
+          type: string
+          readOnly: true
+        priority:
+          $ref: '#/components/schemas/VettingCasePriorityEnum'
+        priority_display:
+          type: string
+          readOnly: true
+        overall_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+          description: Overall vetting score (0-100)
+        document_authenticity_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        consistency_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        fraud_risk_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+          description: Higher score = higher fraud risk
+        interview_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        red_flags_count:
+          type: integer
+          readOnly: true
+        requires_manual_review:
+          type: boolean
+        notes:
+          type: string
+        internal_comments:
+          type: string
+        documents_uploaded:
+          type: boolean
+        documents_verified:
+          type: boolean
+        interview_completed:
+          type: boolean
+        final_decision:
+          $ref: '#/components/schemas/VettingCaseFinalDecisionEnum'
+        decision_rationale:
+          type: string
+        decided_by:
+          type: integer
+          nullable: true
+        decided_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        expected_completion_date:
+          type: string
+          format: date-time
+          nullable: true
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Document'
+          readOnly: true
+        rubric_evaluation:
+          nullable: true
+          readOnly: true
+      required:
+      - applicant_email
+      - assigned_to_email
+      - candidate_email
+      - case_id
+      - completed_at
+      - consistency_score
+      - created_at
+      - document_authenticity_score
+      - documents
+      - fraud_risk_score
+      - id
+      - interview_score
+      - overall_score
+      - position_applied
+      - priority_display
+      - red_flags_count
+      - rubric_evaluation
+      - status_display
+      - updated_at
+    VettingCaseFinalDecisionEnum:
+      enum:
+      - approved
+      - rejected
+      - pending
+      type: string
+      description: |-
+        * `approved` - Approved
+        * `rejected` - Rejected
+        * `pending` - Pending
+    VettingCasePriorityEnum:
+      enum:
+      - low
+      - medium
+      - high
+      - urgent
+      type: string
+      description: |-
+        * `low` - Low
+        * `medium` - Medium
+        * `high` - High
+        * `urgent` - Urgent
+    VettingCaseStatusEnum:
+      enum:
+      - pending
+      - document_upload
+      - document_analysis
+      - interview_scheduled
+      - interview_in_progress
+      - under_review
+      - approved
+      - rejected
+      - on_hold
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `document_upload` - Document Upload
+        * `document_analysis` - Document Analysis
+        * `interview_scheduled` - Interview Scheduled
+        * `interview_in_progress` - Interview In Progress
+        * `under_review` - Under Review
+        * `approved` - Approved
+        * `rejected` - Rejected
+        * `on_hold` - On Hold
+    VettingRubric:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+        rubric_type:
+          $ref: '#/components/schemas/RubricTypeEnum'
+        rubric_type_display:
+          type: string
+          readOnly: true
+        document_authenticity_weight:
+          type: integer
+          maximum: 100
+          minimum: 0
+          description: Weight for document authenticity (0-100)
+        consistency_weight:
+          type: integer
+          maximum: 100
+          minimum: 0
+          description: Weight for cross-document consistency
+        fraud_detection_weight:
+          type: integer
+          maximum: 100
+          minimum: 0
+          description: Weight for fraud risk assessment
+        interview_weight:
+          type: integer
+          maximum: 100
+          minimum: 0
+          description: Weight for interview performance
+        manual_review_weight:
+          type: integer
+          maximum: 100
+          minimum: 0
+          description: Weight for manual HR review
+        passing_score:
+          type: integer
+          maximum: 100
+          minimum: 0
+          description: Minimum score to pass vetting
+        auto_approve_threshold:
+          type: integer
+          maximum: 100
+          minimum: 0
+          description: Score for automatic approval without review
+        auto_reject_threshold:
+          type: integer
+          maximum: 100
+          minimum: 0
+          description: Score for automatic rejection
+        minimum_document_score:
+          type: integer
+          maximum: 100
+          minimum: 0
+          description: Minimum acceptable document authenticity score
+        maximum_fraud_score:
+          type: integer
+          maximum: 100
+          minimum: 0
+          description: Maximum acceptable fraud risk score
+        require_interview:
+          type: boolean
+          description: Is interview mandatory?
+        critical_flags_auto_fail:
+          type: boolean
+          description: Automatically fail if critical flags detected
+        max_unresolved_flags:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Maximum unresolved flags before manual review required
+        is_active:
+          type: boolean
+        is_default:
+          type: boolean
+        created_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        criteria:
+          type: array
+          items:
+            $ref: '#/components/schemas/RubricCriteria'
+          readOnly: true
+        total_weight:
+          type: integer
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - criteria
+      - id
+      - name
+      - rubric_type_display
+      - total_weight
+      - updated_at
+    VideoAnalysis:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        response:
+          type: integer
+        face_detected:
+          type: boolean
+        face_detection_confidence:
+          type: number
+          format: double
+          maximum: 100
+          minimum: 0
+          nullable: true
+        eye_contact_percentage:
+          type: number
+          format: double
+          maximum: 100
+          minimum: 0
+          nullable: true
+          description: Approximate percentage of time looking at camera
+        gaze_direction_changes:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Number of times gaze direction changed
+        dominant_emotion:
+          type: string
+          description: Most common emotion detected
+          maxLength: 50
+        emotion_distribution:
+          description: Distribution of emotions throughout response
+        confidence_level:
+          type: number
+          format: double
+          maximum: 100
+          minimum: 0
+          nullable: true
+          description: Overall confidence based on visual cues
+        stress_level:
+          type: number
+          format: double
+          maximum: 100
+          minimum: 0
+          nullable: true
+          description: Estimated stress level
+        head_movement_count:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Significant head movements
+        fidgeting_detected:
+          type: boolean
+        behavioral_indicators:
+          description: List of observed behavioral patterns
+        raw_analysis_data:
+          description: Complete raw analysis from CV models
+        frames_analyzed:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        analysis_duration_seconds:
+          type: number
+          format: double
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - response
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

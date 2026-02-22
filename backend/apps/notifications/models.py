@@ -71,7 +71,7 @@ Implements notification system for:
 
 from django.db import models
 from django.utils import timezone
-from apps.auth_actions.models import User
+from apps.authentication.models import User
 from apps.applications.models import VettingCase
 from apps.interviews.models import InterviewSession
 
@@ -145,6 +145,7 @@ class NotificationTemplate(models.Model):
         ordering = ['category', 'name']
         verbose_name = 'Notification Template'
         verbose_name_plural = 'Notification Templates'
+        app_label = 'notifications'
 
     def __str__(self):
         return f"{self.name} ({self.get_template_type_display()})"
@@ -259,6 +260,7 @@ class Notification(models.Model):
         ]
         verbose_name = 'Notification'
         verbose_name_plural = 'Notifications'
+        app_label = 'notifications'
 
     def __str__(self):
         return f"{self.subject} to {self.recipient.email}"
@@ -365,6 +367,7 @@ class AlertRule(models.Model):
         ordering = ['name']
         verbose_name = 'Alert Rule'
         verbose_name_plural = 'Alert Rules'
+        app_label = 'notifications'
 
     def __str__(self):
         return self.name

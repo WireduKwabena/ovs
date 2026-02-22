@@ -4,6 +4,10 @@ Production Settings
 Settings for production deployment.
 """
 
+import copy
+
+from django.core.exceptions import ImproperlyConfigured
+
 from .base import *
 
 DEBUG = False
@@ -17,11 +21,27 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
 # Database - use PostgreSQL in production
+database_url = config("DATABASE_URL", default="")
+if not database_url:
+    raise ImproperlyConfigured(
+        "DATABASE_URL must be set in production and must point to PostgreSQL."
+    )
+
+if not database_url.startswith(("postgres://", "postgresql://")):
+    raise ImproperlyConfigured(
+        "DATABASE_URL must use a PostgreSQL scheme (postgres:// or postgresql://)."
+    )
+
+if not dj_database_url:
+    raise ImproperlyConfigured(
+        "dj-database-url is required in production to parse DATABASE_URL."
+    )
+
 DATABASES = {
-    'default': dj_database_url.config(
-        default=config('DATABASE_URL'),
+    "default": dj_database_url.config(
+        default=database_url,
         conn_max_age=600,
-        ssl_require=True
+        ssl_require=True,
     )
 }
 
@@ -29,22 +49,31 @@ DATABASES = {
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
 # Logging - log to file and external service
-LOGGING['handlers']['file']['filename'] = '/var/log/vetting-system/django.log'
+LOGGING = copy.deepcopy(LOGGING)
+LOGGING['handlers']['file']['filename'] = config(
+    'DJANGO_LOG_FILE',
+    default=str(BASE_DIR / 'logs' / 'django.log')
+)
 
 # Optional: Sentry for error tracking
 SENTRY_DSN = config('SENTRY_DSN', default='')
 if SENTRY_DSN:
-    import sentry_sdk
-    from sentry_sdk.integrations.django import DjangoIntegration
-    
-    sentry_sdk.init(
-        dsn=SENTRY_DSN,
-        integrations=[DjangoIntegration()],
-        traces_sample_rate=0.1,
-        send_default_pii=False
-    )
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.django import DjangoIntegration
+    except ModuleNotFoundError:
+        sentry_sdk = None
+        DjangoIntegration = None
+    if sentry_sdk and DjangoIntegration:
+        sentry_sdk.init(
+            dsn=SENTRY_DSN,
+            integrations=[DjangoIntegration()],
+            traces_sample_rate=0.1,
+            send_default_pii=False
+        )
 
 # Disable browsable API in production
+REST_FRAMEWORK = copy.deepcopy(REST_FRAMEWORK)
 REST_FRAMEWORK['DEFAULT_RENDERER_CLASSES'] = [
     'rest_framework.renderers.JSONRenderer',
 ]
