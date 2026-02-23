@@ -498,6 +498,14 @@ GOOGLE_APPLICATION_CREDENTIALS = config("GOOGLE_APPLICATION_CREDENTIALS", defaul
 HEYGEN_API_KEY = config("HEYGEN_API_KEY", default="")
 HEYGEN_AVATAR_ID = config('HEYGEN_AVATAR_ID', default='default_professional_avatar')
 HEYGEN_VOICE_ID = config('HEYGEN_VOICE_ID', default='40532bc2b15c49f2b0f4deee08ce674d')  # Professional male
+HEYGEN_FRONTEND_SDK_ENABLED = config("HEYGEN_FRONTEND_SDK_ENABLED", default=False, cast=bool)
+HEYGEN_AVATAR_QUALITY = config("HEYGEN_AVATAR_QUALITY", default="medium")
+HEYGEN_AVATAR_ACTIVITY_IDLE_TIMEOUT = config(
+    "HEYGEN_AVATAR_ACTIVITY_IDLE_TIMEOUT",
+    default=300,
+    cast=int,
+)
+HEYGEN_AVATAR_LANGUAGE = config("HEYGEN_AVATAR_LANGUAGE", default="en")
 DJANGO_API_URL = config("DJANGO_API_URL", default="http://localhost:8000")
 SERVICE_TOKEN = config("SERVICE_TOKEN", default="")
 

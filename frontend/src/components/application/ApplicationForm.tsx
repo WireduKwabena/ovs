@@ -56,10 +56,11 @@ export function ApplicationForm() {
         <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
           {/* Type */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="application-type" className="block text-sm font-medium text-gray-700 mb-2">
               Application Type *
             </label>
             <select
+              id="application-type"
               {...register('application_type')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
@@ -77,10 +78,11 @@ export function ApplicationForm() {
 
           {/* Priority */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="application-priority" className="block text-sm font-medium text-gray-700 mb-2">
               Priority *
             </label>
             <select
+              id="application-priority"
               {...register('priority')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
@@ -97,10 +99,11 @@ export function ApplicationForm() {
 
           {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="application-notes" className="block text-sm font-medium text-gray-700 mb-2">
               Additional Notes
             </label>
             <textarea
+              id="application-notes"
               {...register('notes')}
               rows={4}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"

@@ -28,4 +28,66 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const normalizedId = id.replace(/\\/g, '/')
+
+          if (normalizedId.includes('@heygen/streaming-avatar') || normalizedId.includes('@heygen/liveavatar-web-sdk')) {
+            return 'heygen-sdk'
+          }
+          if (normalizedId.includes('livekit-client')) {
+            return 'livekit-client'
+          }
+          if (normalizedId.includes('@protobufjs') || normalizedId.includes('protobufjs')) {
+            return 'protobuf'
+          }
+          if (normalizedId.includes('recordrtc')) {
+            return 'recordrtc'
+          }
+          if (normalizedId.includes('/node_modules/recharts/')) {
+            return 'recharts'
+          }
+          if (
+            normalizedId.includes('/node_modules/react/') ||
+            normalizedId.includes('/node_modules/react-dom/') ||
+            normalizedId.includes('/node_modules/scheduler/')
+          ) {
+            return 'react-core'
+          }
+          if (
+            normalizedId.includes('/node_modules/react-router/') ||
+            normalizedId.includes('/node_modules/react-router-dom/')
+          ) {
+            return 'react-router'
+          }
+          if (
+            normalizedId.includes('/node_modules/@reduxjs/toolkit/') ||
+            normalizedId.includes('/node_modules/react-redux/') ||
+            normalizedId.includes('/node_modules/redux-persist/') ||
+            normalizedId.includes('/node_modules/@tanstack/react-query/') ||
+            normalizedId.includes('/node_modules/axios/')
+          ) {
+            return 'state-data'
+          }
+          if (
+            normalizedId.includes('/node_modules/@radix-ui/') ||
+            normalizedId.includes('/node_modules/@dnd-kit/') ||
+            normalizedId.includes('/node_modules/lucide-react/')
+          ) {
+            return 'ui-kit'
+          }
+          if (
+            normalizedId.includes('/node_modules/react-hook-form/') ||
+            normalizedId.includes('/node_modules/@hookform/') ||
+            normalizedId.includes('/node_modules/yup/')
+          ) {
+            return 'forms'
+          }
+          return undefined
+        },
+      },
+    },
+  },
 })

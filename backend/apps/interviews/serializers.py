@@ -234,3 +234,16 @@ class InterviewGenerateFlagsResponseSerializer(serializers.Serializer):
     created_count = serializers.IntegerField()
     created_flag_ids = serializers.ListField(child=serializers.IntegerField())
     flags = serializers.ListField(child=serializers.DictField())
+
+
+class InterviewAvatarSessionResponseSerializer(serializers.Serializer):
+    enabled = serializers.BooleanField()
+    token = serializers.CharField(required=False)
+    avatar_name = serializers.CharField(required=False)
+    voice_id = serializers.CharField(required=False, allow_blank=True)
+    quality = serializers.ChoiceField(
+        required=False,
+        choices=["low", "medium", "high"],
+    )
+    language = serializers.CharField(required=False, allow_blank=True)
+    activity_idle_timeout = serializers.IntegerField(required=False)

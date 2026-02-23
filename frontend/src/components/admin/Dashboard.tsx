@@ -208,8 +208,7 @@ export const AdminDashboard: React.FC = () => {
               stats.recent_applications.map((app: RecentApplication) => (
                 <div
                   key={app.id}
-                  className="p-6 hover:bg-gray-50 cursor-pointer transition-colors"
-                  onClick={() => navigate(`/admin/cases/${app.case_id}`)}
+                  className="p-6 hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
@@ -245,7 +244,11 @@ export const AdminDashboard: React.FC = () => {
                           )}
                         </div>
                       )}
-                      <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors">
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/admin/cases/${app.case_id}`)}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors"
+                      >
                         Review Case
                       </button>
                     </div>

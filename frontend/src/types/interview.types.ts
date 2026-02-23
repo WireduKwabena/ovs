@@ -9,6 +9,8 @@ export type InterrogationFlagStatus =
   | 'resolved'
   | 'unresolved';
 
+export type AvatarTransportMode = 'sdk' | 'fallback' | 'server';
+
 export interface InterrogationFlag {
   id: string;
   type: string;
@@ -26,6 +28,8 @@ export interface InterviewQuestion {
   target_flag_id?: string;
 }
 
+export type InterviewQuestionPayload = InterviewQuestion | string;
+
 export type WebSocketMessage =
   | SessionInitializedMessage
   | QuestionAskedMessage
@@ -35,7 +39,9 @@ export type WebSocketMessage =
   | AvatarErrorMessage
   | GeneralErrorMessage
   | AvatarStreamStartMessage
-  | CaptionsMessage;
+  | AvatarStreamEndMessage
+  | CaptionsMessage
+  | PongMessage;
 
 export interface SessionInitializedMessage {
   type: 'session_initialized';
@@ -44,14 +50,14 @@ export interface SessionInitializedMessage {
 
 export interface QuestionAskedMessage {
   type: 'question_asked';
-  question: InterviewQuestion;
-  question_number: number;
+  question: InterviewQuestionPayload;
+  question_number?: number;
 }
 
 export interface NextQuestionMessage {
   type: 'next_question';
-  question: InterviewQuestion;
-  question_number: number;
+  question: InterviewQuestionPayload;
+  question_number?: number;
 }
 
 export interface FlagResolutionMessage {
@@ -78,11 +84,20 @@ export interface GeneralErrorMessage {
 
 export interface AvatarStreamStartMessage {
   type: 'avatar_stream_start';
+  text?: string;
+}
+
+export interface AvatarStreamEndMessage {
+  type: 'avatar_stream_end';
 }
 
 export interface CaptionsMessage {
   type: 'captions';
   text: string;
+}
+
+export interface PongMessage {
+  type: 'pong';
 }
 
 export interface NonVerbalData {

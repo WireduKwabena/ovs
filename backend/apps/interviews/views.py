@@ -25,6 +25,7 @@ from .serializers import (
     InterviewActionErrorSerializer,
     InterviewAnalyticsDashboardQuerySerializer,
     InterviewAnalyticsDashboardResponseSerializer,
+    InterviewAvatarSessionResponseSerializer,
     InterviewCompareRequestSerializer,
     InterviewCompareResponseSerializer,
     InterviewFeedbackSerializer,
@@ -38,6 +39,7 @@ from .serializers import (
 from .services.analytics_service import InterviewAnalytics
 from .services.comparison_service import ApplicantComparisonService
 from .services.flag_generator import InterrogationFlagGenerator
+from .services.heygen_sdk import build_avatar_session_payload
 from .services.playback_service import InterviewPlaybackService
 from .tasks import analyze_response_task, generate_session_summary_task
 
@@ -260,6 +262,21 @@ class InterviewSessionViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK,
         )
+
+    @action(detail=True, methods=["post"], url_path="avatar-session")
+    @extend_schema(
+        responses={
+            200: InterviewAvatarSessionResponseSerializer,
+            503: InterviewActionErrorSerializer,
+        }
+    )
+    def avatar_session(self, request, pk=None):
+        self.get_object()
+        try:
+            payload = build_avatar_session_payload()
+        except RuntimeError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response(payload, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["get"], url_path="playback")
     @extend_schema(

@@ -24,13 +24,14 @@ export function CriteriaCard({ criterion, onUpdate, onDelete }: CriteriaCardProp
       
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-gray-700">Type</label>
+          <span className="text-sm font-medium text-gray-700">Type</span>
           <span className="text-sm text-gray-900">{criterion.criteria_type}</span>
         </div>
         
         <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-gray-700">Weight</label>
+          <label htmlFor={`criterion-weight-${criterion.id}`} className="text-sm font-medium text-gray-700">Weight</label>
           <Input
+            id={`criterion-weight-${criterion.id}`}
             type="number"
             value={criterion.weight}
             onChange={(e) => onUpdate('weight', parseInt(e.target.value))}
@@ -41,8 +42,9 @@ export function CriteriaCard({ criterion, onUpdate, onDelete }: CriteriaCardProp
         </div>
         
         <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-gray-700">Min Score</label>
+          <label htmlFor={`criterion-min-score-${criterion.id}`} className="text-sm font-medium text-gray-700">Min Score</label>
           <Input
+            id={`criterion-min-score-${criterion.id}`}
             type="number"
             value={criterion.minimum_score}
             onChange={(e) => onUpdate('minimum_score', parseInt(e.target.value))}

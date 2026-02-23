@@ -1,7 +1,7 @@
 // src/hooks/useAuth.ts (Redux-Migrated)
 import { useSelector, useDispatch } from 'react-redux';
-import type { RootState, AppDispatch } from '@/app/store';  // Adjust path
-import { login, logout, fetchProfile, clearError, updateUser, register } from '@/store/authSlice';  // Import thunks/actions
+import type { RootState, AppDispatch } from '@/app/store';
+import { login, logout, fetchProfile, clearError, updateUser, register } from '@/store/authSlice';
 import type { AdminUser, LoginCredentials, RegisterData, User } from '@/types';
 import { useCallback } from 'react';
 
@@ -12,9 +12,12 @@ export const useAuth = () => {
   const isAdmin = userType === 'admin' || userType === 'hr_manager';
   const isApplicant = userType === 'applicant';
 
-  const authLogin = async (credentials: LoginCredentials) => {
-    return dispatch(login(credentials)).unwrap();  // Returns promise for .then/toast
-  };
+  const authLogin = useCallback(
+    async (credentials: LoginCredentials) => {
+      return dispatch(login(credentials)).unwrap();
+    },
+    [dispatch]
+  );
 
   const authRegister = useCallback(
     async (data: RegisterData) => {
@@ -23,21 +26,24 @@ export const useAuth = () => {
     [dispatch]
   );
 
-  const authLogout = () => {
-    dispatch(logout());
-  };
+  const authLogout = useCallback(async () => {
+    await dispatch(logout()).unwrap();
+  }, [dispatch]);
 
-  const authUpdateUser = (userData: Partial<User | AdminUser>) => {
-    dispatch(updateUser(userData));
-  };
+  const authUpdateUser = useCallback(
+    (userData: Partial<User | AdminUser>) => {
+      dispatch(updateUser(userData));
+    },
+    [dispatch]
+  );
 
-  const refreshProfile = () => {
+  const refreshProfile = useCallback(() => {
     dispatch(fetchProfile());
-  };
+  }, [dispatch]);
 
-  const clearAuthError = () => {
+  const clearAuthError = useCallback(() => {
     dispatch(clearError());
-  };
+  }, [dispatch]);
 
   return {
     user,

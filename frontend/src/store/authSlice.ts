@@ -37,6 +37,44 @@ const initialState: AuthState = {
   passwordResetEmailSent: false,
 };
 
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (!error) {
+    return fallback;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  const normalizedError = error as {
+    message?: string;
+    response?: {
+      data?: {
+        message?: string;
+        detail?: string;
+      };
+    };
+  };
+
+  return (
+    normalizedError.response?.data?.message ||
+    normalizedError.response?.data?.detail ||
+    normalizedError.message ||
+    fallback
+  );
+};
+
+const clearSessionState = (state: AuthState) => {
+  state.user = null;
+  state.tokens = null;
+  state.isAuthenticated = false;
+  state.userType = null;
+};
+
 
 
 // Async Thunks
@@ -49,10 +87,10 @@ export const login = createAsyncThunk<
   async (credentials: LoginCredentials, { rejectWithValue }) => {
     try {
       return await authService.login(credentials);
-    } catch (error: any) {
-      return rejectWithValue(
-        error.response?.data.message || { message: "Login failed" }
-      );
+    } catch (error: unknown) {
+      return rejectWithValue({
+        message: getErrorMessage(error, "Login failed"),
+      });
     }
   }
 );
@@ -66,10 +104,10 @@ export const register = createAsyncThunk<
   async (credentials: RegisterData, { rejectWithValue }) => {
     try {
       return await authService.register(credentials);
-    } catch (error: any) {
-      return rejectWithValue(
-        error.response?.data.message || { message: "Reegisteration failed" }
-      );
+    } catch (error: unknown) {
+      return rejectWithValue({
+        message: getErrorMessage(error, "Registration failed"),
+      });
     }
   }
 );
@@ -77,19 +115,20 @@ export const register = createAsyncThunk<
 export const logout = createAsyncThunk<
   void,
   void,
-  { rejectValue: ApiError; state: { auth: AuthState } }
->("/auth/logout/", async (_, { getState, rejectWithValue }) => {
+  { state: { auth: AuthState } }
+>("/auth/logout/", async (_, { getState }) => {
   const state = getState();
-  if (!state.auth.tokens?.refresh) {
-    return rejectWithValue({ message: "No refresh token for logout" });
+  const refreshTokenValue = state.auth.tokens?.refresh;
+
+  if (!refreshTokenValue) {
+    return;
   }
+
   try {
-    await authService.logout(state.auth.tokens.refresh); // Pass refreshToken from state
-  } catch (error: any) {
-    // Logout succeeds even if API fails (local clear)
-    return rejectWithValue(
-      error.response?.data || { message: "Logout API failed" }
-    );
+    await authService.logout(refreshTokenValue);
+  } catch (error: unknown) {
+    // Logout endpoint call is best-effort; local cleanup still proceeds.
+    console.warn("Logout API failed:", error);
   }
 });
 
@@ -105,10 +144,10 @@ export const fetchProfile = createAsyncThunk<
   try {
     const profileResponse = await authService.getProfile();
     return profileResponse.user; // Extract 'user' from { user, user_type } to match thunk return type
-  } catch (error: any) {
-    return rejectWithValue(
-      error.response?.data.message || { message: "Profile fetch failed" }
-    );
+  } catch (error: unknown) {
+    return rejectWithValue({
+      message: getErrorMessage(error, "Profile fetch failed"),
+    });
   }
 });
 
@@ -124,10 +163,10 @@ export const refreshToken = createAsyncThunk<
   try {
     // Assumes authService.refreshToken expects the refresh token string
     return await authService.refreshToken(state.auth.tokens.refresh);
-  } catch (error: any) {
-    return rejectWithValue(
-      error.response?.data || { message: "Token refresh failed" }
-    );
+  } catch (error: unknown) {
+    return rejectWithValue({
+      message: getErrorMessage(error, "Token refresh failed"),
+    });
   }
 });
 
@@ -137,10 +176,8 @@ export const updateUserProfile = createAsyncThunk(
     try {
       const response = await authService.updateProfile(data);
       return response;
-    } catch (error: any) {
-      return rejectWithValue(
-        error.response?.data?.message || "Failed to update profile"
-      );
+    } catch (error: unknown) {
+      return rejectWithValue(getErrorMessage(error, "Failed to update profile"));
     }
   }
 );
@@ -151,10 +188,10 @@ export const changePassword = createAsyncThunk<
 >("/auth/change-password/", async (data, { rejectWithValue }) => {
   try {
     await authService.changePassword(data);
-  } catch (error: any) {
-    return rejectWithValue(
-      error.response?.data.message || { message: "Password change failed" }
-    );
+  } catch (error: unknown) {
+    return rejectWithValue({
+      message: getErrorMessage(error, "Password change failed"),
+    });
   }
 });
 export const resetPassword = createAsyncThunk<
@@ -167,10 +204,10 @@ export const resetPassword = createAsyncThunk<
       new_password1: data.new_password1,
       new_password2: data.new_password2,
     });
-  } catch (error: any) {
-    return rejectWithValue(
-      error.response?.data.message || { message: "Password reset failed" }
-    );
+  } catch (error: unknown) {
+    return rejectWithValue({
+      message: getErrorMessage(error, "Password reset failed"),
+    });
   }
 });
 
@@ -181,10 +218,10 @@ export const requestPasswordReset = createAsyncThunk<
 >("/auth/password-reset/", async (data, { rejectWithValue }) => {
   try {
     await authService.requestPasswordReset(data.email);
-  } catch (error: any) {
-    return rejectWithValue(
-      error.response?.data.message || { message: "Password reset request failed" }
-    );
+  } catch (error: unknown) {
+    return rejectWithValue({
+      message: getErrorMessage(error, "Password reset request failed"),
+    });
   }
 });
 
@@ -224,8 +261,8 @@ const authSlice = createSlice({
       )
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
+        clearSessionState(state);
         state.error = (action.payload as ApiError)?.message || "Login failed";
-        state.isAuthenticated = false;
       });
 
     // Register
@@ -253,31 +290,38 @@ const authSlice = createSlice({
     });
     // Logout
     builder
+      .addCase(logout.pending, (state) => {
+        state.loading = false;
+      })
       .addCase(logout.fulfilled, (state) => {
-        state.user = null;
-        state.tokens = null;
-        state.isAuthenticated = false;
-        state.userType = null;
-        // Clear localStorage if needed (persist handles most)
-        localStorage.clear();
+        clearSessionState(state);
+        state.error = null;
+      })
+      .addCase(logout.rejected, (state) => {
+        clearSessionState(state);
+        state.error = null;
       })
       .addCase(
         fetchProfile.fulfilled,
         (state, action: PayloadAction<User | AdminUser>) => {
           state.user = action.payload;
+          state.isAuthenticated = true;
         }
       )
+      .addCase(fetchProfile.rejected, (state, action) => {
+        clearSessionState(state);
+        state.error =
+          (action.payload as ApiError)?.message || "Failed to fetch profile";
+      })
       .addCase(
         refreshToken.fulfilled,
         (state, action: PayloadAction<AuthTokens>) => {
           state.tokens = action.payload;
+          state.isAuthenticated = true;
         }
       )
       .addCase(refreshToken.rejected, (state, action) => {
-        // Auto-logout on refresh fail
-        state.isAuthenticated = false;
-        state.tokens = null;
-        localStorage.clear();
+        clearSessionState(state);
         state.error =
           (action.payload as ApiError)?.message || "Session expired";
       });

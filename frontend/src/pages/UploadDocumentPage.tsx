@@ -38,9 +38,9 @@ export const UploadDocumentPage: React.FC = () => {
           <div className="space-y-6">
             {/* File Upload */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <p className="block text-sm font-medium text-gray-700 mb-2">
                 Files (PDF, JPG, PNG - Max 10MB each)
-              </label>
+              </p>
               {caseId ? (
                 <>
                   <FileUpload
@@ -98,11 +98,11 @@ export const UploadDocumentPage: React.FC = () => {
           open={confirmState.open}
           title="Remove File"
           onCancel={() => {
-            try { confirmState.resolve?.(false); } catch (e) {}
+            try { confirmState.resolve?.(false); } catch {}
             setConfirmState({ open: false });
           }}
           onConfirm={() => {
-            try { confirmState.resolve?.(true); } catch (e) {}
+            try { confirmState.resolve?.(true); } catch {}
             setConfirmState({ open: false });
           }}
           confirmLabel="Remove"

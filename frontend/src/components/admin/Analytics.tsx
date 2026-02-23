@@ -1,5 +1,5 @@
 // src/components/admin/Analytics.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -45,11 +45,42 @@ export const Analytics: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
 
-  useEffect(() => {
-    loadAnalytics();
+  const generateMockTrends = useCallback(() => {
+    const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 90;
+    return Array.from({ length: days }, (_, i) => ({
+      date: new Date(Date.now() - (days - i) * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      }),
+      applications: Math.floor(Math.random() * 50) + 20,
+      approved: Math.floor(Math.random() * 30) + 10,
+      rejected: Math.floor(Math.random() * 10) + 2,
+    }));
   }, [timeRange]);
 
-  const loadAnalytics = async () => {
+  const generateMockData = useCallback((): AnalyticsData => ({
+    overview: {
+      totalApplications: 1248,
+      approvalRate: 78.5,
+      avgProcessingTime: 2.8,
+      activeUsers: 856,
+    },
+    trends: generateMockTrends(),
+    statusDistribution: [
+      { name: 'Pending', value: 145, color: '#F59E0B' },
+      { name: 'Under Review', value: 89, color: '#3B82F6' },
+      { name: 'Approved', value: 980, color: '#10B981' },
+      { name: 'Rejected', value: 34, color: '#EF4444' },
+    ],
+    performanceMetrics: {
+      avgReviewTime: 2.5,
+      avgDocumentsPerApp: 4.2,
+      aiAccuracy: 92.5,
+      fraudDetectionRate: 8.3,
+    },
+  }), [generateMockTrends]);
+
+  const loadAnalytics = useCallback(async () => {
     try {
       setLoading(true);
       const response = await adminService.getAnalytics();
@@ -85,42 +116,11 @@ export const Analytics: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [generateMockData, generateMockTrends]);
 
-  const generateMockTrends = () => {
-    const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 90;
-    return Array.from({ length: days }, (_, i) => ({
-      date: new Date(Date.now() - (days - i) * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      }),
-      applications: Math.floor(Math.random() * 50) + 20,
-      approved: Math.floor(Math.random() * 30) + 10,
-      rejected: Math.floor(Math.random() * 10) + 2,
-    }));
-  };
-
-  const generateMockData = (): AnalyticsData => ({
-    overview: {
-      totalApplications: 1248,
-      approvalRate: 78.5,
-      avgProcessingTime: 2.8,
-      activeUsers: 856,
-    },
-    trends: generateMockTrends(),
-    statusDistribution: [
-      { name: 'Pending', value: 145, color: '#F59E0B' },
-      { name: 'Under Review', value: 89, color: '#3B82F6' },
-      { name: 'Approved', value: 980, color: '#10B981' },
-      { name: 'Rejected', value: 34, color: '#EF4444' },
-    ],
-    performanceMetrics: {
-      avgReviewTime: 2.5,
-      avgDocumentsPerApp: 4.2,
-      aiAccuracy: 92.5,
-      fraudDetectionRate: 8.3,
-    },
-  });
+  useEffect(() => {
+    void loadAnalytics();
+  }, [loadAnalytics]);
 
   if (loading) {
     return (

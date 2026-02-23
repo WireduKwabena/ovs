@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -6,15 +6,44 @@ import { loginSchema } from "@/utils/validators";
 import type { LoginCredentials } from "@/types";
 import { useDispatch } from "react-redux";
 import type { AppDispatch } from "@/app/store";
-import { login as loginThunk } from "@/store/authSlice";
+import { clearError, login as loginThunk } from "@/store/authSlice";
 import { Loader } from "@/components/common/Loader";
 import { toast } from "react-toastify";
-import type { AxiosError } from "axios";
-import type { ApiError } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, LogIn, Shield } from "lucide-react";
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (!error) {
+    return fallback;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  const normalizedError = error as {
+    message?: string;
+    response?: {
+      data?: {
+        message?: string;
+        detail?: string;
+      };
+    };
+  };
+
+  return (
+    normalizedError.response?.data?.message ||
+    normalizedError.response?.data?.detail ||
+    normalizedError.message ||
+    fallback
+  );
+};
 
 export const LoginForm: React.FC = () => {
   const navigate = useNavigate();
@@ -30,17 +59,36 @@ export const LoginForm: React.FC = () => {
     resolver: yupResolver(loginSchema),
   });
 
+  useEffect(() => {
+    dispatch(clearError());
+  }, [dispatch]);
+
+  useEffect(() => {
+    return () => {
+      dispatch(clearError());
+    };
+  }, [dispatch]);
+
   const onSubmit = async (data: LoginCredentials) => {
+    if (loading) {
+      return;
+    }
+
     setLoading(true);
     try {
-      await dispatch(loginThunk(data)).unwrap();
+      await dispatch(
+        loginThunk({
+          email: data.email.trim(),
+          password: data.password,
+        }),
+      ).unwrap();
       toast.success("Login successful!");
-      navigate("/");
-    } catch (err) {
-      const axiosError = err as AxiosError<ApiError>;
-      toast.error(
-        axiosError.response?.data?.message || "Login failed. Please try again.",
-      );
+      dispatch(clearError());
+      navigate("/", { replace: true });
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Login failed. Please try again."), {
+        toastId: "login-form-error",
+      });
     } finally {
       setLoading(false);
     }
@@ -85,11 +133,15 @@ export const LoginForm: React.FC = () => {
                 {...register("email")}
                 id="email"
                 type="email"
+                autoComplete="email"
                 placeholder="you@example.com"
+                disabled={loading}
+                aria-invalid={Boolean(errors.email)}
+                aria-describedby={errors.email ? "login-email-error" : undefined}
                 className={`w-full bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 transition-shadow duration-300 ${errors.email ? "border-red-500" : ""}`}
               />
               {errors.email && (
-                <p className="text-sm text-red-400 mt-1">{errors.email.message}</p>
+                <p id="login-email-error" className="text-sm text-red-400 mt-1">{errors.email.message}</p>
               )}
             </div>
             <div className="space-y-2">
@@ -101,13 +153,18 @@ export const LoginForm: React.FC = () => {
                   {...register("password")}
                   id="password"
                   type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
                   placeholder="••••••••"
+                  disabled={loading}
+                  aria-invalid={Boolean(errors.password)}
+                  aria-describedby={errors.password ? "login-password-error" : undefined}
                   className={`w-full bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 transition-shadow duration-300 pr-10 ${errors.password ? "border-red-500" : ""}`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200"
+                  disabled={loading}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
@@ -118,7 +175,7 @@ export const LoginForm: React.FC = () => {
                 </button>
               </div>
               {errors.password && (
-                <p className="text-sm text-red-400 mt-1">{errors.password.message}</p>
+                <p id="login-password-error" className="text-sm text-red-400 mt-1">{errors.password.message}</p>
               )}
               <div className="text-right mt-2">
                 <Link
@@ -137,7 +194,10 @@ export const LoginForm: React.FC = () => {
               disabled={loading}
             >
               {loading ? (
-                <Loader size="sm" />
+                <span className="inline-flex items-center gap-2">
+                  <Loader size="sm" color="white" />
+                  Signing in...
+                </span>
               ) : (
                 <div className="flex items-center justify-center">
                   <LogIn className="mr-2 h-5 w-5" />
@@ -148,7 +208,7 @@ export const LoginForm: React.FC = () => {
           </form>
 
           <div className="text-center text-sm text-gray-400 mt-8">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link to="/register" className="font-medium text-blue-400 hover:underline">
               Sign up
             </Link>

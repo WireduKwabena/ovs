@@ -26,7 +26,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <Provider store={store}>
       <PersistGate loading={<div>Loading...</div>} persistor={persistor}>  {/* Wrap for persistence */}
         <QueryClientProvider client={queryClient}>
-         
+          
             <App />
           
           <ToastContainer

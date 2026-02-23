@@ -62,7 +62,7 @@ export function DocumentUpload() {
                 </h3>
                 <p className="text-sm text-green-800 mb-4">
                   Your documents have been uploaded successfully. Our AI system is now processing them.
-                  You'll receive notifications as the verification progresses.
+                  You&apos;ll receive notifications as the verification progresses.
                 </p>
                 <button
                   onClick={handleContinue}

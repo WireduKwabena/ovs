@@ -1,5 +1,5 @@
 // src/components/application/ApplicationDetails.tsx
-import  { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState, AppDispatch } from '@/app/store';
@@ -17,6 +17,19 @@ export function ApplicationDetails() {
   const dispatch = useDispatch<AppDispatch>();
   const { currentCase, loading } = useSelector((state: RootState) => state.applications);
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatusResponse | null>(null);
+
+  const loadVerificationStatus = useCallback(async () => {
+    if (!caseId) {
+      return;
+    }
+
+    try {
+      const data = await applicationService.getVerificationStatus(caseId);  // Service
+      setVerificationStatus(data as unknown as VerificationStatusResponse);
+    } catch (error) {
+      console.error('Failed to load verification status:', error);
+    }
+  }, [caseId]);
   
   useEffect(() => {
     if (caseId) {
@@ -26,20 +39,18 @@ export function ApplicationDetails() {
   
   useEffect(() => {
     if (caseId) {
-      loadVerificationStatus();
-      const interval = setInterval(loadVerificationStatus, 10000);  // Poll
-      return () => clearInterval(interval);
+      const initialFetchTimer = setTimeout(() => {
+        void loadVerificationStatus();
+      }, 0);
+      const interval = setInterval(() => {
+        void loadVerificationStatus();
+      }, 10000);  // Poll
+      return () => {
+        clearTimeout(initialFetchTimer);
+        clearInterval(interval);
+      };
     }
-  }, [caseId]);
-  
-  const loadVerificationStatus = async () => {
-    try {
-      const data = await applicationService.getVerificationStatus(caseId!);  // Service
-      setVerificationStatus(data as unknown as VerificationStatusResponse);
-    } catch (error) {
-      console.error('Failed to load verification status:', error);
-    }
-  };
+  }, [caseId, loadVerificationStatus]);
   
   if (loading || !currentCase) {
     return (

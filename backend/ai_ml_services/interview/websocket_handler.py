@@ -1,10 +1,7 @@
 """Websocket interview flow utilities shared by Django-side realtime handlers."""
 
-import asyncio
-import json
 import logging
-from typing import Any, Dict, Optional, Protocol
-from datetime import datetime
+from typing import Dict, Optional, Protocol
 import httpx
 
 from django.conf import settings
@@ -53,6 +50,49 @@ def _service_headers() -> Dict[str, str]:
     }
 
 
+async def _safe_send_json(websocket: WebSocketProtocol, payload: dict) -> None:
+    try:
+        await websocket.send_json(payload)
+    except (RuntimeError, ConnectionError, OSError, ValueError, TypeError) as exc:
+        logger.warning("Failed to send websocket payload: %s", exc)
+
+
+def _frontend_avatar_sdk_enabled() -> bool:
+    return bool(getattr(settings, "HEYGEN_FRONTEND_SDK_ENABLED", False))
+
+
+async def _deliver_avatar_output(
+    *,
+    heygen: HeyGenAvatarService,
+    websocket: WebSocketProtocol,
+    text: str,
+    emotion: str,
+) -> None:
+    if _frontend_avatar_sdk_enabled():
+        await _safe_send_json(
+            websocket,
+            {
+                "type": "avatar_stream_start",
+                "text": text,
+                "transport": "sdk",
+            },
+        )
+        await _safe_send_json(
+            websocket,
+            {
+                "type": "avatar_stream_end",
+                "transport": "sdk",
+            },
+        )
+        return
+
+    await heygen.stream_avatar_speech(
+        text=text,
+        websocket=websocket,
+        emotion=emotion,
+    )
+
+
 class InterviewConnectionManager:
     """
     Manage active interview WebSocket connections
@@ -99,8 +139,8 @@ class InterviewConnectionManager:
         if session_id in self.active_connections:
             try:
                 await self.active_connections[session_id].send_json(message)
-            except Exception as e:
-                logger.error(f"Error sending message to {session_id}: {e}")
+            except (RuntimeError, ConnectionError, OSError, ValueError, TypeError) as exc:
+                logger.error("Error sending message to %s: %s", session_id, exc)
 
     def get_heygen_service(self, session_id: str) -> Optional[HeyGenAvatarService]:
         """Get HeyGen service for specific session"""
@@ -140,8 +180,8 @@ async def fetch_session_data(session_id: str) -> dict:
                 logger.error(f"Failed to fetch session data: {response.status_code}")
                 return None
 
-    except Exception as e:
-        logger.error(f"Error fetching session data: {e}")
+    except (httpx.RequestError, httpx.HTTPError, ValueError, TypeError) as exc:
+        logger.error("Error fetching session data: %s", exc)
         return None
 
 
@@ -163,8 +203,8 @@ async def save_exchange_to_django(session_id: str, exchange_data: dict) -> dict:
                 logger.error(f"Failed to save exchange: {response.status_code}")
                 return None
 
-    except Exception as e:
-        logger.error(f"Error saving exchange: {e}")
+    except (httpx.RequestError, httpx.HTTPError, ValueError, TypeError) as exc:
+        logger.error("Error saving exchange: %s", exc)
         return None
 
 
@@ -186,8 +226,8 @@ async def update_exchange_in_django(session_id: str, update_data: dict) -> dict:
                 logger.error(f"Failed to update exchange: {response.status_code}")
                 return None
 
-    except Exception as e:
-        logger.error(f"Error updating exchange: {e}")
+    except (httpx.RequestError, httpx.HTTPError, ValueError, TypeError) as exc:
+        logger.error("Error updating exchange: %s", exc)
         return None
 
 
@@ -204,8 +244,8 @@ async def complete_interview_in_django(session_id: str) -> bool:
 
             return response.status_code == 200
 
-    except Exception as e:
-        logger.error(f"Error completing interview: {e}")
+    except (httpx.RequestError, httpx.HTTPError, ValueError, TypeError) as exc:
+        logger.error("Error completing interview: %s", exc)
         return False
 
 
@@ -229,7 +269,7 @@ async def handle_applicant_response(
 
     if not all([heygen, engine, analyzer]):
         logger.error(f"Services not initialized for session {session_id}")
-        await websocket.send_json({
+        await _safe_send_json(websocket, {
             'type': 'error',
             'message': 'Session services not initialized'
         })
@@ -250,7 +290,7 @@ async def handle_applicant_response(
 
                 transcript = await transcribe_audio(audio_data)
                 logger.info(f"Transcribed: {transcript[:100]}...")
-            except Exception:
+            except (ImportError, RuntimeError, ValueError, TypeError):
                 transcript = ""
                 logger.warning("Audio transcription service unavailable; continuing without transcript.")
 
@@ -272,7 +312,7 @@ async def handle_applicant_response(
         exchange_result = await update_exchange_in_django(session_id, update_data)
 
         if not exchange_result:
-            await websocket.send_json({
+            await _safe_send_json(websocket, {
                 'type': 'error',
                 'message': 'Failed to save response'
             })
@@ -288,7 +328,7 @@ async def handle_applicant_response(
             )
 
             if resolution.get('resolved'):
-                await websocket.send_json({
+                await _safe_send_json(websocket, {
                     'type': 'flag_resolution',
                     'data': resolution
                 })
@@ -310,13 +350,17 @@ async def handle_applicant_response(
             logger.info(f"Interview {session_id} complete")
 
             # Avatar says goodbye
-            await heygen.stream_avatar_speech(
-                text="Thank you for your responses. The interview is now complete. Your answers will be reviewed by our team.",
+            await _deliver_avatar_output(
+                heygen=heygen,
                 websocket=websocket,
-                emotion="Friendly"
+                text=(
+                    "Thank you for your responses. The interview is now complete. "
+                    "Your answers will be reviewed by our team."
+                ),
+                emotion="Friendly",
             )
 
-            await websocket.send_json({
+            await _safe_send_json(websocket, {
                 'type': 'interview_complete',
                 'total_questions': exchange_result.get('question_number', 0)
             })
@@ -338,14 +382,15 @@ async def handle_applicant_response(
         # 9. Avatar asks next question
         logger.info(f"Asking next question: {next_question['question'][:100]}...")
 
-        await heygen.stream_avatar_speech(
-            text=next_question['question'],
+        await _deliver_avatar_output(
+            heygen=heygen,
             websocket=websocket,
-            emotion="Serious"
+            text=next_question['question'],
+            emotion="Serious",
         )
 
         # 10. Notify client of next question
-        await websocket.send_json({
+        await _safe_send_json(websocket, {
             'type': 'next_question',
             'question': next_question['question'],
             'question_number': question_data['sequence_number'],
@@ -354,13 +399,19 @@ async def handle_applicant_response(
             'target_flag_id': next_question.get('target_flag_id')
         })
 
-        logger.info(f"Next question sent successfully")
+        logger.info("Next question sent successfully")
 
-    except Exception as e:
-        logger.error(f"Error handling applicant response: {e}", exc_info=True)
-        await websocket.send_json({
+    except (RuntimeError, ValueError, TypeError, KeyError, httpx.HTTPError) as exc:
+        logger.error("Error handling applicant response: %s", exc, exc_info=True)
+        await _safe_send_json(websocket, {
             'type': 'error',
-            'message': f'Error processing response: {str(e)}'
+            'message': f'Error processing response: {str(exc)}'
+        })
+    except Exception as exc:
+        logger.exception("Unexpected error handling applicant response: %s", exc)
+        await _safe_send_json(websocket, {
+            'type': 'error',
+            'message': 'Unexpected error processing response.'
         })
 
 
@@ -373,17 +424,22 @@ async def handle_video_chunk(message: dict, session_id: str):
         session_id: Interview session ID
     """
     try:
-        chunk_data = message.get('chunk')
         chunk_index = message.get('index', 0)
+        chunk_size = message.get('chunk_size')
 
         # Store chunk for later processing
         # In production, you might stream this directly to CV pipeline
-        logger.debug(f"Received video chunk {chunk_index} for session {session_id}")
+        logger.debug(
+            "Received video chunk %s for session %s (size=%s)",
+            chunk_index,
+            session_id,
+            chunk_size,
+        )
 
         # TODO: Implement real-time video analysis if needed
 
-    except Exception as e:
-        logger.error(f"Error handling video chunk: {e}")
+    except (AttributeError, TypeError, ValueError) as exc:
+        logger.error("Error handling video chunk: %s", exc)
 
 
 async def handle_ice_candidate(message: dict, session_id: str):
@@ -401,8 +457,8 @@ async def handle_ice_candidate(message: dict, session_id: str):
             await heygen.send_ice_candidate(candidate)
             logger.debug(f"ICE candidate forwarded for session {session_id}")
 
-    except Exception as e:
-        logger.error(f"Error handling ICE candidate: {e}")
+    except (RuntimeError, AttributeError, TypeError, ValueError) as exc:
+        logger.error("Error handling ICE candidate: %s", exc)
 
 
 async def initialize_interview_session(
@@ -422,35 +478,37 @@ async def initialize_interview_session(
     try:
         heygen = manager.get_heygen_service(session_id)
 
-        # 1. Initialize HeyGen session
-        logger.info(f"Creating HeyGen session for {session_id}")
-        await heygen.create_streaming_session()
+        # 1. Initialize HeyGen session if server-side streaming is enabled
+        if not _frontend_avatar_sdk_enabled():
+            logger.info(f"Creating HeyGen session for {session_id}")
+            await heygen.create_streaming_session()
 
         # 2. Send session info to client
-        await websocket.send_json({
+        await _safe_send_json(websocket, {
             'type': 'session_initialized',
             'session_id': session_id,
-            'heygen_session': heygen.session_id
+            'heygen_session': heygen.session_id,
+            'avatar_transport': 'sdk' if _frontend_avatar_sdk_enabled() else 'server_stream',
         })
 
         # 3. Fetch session data from Django
-        logger.info(f"Fetching session data from Django")
+        logger.info("Fetching session data from Django")
         session_data = await fetch_session_data(session_id)
 
         if not session_data:
-            raise Exception("Failed to fetch session data from Django")
+            raise RuntimeError("Failed to fetch session data from Django")
 
         # 4. Initialize interview engine with session data
-        logger.info(f"Initializing interview engine")
+        logger.info("Initializing interview engine")
         engine = EnhancedInterviewEngine(session_data)
         manager.set_interview_engine(session_id, engine)
 
         # 5. Generate first question
-        logger.info(f"Generating first question")
+        logger.info("Generating first question")
         first_question = engine.generate_next_question()
 
         if not first_question:
-            raise Exception("Failed to generate first question")
+            raise RuntimeError("Failed to generate first question")
 
         # 6. Save first question to Django
         question_data = {
@@ -464,14 +522,15 @@ async def initialize_interview_session(
         # 7. Avatar speaks first question
         logger.info(f"Avatar speaking first question: {first_question['question'][:100]}...")
 
-        await heygen.stream_avatar_speech(
-            text=first_question['question'],
+        await _deliver_avatar_output(
+            heygen=heygen,
             websocket=websocket,
-            emotion="Serious"
+            text=first_question['question'],
+            emotion="Serious",
         )
 
         # 8. Notify client
-        await websocket.send_json({
+        await _safe_send_json(websocket, {
             'type': 'question_asked',
             'question': first_question['question'],
             'question_number': 1,
@@ -481,11 +540,18 @@ async def initialize_interview_session(
         logger.info(f"Interview session {session_id} initialized successfully")
         return True
 
-    except Exception as e:
-        logger.error(f"Error initializing interview session: {e}", exc_info=True)
-        await websocket.send_json({
+    except (RuntimeError, ValueError, TypeError, KeyError, httpx.HTTPError) as exc:
+        logger.error("Error initializing interview session: %s", exc, exc_info=True)
+        await _safe_send_json(websocket, {
             'type': 'error',
-            'message': f'Failed to initialize interview: {str(e)}'
+            'message': f'Failed to initialize interview: {str(exc)}'
+        })
+        return False
+    except Exception as exc:
+        logger.exception("Unexpected error initializing interview session: %s", exc)
+        await _safe_send_json(websocket, {
+            'type': 'error',
+            'message': 'Failed to initialize interview due to unexpected error.'
         })
         return False
 
@@ -519,11 +585,11 @@ async def handle_websocket_message(
 
     elif message_type == 'ping':
         # Heartbeat
-        await websocket.send_json({'type': 'pong'})
+        await _safe_send_json(websocket, {'type': 'pong'})
 
     else:
         logger.warning(f"Unknown message type: {message_type}")
-        await websocket.send_json({
+        await _safe_send_json(websocket, {
             'type': 'error',
             'message': f'Unknown message type: {message_type}'
         })
