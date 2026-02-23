@@ -255,6 +255,149 @@ export interface DashboardStats {
   fraud_detection_rate?: number;
 }
 
+export type CampaignStatus = 'draft' | 'active' | 'closed' | 'archived';
+
+export interface VettingCampaign {
+  id: number;
+  name: string;
+  description: string;
+  status: CampaignStatus;
+  starts_at: string | null;
+  ends_at: string | null;
+  settings_json: Record<string, unknown>;
+  initiated_by: number;
+  initiated_by_email?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CampaignDashboard {
+  total_candidates: number;
+  invited: number;
+  registered: number;
+  in_progress: number;
+  completed: number;
+  reviewed: number;
+  approved: number;
+  rejected: number;
+  escalated: number;
+}
+
+export interface CandidateProfile {
+  id: number;
+  first_name: string;
+  last_name: string;
+  full_name?: string;
+  email: string;
+  phone_number: string;
+  preferred_channel: 'email' | 'sms';
+  consent_recording: boolean;
+  consent_ai_processing: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type CandidateEnrollmentStatus =
+  | 'invited'
+  | 'registered'
+  | 'in_progress'
+  | 'completed'
+  | 'reviewed'
+  | 'approved'
+  | 'rejected'
+  | 'escalated';
+
+export interface CandidateEnrollment {
+  id: number;
+  campaign: number;
+  campaign_name?: string;
+  candidate: number;
+  candidate_email?: string;
+  status: CandidateEnrollmentStatus;
+  invited_at: string | null;
+  registered_at: string | null;
+  completed_at: string | null;
+  reviewed_at: string | null;
+  review_notes: string;
+  decision_by: number | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export type InvitationChannel = 'email' | 'sms';
+export type InvitationStatus = 'pending' | 'sent' | 'failed' | 'accepted' | 'expired';
+
+export interface Invitation {
+  id: number;
+  enrollment: number;
+  token: string;
+  channel: InvitationChannel;
+  status: InvitationStatus;
+  send_to: string;
+  expires_at: string;
+  sent_at: string | null;
+  accepted_at: string | null;
+  attempts: number;
+  last_error: string;
+  created_by: number | null;
+  created_at: string;
+  updated_at: string;
+  accept_url?: string;
+}
+
+export interface CandidateImportRow {
+  first_name: string;
+  last_name?: string;
+  email: string;
+  phone_number?: string;
+  preferred_channel?: InvitationChannel;
+}
+
+export interface CandidateImportResult {
+  campaign_id: number;
+  created_candidates: number;
+  created_enrollments: number;
+  created_invitations: number;
+  errors: Array<{ email?: string | null; error: string }>;
+}
+
+export interface CandidateAccessContext {
+  session_key: string;
+  session_expires_at: string;
+  enrollment_id: number;
+  enrollment_status: CandidateEnrollmentStatus;
+  campaign: {
+    id: number;
+    name: string;
+    status: CampaignStatus;
+  };
+  candidate: {
+    id: number;
+    first_name: string;
+    last_name: string;
+    email: string;
+    preferred_channel: InvitationChannel;
+  };
+}
+
+export interface CandidateAccessConsumeResponse extends CandidateAccessContext {
+  pass_type: string;
+  remaining_uses: number;
+  message: string;
+}
+
+export interface CandidateAccessResults {
+  available: boolean;
+  enrollment_id: number;
+  enrollment_status: CandidateEnrollmentStatus;
+  decision: 'approved' | 'rejected' | 'escalated' | null;
+  review_notes: string;
+  results: Record<string, unknown>;
+  case: Record<string, unknown> | null;
+  latest_interview: Record<string, unknown> | null;
+}
+
 // Form Interfaces (for validation and submission)
 export interface LoginCredentials {
   email: string;

@@ -282,25 +282,61 @@ export const HomePage: React.FC = () => {
             <div>
               <h3 className="text-white font-semibold mb-4">Product</h3>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-white transition-colors">Features</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Pricing</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">API</a></li>
+                <li>
+                  <button type="button" onClick={() => navigate('/register')} className="hover:text-white transition-colors">
+                    Features
+                  </button>
+                </li>
+                <li>
+                  <button type="button" onClick={() => navigate('/register')} className="hover:text-white transition-colors">
+                    Pricing
+                  </button>
+                </li>
+                <li>
+                  <button type="button" onClick={() => navigate('/register')} className="hover:text-white transition-colors">
+                    API
+                  </button>
+                </li>
               </ul>
             </div>
             <div>
               <h3 className="text-white font-semibold mb-4">Company</h3>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-white transition-colors">About</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
+                <li>
+                  <button type="button" onClick={() => navigate('/')} className="hover:text-white transition-colors">
+                    About
+                  </button>
+                </li>
+                <li>
+                  <button type="button" onClick={() => navigate('/')} className="hover:text-white transition-colors">
+                    Contact
+                  </button>
+                </li>
+                <li>
+                  <button type="button" onClick={() => navigate('/')} className="hover:text-white transition-colors">
+                    Careers
+                  </button>
+                </li>
               </ul>
             </div>
             <div>
               <h3 className="text-white font-semibold mb-4">Legal</h3>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-white transition-colors">Privacy</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Terms</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Security</a></li>
+                <li>
+                  <button type="button" onClick={() => navigate('/')} className="hover:text-white transition-colors">
+                    Privacy
+                  </button>
+                </li>
+                <li>
+                  <button type="button" onClick={() => navigate('/')} className="hover:text-white transition-colors">
+                    Terms
+                  </button>
+                </li>
+                <li>
+                  <button type="button" onClick={() => navigate('/')} className="hover:text-white transition-colors">
+                    Security
+                  </button>
+                </li>
               </ul>
             </div>
           </div>

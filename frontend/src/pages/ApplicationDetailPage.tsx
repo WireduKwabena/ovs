@@ -36,7 +36,7 @@ export const ApplicationDetailPage: React.FC = () => {
       await applicationService.uploadDocument(caseId, file, documentType);
       toast.success('Document uploaded successfully!');
       loadApplication(caseId);
-    } catch (error) {
+    } catch {
       toast.error('Failed to upload document');
     } finally {
       setUploading(false);

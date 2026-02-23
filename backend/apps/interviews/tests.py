@@ -1,6 +1,6 @@
 from rest_framework.test import APITestCase
 from django.test import override_settings
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from apps.applications.models import InterrogationFlag, VettingCase
 from apps.authentication.models import User
@@ -190,6 +190,67 @@ class InterviewsApiTests(APITestCase):
             format="json",
         )
         self.assertEqual(invalid_save.status_code, 400)
+
+    @override_settings(HEYGEN_FRONTEND_SDK_ENABLED=False)
+    def test_avatar_session_returns_disabled_payload_when_sdk_is_off(self):
+        create_session = self.client.post(
+            "/api/interviews/sessions/",
+            {
+                "case": self.case.id,
+                "use_dynamic_questions": True,
+                "max_questions": 5,
+            },
+            format="json",
+        )
+        self.assertEqual(create_session.status_code, 201)
+        session_pk = create_session.json()["id"]
+
+        response = self.client.post(f"/api/interviews/sessions/{session_pk}/avatar-session/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"enabled": False})
+
+    @override_settings(
+        HEYGEN_FRONTEND_SDK_ENABLED=True,
+        HEYGEN_API_KEY="test-api-key",
+        HEYGEN_AVATAR_ID="avatar_test",
+        HEYGEN_VOICE_ID="voice_test",
+        HEYGEN_AVATAR_QUALITY="high",
+        HEYGEN_AVATAR_ACTIVITY_IDLE_TIMEOUT=240,
+        HEYGEN_AVATAR_LANGUAGE="en",
+    )
+    @patch("apps.interviews.services.heygen_sdk.httpx.post")
+    def test_avatar_session_returns_sdk_payload(self, mock_post):
+        mocked_response = Mock()
+        mocked_response.status_code = 200
+        mocked_response.json.return_value = {
+            "data": {
+                "token": "token-123",
+            }
+        }
+        mock_post.return_value = mocked_response
+
+        create_session = self.client.post(
+            "/api/interviews/sessions/",
+            {
+                "case": self.case.id,
+                "use_dynamic_questions": True,
+                "max_questions": 5,
+            },
+            format="json",
+        )
+        self.assertEqual(create_session.status_code, 201)
+        session_pk = create_session.json()["id"]
+
+        response = self.client.post(f"/api/interviews/sessions/{session_pk}/avatar-session/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["enabled"])
+        self.assertEqual(payload["token"], "token-123")
+        self.assertEqual(payload["avatar_name"], "avatar_test")
+        self.assertEqual(payload["voice_id"], "voice_test")
+        self.assertEqual(payload["quality"], "high")
+        self.assertEqual(payload["language"], "en")
+        self.assertEqual(payload["activity_idle_timeout"], 240)
 
     def test_save_exchange_same_sequence_does_not_double_increment_question_usage(self):
         create_session = self.client.post(

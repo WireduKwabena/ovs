@@ -12,7 +12,6 @@ import { LockKeyhole, Eye, EyeOff } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { type AppDispatch, type RootState } from '@/app/store';
 import { changePassword, clearError } from '@/store/authSlice';
-import { unwrapResult } from '@reduxjs/toolkit';
 
 const schema = yup.object().shape({
   old_password: yup.string().required('Old password is required'),
@@ -26,11 +25,11 @@ const schema = yup.object().shape({
 type ChangePasswordFormData = yup.InferType<typeof schema>;
 
 export const ChangePasswordForm: React.FC = () => {
-    const dispatch: AppDispatch = useDispatch();
-    const { loading, error } = useSelector((state: RootState) => state.auth);
-    const [showOldPassword, setShowOldPassword] = useState(false);
-    const [showNewPassword, setShowNewPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const dispatch: AppDispatch = useDispatch();
+  const { loading, error } = useSelector((state: RootState) => state.auth);
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const {
     register,
@@ -42,24 +41,34 @@ export const ChangePasswordForm: React.FC = () => {
   });
 
   useEffect(() => {
+    dispatch(clearError());
+  }, [dispatch]);
+
+  useEffect(() => {
     if (error) {
-      toast.error(error);
+      toast.error(error, { toastId: `change-password-${error}` });
     }
-    // Clear the error when the component unmounts
+  }, [error]);
+
+  useEffect(() => {
     return () => {
-        dispatch(clearError());
-    }
-  }, [error, dispatch]);
+      dispatch(clearError());
+    };
+  }, [dispatch]);
 
   const onSubmit: SubmitHandler<ChangePasswordFormData> = async (data) => {
+    if (loading) {
+      return;
+    }
+
     try {
-        const actionResult = await dispatch(changePassword(data));
-        unwrapResult(actionResult);
-        toast.success('Your password has been changed successfully!');
-        reset();
-      } catch (err) {
-        // Error toast is handled by the useEffect hook
-      }
+      await dispatch(changePassword(data)).unwrap();
+      toast.success('Your password has been changed successfully!');
+      dispatch(clearError());
+      reset();
+    } catch {
+      // Error toast is handled by the effect that observes auth error state.
+    }
   };
 
   return (
@@ -104,20 +113,25 @@ export const ChangePasswordForm: React.FC = () => {
                   {...register('old_password')}
                   id="old_password"
                   type={showOldPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
                   placeholder="Enter your current password"
+                  disabled={loading}
+                  aria-invalid={Boolean(errors.old_password)}
+                  aria-describedby={errors.old_password ? 'change-password-error-old-password' : undefined}
                   className={`w-full bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 transition-shadow duration-300 pr-10 ${errors.old_password ? 'border-red-500' : ''}`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowOldPassword(!showOldPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200"
+                  disabled={loading}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
                   aria-label={showOldPassword ? 'Hide password' : 'Show password'}
                 >
                   {showOldPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
               {errors.old_password && (
-                <p className="text-sm text-red-400 mt-1">{errors.old_password.message}</p>
+                <p id="change-password-error-old-password" className="text-sm text-red-400 mt-1">{errors.old_password.message}</p>
               )}
             </div>
             <div className="space-y-2">
@@ -127,20 +141,25 @@ export const ChangePasswordForm: React.FC = () => {
                   {...register('new_password')}
                   id="new_password"
                   type={showNewPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
                   placeholder="Enter a new strong password"
+                  disabled={loading}
+                  aria-invalid={Boolean(errors.new_password)}
+                  aria-describedby={errors.new_password ? 'change-password-error-new-password' : undefined}
                   className={`w-full bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 transition-shadow duration-300 pr-10 ${errors.new_password ? 'border-red-500' : ''}`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowNewPassword(!showNewPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200"
+                  disabled={loading}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
                   aria-label={showNewPassword ? 'Hide password' : 'Show password'}
                 >
                   {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
               {errors.new_password && (
-                <p className="text-sm text-red-400 mt-1">{errors.new_password.message}</p>
+                <p id="change-password-error-new-password" className="text-sm text-red-400 mt-1">{errors.new_password.message}</p>
               )}
             </div>
             <div className="space-y-2">
@@ -150,25 +169,33 @@ export const ChangePasswordForm: React.FC = () => {
                   {...register('new_password_confirm')}
                   id="new_password_confirm"
                   type={showConfirmPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
                   placeholder="Confirm your new password"
+                  disabled={loading}
+                  aria-invalid={Boolean(errors.new_password_confirm)}
+                  aria-describedby={errors.new_password_confirm ? 'change-password-error-new-password-confirm' : undefined}
                   className={`w-full bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 transition-shadow duration-300 pr-10 ${errors.new_password_confirm ? 'border-red-500' : ''}`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200"
+                  disabled={loading}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
                   aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                 >
                   {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
               {errors.new_password_confirm && (
-                <p className="text-sm text-red-400 mt-1">{errors.new_password_confirm.message}</p>
+                <p id="change-password-error-new-password-confirm" className="text-sm text-red-400 mt-1">{errors.new_password_confirm.message}</p>
               )}
             </div>
             <Button type="submit" size="lg" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg rounded-lg py-3 transition-transform duration-200 active:scale-95" disabled={loading}>
               {loading ? (
-                <Loader size="sm" />
+                <span className="inline-flex items-center gap-2">
+                  <Loader size="sm" color="white" />
+                  Updating...
+                </span>
               ) : (
                 'Update Password'
               )}

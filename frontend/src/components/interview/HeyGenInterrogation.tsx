@@ -10,6 +10,8 @@ import Webcam from 'react-webcam';
 import RecordRTC from 'recordrtc';
 import { HeyGenAvatarPlayer } from './HeyGenAvatarPlayer';
 import { useInterviewWebSocket } from '../../hooks/useInterviewWebSocket';
+import type { InterviewSocketConnectionEvent } from '../../hooks/useInterviewWebSocket';
+import type { AppDispatch, RootState } from '../../app/store';
 
 import {
   setSessionId,
@@ -18,18 +20,53 @@ import {
   setProcessing,
   resetInterview,
 } from '../../store/interviewSlice';
-import { RootState } from '../../app/store';
-import { InterrogationFlag } from '../../types/interview.types';
+import type {
+  AvatarTransportMode,
+  InterrogationFlag,
+  InterrogationFlagStatus,
+  WebSocketMessage,
+} from '../../types/interview.types';
 import { interviewService } from '@/services/interview.service';
+import type { HeyGenAvatarSdkConfig } from '@/services/interview.service';
 
 interface HeyGenInterrogationProps {
   applicationId: string;
 }
 
+interface RecorderHandle {
+  startRecording: () => void;
+  stopRecording: (callback: () => void) => void;
+  getBlob: () => Blob;
+  destroy?: () => void;
+}
+
+interface SessionInitFlagPayload {
+  id?: string | number;
+  type?: string;
+  severity?: string;
+  status?: string;
+  context?: string;
+  description?: string;
+}
+
+const normalizeSeverity = (severity?: string): InterrogationFlag['severity'] => {
+  if (severity === 'critical' || severity === 'high' || severity === 'medium') {
+    return severity;
+  }
+  return 'low';
+};
+
+const normalizeStatus = (status?: string): InterrogationFlagStatus => {
+  if (status === 'pending' || status === 'addressed' || status === 'resolved') {
+    return status;
+  }
+  return 'unresolved';
+};
+
 export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
   applicationId,
 }) => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
   const {
@@ -41,64 +78,178 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
     isRecording,
     isProcessing,
     wsConnected,
+    error: interviewError,
   } = useSelector((state: RootState) => state.interview);
 
   const [websocketUrl, setWebsocketUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
   const [binaryMessage, setBinaryMessage] = useState<Blob | null>(null);
   const [currentText, setCurrentText] = useState<string>('');
+  const [avatarSpeechText, setAvatarSpeechText] = useState<string>('');
+  const [avatarSdkConfig, setAvatarSdkConfig] = useState<HeyGenAvatarSdkConfig | null>(null);
+  const [avatarTransportMode, setAvatarTransportMode] = useState<AvatarTransportMode>('server');
+  const [lastWsEvent, setLastWsEvent] = useState<string>('idle');
+  const [lastWsEventAt, setLastWsEventAt] = useState<string>('n/a');
+  const [copiedDiagnostics, setCopiedDiagnostics] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [reconnectState, setReconnectState] = useState<{
+    attempt: number;
+    maxAttempts: number;
+    delayMs: number;
+  } | null>(null);
 
   const webcamRef = useRef<Webcam>(null);
-  // TODO: Fix this any type
-  const recorderRef = useRef<any | null>(null);
+  const recorderRef = useRef<RecorderHandle | null>(null);
+  const effectiveError = localError || interviewError;
 
-  const initializeInterview = useCallback(async () => {
-    try {
-      const data = await interviewService.startInterview(applicationId);
+  const markWsEvent = useCallback((eventType: string) => {
+    setLastWsEvent(eventType);
+    setLastWsEventAt(new Date().toLocaleTimeString());
+  }, []);
 
-      dispatch(setSessionId(data.session_id));
+  const handleBinaryMessage = useCallback(
+    (blob: Blob) => {
+      setBinaryMessage(blob);
+      markWsEvent('binary_chunk');
+    },
+    [markWsEvent]
+  );
 
-      // Set flags
-      data.interrogation_flags.forEach((flag: InterrogationFlag) => {
-        dispatch(addFlag(flag));
-      });
-
-      // Set WebSocket URL
-      setWebsocketUrl(data.websocket_url);
-    } catch (error) {
-      console.error('Failed to initialize interview:', error);
-      setError('Failed to start interview. Please try again.');
-    }
-  }, [applicationId, dispatch]);
-
-  const { sendMessage } = useInterviewWebSocket({
-    wsUrl: websocketUrl,
-    onBinaryMessage: setBinaryMessage,
-    onMessage: (message: any) => { // TODO: Fix this any type
+  const handleSocketMessage = useCallback(
+    (message: WebSocketMessage) => {
+      markWsEvent(message.type);
       if (message.type === 'avatar_stream_start') {
-        setCurrentText(message.text);
+        setCurrentText(message.text || '');
+        setAvatarSpeechText(message.text || '');
       } else if (message.type === 'avatar_stream_end') {
         setCurrentText('');
       }
     },
+    [markWsEvent]
+  );
+
+  const handleSocketLifecycle = useCallback(
+    (payload: InterviewSocketConnectionEvent) => {
+      if (payload.event === 'connected') {
+        setReconnectState(null);
+        setIsReconnecting(false);
+        if (payload.recoveredAfterAttempts && payload.recoveredAfterAttempts > 0) {
+          markWsEvent(`ws_connected (recovered after ${payload.recoveredAfterAttempts})`);
+          return;
+        }
+        markWsEvent('ws_connected');
+        return;
+      }
+
+      if (payload.event === 'error') {
+        markWsEvent('ws_error');
+        return;
+      }
+
+      if (
+        payload.attempt &&
+        payload.maxAttempts &&
+        typeof payload.delayMs === 'number'
+      ) {
+        setReconnectState({
+          attempt: payload.attempt,
+          maxAttempts: payload.maxAttempts,
+          delayMs: payload.delayMs,
+        });
+        setIsReconnecting(true);
+        markWsEvent(
+          `${payload.details || 'ws_disconnected'}; retry ${payload.attempt}/${payload.maxAttempts} in ${payload.delayMs}ms`
+        );
+        return;
+      }
+
+      setReconnectState(null);
+      setIsReconnecting(false);
+      markWsEvent(
+        payload.details ? `ws_disconnected (${payload.details})` : 'ws_disconnected'
+      );
+    },
+    [markWsEvent]
+  );
+
+  const { sendMessage, reconnect } = useInterviewWebSocket({
+    wsUrl: websocketUrl,
+    onBinaryMessage: handleBinaryMessage,
+    onMessage: handleSocketMessage,
+    onConnectionEvent: handleSocketLifecycle,
+    autoReconnectEnabled: !isComplete,
   });
 
   useEffect(() => {
-    initializeInterview();
+    let mounted = true;
+
+    const initialize = async () => {
+      try {
+        const data = await interviewService.startInterview(applicationId);
+
+        if (!mounted) {
+          return;
+        }
+
+        dispatch(setSessionId(data.session_id));
+        data.interrogation_flags.forEach((flag: SessionInitFlagPayload, index: number) => {
+          const normalizedFlag: InterrogationFlag = {
+            id: String(flag.id ?? `flag-${index + 1}`),
+            type: flag.type || 'consistency',
+            severity: normalizeSeverity(flag.severity),
+            context: flag.context || flag.description || 'Potential inconsistency detected.',
+            status: normalizeStatus(flag.status),
+          };
+          dispatch(addFlag(normalizedFlag));
+        });
+        setWebsocketUrl(data.websocket_url);
+        markWsEvent('session_bootstrap_ready');
+
+        const avatarConfig = await interviewService.getAvatarSessionConfig(data.session_id);
+        if (mounted) {
+          setAvatarSdkConfig(avatarConfig);
+        }
+      } catch (initError) {
+        console.error('Failed to initialize interview:', initError);
+        if (mounted) {
+          setLocalError('Failed to start interview. Please try again.');
+        }
+      }
+    };
+
+    void initialize();
 
     return () => {
+      mounted = false;
+      if (recorderRef.current && typeof recorderRef.current.destroy === 'function') {
+        recorderRef.current.destroy();
+      }
+      recorderRef.current = null;
+      setAvatarSpeechText('');
+      setAvatarSdkConfig(null);
+      setAvatarTransportMode('server');
+      setLastWsEvent('idle');
+      setLastWsEventAt('n/a');
+      setReconnectState(null);
+      setIsReconnecting(false);
       dispatch(resetInterview());
     };
-  }, [dispatch, initializeInterview]);
+  }, [applicationId, dispatch, markWsEvent]);
 
   
 
   const startRecording = () => {
-    if (!webcamRef.current || !webcamRef.current.stream) {
-      alert('Camera not ready. Please refresh the page.');
+    if (!wsConnected) {
+      setLocalError('Connection is not ready. Please wait for reconnection.');
       return;
     }
 
+    if (!webcamRef.current || !webcamRef.current.stream) {
+      setLocalError('Camera not ready. Please refresh the page.');
+      return;
+    }
+
+    setLocalError(null);
     const stream = webcamRef.current.stream;
 
     const recorder = new RecordRTC(stream, {
@@ -106,46 +257,65 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
       mimeType: 'video/webm;codecs=vp9',
       videoBitsPerSecond: 2500000,
       frameRate: 30,
-    });
+    }) as unknown as RecorderHandle;
 
     recorder.startRecording();
     recorderRef.current = recorder;
     dispatch(setRecording(true));
   };
 
-  const stopRecording = async () => {
+  const stopRecording = () => {
     if (!recorderRef.current) return;
 
     dispatch(setRecording(false));
     dispatch(setProcessing(true));
 
-    recorderRef.current.stopRecording(async () => {
-      const blob = recorderRef.current!.getBlob();
+    const recorder = recorderRef.current;
+    recorder.stopRecording(async () => {
+      const blob = recorder.getBlob();
       await submitResponse(blob);
+      if (typeof recorder.destroy === 'function') {
+        recorder.destroy();
+      }
+      recorderRef.current = null;
     });
   };
 
   const submitResponse = async (videoBlob: Blob) => {
+    if (!sessionId) {
+      dispatch(setProcessing(false));
+      setLocalError('Interview session is not ready yet.');
+      return;
+    }
+
     try {
-      // Upload video to Django
-      const { video_path } = await interviewService.uploadResponse(
-        sessionId!,
-        videoBlob
-      );
+      setLocalError(null);
+      let videoPath = '';
+      try {
+        const uploadResult = await interviewService.uploadResponse(sessionId, videoBlob);
+        videoPath = uploadResult.video_path || '';
+      } catch (uploadError) {
+        console.warn('Upload endpoint unavailable. Continuing without stored video path.', uploadError);
+      }
 
       // Extract audio for transcription
       const audioBase64 = await blobToBase64(await extractAudio());
 
       // Send completion message via WebSocket
-      sendMessage({
+      const wasSent = sendMessage({
         type: 'response_complete',
-        video_path: video_path,
+        video_path: videoPath,
         audio_data: audioBase64,
       });
+
+      if (!wasSent) {
+        dispatch(setProcessing(false));
+        setLocalError('Connection lost before sending your response. Please retry.');
+      }
     } catch (error) {
       console.error('Failed to submit response:', error);
       dispatch(setProcessing(false));
-      setError('Failed to submit response. Please try again.');
+      setLocalError('Failed to submit response. Please try again.');
     }
   };
 
@@ -170,12 +340,80 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
     });
   };
 
-  if (error) {
+  const transportModeLabel =
+    avatarTransportMode === 'sdk'
+      ? 'SDK'
+      : avatarTransportMode === 'fallback'
+      ? 'FALLBACK'
+      : 'SERVER';
+  const websocketStatus = !websocketUrl
+    ? 'idle'
+    : wsConnected
+    ? 'connected'
+    : reconnectState
+    ? `reconnecting (${reconnectState.attempt}/${reconnectState.maxAttempts})`
+    : 'disconnected';
+
+  const copyDiagnostics = useCallback(async () => {
+    const payload = {
+      sessionId,
+      transport: avatarTransportMode,
+      websocketStatus,
+      lastEvent: lastWsEvent,
+      lastEventAt: lastWsEventAt,
+      hasSdkConfig: Boolean(avatarSdkConfig),
+      hasCurrentQuestion: Boolean(currentQuestion),
+      questionNumber,
+      isRecording,
+      isProcessing,
+      wsUrlPresent: Boolean(websocketUrl),
+      reconnectState,
+    };
+
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+      setCopiedDiagnostics(true);
+      window.setTimeout(() => {
+        setCopiedDiagnostics(false);
+      }, 1800);
+    } catch (error) {
+      console.error('Failed to copy diagnostics:', error);
+      setLocalError('Unable to copy diagnostics to clipboard.');
+    }
+  }, [
+    sessionId,
+    avatarTransportMode,
+    websocketStatus,
+    lastWsEvent,
+    lastWsEventAt,
+    avatarSdkConfig,
+    currentQuestion,
+    questionNumber,
+    isRecording,
+    isProcessing,
+    websocketUrl,
+    reconnectState,
+  ]);
+
+  const reconnectSocket = useCallback(() => {
+    if (!websocketUrl) {
+      setLocalError('WebSocket is not initialized yet.');
+      return;
+    }
+
+    setLocalError(null);
+    markWsEvent('ws_reconnect_requested');
+    setReconnectState(null);
+    setIsReconnecting(true);
+    reconnect();
+  }, [markWsEvent, reconnect, websocketUrl]);
+
+  if (effectiveError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-red-50">
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md">
           <h2 className="text-2xl font-bold text-red-600 mb-4">Error</h2>
-          <p className="text-gray-700 mb-6">{error}</p>
+          <p className="text-gray-700 mb-6">{effectiveError}</p>
           <button
             onClick={() => navigate(-1)}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -266,8 +504,58 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
               <HeyGenAvatarPlayer
                 binaryMessage={binaryMessage}
                 currentText={currentText}
+                speakText={avatarSpeechText}
+                sdkConfig={avatarSdkConfig}
+                onTransportChange={setAvatarTransportMode}
                 className="h-96"
               />
+            </div>
+
+            <div className="bg-gray-900 text-gray-100 rounded-xl p-4 border border-gray-700">
+              <div className="text-xs uppercase tracking-wide text-gray-400 mb-3">Runtime Diagnostics</div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-md bg-gray-800 px-3 py-2">
+                  <div className="text-gray-400 text-xs mb-1">Avatar Transport</div>
+                  <div className="font-mono font-semibold">{transportModeLabel}</div>
+                </div>
+                <div className="rounded-md bg-gray-800 px-3 py-2">
+                  <div className="text-gray-400 text-xs mb-1">WebSocket</div>
+                  <div className="font-mono font-semibold">{websocketStatus}</div>
+                </div>
+                <div className="rounded-md bg-gray-800 px-3 py-2 col-span-2">
+                  <div className="text-gray-400 text-xs mb-1">Last Event</div>
+                  <div className="font-mono break-all">{lastWsEvent}</div>
+                </div>
+                <div className="rounded-md bg-gray-800 px-3 py-2 col-span-2">
+                  <div className="text-gray-400 text-xs mb-1">Updated</div>
+                  <div className="font-mono">{lastWsEventAt}</div>
+                </div>
+                <div className="rounded-md bg-gray-800 px-3 py-2 col-span-2">
+                  <div className="text-gray-400 text-xs mb-1">Reconnect State</div>
+                  <div className="font-mono">
+                    {reconnectState
+                      ? `${reconnectState.attempt}/${reconnectState.maxAttempts} in ${reconnectState.delayMs}ms`
+                      : 'none'}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={copyDiagnostics}
+                  className="px-3 py-1.5 rounded-md bg-gray-700 hover:bg-gray-600 text-xs font-semibold"
+                >
+                  {copiedDiagnostics ? 'Copied' : 'Copy Diagnostics'}
+                </button>
+                <button
+                  type="button"
+                  onClick={reconnectSocket}
+                  disabled={!websocketUrl || isReconnecting}
+                  className="px-3 py-1.5 rounded-md bg-blue-700 hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed text-xs font-semibold"
+                >
+                  {isReconnecting ? 'Reconnecting...' : 'Reconnect Socket'}
+                </button>
+              </div>
             </div>
 
             {/* Current Question */}
@@ -369,7 +657,7 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
               {!isRecording && !isProcessing ? (
                 <button
                   onClick={startRecording}
-                  disabled={!currentQuestion}
+                  disabled={!currentQuestion || !wsConnected}
                   className="flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-2xl font-bold text-xl hover:from-green-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-2xl"
                 >
                   <span className="text-2xl">🎤</span>

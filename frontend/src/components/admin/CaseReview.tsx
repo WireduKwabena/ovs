@@ -1,5 +1,5 @@
 // src/components/admin/CaseReview.tsx
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -28,13 +28,7 @@ export const CaseReview: React.FC = () => {
   const [notes, setNotes] = useState("");
   const [decision, setDecision] = useState<"approve" | "reject" | null>(null);
 
-  useEffect(() => {
-    if (caseId) {
-      loadApplication();
-    }
-  }, [caseId]);
-
-  const loadApplication = async () => {
+  const loadApplication = useCallback(async () => {
     if (!caseId) return;
 
     try {
@@ -48,7 +42,13 @@ export const CaseReview: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [caseId]);
+
+  useEffect(() => {
+    if (caseId) {
+      loadApplication();
+    }
+  }, [caseId, loadApplication]);
 
   const handleApprove = async () => {
     if (!caseId) return;
@@ -62,7 +62,7 @@ export const CaseReview: React.FC = () => {
       });
       toast.success("Application approved successfully!");
       navigate("/admin/cases");
-    } catch (error) {
+    } catch {
       toast.error("Failed to approve application");
     } finally {
       setActionLoading(false);
@@ -87,7 +87,7 @@ export const CaseReview: React.FC = () => {
       });
       toast.success("Application rejected");
       navigate("/admin/cases");
-    } catch (error) {
+    } catch {
       toast.error("Failed to reject application");
     } finally {
       setActionLoading(false);
@@ -106,7 +106,7 @@ export const CaseReview: React.FC = () => {
       });
       toast.info("Applicant has been notified to provide more information");
       navigate("/admin/cases");
-    } catch (error) {
+    } catch {
       toast.error("Failed to request more information");
     } finally {
       setActionLoading(false);
@@ -133,7 +133,7 @@ export const CaseReview: React.FC = () => {
                   Application Not Found
                 </h3>
                 <p className="text-red-700 mt-1">
-                  The application you're looking for doesn't exist or you don't
+                  The application you&apos;re looking for doesn&apos;t exist or you don&apos;t
                   have permission to view it.
                 </p>
               </div>

@@ -68,6 +68,20 @@ export const Navbar: React.FC = () => {
   const displayName = userType === 'admin' 
     ? (user as AdminUser)?.username 
     : (user as User)?.full_name;
+
+  const roleLabel =
+    userType === 'admin' ? 'Admin' : userType === 'hr_manager' ? 'HR Manager' : 'Applicant';
+  const navLinks =
+    userType === 'applicant'
+      ? [
+          { to: '/dashboard', label: 'Dashboard' },
+          { to: '/applications', label: 'Applications' },
+        ]
+      : [
+          { to: '/dashboard', label: 'Dashboard' },
+          { to: '/campaigns', label: 'Campaigns' },
+          { to: '/applications', label: 'Cases' },
+        ];
   
   const initial = displayName?.charAt(0).toUpperCase() || '?';
 
@@ -88,6 +102,15 @@ export const Navbar: React.FC = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-4">
+            {navLinks.map((navItem) => (
+              <Link
+                key={navItem.to}
+                to={navItem.to}
+                className="text-sm font-medium text-gray-600 hover:text-indigo-600 px-2 py-1 rounded"
+              >
+                {navItem.label}
+              </Link>
+            ))}
             <Link
               to="/notifications"
               className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
@@ -113,7 +136,7 @@ export const Navbar: React.FC = () => {
                   <p className="text-sm font-medium text-indigo-600">
                     {displayName}
                   </p>
-                  <p className="text-xs text-gray-500">{userType === 'admin' ? 'Admin' : 'Applicant'}</p>
+                  <p className="text-xs text-gray-500">{roleLabel}</p>
                 </div>
                 <ChevronDown className="w-4 h-4 text-gray-500" />
               </button>
@@ -168,9 +191,19 @@ export const Navbar: React.FC = () => {
                 <p className="text-base font-medium text-gray-900">
                   {displayName}
                 </p>
-                <p className="text-sm text-gray-500">{userType === 'admin' ? 'Admin' : 'Applicant'}</p>
+                <p className="text-sm text-gray-500">{roleLabel}</p>
               </div>
             </div>
+            {navLinks.map((navItem) => (
+              <Link
+                key={navItem.to}
+                to={navItem.to}
+                className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {navItem.label}
+              </Link>
+            ))}
             <Link
               to="/notifications"
               className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100"

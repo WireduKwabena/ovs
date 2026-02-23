@@ -12,6 +12,7 @@ import { useApplications } from '@/hooks/useApplications';
 import { APPLICATION_TYPES, PRIORITIES, DOCUMENT_TYPES } from '@/utils/constants';
 import { toast } from 'react-toastify';
 import { Navbar } from '@/components/common/Navbar';
+import type { DocumentType } from '@/types';
 
 interface ApplicationFormData {
   application_type: string;
@@ -23,7 +24,7 @@ export const NewApplicationPage: React.FC = () => {
   const navigate = useNavigate();
   const { createApplication } = useApplications();
   const [files, setFiles] = useState<File[]>([]);
-  const [documentType, setDocumentType] = useState<string>('other');
+  const [documentType, setDocumentType] = useState<DocumentType>('other');
   const [submitting, setSubmitting] = useState(false);
 
   const {
@@ -57,7 +58,7 @@ export const NewApplicationPage: React.FC = () => {
 
       toast.success('Application created successfully!');
       navigate(`/applications/${application.case_id}`);
-    } catch (error) {
+    } catch {
       toast.error('Failed to create application');
     } finally {
       setSubmitting(false);
@@ -92,10 +93,11 @@ export const NewApplicationPage: React.FC = () => {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Application Type */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="new-app-type" className="block text-sm font-medium text-gray-700 mb-2">
                 Application Type *
               </label>
               <select
+                id="new-app-type"
                 {...register('application_type')}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               >
@@ -113,10 +115,11 @@ export const NewApplicationPage: React.FC = () => {
 
             {/* Priority */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="new-app-priority" className="block text-sm font-medium text-gray-700 mb-2">
                 Priority *
               </label>
               <select
+                id="new-app-priority"
                 {...register('priority')}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               >
@@ -134,10 +137,11 @@ export const NewApplicationPage: React.FC = () => {
 
             {/* Notes */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="new-app-notes" className="block text-sm font-medium text-gray-700 mb-2">
                 Additional Notes
               </label>
               <textarea
+                id="new-app-notes"
                 {...register('notes')}
                 rows={4}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
@@ -154,16 +158,16 @@ export const NewApplicationPage: React.FC = () => {
                 id="upload-doc-type"
                 aria-label="Document type for uploads"
                 value={documentType}
-                onChange={(e) => setDocumentType(e.target.value)}
+                onChange={(e) => setDocumentType(e.target.value as DocumentType)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-4"
               >
                 {DOCUMENT_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>{t.label}</option>
                 ))}
               </select>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <p className="block text-sm font-medium text-gray-700 mb-2">
                 Documents * (PDF, JPG, PNG - Max 10MB each)
-              </label>
+              </p>
               <FileUpload
                 pageDocumentType={documentType}
                 onFilesChanged={(fileItems) => handleFilesAdded(fileItems.map((fi) => fi.file))}

@@ -63,8 +63,9 @@ export function ApplicationList() {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <label> select an option: 
+          <label htmlFor="filter-status"> select an option: 
           <select
+            id="filter-status"
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -86,6 +87,14 @@ export function ApplicationList() {
             <div
               key={app.id}
               onClick={() => navigate(`/applications/${app.case_id}`)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  navigate(`/applications/${app.case_id}`);
+                }
+              }}
+              role="button"
+              tabIndex={0}
               className="bg-white rounded-lg shadow hover:shadow-lg transition cursor-pointer p-6"
             >
               <div className="flex items-start justify-between mb-4">

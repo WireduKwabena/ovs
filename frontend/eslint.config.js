@@ -23,7 +23,12 @@ export default [
     extends: [
       'plugin:react/recommended',
       'plugin:jsx-a11y/recommended'
-    ]
+    ],
+    settings: {
+      react: {
+        version: 'detect',
+      },
+    },
   }),
   ...tseslint.configs.recommended,
   reactHooks.configs.flat.recommended, // Changed from ...reactHooks.configs.flat.recommended

@@ -25,7 +25,7 @@ export const RubricsPage: React.FC = () => {
       setLoading(true);
       const data = await rubricService.getAll();
       setRubrics(data);
-    } catch (error) {
+    } catch {
       toast.error('Failed to load rubrics');
     } finally {
       setLoading(false);
@@ -39,7 +39,7 @@ export const RubricsPage: React.FC = () => {
       await rubricService.delete(id);
       toast.success('Rubric deleted successfully');
       loadRubrics();
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete rubric');
     }
   };
@@ -49,7 +49,7 @@ export const RubricsPage: React.FC = () => {
       await rubricService.duplicate(id);
       toast.success('Rubric duplicated successfully');
       loadRubrics();
-    } catch (error) {
+    } catch {
       toast.error('Failed to duplicate rubric');
     }
   };
@@ -59,7 +59,7 @@ export const RubricsPage: React.FC = () => {
       await rubricService.activate(id);
       toast.success('Rubric activated successfully');
       loadRubrics();
-    } catch (error) {
+    } catch {
       toast.error('Failed to activate rubric');
     }
   };

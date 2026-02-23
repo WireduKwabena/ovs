@@ -1,20 +1,49 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { registerSchema } from "@/utils/validators";
-import { register as registerThunk } from "@/store/authSlice";
+import { clearError, register as registerThunk } from "@/store/authSlice";
 import type { RegisterData } from "@/types";
 import { useDispatch } from "react-redux";
 import type { AppDispatch } from "@/app/store";
 import { Loader } from "@/components/common/Loader";
 import { toast } from "react-toastify";
-import type { AxiosError } from "axios";
-import type { ApiError } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { UserPlus, Eye, EyeOff, Building2 } from "lucide-react";
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (!error) {
+    return fallback;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  const normalizedError = error as {
+    message?: string;
+    response?: {
+      data?: {
+        message?: string;
+        detail?: string;
+      };
+    };
+  };
+
+  return (
+    normalizedError.response?.data?.message ||
+    normalizedError.response?.data?.detail ||
+    normalizedError.message ||
+    fallback
+  );
+};
 
 export const RegisterForm: React.FC = () => {
   const navigate = useNavigate();
@@ -35,17 +64,43 @@ export const RegisterForm: React.FC = () => {
     },
   });
 
+  useEffect(() => {
+    dispatch(clearError());
+  }, [dispatch]);
+
+  useEffect(() => {
+    return () => {
+      dispatch(clearError());
+    };
+  }, [dispatch]);
+
   const onSubmit: SubmitHandler<RegisterData> = async (data: RegisterData) => {
+    if (loading) {
+      return;
+    }
+
     setLoading(true);
     try {
-      await dispatch(registerThunk(data)).unwrap();
+      await dispatch(
+        registerThunk({
+          ...data,
+          first_name: data.first_name.trim(),
+          last_name: data.last_name.trim(),
+          email: data.email.trim(),
+          phone_number: data.phone_number.trim(),
+          organization: data.organization.trim(),
+          department: data.department.trim(),
+          password: data.password,
+          password_confirm: data.password_confirm,
+        }),
+      ).unwrap();
       toast.success("Registration successful! Please log in.");
-      navigate("/login");
-    } catch (err) {
-      const error = err as AxiosError<ApiError>;
-      const errorMessage =
-        error.response?.data?.message || "Registration failed";
-      toast.error(errorMessage);
+      dispatch(clearError());
+      navigate("/login", { replace: true });
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Registration failed"), {
+        toastId: "register-form-error",
+      });
     } finally {
       setLoading(false);
     }
@@ -93,10 +148,14 @@ export const RegisterForm: React.FC = () => {
                   {...register("first_name")}
                   id="first_name"
                   placeholder="John"
+                  autoComplete="given-name"
+                  disabled={loading}
+                  aria-invalid={Boolean(errors.first_name)}
+                  aria-describedby={errors.first_name ? "register-first-name-error" : undefined}
                   className={`w-full bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 transition-shadow duration-300 ${errors.first_name ? "border-red-500" : ""}`}
                 />
                 {errors.first_name && (
-                  <p className="text-sm text-red-400 mt-1">{errors.first_name.message}</p>
+                  <p id="register-first-name-error" className="text-sm text-red-400 mt-1">{errors.first_name.message}</p>
                 )}
               </div>
 
@@ -108,10 +167,14 @@ export const RegisterForm: React.FC = () => {
                   {...register("last_name")}
                   id="last_name"
                   placeholder="Doe"
+                  autoComplete="family-name"
+                  disabled={loading}
+                  aria-invalid={Boolean(errors.last_name)}
+                  aria-describedby={errors.last_name ? "register-last-name-error" : undefined}
                   className={`w-full bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 transition-shadow duration-300 ${errors.last_name ? "border-red-500" : ""}`}
                 />
                 {errors.last_name && (
-                  <p className="text-sm text-red-400 mt-1">{errors.last_name.message}</p>
+                  <p id="register-last-name-error" className="text-sm text-red-400 mt-1">{errors.last_name.message}</p>
                 )}
               </div>
 
@@ -123,11 +186,15 @@ export const RegisterForm: React.FC = () => {
                   {...register("email")}
                   id="email"
                   type="email"
+                  autoComplete="email"
                   placeholder="you@company.com"
+                  disabled={loading}
+                  aria-invalid={Boolean(errors.email)}
+                  aria-describedby={errors.email ? "register-email-error" : undefined}
                   className={`w-full bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 transition-shadow duration-300 ${errors.email ? "border-red-500" : ""}`}
                 />
                 {errors.email && (
-                  <p className="text-sm text-red-400 mt-1">{errors.email.message}</p>
+                  <p id="register-email-error" className="text-sm text-red-400 mt-1">{errors.email.message}</p>
                 )}
               </div>
 
@@ -139,11 +206,15 @@ export const RegisterForm: React.FC = () => {
                   {...register("phone_number")}
                   id="phone_number"
                   type="tel"
+                  autoComplete="tel"
                   placeholder="+1 (555) 123-4567"
+                  disabled={loading}
+                  aria-invalid={Boolean(errors.phone_number)}
+                  aria-describedby={errors.phone_number ? "register-phone-number-error" : undefined}
                   className={`w-full bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 transition-shadow duration-300 ${errors.phone_number ? "border-red-500" : ""}`}
                 />
                 {errors.phone_number && (
-                  <p className="text-sm text-red-400 mt-1">{errors.phone_number.message}</p>
+                  <p id="register-phone-number-error" className="text-sm text-red-400 mt-1">{errors.phone_number.message}</p>
                 )}
               </div>
 
@@ -156,6 +227,8 @@ export const RegisterForm: React.FC = () => {
                     {...register("organization")}
                     id="organization"
                     placeholder="Acme Corp"
+                    autoComplete="organization"
+                    disabled={loading}
                     className="w-full bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400 rounded-lg px-4 py-3 pl-10 focus:ring-2 focus:ring-blue-500 transition-shadow duration-300"
                   />
                   <Building2 className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
@@ -170,6 +243,7 @@ export const RegisterForm: React.FC = () => {
                   {...register("department")}
                   id="department"
                   placeholder="Human Resources"
+                  disabled={loading}
                   className="w-full bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 transition-shadow duration-300"
                 />
               </div>
@@ -183,13 +257,18 @@ export const RegisterForm: React.FC = () => {
                     {...register("password")}
                     id="password"
                     type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     placeholder="••••••••"
+                    disabled={loading}
+                    aria-invalid={Boolean(errors.password)}
+                    aria-describedby={errors.password ? "register-password-error" : undefined}
                     className={`w-full bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 transition-shadow duration-300 pr-10 ${errors.password ? "border-red-500" : ""}`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200"
+                    disabled={loading}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? (
@@ -200,7 +279,7 @@ export const RegisterForm: React.FC = () => {
                   </button>
                 </div>
                 {errors.password && (
-                  <p className="text-sm text-red-400 mt-1">{errors.password.message}</p>
+                  <p id="register-password-error" className="text-sm text-red-400 mt-1">{errors.password.message}</p>
                 )}
               </div>
 
@@ -213,13 +292,18 @@ export const RegisterForm: React.FC = () => {
                     {...register("password_confirm")}
                     id="password_confirm"
                     type={showConfirmPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     placeholder="••••••••"
+                    disabled={loading}
+                    aria-invalid={Boolean(errors.password_confirm)}
+                    aria-describedby={errors.password_confirm ? "register-password-confirm-error" : undefined}
                     className={`w-full bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 transition-shadow duration-300 pr-10 ${errors.password_confirm ? "border-red-500" : ""}`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200"
+                    disabled={loading}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
                     aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                   >
                     {showConfirmPassword ? (
@@ -230,7 +314,7 @@ export const RegisterForm: React.FC = () => {
                   </button>
                 </div>
                 {errors.password_confirm && (
-                  <p className="text-sm text-red-400 mt-1">
+                  <p id="register-password-confirm-error" className="text-sm text-red-400 mt-1">
                     {errors.password_confirm.message}
                   </p>
                 )}
@@ -244,7 +328,10 @@ export const RegisterForm: React.FC = () => {
               disabled={loading}
             >
               {loading ? (
-                <Loader size="sm" />
+                <span className="inline-flex items-center gap-2">
+                  <Loader size="sm" color="white" />
+                  Registering...
+                </span>
               ) : (
                 <div className="flex items-center justify-center">
                   <UserPlus className="mr-2 h-5 w-5" />

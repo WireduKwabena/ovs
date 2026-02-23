@@ -7,18 +7,13 @@ import { Navbar } from '@/components/common/Navbar';
 export const NotificationsPage: React.FC = () => {
   const { notifications, isLoading, markAsRead, markAllAsRead } = useNotifications();
 
-  // ✅ Debug log
-  console.log('NotificationsPage - notifications:', notifications);
-  console.log('NotificationsPage - isLoading:', isLoading);
-  console.log('NotificationsPage - is array?', Array.isArray(notifications));
-
-  // ✅ Safety check - ensure we have an array
+  // Safety check - ensure we have an array
   const notificationsArray = useMemo(() => {
     if (!notifications) return [];
     return Array.isArray(notifications) ? notifications : [];
   }, [notifications]);
 
-  // ✅ Filter with safe array
+  // Filter with safe array
   const unreadNotifications = useMemo(() => {
     return notificationsArray.filter(n => n.status === 'unread' || !n.is_read);
   }, [notificationsArray]);

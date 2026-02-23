@@ -6,9 +6,29 @@ import { logout, refreshToken } from '@/store/authSlice';
 import { setError } from '@/store/errorSlice';
 
 const API_URL = ((import.meta as any).env?.VITE_API_URL) || 'http://localhost:8000/api';
+const AUTH_ENDPOINTS = [
+  '/auth/login/',
+  '/auth/register/',
+  '/auth/logout/',
+  '/auth/token/refresh/',
+  '/auth/password-reset/',
+  '/auth/password-reset/confirm/',
+];
+
+const isAuthEndpoint = (url?: string) => {
+  if (!url) {
+    return false;
+  }
+  return AUTH_ENDPOINTS.some((endpoint) => url.includes(endpoint));
+};
+
+const getApiErrorMessage = (error: AxiosError<ApiError>): string => {
+  return error.response?.data?.message || error.message || 'An error occurred';
+};
 
 const api = axios.create({
   baseURL: API_URL,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -31,22 +51,43 @@ api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<ApiError>) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    const statusCode = error.response?.status;
+    const requestUrl = originalRequest?.url;
+
+    if (statusCode === 401 && isAuthEndpoint(requestUrl)) {
+      return Promise.reject(error);
+    }
+
+    if (statusCode === 401 && originalRequest && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
         const refreshResult = await store.dispatch(refreshToken()).unwrap(); // Dispatch thunk
-        originalRequest.headers.Authorization = `Bearer ${refreshResult.access}`;
+        if (originalRequest.headers) {
+          originalRequest.headers.Authorization = `Bearer ${refreshResult.access}`;
+        }
         return api(originalRequest); // Retry original
-      } catch (refreshError) {
-        store.dispatch(logout()); // Fallback logout
+      } catch {
+        await store.dispatch(logout());
+        store.dispatch(
+          setError({
+            message: 'Session expired. Please sign in again.',
+            status: 401,
+          })
+        );
       }
-    } else if (error.response?.status === 401) {
-      store.dispatch(logout());
+    } else if (statusCode === 401) {
+      await store.dispatch(logout());
+      store.dispatch(
+        setError({
+          message: 'Session expired. Please sign in again.',
+          status: 401,
+        })
+      );
     } else {
       // For other errors, dispatch the setError action
       const errorData = {
-        message: error.response?.data?.message || error.message || 'An error occurred',
-        status: error.response?.status || 500,
+        message: getApiErrorMessage(error),
+        status: statusCode || 500,
       };
       store.dispatch(setError(errorData));
     }

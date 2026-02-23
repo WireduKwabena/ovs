@@ -9,7 +9,10 @@ from rest_framework.test import APITestCase
 
 from apps.applications.models import VettingCase
 from apps.authentication.models import User
-from apps.notifications.email_service import send_completion_summary, send_high_deception_alert
+from apps.notifications.interview_alerts import (
+    send_completion_summary,
+    send_high_deception_alert,
+)
 from apps.notifications.models import Notification
 from apps.notifications.services import NotificationService
 

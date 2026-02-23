@@ -16660,3 +16660,2473 @@ Traceback (most recent call last):
 botocore.exceptions.BotoCoreError: An unspecified error occurred
 [ERROR] 2026-02-22 15:21:00,506 services S3 response is truncated but missing NextContinuationToken for case=C1.
 [INFO] 2026-02-22 15:21:00,511 services Document uploaded to S3: cases/CASE-001/documents/abc123.pdf
+[DEBUG] 2026-02-22 15:25:37,488 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-22 15:25:39,802 functional 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:25:39,806 functional 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:25:39,807 functional 
+def chunks(task, it, n):
+    return 1
+
+[DEBUG] 2026-02-22 15:25:39,810 functional 
+def debug_task(self):
+    return 1
+
+[DEBUG] 2026-02-22 15:25:39,811 functional 
+def xmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 15:25:39,813 functional 
+def backend_cleanup():
+    return 1
+
+[DEBUG] 2026-02-22 15:25:39,815 functional 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+[DEBUG] 2026-02-22 15:25:39,816 functional 
+def generate_session_summary_task(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:25:39,818 functional 
+def analyze_response_task(self, response_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:25:39,821 functional 
+def xstarmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 15:25:39,824 functional 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:25:39,825 functional 
+def chain(*args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:25:40,643 functional 
+def send_invitation_task(self, invitation_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:25:40,655 functional 
+def verify_document_async(self, document_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:25:40,674 functional 
+def evaluate_case_with_rubric(self, case_id, rubric_id, evaluator_id=0):
+    return 1
+
+[DEBUG] 2026-02-22 15:25:40,675 functional 
+def auto_assign_rubric(self, case_id):
+    return 1
+
+[INFO] 2026-02-22 15:25:40,800 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[WARNING] 2026-02-22 15:25:43,301 log Unauthorized: /api/interviews/sessions/
+[WARNING] 2026-02-22 15:25:47,201 connection No hostname was supplied. Reverting to default 'localhost'
+[INFO] 2026-02-22 15:25:47,310 trace Task apps.interviews.tasks.generate_session_summary_task[0f679696-21a9-45e1-99d1-24be16fe21ae] succeeded in 0.09399999999914144s: {'success': True, 'session_id': 294, 'responses': 1}
+[INFO] 2026-02-22 15:25:47,311 trace Task apps.interviews.tasks.analyze_response_task[b943584c-4cff-45d9-8cbb-08f15f595831] succeeded in 0.10999999999876309s: {'success': True, 'response_id': 191, 'quality_score': 40.62}
+[INFO] 2026-02-22 15:25:49,744 trace Task apps.interviews.tasks.generate_session_summary_task[0e2e05db-4813-4618-bfed-edd7136faf3b] succeeded in 0.014999999999417923s: {'success': True, 'session_id': 295, 'responses': 1}
+[INFO] 2026-02-22 15:25:49,745 trace Task apps.interviews.tasks.analyze_response_task[8058285e-0a7b-49da-a4d0-ffe66469f216] succeeded in 0.030999999999039574s: {'success': True, 'response_id': 192, 'quality_score': 42.12}
+[INFO] 2026-02-22 15:25:49,760 trace Task apps.interviews.tasks.generate_session_summary_task[49436391-c591-4ff4-a603-ef27347159fb] succeeded in 0.0s: {'success': True, 'session_id': 295, 'responses': 1}
+[WARNING] 2026-02-22 15:25:51,788 log Forbidden: /api/interviews/sessions/analytics-dashboard/
+[WARNING] 2026-02-22 15:25:51,790 log Forbidden: /api/interviews/sessions/compare/
+[WARNING] 2026-02-22 15:25:51,791 log Forbidden: /api/interviews/sessions/generate-flags/
+[INFO] 2026-02-22 15:25:58,029 trace Task apps.interviews.tasks.generate_session_summary_task[9c751227-446c-452e-86f1-31f8471383b7] succeeded in 0.0s: {'success': True, 'session_id': 298, 'responses': 1}
+[INFO] 2026-02-22 15:25:58,029 trace Task apps.interviews.tasks.analyze_response_task[34224fca-7c54-4a91-a077-e9f67d7e3462] succeeded in 0.014999999999417923s: {'success': True, 'response_id': 195, 'quality_score': 45.38}
+[WARNING] 2026-02-22 15:26:00,276 log Bad Request: /api/interviews/sessions/299/save-exchange/
+[INFO] 2026-02-22 15:26:04,630 trace Task apps.interviews.tasks.generate_session_summary_task[fade2d72-1af7-466d-80e3-c11bf064a9a5] succeeded in 0.01600000000144064s: {'success': True, 'session_id': 301, 'responses': 1}
+[INFO] 2026-02-22 15:26:04,630 trace Task apps.interviews.tasks.analyze_response_task[b8453b3c-39d4-45d7-ad08-86c9969a82ca] succeeded in 0.01600000000144064s: {'success': True, 'response_id': 197, 'quality_score': 43.5}
+[INFO] 2026-02-22 15:26:05,843 trace Task apps.interviews.tasks.generate_session_summary_task[19ebfafb-50ef-4610-9afa-0e6768a7454b] succeeded in 0.0s: {'success': True, 'session_id': 302, 'responses': 1}
+[INFO] 2026-02-22 15:26:05,843 trace Task apps.interviews.tasks.analyze_response_task[8c37ae3f-69b3-4975-9058-cc88ac8eb2f8] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 198, 'quality_score': 36.62}
+[INFO] 2026-02-22 15:26:08,306 trace Task apps.interviews.tasks.generate_session_summary_task[3d7facd2-0163-43ad-9309-f15b15c290b2] succeeded in 0.0s: {'success': True, 'session_id': 303, 'responses': 1}
+[INFO] 2026-02-22 15:26:08,307 trace Task apps.interviews.tasks.analyze_response_task[e97acad3-9646-45b3-bdd1-4fe676912fe1] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 199, 'quality_score': 43.88}
+[INFO] 2026-02-22 15:26:08,330 trace Task apps.interviews.tasks.generate_session_summary_task[f0283532-2bbb-49ab-b2c1-ee184523d060] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 303, 'responses': 1}
+[DEBUG] 2026-02-22 15:26:39,686 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-22 15:26:41,691 functional 
+def chunks(task, it, n):
+    return 1
+
+[DEBUG] 2026-02-22 15:26:41,695 functional 
+def backend_cleanup():
+    return 1
+
+[DEBUG] 2026-02-22 15:26:41,696 functional 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+[DEBUG] 2026-02-22 15:26:41,697 functional 
+def send_high_deception_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:26:41,699 functional 
+def generate_session_summary_task(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:26:41,701 functional 
+def send_completion_summary(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:26:41,703 functional 
+def send_poor_response_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:26:41,706 functional 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:26:41,708 functional 
+def chain(*args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:26:41,713 functional 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:26:41,714 functional 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:26:41,716 functional 
+def debug_task(self):
+    return 1
+
+[DEBUG] 2026-02-22 15:26:41,718 functional 
+def xmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 15:26:41,720 functional 
+def analyze_response_task(self, response_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:26:41,722 functional 
+def send_behavioral_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:26:41,724 functional 
+def xstarmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 15:26:41,725 functional 
+def send_critical_flags_alert(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:26:42,532 functional 
+def send_invitation_task(self, invitation_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:26:42,542 functional 
+def verify_document_async(self, document_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:26:42,556 functional 
+def evaluate_case_with_rubric(self, case_id, rubric_id, evaluator_id=0):
+    return 1
+
+[DEBUG] 2026-02-22 15:26:42,558 functional 
+def auto_assign_rubric(self, case_id):
+    return 1
+
+[INFO] 2026-02-22 15:26:42,669 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[WARNING] 2026-02-22 15:26:42,739 interview_alerts Skipping completion summary: InterviewSession 999999 not found.
+[WARNING] 2026-02-22 15:26:42,742 interview_alerts Skipping high deception alert: InterviewSession 999999 not found.
+[WARNING] 2026-02-22 15:26:46,885 log Not Found: /api/notifications/442/archive/
+[WARNING] 2026-02-22 15:26:55,080 log Bad Request: /api/notifications/mark-as-read/
+[WARNING] 2026-02-22 15:26:59,008 services Skipping send_admin_notification: missing admin user.
+[INFO] 2026-02-22 15:27:01,199 services Email notification sent to notify-applicant@example.com
+[INFO] 2026-02-22 15:27:03,245 services Email notification sent to notify-applicant@example.com
+[ERROR] 2026-02-22 15:27:05,223 services Failed to send email notification to notify-applicant@example.com
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\apps\notifications\services.py", line 84, in _send_email_notification
+    send_mail(
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+RuntimeError: smtp down
+[INFO] 2026-02-22 15:27:09,599 services Email notification sent to notify-applicant@example.com
+[WARNING] 2026-02-22 15:27:11,964 log Unauthorized: /api/interviews/sessions/
+[WARNING] 2026-02-22 15:27:16,540 connection No hostname was supplied. Reverting to default 'localhost'
+[INFO] 2026-02-22 15:27:16,646 trace Task apps.interviews.tasks.generate_session_summary_task[baf21bc0-a6e9-4574-bf09-619b44236824] succeeded in 0.0930000000007567s: {'success': True, 'session_id': 306, 'responses': 1}
+[INFO] 2026-02-22 15:27:16,647 trace Task apps.interviews.tasks.analyze_response_task[bbbece5d-ca69-439f-bedf-1c8168cf7213] succeeded in 0.10900000000037835s: {'success': True, 'response_id': 200, 'quality_score': 40.62}
+[INFO] 2026-02-22 15:27:19,894 trace Task apps.interviews.tasks.generate_session_summary_task[da83a136-91ae-403f-8ed6-07e9dee603aa] succeeded in 0.031000000000858563s: {'success': True, 'session_id': 307, 'responses': 1}
+[INFO] 2026-02-22 15:27:19,895 trace Task apps.interviews.tasks.analyze_response_task[135598bd-65a6-4630-9767-be7b6a75b7f8] succeeded in 0.06199999999989814s: {'success': True, 'response_id': 201, 'quality_score': 42.12}
+[INFO] 2026-02-22 15:27:19,919 trace Task apps.interviews.tasks.generate_session_summary_task[d19d2072-63a7-4aba-95ed-e0be3ea400c9] succeeded in 0.0s: {'success': True, 'session_id': 307, 'responses': 1}
+[WARNING] 2026-02-22 15:27:23,307 log Forbidden: /api/interviews/sessions/analytics-dashboard/
+[WARNING] 2026-02-22 15:27:23,307 log Forbidden: /api/interviews/sessions/compare/
+[WARNING] 2026-02-22 15:27:23,307 log Forbidden: /api/interviews/sessions/generate-flags/
+[INFO] 2026-02-22 15:27:30,425 trace Task apps.interviews.tasks.generate_session_summary_task[64397e39-dbd3-45c1-aca4-8266d0ae3073] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 310, 'responses': 1}
+[INFO] 2026-02-22 15:27:30,425 trace Task apps.interviews.tasks.analyze_response_task[d5677ded-0066-46cb-b491-a230cda590ba] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 204, 'quality_score': 45.38}
+[WARNING] 2026-02-22 15:27:32,849 log Bad Request: /api/interviews/sessions/311/save-exchange/
+[INFO] 2026-02-22 15:27:37,202 trace Task apps.interviews.tasks.generate_session_summary_task[f940d9f0-b744-45c4-95b6-32598c53e196] succeeded in 0.0s: {'success': True, 'session_id': 313, 'responses': 1}
+[INFO] 2026-02-22 15:27:37,202 trace Task apps.interviews.tasks.analyze_response_task[f420ec0b-41aa-43ed-877e-22e44c8a45ff] succeeded in 0.015000000001236913s: {'success': True, 'response_id': 206, 'quality_score': 43.5}
+[INFO] 2026-02-22 15:27:38,460 trace Task apps.interviews.tasks.generate_session_summary_task[d4d33d3d-66a2-4192-8ff7-efcd39040c92] succeeded in 0.0s: {'success': True, 'session_id': 314, 'responses': 1}
+[INFO] 2026-02-22 15:27:38,460 trace Task apps.interviews.tasks.analyze_response_task[c45d8d4d-8444-4f56-b3da-84e10c36fc2b] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 207, 'quality_score': 36.62}
+[INFO] 2026-02-22 15:27:40,642 trace Task apps.interviews.tasks.generate_session_summary_task[c97998a5-650a-4411-bd6a-9b9192abede3] succeeded in 0.014999999999417923s: {'success': True, 'session_id': 315, 'responses': 1}
+[INFO] 2026-02-22 15:27:40,642 trace Task apps.interviews.tasks.analyze_response_task[3828ee44-e1fe-43fb-9aa3-bf3a20edba5c] succeeded in 0.014999999999417923s: {'success': True, 'response_id': 208, 'quality_score': 43.88}
+[INFO] 2026-02-22 15:27:40,662 trace Task apps.interviews.tasks.generate_session_summary_task[11e086c6-cd3a-4fe3-a011-d88c3e54447f] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 315, 'responses': 1}
+[DEBUG] 2026-02-22 15:27:52,332 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-22 15:27:54,503 functional 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:27:54,505 functional 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:27:54,507 functional 
+def chunks(task, it, n):
+    return 1
+
+[DEBUG] 2026-02-22 15:27:54,510 functional 
+def debug_task(self):
+    return 1
+
+[DEBUG] 2026-02-22 15:27:54,512 functional 
+def xmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 15:27:54,515 functional 
+def backend_cleanup():
+    return 1
+
+[DEBUG] 2026-02-22 15:27:54,516 functional 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+[DEBUG] 2026-02-22 15:27:54,518 functional 
+def generate_session_summary_task(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:27:54,520 functional 
+def analyze_response_task(self, response_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:27:54,521 functional 
+def xstarmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 15:27:54,523 functional 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:27:54,525 functional 
+def chain(*args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:27:54,548 functional 
+def send_high_deception_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:27:54,550 functional 
+def send_critical_flags_alert(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:27:54,552 functional 
+def send_poor_response_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:27:54,554 functional 
+def send_behavioral_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:27:54,556 functional 
+def send_completion_summary(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:27:54,574 functional 
+def evaluate_case_with_rubric(self, case_id, rubric_id, evaluator_id=0):
+    return 1
+
+[DEBUG] 2026-02-22 15:27:54,577 functional 
+def auto_assign_rubric(self, case_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:27:55,262 functional 
+def send_invitation_task(self, invitation_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:27:55,262 functional 
+def verify_document_async(self, document_id):
+    return 1
+
+[INFO] 2026-02-22 15:27:55,456 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[WARNING] 2026-02-22 15:28:10,342 log Forbidden: /api/admin/dashboard/
+[WARNING] 2026-02-22 15:28:12,640 connection No hostname was supplied. Reverting to default 'localhost'
+[INFO] 2026-02-22 15:28:12,717 trace Task apps.applications.tasks.verify_document_async[7de5f018-5503-496e-8037-b6403c6709d5] succeeded in 0.06300000000010186s: {'success': True, 'document_id': 39, 'status': 'verified', 'verification_result_id': 39}
+[WARNING] 2026-02-22 15:28:14,896 log Bad Request: /api/applications/cases/
+[WARNING] 2026-02-22 15:28:25,084 log Bad Request: /api/audit/logs/by_entity/
+[WARNING] 2026-02-22 15:28:37,087 log Bad Request: /api/auth/password-reset-confirm/
+[WARNING] 2026-02-22 15:28:43,625 log Not Found: /api/auth/google/login/
+[WARNING] 2026-02-22 15:28:43,627 log Not Found: /api/auth/github/login/
+[WARNING] 2026-02-22 15:28:52,139 log Not Found: /api/campaigns/403/
+[WARNING] 2026-02-22 15:29:01,933 log Forbidden: /api/enrollments/
+[WARNING] 2026-02-22 15:29:17,606 log Bad Request: /api/fraud/consistency/history/
+[WARNING] 2026-02-22 15:29:44,010 log Unauthorized: /api/interviews/sessions/
+[INFO] 2026-02-22 15:29:48,291 trace Task apps.interviews.tasks.generate_session_summary_task[bc6352ec-940c-4e3a-9d4d-2d463ff70611] succeeded in 0.0s: {'success': True, 'session_id': 318, 'responses': 1}
+[INFO] 2026-02-22 15:29:48,291 trace Task apps.interviews.tasks.analyze_response_task[6b647f6c-c000-4b1e-b69c-b09688a78d93] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 209, 'quality_score': 40.62}
+[INFO] 2026-02-22 15:29:50,578 trace Task apps.interviews.tasks.generate_session_summary_task[8c9cdd6d-55c6-44e6-b896-4fade0b9bffd] succeeded in 0.0s: {'success': True, 'session_id': 319, 'responses': 1}
+[INFO] 2026-02-22 15:29:50,579 trace Task apps.interviews.tasks.analyze_response_task[606e18a8-9cba-4688-9d14-15b05938ffb2] succeeded in 0.04700000000048021s: {'success': True, 'response_id': 210, 'quality_score': 42.12}
+[INFO] 2026-02-22 15:29:50,594 trace Task apps.interviews.tasks.generate_session_summary_task[01f2e632-e5a2-450a-9018-2df335db5423] succeeded in 0.0s: {'success': True, 'session_id': 319, 'responses': 1}
+[WARNING] 2026-02-22 15:29:52,870 log Forbidden: /api/interviews/sessions/analytics-dashboard/
+[WARNING] 2026-02-22 15:29:52,872 log Forbidden: /api/interviews/sessions/compare/
+[WARNING] 2026-02-22 15:29:52,874 log Forbidden: /api/interviews/sessions/generate-flags/
+[INFO] 2026-02-22 15:29:59,874 trace Task apps.interviews.tasks.generate_session_summary_task[7ca8729d-c22c-4ca9-aca6-d5c929772e76] succeeded in 0.0s: {'success': True, 'session_id': 322, 'responses': 1}
+[INFO] 2026-02-22 15:29:59,875 trace Task apps.interviews.tasks.analyze_response_task[56f9060a-3ef5-4d4a-a861-3ab42dcb8efe] succeeded in 0.0s: {'success': True, 'response_id': 213, 'quality_score': 45.38}
+[WARNING] 2026-02-22 15:30:02,387 log Bad Request: /api/interviews/sessions/323/save-exchange/
+[INFO] 2026-02-22 15:30:06,400 trace Task apps.interviews.tasks.generate_session_summary_task[4c356034-60e8-4e7d-bf4d-30611b8120b5] succeeded in 0.0s: {'success': True, 'session_id': 325, 'responses': 1}
+[INFO] 2026-02-22 15:30:06,401 trace Task apps.interviews.tasks.analyze_response_task[0a923080-0cd3-403b-a919-9ea742d148c8] succeeded in 0.014999999999417923s: {'success': True, 'response_id': 215, 'quality_score': 43.5}
+[INFO] 2026-02-22 15:30:07,508 trace Task apps.interviews.tasks.generate_session_summary_task[7c862d9a-ecf4-4ce7-b6f7-cad8e2a25fa0] succeeded in 0.01600000000144064s: {'success': True, 'session_id': 326, 'responses': 1}
+[INFO] 2026-02-22 15:30:07,509 trace Task apps.interviews.tasks.analyze_response_task[37bf2a17-3602-4f38-bacd-a32e21c36b4c] succeeded in 0.01600000000144064s: {'success': True, 'response_id': 216, 'quality_score': 36.62}
+[INFO] 2026-02-22 15:30:10,285 trace Task apps.interviews.tasks.generate_session_summary_task[e01c198f-fe85-4114-8379-017dd871ac40] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 327, 'responses': 1}
+[INFO] 2026-02-22 15:30:10,286 trace Task apps.interviews.tasks.analyze_response_task[c663b255-978b-46a9-9f80-e1c9e1a05803] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 217, 'quality_score': 43.88}
+[INFO] 2026-02-22 15:30:10,302 trace Task apps.interviews.tasks.generate_session_summary_task[b3fc299d-77cd-4e29-8d75-0b6dad51abeb] succeeded in 0.0s: {'success': True, 'session_id': 327, 'responses': 1}
+[WARNING] 2026-02-22 15:30:11,759 log Unauthorized: /api/invitations/access/me/
+[WARNING] 2026-02-22 15:30:13,001 log Bad Request: /api/invitations/access/consume/
+[WARNING] 2026-02-22 15:30:14,120 log Not Found: /api/invitations/access/consume/
+[INFO] 2026-02-22 15:30:16,309 trace Task apps.applications.tasks.verify_document_async[9fa025c5-1986-4810-954f-0492b2e8cfab] succeeded in 0.01599999999962165s: {'success': True, 'document_id': 40, 'status': 'verified', 'verification_result_id': 40}
+[INFO] 2026-02-22 15:30:16,389 trace Task apps.interviews.tasks.generate_session_summary_task[17deb59b-8ebd-41e2-a687-cd760b549374] succeeded in 0.0s: {'success': True, 'session_id': 328, 'responses': 1}
+[INFO] 2026-02-22 15:30:16,390 trace Task apps.interviews.tasks.analyze_response_task[f689d74a-8395-4087-90b8-aa5c81508e54] succeeded in 0.01600000000144064s: {'success': True, 'response_id': 218, 'quality_score': 44.0}
+[INFO] 2026-02-22 15:30:16,432 trace Task apps.interviews.tasks.generate_session_summary_task[62675132-64e1-4c21-a132-da93fc3b0841] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 328, 'responses': 1}
+[WARNING] 2026-02-22 15:30:19,959 log Not Found: /api/applications/cases/928/
+[WARNING] 2026-02-22 15:30:19,975 log Not Found: /api/interviews/sessions/330/
+[WARNING] 2026-02-22 15:30:19,983 log Forbidden: /api/applications/cases/
+[WARNING] 2026-02-22 15:30:19,993 log Forbidden: /api/interviews/sessions/
+[WARNING] 2026-02-22 15:30:20,004 log Forbidden: /api/interviews/responses/
+[WARNING] 2026-02-22 15:30:22,056 log Bad Request: /api/invitations/accept/
+[WARNING] 2026-02-22 15:30:24,273 log Not Found: /api/invitations/accept/
+[WARNING] 2026-02-22 15:30:26,305 log Forbidden: /api/invitations/
+[WARNING] 2026-02-22 15:30:33,305 log Bad Request: /api/ml-monitoring/history/
+[WARNING] 2026-02-22 15:30:36,128 log Bad Request: /api/ml-monitoring/history/
+[WARNING] 2026-02-22 15:30:42,349 log Forbidden: /api/ml-monitoring/
+[WARNING] 2026-02-22 15:30:46,882 interview_alerts Skipping completion summary: InterviewSession 999999 not found.
+[WARNING] 2026-02-22 15:30:46,886 interview_alerts Skipping high deception alert: InterviewSession 999999 not found.
+[WARNING] 2026-02-22 15:30:51,489 log Not Found: /api/notifications/470/archive/
+[WARNING] 2026-02-22 15:30:59,852 log Bad Request: /api/notifications/mark-as-read/
+[WARNING] 2026-02-22 15:31:04,679 services Skipping send_admin_notification: missing admin user.
+[INFO] 2026-02-22 15:31:06,990 services Email notification sent to notify-applicant@example.com
+[INFO] 2026-02-22 15:31:09,251 services Email notification sent to notify-applicant@example.com
+[ERROR] 2026-02-22 15:31:11,234 services Failed to send email notification to notify-applicant@example.com
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\apps\notifications\services.py", line 84, in _send_email_notification
+    send_mail(
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+RuntimeError: smtp down
+[INFO] 2026-02-22 15:31:15,547 services Email notification sent to notify-applicant@example.com
+[WARNING] 2026-02-22 15:31:28,394 log Bad Request: /api/rubrics/evaluations/66/override-criterion/
+[WARNING] 2026-02-22 15:31:28,399 services Cannot delete document: file_path is required.
+[ERROR] 2026-02-22 15:31:28,405 services Failed to delete S3 key=cases/C1/documents/missing.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 131, in delete_document
+    self.s3_client.delete_object(Bucket=self.bucket_name, Key=normalized_path)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[INFO] 2026-02-22 15:31:28,408 services Document deleted from S3: cases/C1/documents/a.pdf
+[ERROR] 2026-02-22 15:31:28,411 services Failed to download S3 key=cases/C1/documents/missing.pdf to path=/tmp/missing.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 148, in download_document
+    self.s3_client.download_file(self.bucket_name, normalized_path, normalized_local_path)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[INFO] 2026-02-22 15:31:28,414 services Document downloaded from S3: cases/C1/documents/a.pdf -> /tmp/a.pdf
+[ERROR] 2026-02-22 15:31:28,417 services Failed to get metadata for S3 key=cases/C1/documents/missing.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 216, in get_document_metadata
+    response = self.s3_client.head_object(Bucket=self.bucket_name, Key=normalized_path)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[WARNING] 2026-02-22 15:31:28,421 services Cannot generate presigned URL: expiration must be > 0.
+[ERROR] 2026-02-22 15:31:28,424 services Failed to generate presigned URL for key=missing/object.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 113, in get_presigned_url
+    return self.s3_client.generate_presigned_url(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[ERROR] 2026-02-22 15:31:28,431 services S3 response is truncated but missing NextContinuationToken for case=C1.
+[INFO] 2026-02-22 15:31:28,437 services Document uploaded to S3: cases/CASE-001/documents/abc123.pdf
+[DEBUG] 2026-02-22 15:37:21,356 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-22 15:37:23,489 functional 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:37:23,491 functional 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:37:23,494 functional 
+def chunks(task, it, n):
+    return 1
+
+[DEBUG] 2026-02-22 15:37:23,499 functional 
+def debug_task(self):
+    return 1
+
+[DEBUG] 2026-02-22 15:37:23,499 functional 
+def xmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 15:37:23,499 functional 
+def backend_cleanup():
+    return 1
+
+[DEBUG] 2026-02-22 15:37:23,499 functional 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+[DEBUG] 2026-02-22 15:37:23,499 functional 
+def generate_session_summary_task(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:37:23,499 functional 
+def analyze_response_task(self, response_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:37:23,511 functional 
+def xstarmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 15:37:23,512 functional 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:37:23,514 functional 
+def chain(*args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:37:23,520 functional 
+def send_high_deception_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:37:23,521 functional 
+def send_critical_flags_alert(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:37:23,524 functional 
+def send_poor_response_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:37:23,526 functional 
+def send_behavioral_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:37:23,527 functional 
+def send_completion_summary(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:37:24,309 functional 
+def send_invitation_task(self, invitation_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:37:24,322 functional 
+def verify_document_async(self, document_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:37:24,331 functional 
+def evaluate_case_with_rubric(self, case_id, rubric_id, evaluator_id=0):
+    return 1
+
+[DEBUG] 2026-02-22 15:37:24,343 functional 
+def auto_assign_rubric(self, case_id):
+    return 1
+
+[INFO] 2026-02-22 15:37:24,499 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[WARNING] 2026-02-22 15:37:26,951 log Unauthorized: /api/interviews/sessions/
+[WARNING] 2026-02-22 15:37:31,031 connection No hostname was supplied. Reverting to default 'localhost'
+[INFO] 2026-02-22 15:37:31,125 trace Task apps.interviews.tasks.generate_session_summary_task[e1004a2b-163c-4e05-8443-ec7389e0304c] succeeded in 0.07800000000133878s: {'success': True, 'session_id': 333, 'responses': 1}
+[INFO] 2026-02-22 15:37:31,125 trace Task apps.interviews.tasks.analyze_response_task[d45af6e0-ce92-447a-bbaf-b5f05429d6ec] succeeded in 0.09400000000096043s: {'success': True, 'response_id': 219, 'quality_score': 40.62}
+[INFO] 2026-02-22 15:37:33,317 trace Task apps.interviews.tasks.generate_session_summary_task[57f876ca-9f98-4e1b-8867-3a66849ec773] succeeded in 0.015000000001236913s: {'success': True, 'session_id': 334, 'responses': 1}
+[INFO] 2026-02-22 15:37:33,318 trace Task apps.interviews.tasks.analyze_response_task[6fa1a576-9eff-4064-ba67-59983ca895c1] succeeded in 0.04700000000048021s: {'success': True, 'response_id': 220, 'quality_score': 42.12}
+[INFO] 2026-02-22 15:37:33,332 trace Task apps.interviews.tasks.generate_session_summary_task[31a2ec65-958d-4cd8-b731-0e84d9712d09] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 334, 'responses': 1}
+[WARNING] 2026-02-22 15:37:35,337 log Forbidden: /api/interviews/sessions/analytics-dashboard/
+[WARNING] 2026-02-22 15:37:35,337 log Forbidden: /api/interviews/sessions/compare/
+[WARNING] 2026-02-22 15:37:35,349 log Forbidden: /api/interviews/sessions/generate-flags/
+[INFO] 2026-02-22 15:37:42,416 trace Task apps.interviews.tasks.generate_session_summary_task[fdd719c5-f7ee-4ae3-b201-f0bc685d07c5] succeeded in 0.0s: {'success': True, 'session_id': 337, 'responses': 1}
+[INFO] 2026-02-22 15:37:42,416 trace Task apps.interviews.tasks.analyze_response_task[07140de2-0b5c-42fa-9546-68f814d18ceb] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 223, 'quality_score': 45.38}
+[WARNING] 2026-02-22 15:37:44,526 log Bad Request: /api/interviews/sessions/338/save-exchange/
+[INFO] 2026-02-22 15:37:49,249 trace Task apps.interviews.tasks.generate_session_summary_task[46f8e307-1b27-4f72-8109-88c4be961521] succeeded in 0.0s: {'success': True, 'session_id': 340, 'responses': 1}
+[INFO] 2026-02-22 15:37:49,250 trace Task apps.interviews.tasks.analyze_response_task[8a06acc9-21e7-4ed5-9537-ab0ac7f64571] succeeded in 0.014999999999417923s: {'success': True, 'response_id': 225, 'quality_score': 43.5}
+[INFO] 2026-02-22 15:37:50,358 trace Task apps.interviews.tasks.generate_session_summary_task[5d66fdc2-58ed-4081-a22c-c2d7df3c7084] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 341, 'responses': 1}
+[INFO] 2026-02-22 15:37:50,358 trace Task apps.interviews.tasks.analyze_response_task[90f0f6f2-2629-4312-88cb-901382fb6a94] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 226, 'quality_score': 36.62}
+[INFO] 2026-02-22 15:37:52,925 trace Task apps.interviews.tasks.generate_session_summary_task[3af3c649-c64a-40ea-bb1f-e0ce67cea497] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 342, 'responses': 1}
+[INFO] 2026-02-22 15:37:52,925 trace Task apps.interviews.tasks.analyze_response_task[0fce38fe-51dc-4481-af14-ecb98aa2d24e] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 227, 'quality_score': 43.88}
+[INFO] 2026-02-22 15:37:52,958 trace Task apps.interviews.tasks.generate_session_summary_task[ed87173b-da04-4fc3-931e-9fc23c0086d1] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 342, 'responses': 1}
+[WARNING] 2026-02-22 15:37:53,125 interview_alerts Skipping completion summary: InterviewSession 999999 not found.
+[WARNING] 2026-02-22 15:37:53,130 interview_alerts Skipping high deception alert: InterviewSession 999999 not found.
+[WARNING] 2026-02-22 15:37:57,834 log Not Found: /api/notifications/498/archive/
+[WARNING] 2026-02-22 15:38:06,405 log Bad Request: /api/notifications/mark-as-read/
+[WARNING] 2026-02-22 15:38:10,730 services Skipping send_admin_notification: missing admin user.
+[INFO] 2026-02-22 15:38:13,399 services Email notification sent to notify-applicant@example.com
+[INFO] 2026-02-22 15:38:15,404 services Email notification sent to notify-applicant@example.com
+[ERROR] 2026-02-22 15:38:17,824 services Failed to send email notification to notify-applicant@example.com
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\apps\notifications\services.py", line 84, in _send_email_notification
+    send_mail(
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+RuntimeError: smtp down
+[INFO] 2026-02-22 15:38:22,156 services Email notification sent to notify-applicant@example.com
+[DEBUG] 2026-02-22 15:38:41,958 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-22 15:38:44,220 functional 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:38:44,222 functional 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:38:44,223 functional 
+def chunks(task, it, n):
+    return 1
+
+[DEBUG] 2026-02-22 15:38:44,225 functional 
+def debug_task(self):
+    return 1
+
+[DEBUG] 2026-02-22 15:38:44,227 functional 
+def xmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 15:38:44,229 functional 
+def backend_cleanup():
+    return 1
+
+[DEBUG] 2026-02-22 15:38:44,230 functional 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+[DEBUG] 2026-02-22 15:38:44,232 functional 
+def generate_session_summary_task(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:38:44,233 functional 
+def analyze_response_task(self, response_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:38:44,233 functional 
+def xstarmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 15:38:44,233 functional 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:38:44,233 functional 
+def chain(*args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:38:44,256 functional 
+def send_high_deception_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:38:44,256 functional 
+def send_critical_flags_alert(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:38:44,257 functional 
+def send_poor_response_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:38:44,260 functional 
+def send_behavioral_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:38:44,261 functional 
+def send_completion_summary(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:38:44,272 functional 
+def evaluate_case_with_rubric(self, case_id, rubric_id, evaluator_id=0):
+    return 1
+
+[DEBUG] 2026-02-22 15:38:44,272 functional 
+def auto_assign_rubric(self, case_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:38:45,044 functional 
+def send_invitation_task(self, invitation_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:38:45,051 functional 
+def verify_document_async(self, document_id):
+    return 1
+
+[INFO] 2026-02-22 15:38:45,171 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[WARNING] 2026-02-22 15:39:00,087 log Forbidden: /api/admin/dashboard/
+[WARNING] 2026-02-22 15:39:02,342 connection No hostname was supplied. Reverting to default 'localhost'
+[INFO] 2026-02-22 15:39:02,426 trace Task apps.applications.tasks.verify_document_async[d3106c82-870a-49ab-bb97-718e8bbeef42] succeeded in 0.07799999999951979s: {'success': True, 'document_id': 41, 'status': 'verified', 'verification_result_id': 41}
+[WARNING] 2026-02-22 15:39:04,810 log Bad Request: /api/applications/cases/
+[WARNING] 2026-02-22 15:39:14,824 log Bad Request: /api/audit/logs/by_entity/
+[WARNING] 2026-02-22 15:39:27,392 log Bad Request: /api/auth/password-reset-confirm/
+[WARNING] 2026-02-22 15:39:34,906 log Not Found: /api/auth/google/login/
+[WARNING] 2026-02-22 15:39:34,919 log Not Found: /api/auth/github/login/
+[WARNING] 2026-02-22 15:39:43,649 log Not Found: /api/campaigns/424/
+[WARNING] 2026-02-22 15:39:53,240 log Forbidden: /api/enrollments/
+[WARNING] 2026-02-22 15:40:10,023 log Bad Request: /api/fraud/consistency/history/
+[WARNING] 2026-02-22 15:40:30,168 log Unauthorized: /api/interviews/sessions/
+[INFO] 2026-02-22 15:40:35,335 trace Task apps.interviews.tasks.generate_session_summary_task[9aa92039-cc28-4d84-aee8-f54fbca1fcb9] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 345, 'responses': 1}
+[INFO] 2026-02-22 15:40:35,336 trace Task apps.interviews.tasks.analyze_response_task[f6edb62c-303a-4756-90be-c1f11f2c5401] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 228, 'quality_score': 40.62}
+[INFO] 2026-02-22 15:40:37,786 trace Task apps.interviews.tasks.generate_session_summary_task[18c16533-ca5b-4f74-a50a-99713ffdfcd4] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 346, 'responses': 1}
+[INFO] 2026-02-22 15:40:37,787 trace Task apps.interviews.tasks.analyze_response_task[bff8e2a3-09e9-4fde-a671-fdb76d96e721] succeeded in 0.030999999999039574s: {'success': True, 'response_id': 229, 'quality_score': 42.12}
+[INFO] 2026-02-22 15:40:37,804 trace Task apps.interviews.tasks.generate_session_summary_task[08cf454e-29d6-4dd5-8353-08d169cbf2a7] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 346, 'responses': 1}
+[WARNING] 2026-02-22 15:40:39,984 log Forbidden: /api/interviews/sessions/analytics-dashboard/
+[WARNING] 2026-02-22 15:40:39,986 log Forbidden: /api/interviews/sessions/compare/
+[WARNING] 2026-02-22 15:40:39,986 log Forbidden: /api/interviews/sessions/generate-flags/
+[INFO] 2026-02-22 15:40:47,006 trace Task apps.interviews.tasks.generate_session_summary_task[e763e170-1909-4b21-ba00-672b751146d6] succeeded in 0.01600000000144064s: {'success': True, 'session_id': 349, 'responses': 1}
+[INFO] 2026-02-22 15:40:47,007 trace Task apps.interviews.tasks.analyze_response_task[4a75ffb8-2fdc-42e7-9eab-753c9ad118e0] succeeded in 0.01600000000144064s: {'success': True, 'response_id': 232, 'quality_score': 45.38}
+[WARNING] 2026-02-22 15:40:49,790 log Bad Request: /api/interviews/sessions/350/save-exchange/
+[INFO] 2026-02-22 15:40:54,464 trace Task apps.interviews.tasks.generate_session_summary_task[ac72693a-a6af-4fca-94f4-3b8d8334b4fb] succeeded in 0.0s: {'success': True, 'session_id': 352, 'responses': 1}
+[INFO] 2026-02-22 15:40:54,465 trace Task apps.interviews.tasks.analyze_response_task[2a8bb9bb-fdef-4f23-9228-228451610e49] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 234, 'quality_score': 43.5}
+[INFO] 2026-02-22 15:40:55,690 trace Task apps.interviews.tasks.generate_session_summary_task[71835c6d-9067-4b1e-b057-9c8f32ebb81a] succeeded in 0.015000000001236913s: {'success': True, 'session_id': 353, 'responses': 1}
+[INFO] 2026-02-22 15:40:55,691 trace Task apps.interviews.tasks.analyze_response_task[16d45d9a-3053-4d28-a8dd-e268b937a0d4] succeeded in 0.031000000000858563s: {'success': True, 'response_id': 235, 'quality_score': 36.62}
+[INFO] 2026-02-22 15:40:58,163 trace Task apps.interviews.tasks.generate_session_summary_task[4ac6ebdc-7f19-4884-880d-63c0f7b0097e] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 354, 'responses': 1}
+[INFO] 2026-02-22 15:40:58,164 trace Task apps.interviews.tasks.analyze_response_task[8a1ab594-9386-48ab-a199-838b5bcbcb70] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 236, 'quality_score': 43.88}
+[INFO] 2026-02-22 15:40:58,184 trace Task apps.interviews.tasks.generate_session_summary_task[35df76ba-5499-4f3a-b5df-adafe1449bb7] succeeded in 0.0s: {'success': True, 'session_id': 354, 'responses': 1}
+[WARNING] 2026-02-22 15:40:59,598 log Unauthorized: /api/invitations/access/me/
+[WARNING] 2026-02-22 15:41:00,780 log Bad Request: /api/invitations/access/consume/
+[WARNING] 2026-02-22 15:41:02,137 log Not Found: /api/invitations/access/consume/
+[INFO] 2026-02-22 15:41:04,429 trace Task apps.applications.tasks.verify_document_async[a4b9cdaf-80d1-4292-b841-2f131fd54d64] succeeded in 0.0319999999992433s: {'success': True, 'document_id': 42, 'status': 'verified', 'verification_result_id': 42}
+[INFO] 2026-02-22 15:41:04,534 trace Task apps.interviews.tasks.generate_session_summary_task[6965f50e-4a80-401d-8ad8-23a3413b95ce] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 355, 'responses': 1}
+[INFO] 2026-02-22 15:41:04,534 trace Task apps.interviews.tasks.analyze_response_task[ada55f0e-1455-4c2d-895d-2fec734c7601] succeeded in 0.030999999999039574s: {'success': True, 'response_id': 237, 'quality_score': 44.0}
+[INFO] 2026-02-22 15:41:04,566 trace Task apps.interviews.tasks.generate_session_summary_task[f8bb7918-25ed-4017-8c99-a89b81d47015] succeeded in 0.0s: {'success': True, 'session_id': 355, 'responses': 1}
+[WARNING] 2026-02-22 15:41:07,979 log Not Found: /api/applications/cases/1010/
+[WARNING] 2026-02-22 15:41:07,995 log Not Found: /api/interviews/sessions/357/
+[WARNING] 2026-02-22 15:41:08,003 log Forbidden: /api/applications/cases/
+[WARNING] 2026-02-22 15:41:08,013 log Forbidden: /api/interviews/sessions/
+[WARNING] 2026-02-22 15:41:08,024 log Forbidden: /api/interviews/responses/
+[WARNING] 2026-02-22 15:41:10,188 log Bad Request: /api/invitations/accept/
+[WARNING] 2026-02-22 15:41:12,610 log Not Found: /api/invitations/accept/
+[WARNING] 2026-02-22 15:41:14,817 log Forbidden: /api/invitations/
+[WARNING] 2026-02-22 15:41:21,950 log Bad Request: /api/ml-monitoring/history/
+[WARNING] 2026-02-22 15:41:24,642 log Bad Request: /api/ml-monitoring/history/
+[WARNING] 2026-02-22 15:41:31,275 log Forbidden: /api/ml-monitoring/
+[WARNING] 2026-02-22 15:41:35,794 interview_alerts Skipping completion summary: InterviewSession 999999 not found.
+[WARNING] 2026-02-22 15:41:35,798 interview_alerts Skipping high deception alert: InterviewSession 999999 not found.
+[WARNING] 2026-02-22 15:41:40,354 log Not Found: /api/notifications/526/archive/
+[WARNING] 2026-02-22 15:41:49,080 log Bad Request: /api/notifications/mark-as-read/
+[WARNING] 2026-02-22 15:41:53,809 services Skipping send_admin_notification: missing admin user.
+[INFO] 2026-02-22 15:41:55,937 services Email notification sent to notify-applicant@example.com
+[INFO] 2026-02-22 15:41:58,299 services Email notification sent to notify-applicant@example.com
+[ERROR] 2026-02-22 15:42:00,436 services Failed to send email notification to notify-applicant@example.com
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\apps\notifications\services.py", line 84, in _send_email_notification
+    send_mail(
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+RuntimeError: smtp down
+[INFO] 2026-02-22 15:42:04,854 services Email notification sent to notify-applicant@example.com
+[WARNING] 2026-02-22 15:42:19,380 log Bad Request: /api/rubrics/evaluations/70/override-criterion/
+[WARNING] 2026-02-22 15:42:19,385 services Cannot delete document: file_path is required.
+[ERROR] 2026-02-22 15:42:19,391 services Failed to delete S3 key=cases/C1/documents/missing.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 131, in delete_document
+    self.s3_client.delete_object(Bucket=self.bucket_name, Key=normalized_path)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[INFO] 2026-02-22 15:42:19,394 services Document deleted from S3: cases/C1/documents/a.pdf
+[ERROR] 2026-02-22 15:42:19,397 services Failed to download S3 key=cases/C1/documents/missing.pdf to path=/tmp/missing.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 148, in download_document
+    self.s3_client.download_file(self.bucket_name, normalized_path, normalized_local_path)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[INFO] 2026-02-22 15:42:19,402 services Document downloaded from S3: cases/C1/documents/a.pdf -> /tmp/a.pdf
+[ERROR] 2026-02-22 15:42:19,405 services Failed to get metadata for S3 key=cases/C1/documents/missing.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 216, in get_document_metadata
+    response = self.s3_client.head_object(Bucket=self.bucket_name, Key=normalized_path)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[WARNING] 2026-02-22 15:42:19,413 services Cannot generate presigned URL: expiration must be > 0.
+[ERROR] 2026-02-22 15:42:19,417 services Failed to generate presigned URL for key=missing/object.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 113, in get_presigned_url
+    return self.s3_client.generate_presigned_url(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[ERROR] 2026-02-22 15:42:19,424 services S3 response is truncated but missing NextContinuationToken for case=C1.
+[INFO] 2026-02-22 15:42:19,429 services Document uploaded to S3: cases/CASE-001/documents/abc123.pdf
+[DEBUG] 2026-02-22 15:46:57,101 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-22 15:46:59,118 functional 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:46:59,121 functional 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:46:59,123 functional 
+def chunks(task, it, n):
+    return 1
+
+[DEBUG] 2026-02-22 15:46:59,125 functional 
+def debug_task(self):
+    return 1
+
+[DEBUG] 2026-02-22 15:46:59,126 functional 
+def xmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 15:46:59,127 functional 
+def backend_cleanup():
+    return 1
+
+[DEBUG] 2026-02-22 15:46:59,129 functional 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+[DEBUG] 2026-02-22 15:46:59,130 functional 
+def generate_session_summary_task(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:46:59,131 functional 
+def analyze_response_task(self, response_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:46:59,132 functional 
+def xstarmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 15:46:59,134 functional 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:46:59,135 functional 
+def chain(*args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:46:59,141 functional 
+def send_high_deception_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:46:59,143 functional 
+def send_critical_flags_alert(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:46:59,144 functional 
+def send_poor_response_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:46:59,145 functional 
+def send_behavioral_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:46:59,147 functional 
+def send_completion_summary(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:46:59,955 functional 
+def send_invitation_task(self, invitation_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:46:59,956 functional 
+def verify_document_async(self, document_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:47:00,062 functional 
+def evaluate_case_with_rubric(self, case_id, rubric_id, evaluator_id=0):
+    return 1
+
+[DEBUG] 2026-02-22 15:47:00,063 functional 
+def auto_assign_rubric(self, case_id):
+    return 1
+
+[INFO] 2026-02-22 15:47:00,206 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[WARNING] 2026-02-22 15:47:02,651 log Unauthorized: /api/interviews/sessions/
+[WARNING] 2026-02-22 15:47:06,432 connection No hostname was supplied. Reverting to default 'localhost'
+[INFO] 2026-02-22 15:47:06,531 trace Task apps.interviews.tasks.generate_session_summary_task[7f3d0593-4328-4c65-9af1-fa8bcf668aa0] succeeded in 0.07799999999951979s: {'success': True, 'session_id': 360, 'responses': 1}
+[INFO] 2026-02-22 15:47:06,532 trace Task apps.interviews.tasks.analyze_response_task[d0f03333-5d2a-48c3-9c1c-f12d2fa61cb4] succeeded in 0.10900000000037835s: {'success': True, 'response_id': 238, 'quality_score': 40.62}
+[INFO] 2026-02-22 15:47:08,696 trace Task apps.interviews.tasks.generate_session_summary_task[5a7c810e-2507-4f17-87c3-ebad7ab4011f] succeeded in 0.031000000000858563s: {'success': True, 'session_id': 361, 'responses': 1}
+[INFO] 2026-02-22 15:47:08,696 trace Task apps.interviews.tasks.analyze_response_task[9d3d0aef-af73-47f7-9308-80655ee53bda] succeeded in 0.04700000000048021s: {'success': True, 'response_id': 239, 'quality_score': 42.12}
+[INFO] 2026-02-22 15:47:08,719 trace Task apps.interviews.tasks.generate_session_summary_task[3500da51-dbc4-4917-983a-8d1ee2b4ae75] succeeded in 0.0s: {'success': True, 'session_id': 361, 'responses': 1}
+[WARNING] 2026-02-22 15:47:11,091 log Forbidden: /api/interviews/sessions/analytics-dashboard/
+[WARNING] 2026-02-22 15:47:11,093 log Forbidden: /api/interviews/sessions/compare/
+[WARNING] 2026-02-22 15:47:11,095 log Forbidden: /api/interviews/sessions/generate-flags/
+[INFO] 2026-02-22 15:47:18,757 trace Task apps.interviews.tasks.generate_session_summary_task[6946268a-8222-4c8c-9af2-0fe7ad64ed47] succeeded in 0.0s: {'success': True, 'session_id': 364, 'responses': 1}
+[INFO] 2026-02-22 15:47:18,757 trace Task apps.interviews.tasks.analyze_response_task[9c409a7e-2d8c-467d-914d-df531f9ae365] succeeded in 0.0s: {'success': True, 'response_id': 242, 'quality_score': 45.38}
+[WARNING] 2026-02-22 15:47:20,969 log Bad Request: /api/interviews/sessions/365/save-exchange/
+[INFO] 2026-02-22 15:47:25,597 trace Task apps.interviews.tasks.generate_session_summary_task[24f02c1e-c83b-4b81-b218-2cbdf9b52b40] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 367, 'responses': 1}
+[INFO] 2026-02-22 15:47:25,598 trace Task apps.interviews.tasks.analyze_response_task[5b54d0f4-f94a-4f95-ad8d-cc7cb32e466d] succeeded in 0.0319999999992433s: {'success': True, 'response_id': 244, 'quality_score': 43.5}
+[INFO] 2026-02-22 15:47:26,646 trace Task apps.interviews.tasks.generate_session_summary_task[11d4c250-153e-4e04-a58d-cd41b084d0fb] succeeded in 0.014999999999417923s: {'success': True, 'session_id': 368, 'responses': 1}
+[INFO] 2026-02-22 15:47:26,647 trace Task apps.interviews.tasks.analyze_response_task[40f6794d-d7e5-4424-ba58-51cfa6a48205] succeeded in 0.014999999999417923s: {'success': True, 'response_id': 245, 'quality_score': 36.62}
+[INFO] 2026-02-22 15:47:29,326 trace Task apps.interviews.tasks.generate_session_summary_task[8d4d8f6e-395f-45cf-a1ee-baf05c1a1c92] succeeded in 0.0s: {'success': True, 'session_id': 369, 'responses': 1}
+[INFO] 2026-02-22 15:47:29,326 trace Task apps.interviews.tasks.analyze_response_task[c7c267d9-c607-44d2-a93c-61c75d66234b] succeeded in 0.015000000001236913s: {'success': True, 'response_id': 246, 'quality_score': 43.88}
+[INFO] 2026-02-22 15:47:29,347 trace Task apps.interviews.tasks.generate_session_summary_task[887e15b7-f4e5-4342-b2ae-691517c0ac08] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 369, 'responses': 1}
+[WARNING] 2026-02-22 15:47:29,448 interview_alerts Skipping completion summary: InterviewSession 999999 not found.
+[WARNING] 2026-02-22 15:47:29,451 interview_alerts Skipping high deception alert: InterviewSession 999999 not found.
+[WARNING] 2026-02-22 15:47:34,031 log Not Found: /api/notifications/554/archive/
+[WARNING] 2026-02-22 15:47:42,531 log Bad Request: /api/notifications/mark-as-read/
+[WARNING] 2026-02-22 15:47:46,739 services Skipping send_admin_notification: missing admin user.
+[INFO] 2026-02-22 15:47:49,013 services Email notification sent to notify-applicant@example.com
+[INFO] 2026-02-22 15:47:51,225 services Email notification sent to notify-applicant@example.com
+[ERROR] 2026-02-22 15:47:53,326 services Failed to send email notification to notify-applicant@example.com
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\apps\notifications\services.py", line 84, in _send_email_notification
+    send_mail(
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+RuntimeError: smtp down
+[INFO] 2026-02-22 15:47:57,485 services Email notification sent to notify-applicant@example.com
+[DEBUG] 2026-02-22 15:57:29,546 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-22 15:57:31,716 functional 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:57:31,721 functional 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:57:31,727 functional 
+def chunks(task, it, n):
+    return 1
+
+[DEBUG] 2026-02-22 15:57:31,729 functional 
+def debug_task(self):
+    return 1
+
+[DEBUG] 2026-02-22 15:57:31,731 functional 
+def xmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 15:57:31,733 functional 
+def backend_cleanup():
+    return 1
+
+[DEBUG] 2026-02-22 15:57:31,742 functional 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+[DEBUG] 2026-02-22 15:57:31,744 functional 
+def generate_session_summary_task(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:57:31,747 functional 
+def analyze_response_task(self, response_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:57:31,749 functional 
+def xstarmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 15:57:31,754 functional 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:57:31,756 functional 
+def chain(*args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:57:31,763 functional 
+def send_high_deception_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:57:31,765 functional 
+def send_critical_flags_alert(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:57:31,769 functional 
+def send_poor_response_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:57:31,772 functional 
+def send_behavioral_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:57:31,775 functional 
+def send_completion_summary(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:57:32,765 functional 
+def send_invitation_task(self, invitation_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:57:32,775 functional 
+def verify_document_async(self, document_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:57:32,792 functional 
+def evaluate_case_with_rubric(self, case_id, rubric_id, evaluator_id=0):
+    return 1
+
+[DEBUG] 2026-02-22 15:57:32,793 functional 
+def auto_assign_rubric(self, case_id):
+    return 1
+
+[INFO] 2026-02-22 15:57:33,022 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[WARNING] 2026-02-22 15:57:35,160 log Unauthorized: /api/interviews/sessions/
+[WARNING] 2026-02-22 15:57:39,493 connection No hostname was supplied. Reverting to default 'localhost'
+[INFO] 2026-02-22 15:57:39,584 trace Task apps.interviews.tasks.generate_session_summary_task[912be64a-ecb9-464d-8063-f6f7d8131a97] succeeded in 0.07799999999951979s: {'success': True, 'session_id': 372, 'responses': 1}
+[INFO] 2026-02-22 15:57:39,585 trace Task apps.interviews.tasks.analyze_response_task[a68794e3-54ce-4c9d-a42d-6c8e16ac7c61] succeeded in 0.09400000000096043s: {'success': True, 'response_id': 247, 'quality_score': 40.62}
+[INFO] 2026-02-22 15:57:41,878 trace Task apps.interviews.tasks.generate_session_summary_task[5cfac523-89bc-4544-8bcd-baf61a876390] succeeded in 0.01600000000144064s: {'success': True, 'session_id': 373, 'responses': 1}
+[INFO] 2026-02-22 15:57:41,879 trace Task apps.interviews.tasks.analyze_response_task[291da910-7e86-45fc-a55a-5706d8e8d1be] succeeded in 0.04700000000048021s: {'success': True, 'response_id': 248, 'quality_score': 42.12}
+[INFO] 2026-02-22 15:57:41,892 trace Task apps.interviews.tasks.generate_session_summary_task[b0c9b9b9-7fea-4188-a1d1-18c2518ba525] succeeded in 0.014999999999417923s: {'success': True, 'session_id': 373, 'responses': 1}
+[WARNING] 2026-02-22 15:57:44,302 log Forbidden: /api/interviews/sessions/analytics-dashboard/
+[WARNING] 2026-02-22 15:57:44,303 log Forbidden: /api/interviews/sessions/compare/
+[WARNING] 2026-02-22 15:57:44,305 log Forbidden: /api/interviews/sessions/generate-flags/
+[INFO] 2026-02-22 15:57:52,193 trace Task apps.interviews.tasks.generate_session_summary_task[53af43ad-f869-4d8e-95b5-e7501e6c5dc6] succeeded in 0.015000000001236913s: {'success': True, 'session_id': 376, 'responses': 1}
+[INFO] 2026-02-22 15:57:52,194 trace Task apps.interviews.tasks.analyze_response_task[1fe67ed9-5f2f-4543-a17e-44f319c4f2f3] succeeded in 0.015000000001236913s: {'success': True, 'response_id': 251, 'quality_score': 45.38}
+[WARNING] 2026-02-22 15:57:55,419 log Bad Request: /api/interviews/sessions/377/save-exchange/
+[INFO] 2026-02-22 15:58:01,111 trace Task apps.interviews.tasks.generate_session_summary_task[02881b03-7c29-4be0-8e5f-0c45663ca3a2] succeeded in 0.014999999999417923s: {'success': True, 'session_id': 379, 'responses': 1}
+[INFO] 2026-02-22 15:58:01,112 trace Task apps.interviews.tasks.analyze_response_task[237c5747-d05f-494d-a30f-98d870148574] succeeded in 0.014999999999417923s: {'success': True, 'response_id': 253, 'quality_score': 43.5}
+[INFO] 2026-02-22 15:58:02,440 trace Task apps.interviews.tasks.generate_session_summary_task[6a0441ac-9cf8-4523-837d-2134cf98e8cc] succeeded in 0.015000000001236913s: {'success': True, 'session_id': 380, 'responses': 1}
+[INFO] 2026-02-22 15:58:02,440 trace Task apps.interviews.tasks.analyze_response_task[669b6748-1d7b-4642-806e-def03f1ac741] succeeded in 0.031000000000858563s: {'success': True, 'response_id': 254, 'quality_score': 36.62}
+[INFO] 2026-02-22 15:58:05,679 trace Task apps.interviews.tasks.generate_session_summary_task[695b9626-7c73-46c9-b6ad-1b1a86b00def] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 381, 'responses': 1}
+[INFO] 2026-02-22 15:58:05,680 trace Task apps.interviews.tasks.analyze_response_task[0ea6e873-c261-43b8-8a02-267d92ff6697] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 255, 'quality_score': 43.88}
+[INFO] 2026-02-22 15:58:05,702 trace Task apps.interviews.tasks.generate_session_summary_task[e280b55f-2520-4242-b594-e77e00a54a29] succeeded in 0.0s: {'success': True, 'session_id': 381, 'responses': 1}
+[WARNING] 2026-02-22 15:58:05,816 interview_alerts Skipping completion summary: InterviewSession 999999 not found.
+[WARNING] 2026-02-22 15:58:05,820 interview_alerts Skipping high deception alert: InterviewSession 999999 not found.
+[WARNING] 2026-02-22 15:58:10,987 log Not Found: /api/notifications/582/archive/
+[WARNING] 2026-02-22 15:58:21,382 log Bad Request: /api/notifications/mark-as-read/
+[WARNING] 2026-02-22 15:58:25,717 services Skipping send_admin_notification: missing admin user.
+[INFO] 2026-02-22 15:58:27,902 services Email notification sent to notify-applicant@example.com
+[INFO] 2026-02-22 15:58:29,908 services Email notification sent to notify-applicant@example.com
+[ERROR] 2026-02-22 15:58:31,956 services Failed to send email notification to notify-applicant@example.com
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\apps\notifications\services.py", line 84, in _send_email_notification
+    send_mail(
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+RuntimeError: smtp down
+[INFO] 2026-02-22 15:58:36,120 services Email notification sent to notify-applicant@example.com
+[DEBUG] 2026-02-22 15:58:45,638 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-22 15:58:48,028 functional 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:58:48,030 functional 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:58:48,032 functional 
+def chunks(task, it, n):
+    return 1
+
+[DEBUG] 2026-02-22 15:58:48,033 functional 
+def debug_task(self):
+    return 1
+
+[DEBUG] 2026-02-22 15:58:48,035 functional 
+def xmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 15:58:48,037 functional 
+def backend_cleanup():
+    return 1
+
+[DEBUG] 2026-02-22 15:58:48,038 functional 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+[DEBUG] 2026-02-22 15:58:48,040 functional 
+def generate_session_summary_task(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:58:48,042 functional 
+def analyze_response_task(self, response_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:58:48,044 functional 
+def xstarmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 15:58:48,046 functional 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:58:48,048 functional 
+def chain(*args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 15:58:48,058 functional 
+def send_high_deception_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:58:48,068 functional 
+def send_critical_flags_alert(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:58:48,070 functional 
+def send_poor_response_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:58:48,073 functional 
+def send_behavioral_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:58:48,075 functional 
+def send_completion_summary(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:58:48,090 functional 
+def evaluate_case_with_rubric(self, case_id, rubric_id, evaluator_id=0):
+    return 1
+
+[DEBUG] 2026-02-22 15:58:48,092 functional 
+def auto_assign_rubric(self, case_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:58:48,805 functional 
+def send_invitation_task(self, invitation_id):
+    return 1
+
+[DEBUG] 2026-02-22 15:58:48,805 functional 
+def verify_document_async(self, document_id):
+    return 1
+
+[INFO] 2026-02-22 15:58:48,943 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[WARNING] 2026-02-22 15:59:04,927 log Forbidden: /api/admin/dashboard/
+[WARNING] 2026-02-22 15:59:07,768 connection No hostname was supplied. Reverting to default 'localhost'
+[INFO] 2026-02-22 15:59:07,847 trace Task apps.applications.tasks.verify_document_async[d7e0dd5f-edd9-4370-8c10-c83e06608f20] succeeded in 0.07899999999972351s: {'success': True, 'document_id': 43, 'status': 'verified', 'verification_result_id': 43}
+[WARNING] 2026-02-22 15:59:10,617 log Bad Request: /api/applications/cases/
+[WARNING] 2026-02-22 15:59:22,626 log Bad Request: /api/audit/logs/by_entity/
+[WARNING] 2026-02-22 15:59:49,937 log Bad Request: /api/auth/password-reset-confirm/
+[WARNING] 2026-02-22 15:59:58,828 log Not Found: /api/auth/google/login/
+[WARNING] 2026-02-22 15:59:58,830 log Not Found: /api/auth/github/login/
+[WARNING] 2026-02-22 16:00:07,741 log Not Found: /api/campaigns/445/
+[WARNING] 2026-02-22 16:00:17,209 log Forbidden: /api/enrollments/
+[WARNING] 2026-02-22 16:00:33,770 log Bad Request: /api/fraud/consistency/history/
+[WARNING] 2026-02-22 16:01:03,519 log Unauthorized: /api/interviews/sessions/
+[INFO] 2026-02-22 16:01:08,576 trace Task apps.interviews.tasks.generate_session_summary_task[17d410e6-4af3-475c-9501-fde646406609] succeeded in 0.0s: {'success': True, 'session_id': 384, 'responses': 1}
+[INFO] 2026-02-22 16:01:08,577 trace Task apps.interviews.tasks.analyze_response_task[cf631cae-1797-4908-b83a-c1441c87a60e] succeeded in 0.015000000001236913s: {'success': True, 'response_id': 256, 'quality_score': 40.62}
+[INFO] 2026-02-22 16:01:11,545 trace Task apps.interviews.tasks.generate_session_summary_task[18e1e572-c7cc-4eb7-81c8-439172ee6321] succeeded in 0.0s: {'success': True, 'session_id': 385, 'responses': 1}
+[INFO] 2026-02-22 16:01:11,546 trace Task apps.interviews.tasks.analyze_response_task[7a1a2236-5b72-4bac-9775-13572f5478a7] succeeded in 0.030999999999039574s: {'success': True, 'response_id': 257, 'quality_score': 42.12}
+[INFO] 2026-02-22 16:01:11,567 trace Task apps.interviews.tasks.generate_session_summary_task[a7deb843-d278-40f7-81af-dffc2914ac1e] succeeded in 0.015000000001236913s: {'success': True, 'session_id': 385, 'responses': 1}
+[WARNING] 2026-02-22 16:01:14,973 log Forbidden: /api/interviews/sessions/analytics-dashboard/
+[WARNING] 2026-02-22 16:01:14,975 log Forbidden: /api/interviews/sessions/compare/
+[WARNING] 2026-02-22 16:01:14,977 log Forbidden: /api/interviews/sessions/generate-flags/
+[INFO] 2026-02-22 16:01:28,296 trace Task apps.interviews.tasks.generate_session_summary_task[2596446b-a24a-4748-9bc8-f6c3a3738bee] succeeded in 0.0s: {'success': True, 'session_id': 388, 'responses': 1}
+[INFO] 2026-02-22 16:01:28,297 trace Task apps.interviews.tasks.analyze_response_task[07799be6-5bd3-4019-ba8b-6948d4146b1b] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 260, 'quality_score': 45.38}
+[WARNING] 2026-02-22 16:01:35,816 log Bad Request: /api/interviews/sessions/389/save-exchange/
+[INFO] 2026-02-22 16:01:43,708 trace Task apps.interviews.tasks.generate_session_summary_task[d82e4c4c-8ab1-4615-ad3a-f7c143e50f34] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 391, 'responses': 1}
+[INFO] 2026-02-22 16:01:43,709 trace Task apps.interviews.tasks.analyze_response_task[b5cc14c6-09cb-4f99-9706-40aa7f332b97] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 262, 'quality_score': 43.5}
+[INFO] 2026-02-22 16:01:44,905 trace Task apps.interviews.tasks.generate_session_summary_task[3ee7967b-df63-460a-8b4b-ca17d4241b4b] succeeded in 0.0s: {'success': True, 'session_id': 392, 'responses': 1}
+[INFO] 2026-02-22 16:01:44,906 trace Task apps.interviews.tasks.analyze_response_task[3a61c400-60bd-4454-98f9-9512c1d1f189] succeeded in 0.014999999999417923s: {'success': True, 'response_id': 263, 'quality_score': 36.62}
+[INFO] 2026-02-22 16:01:47,273 trace Task apps.interviews.tasks.generate_session_summary_task[8d921cb3-a75c-4d47-9635-29a72a996d1c] succeeded in 0.014999999999417923s: {'success': True, 'session_id': 393, 'responses': 1}
+[INFO] 2026-02-22 16:01:47,274 trace Task apps.interviews.tasks.analyze_response_task[0f69ff86-604b-45e1-8602-ae366a044062] succeeded in 0.014999999999417923s: {'success': True, 'response_id': 264, 'quality_score': 43.88}
+[INFO] 2026-02-22 16:01:47,295 trace Task apps.interviews.tasks.generate_session_summary_task[111ce13e-a3a7-42f1-b128-9a8dccc70c3f] succeeded in 0.0s: {'success': True, 'session_id': 393, 'responses': 1}
+[WARNING] 2026-02-22 16:01:48,777 log Unauthorized: /api/invitations/access/me/
+[WARNING] 2026-02-22 16:01:49,968 log Bad Request: /api/invitations/access/consume/
+[WARNING] 2026-02-22 16:01:51,016 log Not Found: /api/invitations/access/consume/
+[INFO] 2026-02-22 16:01:53,519 trace Task apps.applications.tasks.verify_document_async[2ccb29f4-74a6-45c7-9aab-ce6bbed297dc] succeeded in 0.031000000000858563s: {'success': True, 'document_id': 44, 'status': 'verified', 'verification_result_id': 44}
+[INFO] 2026-02-22 16:01:53,654 trace Task apps.interviews.tasks.generate_session_summary_task[54a2594a-73cf-4a91-b400-217a7b3cf6d8] succeeded in 0.0s: {'success': True, 'session_id': 394, 'responses': 1}
+[INFO] 2026-02-22 16:01:53,655 trace Task apps.interviews.tasks.analyze_response_task[9de8218b-6c49-4efc-b1c5-754ca9e2d2a0] succeeded in 0.014999999999417923s: {'success': True, 'response_id': 265, 'quality_score': 44.0}
+[INFO] 2026-02-22 16:01:53,701 trace Task apps.interviews.tasks.generate_session_summary_task[5baf4102-88e2-43e3-a146-5f5de9de708b] succeeded in 0.015000000001236913s: {'success': True, 'session_id': 394, 'responses': 1}
+[WARNING] 2026-02-22 16:01:57,431 log Not Found: /api/applications/cases/1111/
+[WARNING] 2026-02-22 16:01:57,449 log Not Found: /api/interviews/sessions/396/
+[WARNING] 2026-02-22 16:01:57,457 log Forbidden: /api/applications/cases/
+[WARNING] 2026-02-22 16:01:57,467 log Forbidden: /api/interviews/sessions/
+[WARNING] 2026-02-22 16:01:57,480 log Forbidden: /api/interviews/responses/
+[WARNING] 2026-02-22 16:02:00,642 log Bad Request: /api/invitations/accept/
+[WARNING] 2026-02-22 16:02:02,969 log Not Found: /api/invitations/accept/
+[WARNING] 2026-02-22 16:02:05,589 log Forbidden: /api/invitations/
+[WARNING] 2026-02-22 16:02:12,433 log Bad Request: /api/ml-monitoring/history/
+[WARNING] 2026-02-22 16:02:14,643 log Bad Request: /api/ml-monitoring/history/
+[WARNING] 2026-02-22 16:02:21,596 log Forbidden: /api/ml-monitoring/
+[WARNING] 2026-02-22 16:02:26,424 interview_alerts Skipping completion summary: InterviewSession 999999 not found.
+[WARNING] 2026-02-22 16:02:26,427 interview_alerts Skipping high deception alert: InterviewSession 999999 not found.
+[WARNING] 2026-02-22 16:02:30,865 log Not Found: /api/notifications/610/archive/
+[WARNING] 2026-02-22 16:02:39,952 log Bad Request: /api/notifications/mark-as-read/
+[WARNING] 2026-02-22 16:02:44,158 services Skipping send_admin_notification: missing admin user.
+[INFO] 2026-02-22 16:02:46,440 services Email notification sent to notify-applicant@example.com
+[INFO] 2026-02-22 16:02:48,554 services Email notification sent to notify-applicant@example.com
+[ERROR] 2026-02-22 16:02:51,104 services Failed to send email notification to notify-applicant@example.com
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\apps\notifications\services.py", line 84, in _send_email_notification
+    send_mail(
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+RuntimeError: smtp down
+[INFO] 2026-02-22 16:02:55,609 services Email notification sent to notify-applicant@example.com
+[WARNING] 2026-02-22 16:03:09,245 log Bad Request: /api/rubrics/evaluations/74/override-criterion/
+[WARNING] 2026-02-22 16:03:09,250 services Cannot delete document: file_path is required.
+[ERROR] 2026-02-22 16:03:09,257 services Failed to delete S3 key=cases/C1/documents/missing.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 131, in delete_document
+    self.s3_client.delete_object(Bucket=self.bucket_name, Key=normalized_path)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[INFO] 2026-02-22 16:03:09,257 services Document deleted from S3: cases/C1/documents/a.pdf
+[ERROR] 2026-02-22 16:03:09,257 services Failed to download S3 key=cases/C1/documents/missing.pdf to path=/tmp/missing.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 148, in download_document
+    self.s3_client.download_file(self.bucket_name, normalized_path, normalized_local_path)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[INFO] 2026-02-22 16:03:09,268 services Document downloaded from S3: cases/C1/documents/a.pdf -> /tmp/a.pdf
+[ERROR] 2026-02-22 16:03:09,271 services Failed to get metadata for S3 key=cases/C1/documents/missing.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 216, in get_document_metadata
+    response = self.s3_client.head_object(Bucket=self.bucket_name, Key=normalized_path)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[WARNING] 2026-02-22 16:03:09,276 services Cannot generate presigned URL: expiration must be > 0.
+[ERROR] 2026-02-22 16:03:09,279 services Failed to generate presigned URL for key=missing/object.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 113, in get_presigned_url
+    return self.s3_client.generate_presigned_url(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[ERROR] 2026-02-22 16:03:09,288 services S3 response is truncated but missing NextContinuationToken for case=C1.
+[INFO] 2026-02-22 16:03:09,290 services Document uploaded to S3: cases/CASE-001/documents/abc123.pdf
+[DEBUG] 2026-02-22 16:16:48,587 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-22 16:16:50,736 selector_events Using selector: SelectSelector
+[INFO] 2026-02-22 16:16:51,701 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-22 16:16:52,296 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-22 16:17:00,692 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-22 16:17:02,100 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-22 16:17:02,100 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-22 16:17:02,100 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-22 16:17:02,100 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-22 16:17:09,238 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-22 16:17:09,280 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-22 16:17:09,285 __init__ interactive is False
+[DEBUG] 2026-02-22 16:17:09,287 __init__ platform is win32
+[DEBUG] 2026-02-22 16:17:09,383 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-22 16:17:09,406 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[INFO] 2026-02-22 16:17:22,278 server HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+[INFO] 2026-02-22 16:17:22,279 server Configuring endpoint tcp:port=8000:interface=127.0.0.1
+[INFO] 2026-02-22 16:17:22,281 server Listening on TCP address 127.0.0.1:8000
+[DEBUG] 2026-02-22 16:18:11,355 http_protocol HTTP b'GET' request for ['127.0.0.1', 54123]
+[WARNING] 2026-02-22 16:18:11,444 log Not Found: /
+[DEBUG] 2026-02-22 16:18:11,460 http_protocol HTTP 404 response started for ['127.0.0.1', 54123]
+[DEBUG] 2026-02-22 16:18:11,460 http_protocol HTTP close for ['127.0.0.1', 54123]
+[DEBUG] 2026-02-22 16:18:11,460 http_protocol HTTP response complete for ['127.0.0.1', 54123]
+[WARNING] 2026-02-22 16:18:11,460 runserver [33mHTTP GET / 404 [0.10, 127.0.0.1:54123][0m
+[DEBUG] 2026-02-22 16:18:12,019 http_protocol HTTP b'GET' request for ['127.0.0.1', 54123]
+[WARNING] 2026-02-22 16:18:12,054 log Not Found: /favicon.ico
+[DEBUG] 2026-02-22 16:18:12,056 http_protocol HTTP 404 response started for ['127.0.0.1', 54123]
+[DEBUG] 2026-02-22 16:18:12,057 http_protocol HTTP close for ['127.0.0.1', 54123]
+[DEBUG] 2026-02-22 16:18:12,059 http_protocol HTTP response complete for ['127.0.0.1', 54123]
+[WARNING] 2026-02-22 16:18:12,063 runserver [33mHTTP GET /favicon.ico 404 [0.04, 127.0.0.1:54123][0m
+[DEBUG] 2026-02-22 16:18:21,190 http_protocol HTTP b'GET' request for ['127.0.0.1', 54123]
+[WARNING] 2026-02-22 16:18:21,221 log Not Found: /api/docs/
+[DEBUG] 2026-02-22 16:18:21,222 http_protocol HTTP 404 response started for ['127.0.0.1', 54123]
+[DEBUG] 2026-02-22 16:18:21,223 http_protocol HTTP close for ['127.0.0.1', 54123]
+[DEBUG] 2026-02-22 16:18:21,223 http_protocol HTTP response complete for ['127.0.0.1', 54123]
+[WARNING] 2026-02-22 16:18:21,224 runserver [33mHTTP GET /api/docs/ 404 [0.03, 127.0.0.1:54123][0m
+[DEBUG] 2026-02-22 16:18:28,389 http_protocol HTTP b'GET' request for ['127.0.0.1', 54123]
+[WARNING] 2026-02-22 16:18:28,488 base Session data corrupted
+[DEBUG] 2026-02-22 16:18:28,634 http_protocol HTTP 200 response started for ['127.0.0.1', 54123]
+[DEBUG] 2026-02-22 16:18:28,635 http_protocol HTTP close for ['127.0.0.1', 54123]
+[DEBUG] 2026-02-22 16:18:28,636 http_protocol HTTP response complete for ['127.0.0.1', 54123]
+[INFO] 2026-02-22 16:18:28,636 runserver [mHTTP GET /api/schema/swagger-ui/ 200 [0.25, 127.0.0.1:54123][0m
+[DEBUG] 2026-02-22 16:18:29,066 http_protocol HTTP b'GET' request for ['127.0.0.1', 54123]
+[WARNING] 2026-02-22 16:18:29,217 base Session data corrupted
+[DEBUG] 2026-02-22 16:18:29,807 http_protocol HTTP 200 response started for ['127.0.0.1', 54123]
+[DEBUG] 2026-02-22 16:18:29,808 http_protocol HTTP response chunk for ['127.0.0.1', 54123]
+[DEBUG] 2026-02-22 16:18:29,809 http_protocol HTTP response chunk for ['127.0.0.1', 54123]
+[DEBUG] 2026-02-22 16:18:29,809 http_protocol HTTP response chunk for ['127.0.0.1', 54123]
+[DEBUG] 2026-02-22 16:18:29,810 http_protocol HTTP response chunk for ['127.0.0.1', 54123]
+[DEBUG] 2026-02-22 16:18:29,813 http_protocol HTTP response chunk for ['127.0.0.1', 54123]
+[DEBUG] 2026-02-22 16:18:29,814 http_protocol HTTP response chunk for ['127.0.0.1', 54123]
+[DEBUG] 2026-02-22 16:18:29,815 http_protocol HTTP close for ['127.0.0.1', 54123]
+[DEBUG] 2026-02-22 16:18:29,815 http_protocol HTTP response complete for ['127.0.0.1', 54123]
+[INFO] 2026-02-22 16:18:29,816 runserver [mHTTP GET /api/schema/ 200 [0.75, 127.0.0.1:54123][0m
+[DEBUG] 2026-02-22 16:25:33,164 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-22 16:25:33,364 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-22 16:25:33,381 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-22 16:25:33,530 selector_events Using selector: SelectSelector
+[INFO] 2026-02-22 16:25:37,137 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[INFO] 2026-02-22 16:25:37,150 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[INFO] 2026-02-22 16:25:37,417 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-22 16:25:39,276 functional 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 16:25:39,276 functional 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 16:25:39,276 functional 
+def chunks(task, it, n):
+    return 1
+
+[DEBUG] 2026-02-22 16:25:39,276 functional 
+def debug_task(self):
+    return 1
+
+[DEBUG] 2026-02-22 16:25:39,276 functional 
+def xmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 16:25:39,276 functional 
+def backend_cleanup():
+    return 1
+
+[DEBUG] 2026-02-22 16:25:39,293 functional 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+[DEBUG] 2026-02-22 16:25:39,293 functional 
+def generate_session_summary_task(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:25:39,293 functional 
+def analyze_response_task(self, response_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:25:39,293 functional 
+def xstarmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 16:25:39,293 functional 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 16:25:39,293 functional 
+def chain(*args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 16:25:39,342 functional 
+def send_high_deception_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:25:39,342 functional 
+def send_critical_flags_alert(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:25:39,342 functional 
+def send_poor_response_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:25:39,342 functional 
+def send_behavioral_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:25:39,342 functional 
+def send_completion_summary(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:25:39,375 functional 
+def evaluate_case_with_rubric(self, case_id, rubric_id, evaluator_id=0):
+    return 1
+
+[DEBUG] 2026-02-22 16:25:39,375 functional 
+def auto_assign_rubric(self, case_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:25:40,754 functional 
+def send_invitation_task(self, invitation_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:25:40,758 functional 
+def verify_document_async(self, document_id):
+    return 1
+
+[INFO] 2026-02-22 16:25:41,010 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[WARNING] 2026-02-22 16:25:58,053 log Forbidden: /api/admin/dashboard/
+[WARNING] 2026-02-22 16:26:00,540 connection No hostname was supplied. Reverting to default 'localhost'
+[INFO] 2026-02-22 16:26:00,613 trace Task apps.applications.tasks.verify_document_async[34cb0d74-509c-406a-84bd-8db14254f6cd] succeeded in 0.07799999999951979s: {'success': True, 'document_id': 45, 'status': 'verified', 'verification_result_id': 45}
+[WARNING] 2026-02-22 16:26:02,781 log Bad Request: /api/applications/cases/
+[WARNING] 2026-02-22 16:26:15,220 log Bad Request: /api/audit/logs/by_entity/
+[WARNING] 2026-02-22 16:26:29,270 log Bad Request: /api/auth/password-reset-confirm/
+[WARNING] 2026-02-22 16:26:36,468 log Not Found: /api/auth/google/login/
+[WARNING] 2026-02-22 16:26:36,470 log Not Found: /api/auth/github/login/
+[WARNING] 2026-02-22 16:26:46,239 log Not Found: /api/campaigns/466/
+[WARNING] 2026-02-22 16:26:57,024 log Forbidden: /api/enrollments/
+[WARNING] 2026-02-22 16:27:15,166 log Bad Request: /api/fraud/consistency/history/
+[WARNING] 2026-02-22 16:27:37,725 log Unauthorized: /api/interviews/sessions/
+[INFO] 2026-02-22 16:27:42,659 trace Task apps.interviews.tasks.generate_session_summary_task[6803f1fd-5c89-4802-8331-9ca77876e3e6] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 399, 'responses': 1}
+[INFO] 2026-02-22 16:27:42,659 trace Task apps.interviews.tasks.analyze_response_task[bfc9f231-e32b-4d30-a213-430594a8f060] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 266, 'quality_score': 40.62}
+[INFO] 2026-02-22 16:27:45,175 trace Task apps.interviews.tasks.generate_session_summary_task[ead24e2e-f10a-4df3-b05d-c00fbe0a308c] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 400, 'responses': 1}
+[INFO] 2026-02-22 16:27:45,175 trace Task apps.interviews.tasks.analyze_response_task[408a9d0a-2989-4c5b-983b-34fed313afdd] succeeded in 0.046999999998661224s: {'success': True, 'response_id': 267, 'quality_score': 42.12}
+[INFO] 2026-02-22 16:27:45,191 trace Task apps.interviews.tasks.generate_session_summary_task[8fe5b5f8-1838-40a7-bff6-0fd2d78ab65d] succeeded in 0.015000000001236913s: {'success': True, 'session_id': 400, 'responses': 1}
+[WARNING] 2026-02-22 16:27:47,912 log Forbidden: /api/interviews/sessions/analytics-dashboard/
+[WARNING] 2026-02-22 16:27:47,912 log Forbidden: /api/interviews/sessions/compare/
+[WARNING] 2026-02-22 16:27:47,912 log Forbidden: /api/interviews/sessions/generate-flags/
+[INFO] 2026-02-22 16:27:55,716 trace Task apps.interviews.tasks.generate_session_summary_task[60c4309d-3679-4a75-9d68-2fa71a041295] succeeded in 0.0s: {'success': True, 'session_id': 403, 'responses': 1}
+[INFO] 2026-02-22 16:27:55,717 trace Task apps.interviews.tasks.analyze_response_task[8f2438e3-0166-4324-acd3-e2281dc2b6f5] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 270, 'quality_score': 45.38}
+[WARNING] 2026-02-22 16:27:58,140 log Bad Request: /api/interviews/sessions/404/save-exchange/
+[INFO] 2026-02-22 16:28:02,960 trace Task apps.interviews.tasks.generate_session_summary_task[ba8382b9-659f-41da-9ded-3d98eb10ea81] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 406, 'responses': 1}
+[INFO] 2026-02-22 16:28:02,960 trace Task apps.interviews.tasks.analyze_response_task[b4d88027-15f9-45ae-8bea-8f977ad51b2e] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 272, 'quality_score': 43.5}
+[INFO] 2026-02-22 16:28:04,142 trace Task apps.interviews.tasks.generate_session_summary_task[90a94cc9-e75e-496d-8eea-7df4ccae5efe] succeeded in 0.0s: {'success': True, 'session_id': 407, 'responses': 1}
+[INFO] 2026-02-22 16:28:04,156 trace Task apps.interviews.tasks.analyze_response_task[460aaa87-3b84-4f11-b634-ddbe84280ed9] succeeded in 0.031000000000858563s: {'success': True, 'response_id': 273, 'quality_score': 36.62}
+[INFO] 2026-02-22 16:28:06,707 trace Task apps.interviews.tasks.generate_session_summary_task[54f42e9f-1d90-4143-a93d-634d8115d662] succeeded in 0.0s: {'success': True, 'session_id': 408, 'responses': 1}
+[INFO] 2026-02-22 16:28:06,720 trace Task apps.interviews.tasks.analyze_response_task[86388d27-a744-47db-831d-3104143eff7c] succeeded in 0.0319999999992433s: {'success': True, 'response_id': 274, 'quality_score': 43.88}
+[INFO] 2026-02-22 16:28:06,740 trace Task apps.interviews.tasks.generate_session_summary_task[8a930836-08af-4936-8cad-644b686d54aa] succeeded in 0.0s: {'success': True, 'session_id': 408, 'responses': 1}
+[WARNING] 2026-02-22 16:28:08,135 log Unauthorized: /api/invitations/access/me/
+[WARNING] 2026-02-22 16:28:09,346 log Bad Request: /api/invitations/access/consume/
+[WARNING] 2026-02-22 16:28:10,502 log Not Found: /api/invitations/access/consume/
+[INFO] 2026-02-22 16:28:13,590 trace Task apps.applications.tasks.verify_document_async[fada2fa8-3d57-498b-aeb1-fa425088dea7] succeeded in 0.01599999999962165s: {'success': True, 'document_id': 46, 'status': 'verified', 'verification_result_id': 46}
+[INFO] 2026-02-22 16:28:13,671 trace Task apps.interviews.tasks.generate_session_summary_task[9ee0f948-5587-476c-a1cb-b9a2c55dca42] succeeded in 0.0s: {'success': True, 'session_id': 409, 'responses': 1}
+[INFO] 2026-02-22 16:28:13,671 trace Task apps.interviews.tasks.analyze_response_task[c6478d57-17e8-4cbc-8928-04b723915afa] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 275, 'quality_score': 44.0}
+[INFO] 2026-02-22 16:28:13,700 trace Task apps.interviews.tasks.generate_session_summary_task[bd31d9ff-53ba-41a3-b5d0-9d53eb1813e7] succeeded in 0.0s: {'success': True, 'session_id': 409, 'responses': 1}
+[WARNING] 2026-02-22 16:28:17,249 log Not Found: /api/applications/cases/1174/
+[WARNING] 2026-02-22 16:28:17,265 log Not Found: /api/interviews/sessions/411/
+[WARNING] 2026-02-22 16:28:17,288 log Forbidden: /api/applications/cases/
+[WARNING] 2026-02-22 16:28:17,302 log Forbidden: /api/interviews/sessions/
+[WARNING] 2026-02-22 16:28:17,318 log Forbidden: /api/interviews/responses/
+[WARNING] 2026-02-22 16:28:19,813 log Bad Request: /api/invitations/accept/
+[WARNING] 2026-02-22 16:28:22,111 log Not Found: /api/invitations/accept/
+[WARNING] 2026-02-22 16:28:24,708 log Forbidden: /api/invitations/
+[WARNING] 2026-02-22 16:28:31,946 log Bad Request: /api/ml-monitoring/history/
+[WARNING] 2026-02-22 16:28:34,229 log Bad Request: /api/ml-monitoring/history/
+[WARNING] 2026-02-22 16:28:41,428 log Forbidden: /api/ml-monitoring/
+[WARNING] 2026-02-22 16:28:46,343 interview_alerts Skipping completion summary: InterviewSession 999999 not found.
+[WARNING] 2026-02-22 16:28:46,343 interview_alerts Skipping high deception alert: InterviewSession 999999 not found.
+[WARNING] 2026-02-22 16:28:50,935 log Not Found: /api/notifications/638/archive/
+[WARNING] 2026-02-22 16:29:00,428 log Bad Request: /api/notifications/mark-as-read/
+[WARNING] 2026-02-22 16:29:05,605 services Skipping send_admin_notification: missing admin user.
+[INFO] 2026-02-22 16:29:08,773 services Email notification sent to notify-applicant@example.com
+[INFO] 2026-02-22 16:29:11,469 services Email notification sent to notify-applicant@example.com
+[ERROR] 2026-02-22 16:29:14,851 services Failed to send email notification to notify-applicant@example.com
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\apps\notifications\services.py", line 84, in _send_email_notification
+    send_mail(
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+RuntimeError: smtp down
+[INFO] 2026-02-22 16:29:21,512 services Email notification sent to notify-applicant@example.com
+[WARNING] 2026-02-22 16:29:45,994 log Bad Request: /api/rubrics/evaluations/78/override-criterion/
+[WARNING] 2026-02-22 16:29:46,000 services Cannot delete document: file_path is required.
+[ERROR] 2026-02-22 16:29:46,007 services Failed to delete S3 key=cases/C1/documents/missing.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 131, in delete_document
+    self.s3_client.delete_object(Bucket=self.bucket_name, Key=normalized_path)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[INFO] 2026-02-22 16:29:46,013 services Document deleted from S3: cases/C1/documents/a.pdf
+[ERROR] 2026-02-22 16:29:46,016 services Failed to download S3 key=cases/C1/documents/missing.pdf to path=/tmp/missing.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 148, in download_document
+    self.s3_client.download_file(self.bucket_name, normalized_path, normalized_local_path)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[INFO] 2026-02-22 16:29:46,021 services Document downloaded from S3: cases/C1/documents/a.pdf -> /tmp/a.pdf
+[ERROR] 2026-02-22 16:29:46,025 services Failed to get metadata for S3 key=cases/C1/documents/missing.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 216, in get_document_metadata
+    response = self.s3_client.head_object(Bucket=self.bucket_name, Key=normalized_path)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[WARNING] 2026-02-22 16:29:46,034 services Cannot generate presigned URL: expiration must be > 0.
+[ERROR] 2026-02-22 16:29:46,039 services Failed to generate presigned URL for key=missing/object.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 113, in get_presigned_url
+    return self.s3_client.generate_presigned_url(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[ERROR] 2026-02-22 16:29:46,051 services S3 response is truncated but missing NextContinuationToken for case=C1.
+[INFO] 2026-02-22 16:29:46,063 services Document uploaded to S3: cases/CASE-001/documents/abc123.pdf
+[DEBUG] 2026-02-22 16:30:41,517 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-22 16:30:41,612 selector_events Using selector: SelectSelector
+[INFO] 2026-02-22 16:30:44,168 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[INFO] 2026-02-22 16:30:44,359 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-22 16:30:56,511 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-22 16:30:58,792 functional 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 16:30:58,793 functional 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 16:30:58,794 functional 
+def chunks(task, it, n):
+    return 1
+
+[DEBUG] 2026-02-22 16:30:58,797 functional 
+def debug_task(self):
+    return 1
+
+[DEBUG] 2026-02-22 16:30:58,799 functional 
+def xmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 16:30:58,800 functional 
+def backend_cleanup():
+    return 1
+
+[DEBUG] 2026-02-22 16:30:58,801 functional 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+[DEBUG] 2026-02-22 16:30:58,803 functional 
+def generate_session_summary_task(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:30:58,804 functional 
+def analyze_response_task(self, response_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:30:58,805 functional 
+def xstarmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 16:30:58,806 functional 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 16:30:58,808 functional 
+def chain(*args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 16:30:58,816 functional 
+def send_high_deception_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:30:58,816 functional 
+def send_critical_flags_alert(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:30:58,830 functional 
+def send_poor_response_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:30:58,831 functional 
+def send_behavioral_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:30:58,832 functional 
+def send_completion_summary(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:30:58,842 functional 
+def evaluate_case_with_rubric(self, case_id, rubric_id, evaluator_id=0):
+    return 1
+
+[DEBUG] 2026-02-22 16:30:58,843 functional 
+def auto_assign_rubric(self, case_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:30:59,716 functional 
+def send_invitation_task(self, invitation_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:30:59,724 functional 
+def verify_document_async(self, document_id):
+    return 1
+
+[INFO] 2026-02-22 16:30:59,863 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[WARNING] 2026-02-22 16:31:16,113 log Forbidden: /api/admin/dashboard/
+[WARNING] 2026-02-22 16:31:18,453 connection No hostname was supplied. Reverting to default 'localhost'
+[INFO] 2026-02-22 16:31:18,524 trace Task apps.applications.tasks.verify_document_async[293ae7f9-7738-4f6a-9fff-259a97c11ee8] succeeded in 0.06199999999989814s: {'success': True, 'document_id': 47, 'status': 'verified', 'verification_result_id': 47}
+[WARNING] 2026-02-22 16:31:20,932 log Bad Request: /api/applications/cases/
+[WARNING] 2026-02-22 16:31:31,655 log Bad Request: /api/audit/logs/by_entity/
+[WARNING] 2026-02-22 16:31:44,988 log Bad Request: /api/auth/password-reset-confirm/
+[WARNING] 2026-02-22 16:31:51,925 log Not Found: /api/auth/google/login/
+[WARNING] 2026-02-22 16:31:51,927 log Not Found: /api/auth/github/login/
+[WARNING] 2026-02-22 16:32:01,745 log Not Found: /api/campaigns/487/
+[WARNING] 2026-02-22 16:32:12,289 log Forbidden: /api/enrollments/
+[WARNING] 2026-02-22 16:32:29,956 log Bad Request: /api/fraud/consistency/history/
+[WARNING] 2026-02-22 16:32:51,868 log Unauthorized: /api/interviews/sessions/
+[INFO] 2026-02-22 16:32:57,133 trace Task apps.interviews.tasks.generate_session_summary_task[9aafc7d9-d5ee-4a30-883e-72ef6330e74a] succeeded in 0.01600000000144064s: {'success': True, 'session_id': 414, 'responses': 1}
+[INFO] 2026-02-22 16:32:57,134 trace Task apps.interviews.tasks.analyze_response_task[d8598e89-a4bf-4552-bb62-1364d03b1efd] succeeded in 0.031000000000858563s: {'success': True, 'response_id': 276, 'quality_score': 40.62}
+[INFO] 2026-02-22 16:32:59,885 trace Task apps.interviews.tasks.generate_session_summary_task[8277a018-b90e-4bfd-9acb-01f4b1f270b4] succeeded in 0.01600000000144064s: {'success': True, 'session_id': 415, 'responses': 1}
+[INFO] 2026-02-22 16:32:59,885 trace Task apps.interviews.tasks.analyze_response_task[56ae85fc-1d12-4c75-97d0-f4a9bd8d81b5] succeeded in 0.04700000000048021s: {'success': True, 'response_id': 277, 'quality_score': 42.12}
+[INFO] 2026-02-22 16:32:59,903 trace Task apps.interviews.tasks.generate_session_summary_task[1b646cdc-12a1-4073-b6ee-2050f53d65eb] succeeded in 0.0s: {'success': True, 'session_id': 415, 'responses': 1}
+[WARNING] 2026-02-22 16:33:02,368 log Forbidden: /api/interviews/sessions/analytics-dashboard/
+[WARNING] 2026-02-22 16:33:02,369 log Forbidden: /api/interviews/sessions/compare/
+[WARNING] 2026-02-22 16:33:02,371 log Forbidden: /api/interviews/sessions/generate-flags/
+[INFO] 2026-02-22 16:33:09,390 trace Task apps.interviews.tasks.generate_session_summary_task[4cfafa22-4318-4733-8474-3b18fdac7a76] succeeded in 0.0s: {'success': True, 'session_id': 418, 'responses': 1}
+[INFO] 2026-02-22 16:33:09,391 trace Task apps.interviews.tasks.analyze_response_task[4aca09a7-280f-43f3-9be8-58627f9156a8] succeeded in 0.031000000000858563s: {'success': True, 'response_id': 280, 'quality_score': 45.38}
+[WARNING] 2026-02-22 16:33:11,796 log Bad Request: /api/interviews/sessions/419/save-exchange/
+[INFO] 2026-02-22 16:33:17,325 trace Task apps.interviews.tasks.generate_session_summary_task[af8b6348-065a-4faa-9d3a-94329e5a636e] succeeded in 0.0s: {'success': True, 'session_id': 421, 'responses': 1}
+[INFO] 2026-02-22 16:33:17,326 trace Task apps.interviews.tasks.analyze_response_task[b032429e-d4eb-482d-a182-e80a04f3363b] succeeded in 0.015000000001236913s: {'success': True, 'response_id': 282, 'quality_score': 43.5}
+[INFO] 2026-02-22 16:33:18,456 trace Task apps.interviews.tasks.generate_session_summary_task[afac5489-3ee2-410d-b9d0-1759fe00bf98] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 422, 'responses': 1}
+[INFO] 2026-02-22 16:33:18,456 trace Task apps.interviews.tasks.analyze_response_task[8fbe3662-840f-4ba4-b88e-ab7c4810658b] succeeded in 0.031000000000858563s: {'success': True, 'response_id': 283, 'quality_score': 36.62}
+[INFO] 2026-02-22 16:33:20,914 trace Task apps.interviews.tasks.generate_session_summary_task[f0e162fa-7987-4b01-8a44-c982a0549406] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 423, 'responses': 1}
+[INFO] 2026-02-22 16:33:20,915 trace Task apps.interviews.tasks.analyze_response_task[c2ed5f91-9fe8-4ced-8017-f3589bc69967] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 284, 'quality_score': 43.88}
+[INFO] 2026-02-22 16:33:20,938 trace Task apps.interviews.tasks.generate_session_summary_task[b082ff8c-1be7-4e05-a6ba-7be30ab4d077] succeeded in 0.015000000001236913s: {'success': True, 'session_id': 423, 'responses': 1}
+[WARNING] 2026-02-22 16:33:22,301 log Unauthorized: /api/invitations/access/me/
+[WARNING] 2026-02-22 16:33:23,383 log Bad Request: /api/invitations/access/consume/
+[WARNING] 2026-02-22 16:33:24,832 log Not Found: /api/invitations/access/consume/
+[INFO] 2026-02-22 16:33:27,439 trace Task apps.applications.tasks.verify_document_async[f4e15d1d-d844-4494-83f3-1ed659649416] succeeded in 0.031000000000858563s: {'success': True, 'document_id': 48, 'status': 'verified', 'verification_result_id': 48}
+[INFO] 2026-02-22 16:33:27,523 trace Task apps.interviews.tasks.generate_session_summary_task[4ba8be93-43c7-4c47-bb76-9799bd4ba3b5] succeeded in 0.014999999999417923s: {'success': True, 'session_id': 424, 'responses': 1}
+[INFO] 2026-02-22 16:33:27,524 trace Task apps.interviews.tasks.analyze_response_task[bef0e3f7-4d49-4448-92c8-6f364ddc92fa] succeeded in 0.014999999999417923s: {'success': True, 'response_id': 285, 'quality_score': 44.0}
+[INFO] 2026-02-22 16:33:27,550 trace Task apps.interviews.tasks.generate_session_summary_task[56606057-4ff1-4b24-8004-27f35844bd5f] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 424, 'responses': 1}
+[WARNING] 2026-02-22 16:33:31,481 log Not Found: /api/applications/cases/1237/
+[WARNING] 2026-02-22 16:33:31,506 log Not Found: /api/interviews/sessions/426/
+[WARNING] 2026-02-22 16:33:31,518 log Forbidden: /api/applications/cases/
+[WARNING] 2026-02-22 16:33:31,531 log Forbidden: /api/interviews/sessions/
+[WARNING] 2026-02-22 16:33:31,544 log Forbidden: /api/interviews/responses/
+[WARNING] 2026-02-22 16:33:33,855 log Bad Request: /api/invitations/accept/
+[WARNING] 2026-02-22 16:33:36,396 log Not Found: /api/invitations/accept/
+[WARNING] 2026-02-22 16:33:38,556 log Forbidden: /api/invitations/
+[WARNING] 2026-02-22 16:33:46,358 log Bad Request: /api/ml-monitoring/history/
+[WARNING] 2026-02-22 16:33:48,653 log Bad Request: /api/ml-monitoring/history/
+[WARNING] 2026-02-22 16:33:57,212 log Forbidden: /api/ml-monitoring/
+[DEBUG] 2026-02-22 16:34:06,529 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-22 16:34:09,899 functional 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 16:34:09,901 functional 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 16:34:09,903 functional 
+def chunks(task, it, n):
+    return 1
+
+[DEBUG] 2026-02-22 16:34:09,905 functional 
+def debug_task(self):
+    return 1
+
+[DEBUG] 2026-02-22 16:34:09,907 functional 
+def xmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 16:34:09,909 functional 
+def backend_cleanup():
+    return 1
+
+[DEBUG] 2026-02-22 16:34:09,911 functional 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+[DEBUG] 2026-02-22 16:34:09,913 functional 
+def generate_session_summary_task(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:34:09,915 functional 
+def analyze_response_task(self, response_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:34:09,917 functional 
+def xstarmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 16:34:09,918 functional 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 16:34:09,920 functional 
+def chain(*args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 16:34:09,941 functional 
+def send_high_deception_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:34:09,942 functional 
+def send_critical_flags_alert(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:34:09,943 functional 
+def send_poor_response_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:34:09,944 functional 
+def send_behavioral_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:34:09,946 functional 
+def send_completion_summary(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:34:09,963 functional 
+def evaluate_case_with_rubric(self, case_id, rubric_id, evaluator_id=0):
+    return 1
+
+[DEBUG] 2026-02-22 16:34:09,965 functional 
+def auto_assign_rubric(self, case_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:34:10,857 functional 
+def send_invitation_task(self, invitation_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:34:10,866 functional 
+def verify_document_async(self, document_id):
+    return 1
+
+[INFO] 2026-02-22 16:34:10,996 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[WARNING] 2026-02-22 16:34:27,814 log Forbidden: /api/admin/dashboard/
+[WARNING] 2026-02-22 16:34:30,533 connection No hostname was supplied. Reverting to default 'localhost'
+[INFO] 2026-02-22 16:34:30,623 trace Task apps.applications.tasks.verify_document_async[640447f9-e2ab-4dfa-b7c3-d7e6d92bda0a] succeeded in 0.07799999999951979s: {'success': True, 'document_id': 49, 'status': 'verified', 'verification_result_id': 49}
+[WARNING] 2026-02-22 16:34:33,431 log Bad Request: /api/applications/cases/
+[WARNING] 2026-02-22 16:34:45,198 log Bad Request: /api/audit/logs/by_entity/
+[WARNING] 2026-02-22 16:34:59,960 log Bad Request: /api/auth/password-reset-confirm/
+[WARNING] 2026-02-22 16:35:06,952 log Not Found: /api/auth/google/login/
+[WARNING] 2026-02-22 16:35:06,953 log Not Found: /api/auth/github/login/
+[WARNING] 2026-02-22 16:35:16,912 log Not Found: /api/campaigns/508/
+[WARNING] 2026-02-22 16:35:27,172 log Forbidden: /api/enrollments/
+[WARNING] 2026-02-22 16:35:44,370 log Bad Request: /api/fraud/consistency/history/
+[WARNING] 2026-02-22 16:36:06,295 log Unauthorized: /api/interviews/sessions/
+[INFO] 2026-02-22 16:36:10,861 trace Task apps.interviews.tasks.generate_session_summary_task[70c51baf-4928-47b7-a2d2-72fc332ff63a] succeeded in 0.014999999999417923s: {'success': True, 'session_id': 429, 'responses': 1}
+[INFO] 2026-02-22 16:36:10,862 trace Task apps.interviews.tasks.analyze_response_task[7375fb38-aad4-4668-9831-151ca12da325] succeeded in 0.030999999999039574s: {'success': True, 'response_id': 286, 'quality_score': 40.62}
+[INFO] 2026-02-22 16:36:13,838 trace Task apps.interviews.tasks.generate_session_summary_task[b169c94b-72d8-4d1c-bf32-8148afc45588] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 430, 'responses': 1}
+[INFO] 2026-02-22 16:36:13,839 trace Task apps.interviews.tasks.analyze_response_task[56afaa65-c3d0-4a02-ad94-05166423b7d9] succeeded in 0.04700000000048021s: {'success': True, 'response_id': 287, 'quality_score': 42.12}
+[INFO] 2026-02-22 16:36:13,860 trace Task apps.interviews.tasks.generate_session_summary_task[585491f2-44ea-47fc-93f2-790244e996de] succeeded in 0.014999999999417923s: {'success': True, 'session_id': 430, 'responses': 1}
+[WARNING] 2026-02-22 16:36:16,198 log Forbidden: /api/interviews/sessions/analytics-dashboard/
+[WARNING] 2026-02-22 16:36:16,200 log Forbidden: /api/interviews/sessions/compare/
+[WARNING] 2026-02-22 16:36:16,201 log Forbidden: /api/interviews/sessions/generate-flags/
+[INFO] 2026-02-22 16:36:23,488 trace Task apps.interviews.tasks.generate_session_summary_task[cf33156f-ec80-4c38-8d01-8f56c4fa6a40] succeeded in 0.014999999999417923s: {'success': True, 'session_id': 433, 'responses': 1}
+[INFO] 2026-02-22 16:36:23,489 trace Task apps.interviews.tasks.analyze_response_task[b8615bba-8540-4187-855e-c3506ade17fc] succeeded in 0.014999999999417923s: {'success': True, 'response_id': 290, 'quality_score': 45.38}
+[WARNING] 2026-02-22 16:36:25,912 log Bad Request: /api/interviews/sessions/434/save-exchange/
+[INFO] 2026-02-22 16:36:30,850 trace Task apps.interviews.tasks.generate_session_summary_task[d64ef0c4-89e9-4fc8-ab35-30d93efd1acb] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 436, 'responses': 1}
+[INFO] 2026-02-22 16:36:30,851 trace Task apps.interviews.tasks.analyze_response_task[d8c0ceff-950a-4bee-a465-420e0b7e93fd] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 292, 'quality_score': 43.5}
+[INFO] 2026-02-22 16:36:32,121 trace Task apps.interviews.tasks.generate_session_summary_task[6b3dba2b-66b8-48fe-9287-0ef2f03b1416] succeeded in 0.0s: {'success': True, 'session_id': 437, 'responses': 1}
+[INFO] 2026-02-22 16:36:32,121 trace Task apps.interviews.tasks.analyze_response_task[b4a5e296-6312-483e-bc70-35e40fb84555] succeeded in 0.014999999999417923s: {'success': True, 'response_id': 293, 'quality_score': 36.62}
+[INFO] 2026-02-22 16:36:34,828 trace Task apps.interviews.tasks.generate_session_summary_task[b6086f01-ba11-4cd3-b5b1-5afca6847350] succeeded in 0.0s: {'success': True, 'session_id': 438, 'responses': 1}
+[INFO] 2026-02-22 16:36:34,828 trace Task apps.interviews.tasks.analyze_response_task[65523dd8-90fb-4950-8095-4970bf433535] succeeded in 0.015000000001236913s: {'success': True, 'response_id': 294, 'quality_score': 43.88}
+[INFO] 2026-02-22 16:36:34,857 trace Task apps.interviews.tasks.generate_session_summary_task[b42c0a80-a76e-425f-9d58-b6baef9e676d] succeeded in 0.0s: {'success': True, 'session_id': 438, 'responses': 1}
+[WARNING] 2026-02-22 16:36:36,119 log Unauthorized: /api/invitations/access/me/
+[WARNING] 2026-02-22 16:36:37,239 log Bad Request: /api/invitations/access/consume/
+[WARNING] 2026-02-22 16:36:38,391 log Not Found: /api/invitations/access/consume/
+[INFO] 2026-02-22 16:36:41,182 trace Task apps.applications.tasks.verify_document_async[77712182-fc3b-4aa5-a570-10e56fb2db81] succeeded in 0.01599999999962165s: {'success': True, 'document_id': 50, 'status': 'verified', 'verification_result_id': 50}
+[INFO] 2026-02-22 16:36:41,273 trace Task apps.interviews.tasks.generate_session_summary_task[f3ac5f80-566d-4add-b7a5-6b85dccf1229] succeeded in 0.014999999999417923s: {'success': True, 'session_id': 439, 'responses': 1}
+[INFO] 2026-02-22 16:36:41,274 trace Task apps.interviews.tasks.analyze_response_task[c564a5cc-e61e-4a8e-bb5b-3a40c1355342] succeeded in 0.014999999999417923s: {'success': True, 'response_id': 295, 'quality_score': 44.0}
+[INFO] 2026-02-22 16:36:41,300 trace Task apps.interviews.tasks.generate_session_summary_task[52c57c49-15b1-4329-8e98-3253bef0e195] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 439, 'responses': 1}
+[WARNING] 2026-02-22 16:36:45,034 log Not Found: /api/applications/cases/1288/
+[WARNING] 2026-02-22 16:36:45,052 log Not Found: /api/interviews/sessions/441/
+[WARNING] 2026-02-22 16:36:45,062 log Forbidden: /api/applications/cases/
+[WARNING] 2026-02-22 16:36:45,072 log Forbidden: /api/interviews/sessions/
+[WARNING] 2026-02-22 16:36:45,085 log Forbidden: /api/interviews/responses/
+[WARNING] 2026-02-22 16:36:47,457 log Bad Request: /api/invitations/accept/
+[WARNING] 2026-02-22 16:36:50,448 log Not Found: /api/invitations/accept/
+[WARNING] 2026-02-22 16:36:52,703 log Forbidden: /api/invitations/
+[WARNING] 2026-02-22 16:37:00,294 log Bad Request: /api/ml-monitoring/history/
+[WARNING] 2026-02-22 16:37:02,658 log Bad Request: /api/ml-monitoring/history/
+[WARNING] 2026-02-22 16:37:09,629 log Forbidden: /api/ml-monitoring/
+[WARNING] 2026-02-22 16:37:14,501 interview_alerts Skipping completion summary: InterviewSession 999999 not found.
+[WARNING] 2026-02-22 16:37:14,505 interview_alerts Skipping high deception alert: InterviewSession 999999 not found.
+[WARNING] 2026-02-22 16:37:19,618 log Not Found: /api/notifications/666/archive/
+[WARNING] 2026-02-22 16:37:28,480 log Bad Request: /api/notifications/mark-as-read/
+[WARNING] 2026-02-22 16:37:33,696 services Skipping send_admin_notification: missing admin user.
+[INFO] 2026-02-22 16:37:35,935 services Email notification sent to notify-applicant@example.com
+[INFO] 2026-02-22 16:37:38,481 services Email notification sent to notify-applicant@example.com
+[ERROR] 2026-02-22 16:37:40,683 services Failed to send email notification to notify-applicant@example.com
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\apps\notifications\services.py", line 84, in _send_email_notification
+    send_mail(
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+RuntimeError: smtp down
+[INFO] 2026-02-22 16:37:45,376 services Email notification sent to notify-applicant@example.com
+[WARNING] 2026-02-22 16:37:59,605 log Bad Request: /api/rubrics/evaluations/82/override-criterion/
+[WARNING] 2026-02-22 16:37:59,610 services Cannot delete document: file_path is required.
+[ERROR] 2026-02-22 16:37:59,616 services Failed to delete S3 key=cases/C1/documents/missing.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 131, in delete_document
+    self.s3_client.delete_object(Bucket=self.bucket_name, Key=normalized_path)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[INFO] 2026-02-22 16:37:59,620 services Document deleted from S3: cases/C1/documents/a.pdf
+[ERROR] 2026-02-22 16:37:59,623 services Failed to download S3 key=cases/C1/documents/missing.pdf to path=/tmp/missing.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 148, in download_document
+    self.s3_client.download_file(self.bucket_name, normalized_path, normalized_local_path)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[INFO] 2026-02-22 16:37:59,627 services Document downloaded from S3: cases/C1/documents/a.pdf -> /tmp/a.pdf
+[ERROR] 2026-02-22 16:37:59,630 services Failed to get metadata for S3 key=cases/C1/documents/missing.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 216, in get_document_metadata
+    response = self.s3_client.head_object(Bucket=self.bucket_name, Key=normalized_path)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[WARNING] 2026-02-22 16:37:59,636 services Cannot generate presigned URL: expiration must be > 0.
+[ERROR] 2026-02-22 16:37:59,639 services Failed to generate presigned URL for key=missing/object.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 113, in get_presigned_url
+    return self.s3_client.generate_presigned_url(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[ERROR] 2026-02-22 16:37:59,646 services S3 response is truncated but missing NextContinuationToken for case=C1.
+[INFO] 2026-02-22 16:37:59,653 services Document uploaded to S3: cases/CASE-001/documents/abc123.pdf
+[DEBUG] 2026-02-22 16:38:12,723 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-22 16:38:12,808 selector_events Using selector: SelectSelector
+[INFO] 2026-02-22 16:38:15,427 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[INFO] 2026-02-22 16:38:15,503 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-22 16:38:34,348 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-22 16:38:34,539 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-22 16:39:07,507 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-22 16:39:08,077 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-22 16:39:08,077 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-22 16:39:08,078 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-22 16:39:08,079 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-22 16:39:11,011 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-22 16:39:11,021 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-22 16:39:11,025 __init__ interactive is False
+[DEBUG] 2026-02-22 16:39:11,027 __init__ platform is win32
+[DEBUG] 2026-02-22 16:39:11,077 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-22 16:39:11,080 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[DEBUG] 2026-02-22 16:44:52,070 selector_events Using selector: SelectSelector
+[INFO] 2026-02-22 16:44:53,878 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-22 16:45:06,870 selector_events Using selector: SelectSelector
+[INFO] 2026-02-22 16:45:08,555 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-22 16:45:18,076 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-22 16:45:18,127 selector_events Using selector: SelectSelector
+[INFO] 2026-02-22 16:45:20,621 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[INFO] 2026-02-22 16:45:20,653 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-22 16:45:34,188 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-22 16:45:36,865 functional 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 16:45:36,867 functional 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 16:45:36,869 functional 
+def chunks(task, it, n):
+    return 1
+
+[DEBUG] 2026-02-22 16:45:36,870 functional 
+def debug_task(self):
+    return 1
+
+[DEBUG] 2026-02-22 16:45:36,871 functional 
+def xmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 16:45:36,873 functional 
+def backend_cleanup():
+    return 1
+
+[DEBUG] 2026-02-22 16:45:36,875 functional 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+[DEBUG] 2026-02-22 16:45:36,877 functional 
+def generate_session_summary_task(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:45:36,880 functional 
+def analyze_response_task(self, response_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:45:36,881 functional 
+def xstarmap(task, it):
+    return 1
+
+[DEBUG] 2026-02-22 16:45:36,883 functional 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 16:45:36,884 functional 
+def chain(*args, **kwargs):
+    return 1
+
+[DEBUG] 2026-02-22 16:45:36,903 functional 
+def send_high_deception_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:45:36,905 functional 
+def send_critical_flags_alert(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:45:36,906 functional 
+def send_poor_response_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:45:36,908 functional 
+def send_behavioral_alert(self, session_id, exchange_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:45:36,911 functional 
+def send_completion_summary(self, session_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:45:36,923 functional 
+def evaluate_case_with_rubric(self, case_id, rubric_id, evaluator_id=0):
+    return 1
+
+[DEBUG] 2026-02-22 16:45:36,924 functional 
+def auto_assign_rubric(self, case_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:45:38,667 functional 
+def send_invitation_task(self, invitation_id):
+    return 1
+
+[DEBUG] 2026-02-22 16:45:38,676 functional 
+def verify_document_async(self, document_id):
+    return 1
+
+[INFO] 2026-02-22 16:45:38,833 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[WARNING] 2026-02-22 16:45:55,683 log Forbidden: /api/admin/dashboard/
+[WARNING] 2026-02-22 16:45:58,289 connection No hostname was supplied. Reverting to default 'localhost'
+[INFO] 2026-02-22 16:45:58,364 trace Task apps.applications.tasks.verify_document_async[29a5f4c2-2853-40bb-a043-7a0b9bd0591a] succeeded in 0.0779999999977008s: {'success': True, 'document_id': 51, 'status': 'verified', 'verification_result_id': 51}
+[WARNING] 2026-02-22 16:46:00,665 log Bad Request: /api/applications/cases/
+[WARNING] 2026-02-22 16:46:11,279 log Bad Request: /api/audit/logs/by_entity/
+[WARNING] 2026-02-22 16:46:25,101 log Bad Request: /api/auth/password-reset-confirm/
+[WARNING] 2026-02-22 16:46:32,086 log Not Found: /api/auth/google/login/
+[WARNING] 2026-02-22 16:46:32,088 log Not Found: /api/auth/github/login/
+[WARNING] 2026-02-22 16:46:42,030 log Not Found: /api/campaigns/529/
+[WARNING] 2026-02-22 16:46:52,954 log Forbidden: /api/enrollments/
+[WARNING] 2026-02-22 16:47:11,488 log Bad Request: /api/fraud/consistency/history/
+[WARNING] 2026-02-22 16:47:33,766 log Unauthorized: /api/interviews/sessions/
+[INFO] 2026-02-22 16:47:38,743 trace Task apps.interviews.tasks.generate_session_summary_task[bb4cc341-2431-404a-9e47-2bc07071ce52] succeeded in 0.014999999999417923s: {'success': True, 'session_id': 444, 'responses': 1}
+[INFO] 2026-02-22 16:47:38,744 trace Task apps.interviews.tasks.analyze_response_task[40cf2370-efdb-4fd1-a81e-a3c233b3fe6e] succeeded in 0.014999999999417923s: {'success': True, 'response_id': 296, 'quality_score': 40.62}
+[INFO] 2026-02-22 16:47:41,455 trace Task apps.interviews.tasks.generate_session_summary_task[74a717ea-4f0c-4964-8628-7c53a9df7699] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 445, 'responses': 1}
+[INFO] 2026-02-22 16:47:41,456 trace Task apps.interviews.tasks.analyze_response_task[847026f3-76dc-4e1a-aa76-9931b146e262] succeeded in 0.046999999998661224s: {'success': True, 'response_id': 297, 'quality_score': 42.12}
+[INFO] 2026-02-22 16:47:41,474 trace Task apps.interviews.tasks.generate_session_summary_task[21c8ef27-d3be-46d6-b378-170e0f24f1f1] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 445, 'responses': 1}
+[WARNING] 2026-02-22 16:47:43,844 log Forbidden: /api/interviews/sessions/analytics-dashboard/
+[WARNING] 2026-02-22 16:47:43,846 log Forbidden: /api/interviews/sessions/compare/
+[WARNING] 2026-02-22 16:47:43,848 log Forbidden: /api/interviews/sessions/generate-flags/
+[INFO] 2026-02-22 16:47:51,351 trace Task apps.interviews.tasks.generate_session_summary_task[859b3f23-b54f-47e7-8bf0-454fc7cb732e] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 448, 'responses': 1}
+[INFO] 2026-02-22 16:47:51,352 trace Task apps.interviews.tasks.analyze_response_task[b55333d3-2c08-48b0-a348-8b77aafeebf3] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 300, 'quality_score': 45.38}
+[WARNING] 2026-02-22 16:47:53,827 log Bad Request: /api/interviews/sessions/449/save-exchange/
+[INFO] 2026-02-22 16:47:59,016 trace Task apps.interviews.tasks.generate_session_summary_task[8df4c6e2-2e55-4de6-a79f-b02efaa5e07b] succeeded in 0.014999999999417923s: {'success': True, 'session_id': 451, 'responses': 1}
+[INFO] 2026-02-22 16:47:59,017 trace Task apps.interviews.tasks.analyze_response_task[10c57968-6feb-4ec7-b252-cdd7b7a0c32f] succeeded in 0.030999999999039574s: {'success': True, 'response_id': 302, 'quality_score': 43.5}
+[INFO] 2026-02-22 16:48:00,429 trace Task apps.interviews.tasks.generate_session_summary_task[8ab699c7-cb8c-48ee-a079-44bf16bc9a59] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 452, 'responses': 1}
+[INFO] 2026-02-22 16:48:00,430 trace Task apps.interviews.tasks.analyze_response_task[164e22ea-dfc1-4231-8548-f67fa107933c] succeeded in 0.03200000000288128s: {'success': True, 'response_id': 303, 'quality_score': 36.62}
+[INFO] 2026-02-22 16:48:02,849 trace Task apps.interviews.tasks.generate_session_summary_task[217bc91c-67e3-44c0-8ffc-51a8a3a0bf69] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 453, 'responses': 1}
+[INFO] 2026-02-22 16:48:02,850 trace Task apps.interviews.tasks.analyze_response_task[1441723e-08ad-4c6a-859f-1d541b04aeb6] succeeded in 0.01599999999962165s: {'success': True, 'response_id': 304, 'quality_score': 43.88}
+[INFO] 2026-02-22 16:48:02,870 trace Task apps.interviews.tasks.generate_session_summary_task[9cf86490-5545-41a0-9f92-2b476d69d2a0] succeeded in 0.0s: {'success': True, 'session_id': 453, 'responses': 1}
+[WARNING] 2026-02-22 16:48:04,131 log Unauthorized: /api/invitations/access/me/
+[WARNING] 2026-02-22 16:48:05,384 log Bad Request: /api/invitations/access/consume/
+[WARNING] 2026-02-22 16:48:06,773 log Not Found: /api/invitations/access/consume/
+[INFO] 2026-02-22 16:48:09,158 trace Task apps.applications.tasks.verify_document_async[c8b9d13e-0322-4428-b240-4f8cc7fe3307] succeeded in 0.031000000002677552s: {'success': True, 'document_id': 52, 'status': 'verified', 'verification_result_id': 52}
+[INFO] 2026-02-22 16:48:09,269 trace Task apps.interviews.tasks.generate_session_summary_task[8b931964-ddad-4788-bee1-e3c0c847f4f7] succeeded in 0.014999999999417923s: {'success': True, 'session_id': 454, 'responses': 1}
+[INFO] 2026-02-22 16:48:09,270 trace Task apps.interviews.tasks.analyze_response_task[990cfd22-dc24-46f1-9ee8-37eba41e0217] succeeded in 0.030999999999039574s: {'success': True, 'response_id': 305, 'quality_score': 44.0}
+[INFO] 2026-02-22 16:48:09,299 trace Task apps.interviews.tasks.generate_session_summary_task[b7ac47c0-8052-4d49-8182-efa6ea7cb158] succeeded in 0.01599999999962165s: {'success': True, 'session_id': 454, 'responses': 1}
+[WARNING] 2026-02-22 16:48:13,251 log Not Found: /api/applications/cases/1351/
+[WARNING] 2026-02-22 16:48:13,280 log Not Found: /api/interviews/sessions/456/
+[WARNING] 2026-02-22 16:48:13,294 log Forbidden: /api/applications/cases/
+[WARNING] 2026-02-22 16:48:13,310 log Forbidden: /api/interviews/sessions/
+[WARNING] 2026-02-22 16:48:13,329 log Forbidden: /api/interviews/responses/
+[WARNING] 2026-02-22 16:48:16,268 log Bad Request: /api/invitations/accept/
+[WARNING] 2026-02-22 16:48:18,832 log Not Found: /api/invitations/accept/
+[WARNING] 2026-02-22 16:48:21,180 log Forbidden: /api/invitations/
+[WARNING] 2026-02-22 16:48:28,688 log Bad Request: /api/ml-monitoring/history/
+[WARNING] 2026-02-22 16:48:31,469 log Bad Request: /api/ml-monitoring/history/
+[WARNING] 2026-02-22 16:48:38,208 log Forbidden: /api/ml-monitoring/
+[WARNING] 2026-02-22 16:48:43,196 interview_alerts Skipping completion summary: InterviewSession 999999 not found.
+[WARNING] 2026-02-22 16:48:43,200 interview_alerts Skipping high deception alert: InterviewSession 999999 not found.
+[WARNING] 2026-02-22 16:48:48,379 log Not Found: /api/notifications/694/archive/
+[WARNING] 2026-02-22 16:48:57,534 log Bad Request: /api/notifications/mark-as-read/
+[WARNING] 2026-02-22 16:49:02,744 services Skipping send_admin_notification: missing admin user.
+[INFO] 2026-02-22 16:49:05,290 services Email notification sent to notify-applicant@example.com
+[INFO] 2026-02-22 16:49:07,729 services Email notification sent to notify-applicant@example.com
+[ERROR] 2026-02-22 16:49:10,015 services Failed to send email notification to notify-applicant@example.com
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\apps\notifications\services.py", line 84, in _send_email_notification
+    send_mail(
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+RuntimeError: smtp down
+[INFO] 2026-02-22 16:49:15,140 services Email notification sent to notify-applicant@example.com
+[WARNING] 2026-02-22 16:49:29,304 log Bad Request: /api/rubrics/evaluations/86/override-criterion/
+[WARNING] 2026-02-22 16:49:29,310 services Cannot delete document: file_path is required.
+[ERROR] 2026-02-22 16:49:29,315 services Failed to delete S3 key=cases/C1/documents/missing.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 131, in delete_document
+    self.s3_client.delete_object(Bucket=self.bucket_name, Key=normalized_path)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[INFO] 2026-02-22 16:49:29,319 services Document deleted from S3: cases/C1/documents/a.pdf
+[ERROR] 2026-02-22 16:49:29,322 services Failed to download S3 key=cases/C1/documents/missing.pdf to path=/tmp/missing.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 148, in download_document
+    self.s3_client.download_file(self.bucket_name, normalized_path, normalized_local_path)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[INFO] 2026-02-22 16:49:29,326 services Document downloaded from S3: cases/C1/documents/a.pdf -> /tmp/a.pdf
+[ERROR] 2026-02-22 16:49:29,329 services Failed to get metadata for S3 key=cases/C1/documents/missing.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 216, in get_document_metadata
+    response = self.s3_client.head_object(Bucket=self.bucket_name, Key=normalized_path)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[WARNING] 2026-02-22 16:49:29,333 services Cannot generate presigned URL: expiration must be > 0.
+[ERROR] 2026-02-22 16:49:29,337 services Failed to generate presigned URL for key=missing/object.pdf
+Traceback (most recent call last):
+  File "C:\Project Setup\Django\OVS-Redo\backend\documents\services.py", line 113, in get_presigned_url
+    return self.s3_client.generate_presigned_url(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1193, in _execute_mock_call
+    raise effect
+botocore.exceptions.BotoCoreError: An unspecified error occurred
+[ERROR] 2026-02-22 16:49:29,345 services S3 response is truncated but missing NextContinuationToken for case=C1.
+[INFO] 2026-02-22 16:49:29,351 services Document uploaded to S3: cases/CASE-001/documents/abc123.pdf
+[DEBUG] 2026-02-22 18:56:53,206 http_protocol HTTP b'GET' request for ['127.0.0.1', 57820]
+[WARNING] 2026-02-22 18:56:53,511 base Session data corrupted
+[DEBUG] 2026-02-22 18:56:53,535 http_protocol HTTP 200 response started for ['127.0.0.1', 57820]
+[DEBUG] 2026-02-22 18:56:53,535 http_protocol HTTP close for ['127.0.0.1', 57820]
+[DEBUG] 2026-02-22 18:56:53,542 http_protocol HTTP response complete for ['127.0.0.1', 57820]
+[INFO] 2026-02-22 18:56:53,552 runserver [mHTTP GET /api/schema/swagger-ui/ 200 [0.35, 127.0.0.1:57820][0m
+[DEBUG] 2026-02-22 18:56:54,291 http_protocol HTTP b'GET' request for ['127.0.0.1', 57820]
+[WARNING] 2026-02-22 18:56:54,475 base Session data corrupted
+[DEBUG] 2026-02-22 18:56:55,169 http_protocol HTTP 200 response started for ['127.0.0.1', 57820]
+[DEBUG] 2026-02-22 18:56:55,169 http_protocol HTTP response chunk for ['127.0.0.1', 57820]
+[DEBUG] 2026-02-22 18:56:55,173 http_protocol HTTP response chunk for ['127.0.0.1', 57820]
+[DEBUG] 2026-02-22 18:56:55,173 http_protocol HTTP response chunk for ['127.0.0.1', 57820]
+[DEBUG] 2026-02-22 18:56:55,178 http_protocol HTTP response chunk for ['127.0.0.1', 57820]
+[DEBUG] 2026-02-22 18:56:55,180 http_protocol HTTP response chunk for ['127.0.0.1', 57820]
+[DEBUG] 2026-02-22 18:56:55,180 http_protocol HTTP response chunk for ['127.0.0.1', 57820]
+[DEBUG] 2026-02-22 18:56:55,180 http_protocol HTTP close for ['127.0.0.1', 57820]
+[DEBUG] 2026-02-22 18:56:55,185 http_protocol HTTP response complete for ['127.0.0.1', 57820]
+[INFO] 2026-02-22 18:56:55,190 runserver [mHTTP GET /api/schema/ 200 [0.90, 127.0.0.1:57820][0m
+[DEBUG] 2026-02-22 19:04:49,452 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-22 19:04:55,401 selector_events Using selector: SelectSelector
+[INFO] 2026-02-22 19:04:57,420 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-22 19:04:58,788 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-22 19:05:06,748 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-22 19:05:07,737 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-22 19:05:07,737 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-22 19:05:07,740 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-22 19:05:07,740 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-22 19:05:13,021 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-22 19:05:13,039 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-22 19:05:13,044 __init__ interactive is False
+[DEBUG] 2026-02-22 19:05:13,044 __init__ platform is win32
+[DEBUG] 2026-02-22 19:05:13,160 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-22 19:05:13,170 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[INFO] 2026-02-22 19:05:20,055 server HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+[INFO] 2026-02-22 19:05:20,056 server Configuring endpoint tcp:port=8000:interface=127.0.0.1
+[INFO] 2026-02-22 19:05:20,060 server Listening on TCP address 127.0.0.1:8000
+[DEBUG] 2026-02-22 19:08:13,513 http_protocol HTTP b'GET' request for ['127.0.0.1', 64576]
+[WARNING] 2026-02-22 19:08:13,875 log Not Found: /
+[DEBUG] 2026-02-22 19:08:13,877 http_protocol HTTP 404 response started for ['127.0.0.1', 64576]
+[DEBUG] 2026-02-22 19:08:13,878 http_protocol HTTP close for ['127.0.0.1', 64576]
+[DEBUG] 2026-02-22 19:08:13,880 http_protocol HTTP response complete for ['127.0.0.1', 64576]
+[WARNING] 2026-02-22 19:08:13,883 runserver [33mHTTP GET / 404 [0.37, 127.0.0.1:64576][0m
+[DEBUG] 2026-02-22 19:16:05,289 http_protocol HTTP b'GET' request for ['127.0.0.1', 61901]
+[WARNING] 2026-02-22 19:16:05,572 base Session data corrupted
+[DEBUG] 2026-02-22 19:16:05,968 http_protocol HTTP 302 response started for ['127.0.0.1', 61901]
+[DEBUG] 2026-02-22 19:16:05,970 http_protocol HTTP close for ['127.0.0.1', 61901]
+[DEBUG] 2026-02-22 19:16:05,972 http_protocol HTTP response complete for ['127.0.0.1', 61901]
+[INFO] 2026-02-22 19:16:05,972 runserver [32mHTTP GET /admin/authentication/userprofile/ 302 [0.68, 127.0.0.1:61901][0m
+[DEBUG] 2026-02-22 19:16:05,979 http_protocol HTTP b'GET' request for ['127.0.0.1', 61901]
+[WARNING] 2026-02-22 19:16:06,261 base Session data corrupted
+[DEBUG] 2026-02-22 19:16:06,702 http_protocol HTTP 200 response started for ['127.0.0.1', 61901]
+[DEBUG] 2026-02-22 19:16:06,702 http_protocol HTTP close for ['127.0.0.1', 61901]
+[DEBUG] 2026-02-22 19:16:06,707 http_protocol HTTP response complete for ['127.0.0.1', 61901]
+[INFO] 2026-02-22 19:16:06,707 runserver [mHTTP GET /admin/login/?next=/admin/authentication/userprofile/ 200 [0.73, 127.0.0.1:61901][0m
+[DEBUG] 2026-02-22 19:16:06,874 http_protocol HTTP b'GET' request for ['127.0.0.1', 61901]
+[DEBUG] 2026-02-22 19:16:06,902 http_protocol HTTP b'GET' request for ['127.0.0.1', 64469]
+[DEBUG] 2026-02-22 19:16:07,004 http_protocol HTTP b'GET' request for ['127.0.0.1', 58692]
+[DEBUG] 2026-02-22 19:16:07,031 http_protocol HTTP b'GET' request for ['127.0.0.1', 64149]
+[DEBUG] 2026-02-22 19:16:07,056 http_protocol HTTP b'GET' request for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:16:07,061 http_protocol HTTP b'GET' request for ['127.0.0.1', 54284]
+[DEBUG] 2026-02-22 19:16:07,136 http_protocol HTTP 304 response started for ['127.0.0.1', 64469]
+[DEBUG] 2026-02-22 19:16:07,136 http_protocol HTTP close for ['127.0.0.1', 64469]
+[DEBUG] 2026-02-22 19:16:07,142 http_protocol HTTP response complete for ['127.0.0.1', 64469]
+[INFO] 2026-02-22 19:16:07,143 runserver [36mHTTP GET /static/admin/css/dark_mode.css 304 [0.24, 127.0.0.1:64469][0m
+[DEBUG] 2026-02-22 19:16:07,145 http_protocol HTTP 304 response started for ['127.0.0.1', 61901]
+[DEBUG] 2026-02-22 19:16:07,147 http_protocol HTTP close for ['127.0.0.1', 61901]
+[DEBUG] 2026-02-22 19:16:07,147 http_protocol HTTP response complete for ['127.0.0.1', 61901]
+[INFO] 2026-02-22 19:16:07,149 runserver [36mHTTP GET /static/admin/css/base.css 304 [0.27, 127.0.0.1:61901][0m
+[DEBUG] 2026-02-22 19:16:07,153 http_protocol HTTP 304 response started for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:16:07,160 http_protocol HTTP close for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:16:07,161 http_protocol HTTP response complete for ['127.0.0.1', 59744]
+[INFO] 2026-02-22 19:16:07,161 runserver [36mHTTP GET /static/admin/css/responsive.css 304 [0.10, 127.0.0.1:59744][0m
+[DEBUG] 2026-02-22 19:16:07,161 http_protocol HTTP 304 response started for ['127.0.0.1', 64149]
+[DEBUG] 2026-02-22 19:16:07,163 http_protocol HTTP close for ['127.0.0.1', 64149]
+[DEBUG] 2026-02-22 19:16:07,164 http_protocol HTTP response complete for ['127.0.0.1', 64149]
+[INFO] 2026-02-22 19:16:07,164 runserver [36mHTTP GET /static/admin/css/login.css 304 [0.13, 127.0.0.1:64149][0m
+[DEBUG] 2026-02-22 19:16:07,166 http_protocol HTTP 304 response started for ['127.0.0.1', 58692]
+[DEBUG] 2026-02-22 19:16:07,166 http_protocol HTTP close for ['127.0.0.1', 58692]
+[DEBUG] 2026-02-22 19:16:07,169 http_protocol HTTP response complete for ['127.0.0.1', 58692]
+[INFO] 2026-02-22 19:16:07,169 runserver [36mHTTP GET /static/admin/css/nav_sidebar.css 304 [0.16, 127.0.0.1:58692][0m
+[DEBUG] 2026-02-22 19:16:07,169 http_protocol HTTP 304 response started for ['127.0.0.1', 54284]
+[DEBUG] 2026-02-22 19:16:07,169 http_protocol HTTP close for ['127.0.0.1', 54284]
+[DEBUG] 2026-02-22 19:16:07,176 http_protocol HTTP response complete for ['127.0.0.1', 54284]
+[INFO] 2026-02-22 19:16:07,176 runserver [36mHTTP GET /static/admin/js/theme.js 304 [0.11, 127.0.0.1:54284][0m
+[DEBUG] 2026-02-22 19:16:07,210 http_protocol HTTP b'GET' request for ['127.0.0.1', 54284]
+[DEBUG] 2026-02-22 19:16:07,219 http_protocol HTTP 304 response started for ['127.0.0.1', 54284]
+[DEBUG] 2026-02-22 19:16:07,219 http_protocol HTTP close for ['127.0.0.1', 54284]
+[DEBUG] 2026-02-22 19:16:07,219 http_protocol HTTP response complete for ['127.0.0.1', 54284]
+[INFO] 2026-02-22 19:16:07,226 runserver [36mHTTP GET /static/admin/js/nav_sidebar.js 304 [0.02, 127.0.0.1:54284][0m
+[DEBUG] 2026-02-22 19:16:21,075 http_protocol HTTP b'POST' request for ['127.0.0.1', 54284]
+[WARNING] 2026-02-22 19:16:21,227 base Session data corrupted
+[DEBUG] 2026-02-22 19:16:24,758 http_protocol HTTP 302 response started for ['127.0.0.1', 54284]
+[DEBUG] 2026-02-22 19:16:24,760 http_protocol HTTP close for ['127.0.0.1', 54284]
+[DEBUG] 2026-02-22 19:16:24,761 http_protocol HTTP response complete for ['127.0.0.1', 54284]
+[INFO] 2026-02-22 19:16:24,761 runserver [32mHTTP POST /admin/login/?next=/admin/authentication/userprofile/ 302 [3.69, 127.0.0.1:54284][0m
+[DEBUG] 2026-02-22 19:16:24,778 http_protocol HTTP b'GET' request for ['127.0.0.1', 54284]
+[DEBUG] 2026-02-22 19:16:25,338 http_protocol HTTP 200 response started for ['127.0.0.1', 54284]
+[DEBUG] 2026-02-22 19:16:25,341 http_protocol HTTP close for ['127.0.0.1', 54284]
+[DEBUG] 2026-02-22 19:16:25,342 http_protocol HTTP response complete for ['127.0.0.1', 54284]
+[INFO] 2026-02-22 19:16:25,342 runserver [mHTTP GET /admin/authentication/userprofile/ 200 [0.56, 127.0.0.1:54284][0m
+[DEBUG] 2026-02-22 19:16:25,471 http_protocol HTTP b'GET' request for ['127.0.0.1', 54284]
+[DEBUG] 2026-02-22 19:16:25,473 http_protocol HTTP b'GET' request for ['127.0.0.1', 58692]
+[DEBUG] 2026-02-22 19:16:25,476 http_protocol HTTP b'GET' request for ['127.0.0.1', 64469]
+[DEBUG] 2026-02-22 19:16:25,478 http_protocol HTTP b'GET' request for ['127.0.0.1', 61901]
+[DEBUG] 2026-02-22 19:16:25,480 http_protocol HTTP b'GET' request for ['127.0.0.1', 64149]
+[DEBUG] 2026-02-22 19:16:25,480 http_protocol HTTP b'GET' request for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:16:25,501 http_protocol HTTP 304 response started for ['127.0.0.1', 54284]
+[DEBUG] 2026-02-22 19:16:25,506 http_protocol HTTP close for ['127.0.0.1', 54284]
+[DEBUG] 2026-02-22 19:16:25,507 http_protocol HTTP response complete for ['127.0.0.1', 54284]
+[INFO] 2026-02-22 19:16:25,509 runserver [36mHTTP GET /static/admin/css/changelists.css 304 [0.04, 127.0.0.1:54284][0m
+[DEBUG] 2026-02-22 19:16:25,509 http_protocol HTTP 304 response started for ['127.0.0.1', 58692]
+[DEBUG] 2026-02-22 19:16:25,511 http_protocol HTTP close for ['127.0.0.1', 58692]
+[DEBUG] 2026-02-22 19:16:25,511 http_protocol HTTP response complete for ['127.0.0.1', 58692]
+[INFO] 2026-02-22 19:16:25,513 runserver [36mHTTP GET /static/admin/js/vendor/jquery/jquery.js 304 [0.04, 127.0.0.1:58692][0m
+[DEBUG] 2026-02-22 19:16:25,515 http_protocol HTTP 304 response started for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:16:25,517 http_protocol HTTP close for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:16:25,517 http_protocol HTTP response complete for ['127.0.0.1', 59744]
+[INFO] 2026-02-22 19:16:25,523 runserver [36mHTTP GET /static/admin/js/jquery.init.js 304 [0.04, 127.0.0.1:59744][0m
+[DEBUG] 2026-02-22 19:16:25,523 http_protocol HTTP 304 response started for ['127.0.0.1', 64469]
+[DEBUG] 2026-02-22 19:16:25,523 http_protocol HTTP close for ['127.0.0.1', 64469]
+[DEBUG] 2026-02-22 19:16:25,523 http_protocol HTTP response complete for ['127.0.0.1', 64469]
+[INFO] 2026-02-22 19:16:25,531 runserver [36mHTTP GET /static/admin/js/admin/RelatedObjectLookups.js 304 [0.05, 127.0.0.1:64469][0m
+[DEBUG] 2026-02-22 19:16:25,532 http_protocol HTTP 304 response started for ['127.0.0.1', 61901]
+[DEBUG] 2026-02-22 19:16:25,532 http_protocol HTTP close for ['127.0.0.1', 61901]
+[DEBUG] 2026-02-22 19:16:25,532 http_protocol HTTP response complete for ['127.0.0.1', 61901]
+[INFO] 2026-02-22 19:16:25,536 runserver [36mHTTP GET /static/admin/js/core.js 304 [0.06, 127.0.0.1:61901][0m
+[DEBUG] 2026-02-22 19:16:25,540 http_protocol HTTP b'GET' request for ['127.0.0.1', 54284]
+[DEBUG] 2026-02-22 19:16:25,542 http_protocol HTTP b'GET' request for ['127.0.0.1', 58692]
+[DEBUG] 2026-02-22 19:16:25,556 http_protocol HTTP b'GET' request for ['127.0.0.1', 64469]
+[DEBUG] 2026-02-22 19:16:25,556 http_protocol HTTP b'GET' request for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:16:25,556 http_protocol HTTP b'GET' request for ['127.0.0.1', 61901]
+[DEBUG] 2026-02-22 19:16:25,575 http_protocol HTTP 304 response started for ['127.0.0.1', 54284]
+[DEBUG] 2026-02-22 19:16:25,578 http_protocol HTTP close for ['127.0.0.1', 54284]
+[DEBUG] 2026-02-22 19:16:25,578 http_protocol HTTP response complete for ['127.0.0.1', 54284]
+[INFO] 2026-02-22 19:16:25,579 runserver [36mHTTP GET /static/admin/js/actions.js 304 [0.04, 127.0.0.1:54284][0m
+[DEBUG] 2026-02-22 19:16:25,588 http_protocol HTTP 304 response started for ['127.0.0.1', 58692]
+[DEBUG] 2026-02-22 19:16:25,588 http_protocol HTTP close for ['127.0.0.1', 58692]
+[DEBUG] 2026-02-22 19:16:25,596 http_protocol HTTP response complete for ['127.0.0.1', 58692]
+[INFO] 2026-02-22 19:16:25,596 runserver [36mHTTP GET /static/admin/js/urlify.js 304 [0.05, 127.0.0.1:58692][0m
+[DEBUG] 2026-02-22 19:16:25,598 http_protocol HTTP 304 response started for ['127.0.0.1', 64469]
+[DEBUG] 2026-02-22 19:16:25,599 http_protocol HTTP close for ['127.0.0.1', 64469]
+[DEBUG] 2026-02-22 19:16:25,607 http_protocol HTTP response complete for ['127.0.0.1', 64469]
+[INFO] 2026-02-22 19:16:25,607 runserver [36mHTTP GET /static/admin/js/prepopulate.js 304 [0.05, 127.0.0.1:64469][0m
+[DEBUG] 2026-02-22 19:16:25,614 http_protocol HTTP 304 response started for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:16:25,614 http_protocol HTTP close for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:16:25,621 http_protocol HTTP response complete for ['127.0.0.1', 59744]
+[INFO] 2026-02-22 19:16:25,624 runserver [36mHTTP GET /static/admin/js/vendor/xregexp/xregexp.js 304 [0.07, 127.0.0.1:59744][0m
+[DEBUG] 2026-02-22 19:16:25,625 http_protocol HTTP 304 response started for ['127.0.0.1', 61901]
+[DEBUG] 2026-02-22 19:16:25,626 http_protocol HTTP close for ['127.0.0.1', 61901]
+[DEBUG] 2026-02-22 19:16:25,626 http_protocol HTTP response complete for ['127.0.0.1', 61901]
+[INFO] 2026-02-22 19:16:25,629 runserver [36mHTTP GET /static/admin/img/search.svg 304 [0.07, 127.0.0.1:61901][0m
+[DEBUG] 2026-02-22 19:16:25,748 http_protocol HTTP b'GET' request for ['127.0.0.1', 61901]
+[DEBUG] 2026-02-22 19:16:25,763 http_protocol HTTP 304 response started for ['127.0.0.1', 61901]
+[DEBUG] 2026-02-22 19:16:25,763 http_protocol HTTP close for ['127.0.0.1', 61901]
+[DEBUG] 2026-02-22 19:16:25,763 http_protocol HTTP response complete for ['127.0.0.1', 61901]
+[INFO] 2026-02-22 19:16:25,765 runserver [36mHTTP GET /static/admin/js/filters.js 304 [0.02, 127.0.0.1:61901][0m
+[DEBUG] 2026-02-22 19:16:25,923 http_protocol HTTP 200 response started for ['127.0.0.1', 64149]
+[DEBUG] 2026-02-22 19:16:25,925 http_protocol HTTP close for ['127.0.0.1', 64149]
+[DEBUG] 2026-02-22 19:16:25,927 http_protocol HTTP response complete for ['127.0.0.1', 64149]
+[INFO] 2026-02-22 19:16:25,927 runserver [mHTTP GET /admin/jsi18n/ 200 [0.45, 127.0.0.1:64149][0m
+[DEBUG] 2026-02-22 19:16:25,984 http_protocol HTTP b'GET' request for ['127.0.0.1', 64149]
+[DEBUG] 2026-02-22 19:16:25,993 http_protocol HTTP b'GET' request for ['127.0.0.1', 61901]
+[DEBUG] 2026-02-22 19:16:25,994 http_protocol HTTP b'GET' request for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:16:26,007 http_protocol HTTP 304 response started for ['127.0.0.1', 64149]
+[DEBUG] 2026-02-22 19:16:26,010 http_protocol HTTP close for ['127.0.0.1', 64149]
+[DEBUG] 2026-02-22 19:16:26,010 http_protocol HTTP response complete for ['127.0.0.1', 64149]
+[INFO] 2026-02-22 19:16:26,011 runserver [36mHTTP GET /static/admin/img/icon-addlink.svg 304 [0.03, 127.0.0.1:64149][0m
+[DEBUG] 2026-02-22 19:16:26,012 http_protocol HTTP 304 response started for ['127.0.0.1', 61901]
+[DEBUG] 2026-02-22 19:16:26,012 http_protocol HTTP close for ['127.0.0.1', 61901]
+[DEBUG] 2026-02-22 19:16:26,014 http_protocol HTTP response complete for ['127.0.0.1', 61901]
+[INFO] 2026-02-22 19:16:26,015 runserver [36mHTTP GET /static/admin/img/tooltag-add.svg 304 [0.02, 127.0.0.1:61901][0m
+[DEBUG] 2026-02-22 19:16:26,015 http_protocol HTTP 304 response started for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:16:26,017 http_protocol HTTP close for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:16:26,018 http_protocol HTTP response complete for ['127.0.0.1', 59744]
+[INFO] 2026-02-22 19:16:26,022 runserver [36mHTTP GET /static/admin/img/icon-viewlink.svg 304 [0.03, 127.0.0.1:59744][0m
+[DEBUG] 2026-02-22 19:17:21,620 http_protocol HTTP b'GET' request for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:21,993 http_protocol HTTP 200 response started for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:21,996 http_protocol HTTP close for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:21,997 http_protocol HTTP response complete for ['127.0.0.1', 59744]
+[INFO] 2026-02-22 19:17:22,000 runserver [mHTTP GET /admin/django_celery_beat/clockedschedule/ 200 [0.38, 127.0.0.1:59744][0m
+[DEBUG] 2026-02-22 19:17:22,112 http_protocol HTTP b'GET' request for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:22,340 http_protocol HTTP 200 response started for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:22,343 http_protocol HTTP close for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:22,344 http_protocol HTTP response complete for ['127.0.0.1', 59744]
+[INFO] 2026-02-22 19:17:22,346 runserver [mHTTP GET /admin/jsi18n/ 200 [0.24, 127.0.0.1:59744][0m
+[DEBUG] 2026-02-22 19:17:28,265 http_protocol HTTP b'GET' request for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:28,802 http_protocol HTTP 200 response started for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:28,804 http_protocol HTTP close for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:28,805 http_protocol HTTP response complete for ['127.0.0.1', 59744]
+[INFO] 2026-02-22 19:17:28,805 runserver [mHTTP GET /admin/django_celery_beat/clockedschedule/add/ 200 [0.54, 127.0.0.1:59744][0m
+[DEBUG] 2026-02-22 19:17:28,869 http_protocol HTTP b'GET' request for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:28,877 http_protocol HTTP b'GET' request for ['127.0.0.1', 61572]
+[DEBUG] 2026-02-22 19:17:28,895 http_protocol HTTP b'GET' request for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:17:28,898 http_protocol HTTP b'GET' request for ['127.0.0.1', 65463]
+[DEBUG] 2026-02-22 19:17:28,904 http_protocol HTTP b'GET' request for ['127.0.0.1', 53641]
+[DEBUG] 2026-02-22 19:17:28,909 http_protocol HTTP b'GET' request for ['127.0.0.1', 51407]
+[DEBUG] 2026-02-22 19:17:29,405 http_protocol HTTP 200 response started for ['127.0.0.1', 53641]
+[DEBUG] 2026-02-22 19:17:29,405 http_protocol HTTP close for ['127.0.0.1', 53641]
+[DEBUG] 2026-02-22 19:17:29,405 http_protocol HTTP response complete for ['127.0.0.1', 53641]
+[INFO] 2026-02-22 19:17:29,413 runserver [mHTTP GET /admin/jsi18n/ 200 [0.51, 127.0.0.1:53641][0m
+[DEBUG] 2026-02-22 19:17:29,503 http_protocol HTTP 200 response started for ['127.0.0.1', 61572]
+[DEBUG] 2026-02-22 19:17:29,529 http_protocol HTTP response chunk for ['127.0.0.1', 61572]
+[DEBUG] 2026-02-22 19:17:29,530 http_protocol HTTP close for ['127.0.0.1', 61572]
+[DEBUG] 2026-02-22 19:17:29,532 http_protocol HTTP response complete for ['127.0.0.1', 61572]
+[INFO] 2026-02-22 19:17:29,539 runserver [mHTTP GET /static/admin/js/calendar.js 200 [0.66, 127.0.0.1:61572][0m
+[DEBUG] 2026-02-22 19:17:29,541 http_protocol HTTP 200 response started for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:17:29,544 http_protocol HTTP 200 response started for ['127.0.0.1', 51407]
+[DEBUG] 2026-02-22 19:17:29,546 http_protocol HTTP 200 response started for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:29,546 http_protocol HTTP response chunk for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:17:29,549 http_protocol HTTP close for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:17:29,552 http_protocol HTTP response complete for ['127.0.0.1', 57599]
+[INFO] 2026-02-22 19:17:29,552 runserver [mHTTP GET /static/admin/js/admin/DateTimeShortcuts.js 200 [0.66, 127.0.0.1:57599][0m
+[DEBUG] 2026-02-22 19:17:29,555 http_protocol HTTP response chunk for ['127.0.0.1', 51407]
+[DEBUG] 2026-02-22 19:17:29,556 http_protocol HTTP close for ['127.0.0.1', 51407]
+[DEBUG] 2026-02-22 19:17:29,556 http_protocol HTTP response complete for ['127.0.0.1', 51407]
+[INFO] 2026-02-22 19:17:29,556 runserver [mHTTP GET /static/admin/js/prepopulate_init.js 200 [0.65, 127.0.0.1:51407][0m
+[DEBUG] 2026-02-22 19:17:29,561 http_protocol HTTP response chunk for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:29,563 http_protocol HTTP close for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:29,566 http_protocol HTTP response complete for ['127.0.0.1', 59744]
+[INFO] 2026-02-22 19:17:29,567 runserver [mHTTP GET /static/admin/css/forms.css 200 [0.70, 127.0.0.1:59744][0m
+[DEBUG] 2026-02-22 19:17:29,573 http_protocol HTTP 200 response started for ['127.0.0.1', 65463]
+[DEBUG] 2026-02-22 19:17:29,576 http_protocol HTTP b'GET' request for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:29,581 http_protocol HTTP b'GET' request for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:17:29,588 http_protocol HTTP response chunk for ['127.0.0.1', 65463]
+[DEBUG] 2026-02-22 19:17:29,588 http_protocol HTTP close for ['127.0.0.1', 65463]
+[DEBUG] 2026-02-22 19:17:29,590 http_protocol HTTP response complete for ['127.0.0.1', 65463]
+[INFO] 2026-02-22 19:17:29,590 runserver [mHTTP GET /static/admin/js/inlines.js 200 [0.69, 127.0.0.1:65463][0m
+[DEBUG] 2026-02-22 19:17:29,617 http_protocol HTTP 200 response started for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:29,619 http_protocol HTTP 200 response started for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:17:29,625 http_protocol HTTP response chunk for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:29,626 http_protocol HTTP close for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:29,626 http_protocol HTTP response complete for ['127.0.0.1', 59744]
+[INFO] 2026-02-22 19:17:29,626 runserver [mHTTP GET /static/admin/img/icon-unknown.svg 200 [0.05, 127.0.0.1:59744][0m
+[DEBUG] 2026-02-22 19:17:29,626 http_protocol HTTP response chunk for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:17:29,626 http_protocol HTTP close for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:17:29,633 http_protocol HTTP response complete for ['127.0.0.1', 57599]
+[INFO] 2026-02-22 19:17:29,633 runserver [mHTTP GET /static/admin/css/widgets.css 200 [0.05, 127.0.0.1:57599][0m
+[DEBUG] 2026-02-22 19:17:29,644 http_protocol HTTP b'GET' request for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:29,717 http_protocol HTTP 200 response started for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:29,726 http_protocol HTTP response chunk for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:29,742 http_protocol HTTP close for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:29,744 http_protocol HTTP response complete for ['127.0.0.1', 59744]
+[INFO] 2026-02-22 19:17:29,747 runserver [mHTTP GET /static/admin/js/change_form.js 200 [0.10, 127.0.0.1:59744][0m
+[DEBUG] 2026-02-22 19:17:30,047 http_protocol HTTP b'GET' request for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:30,067 http_protocol HTTP b'GET' request for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:17:30,103 http_protocol HTTP 200 response started for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:30,111 http_protocol HTTP 200 response started for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:17:30,117 http_protocol HTTP response chunk for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:30,121 http_protocol HTTP close for ['127.0.0.1', 59744]
+[DEBUG] 2026-02-22 19:17:30,125 http_protocol HTTP response complete for ['127.0.0.1', 59744]
+[INFO] 2026-02-22 19:17:30,126 runserver [mHTTP GET /static/admin/img/icon-calendar.svg 200 [0.08, 127.0.0.1:59744][0m
+[DEBUG] 2026-02-22 19:17:30,128 http_protocol HTTP response chunk for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:17:30,138 http_protocol HTTP close for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:17:30,140 http_protocol HTTP response complete for ['127.0.0.1', 57599]
+[INFO] 2026-02-22 19:17:30,141 runserver [mHTTP GET /static/admin/img/icon-clock.svg 200 [0.07, 127.0.0.1:57599][0m
+[DEBUG] 2026-02-22 19:17:42,254 http_protocol HTTP b'GET' request for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:17:42,564 http_protocol HTTP 200 response started for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:17:42,566 http_protocol HTTP close for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:17:42,590 http_protocol HTTP response complete for ['127.0.0.1', 57599]
+[INFO] 2026-02-22 19:17:42,609 runserver [mHTTP GET /admin/authentication/loginhistory/ 200 [0.36, 127.0.0.1:57599][0m
+[DEBUG] 2026-02-22 19:17:42,699 http_protocol HTTP b'GET' request for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:17:42,898 http_protocol HTTP 200 response started for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:17:42,901 http_protocol HTTP close for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:17:42,902 http_protocol HTTP response complete for ['127.0.0.1', 57599]
+[INFO] 2026-02-22 19:17:42,911 runserver [mHTTP GET /admin/jsi18n/ 200 [0.21, 127.0.0.1:57599][0m
+[DEBUG] 2026-02-22 19:18:15,473 http_protocol HTTP b'GET' request for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:18:15,770 http_protocol HTTP 200 response started for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:18:15,774 http_protocol HTTP close for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:18:15,777 http_protocol HTTP response complete for ['127.0.0.1', 57599]
+[INFO] 2026-02-22 19:18:15,784 runserver [mHTTP GET /admin/ml_monitoring/mlmodelmetrics/ 200 [0.31, 127.0.0.1:57599][0m
+[DEBUG] 2026-02-22 19:18:15,853 http_protocol HTTP b'GET' request for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:18:16,077 http_protocol HTTP 200 response started for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:18:16,121 http_protocol HTTP close for ['127.0.0.1', 57599]
+[DEBUG] 2026-02-22 19:18:16,121 http_protocol HTTP response complete for ['127.0.0.1', 57599]
+[INFO] 2026-02-22 19:18:16,127 runserver [mHTTP GET /admin/jsi18n/ 200 [0.28, 127.0.0.1:57599][0m
+[DEBUG] 2026-02-22 19:34:22,169 http_protocol HTTP b'GET' request for ['127.0.0.1', 63600]
+[DEBUG] 2026-02-22 19:34:22,640 http_protocol HTTP 200 response started for ['127.0.0.1', 63600]
+[DEBUG] 2026-02-22 19:34:22,644 http_protocol HTTP close for ['127.0.0.1', 63600]
+[DEBUG] 2026-02-22 19:34:22,650 http_protocol HTTP response complete for ['127.0.0.1', 63600]
+[INFO] 2026-02-22 19:34:22,657 runserver [mHTTP GET /admin/ 200 [0.49, 127.0.0.1:63600][0m
+[DEBUG] 2026-02-22 19:34:22,773 http_protocol HTTP b'GET' request for ['127.0.0.1', 63600]
+[DEBUG] 2026-02-22 19:34:22,808 http_protocol HTTP 304 response started for ['127.0.0.1', 63600]
+[DEBUG] 2026-02-22 19:34:22,812 http_protocol HTTP close for ['127.0.0.1', 63600]
+[DEBUG] 2026-02-22 19:34:22,814 http_protocol HTTP response complete for ['127.0.0.1', 63600]
+[INFO] 2026-02-22 19:34:22,814 runserver [36mHTTP GET /static/admin/css/dashboard.css 304 [0.04, 127.0.0.1:63600][0m
+[DEBUG] 2026-02-22 19:34:22,845 http_protocol HTTP b'GET' request for ['127.0.0.1', 63600]
+[DEBUG] 2026-02-22 19:34:22,948 http_protocol HTTP 304 response started for ['127.0.0.1', 63600]
+[DEBUG] 2026-02-22 19:34:22,956 http_protocol HTTP close for ['127.0.0.1', 63600]
+[DEBUG] 2026-02-22 19:34:22,976 http_protocol HTTP response complete for ['127.0.0.1', 63600]
+[INFO] 2026-02-22 19:34:22,981 runserver [36mHTTP GET /static/admin/img/icon-changelink.svg 304 [0.14, 127.0.0.1:63600][0m
+[INFO] 2026-02-22 21:29:54,956 autoreload C:\Project Setup\Django\OVS-Redo\backend\config\settings\base.py changed, reloading.
+[DEBUG] 2026-02-22 21:29:58,824 selector_events Using selector: SelectSelector
+[INFO] 2026-02-22 21:30:00,451 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-22 21:30:01,170 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-22 21:30:05,856 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-22 21:30:06,697 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-22 21:30:06,699 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-22 21:30:06,700 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-22 21:30:06,702 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-22 21:30:10,503 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-22 21:30:10,522 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-22 21:30:10,530 __init__ interactive is False
+[DEBUG] 2026-02-22 21:30:10,531 __init__ platform is win32
+[DEBUG] 2026-02-22 21:30:10,624 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-22 21:30:10,634 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[INFO] 2026-02-22 21:30:14,807 server HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+[INFO] 2026-02-22 21:30:14,807 server Configuring endpoint tcp:port=8000:interface=127.0.0.1
+[INFO] 2026-02-22 21:30:14,809 server Listening on TCP address 127.0.0.1:8000
+[INFO] 2026-02-22 21:30:19,769 autoreload C:\Project Setup\Django\OVS-Redo\backend\apps\interviews\views.py changed, reloading.
+[DEBUG] 2026-02-22 21:30:22,066 selector_events Using selector: SelectSelector
+[INFO] 2026-02-22 21:30:23,194 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-22 21:30:29,593 autoreload C:\Project Setup\Django\OVS-Redo\backend\apps\interviews\serializers.py changed, reloading.
+[DEBUG] 2026-02-22 21:30:31,367 selector_events Using selector: SelectSelector
+[INFO] 2026-02-22 21:30:32,639 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-22 21:30:33,325 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-22 21:30:36,022 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-22 21:30:36,610 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-22 21:30:36,611 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-22 21:30:36,613 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-22 21:30:36,614 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-22 21:30:39,198 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-22 21:30:39,205 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-22 21:30:39,207 __init__ interactive is False
+[DEBUG] 2026-02-22 21:30:39,209 __init__ platform is win32
+[DEBUG] 2026-02-22 21:30:39,255 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-22 21:30:39,260 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[INFO] 2026-02-22 21:30:42,467 server HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+[INFO] 2026-02-22 21:30:42,468 server Configuring endpoint tcp:port=8000:interface=127.0.0.1
+[INFO] 2026-02-22 21:30:42,470 server Listening on TCP address 127.0.0.1:8000
+[INFO] 2026-02-22 21:30:48,817 autoreload C:\Project Setup\Django\OVS-Redo\backend\ai_ml_services\interview\websocket_handler.py changed, reloading.
+[DEBUG] 2026-02-22 21:30:52,540 selector_events Using selector: SelectSelector
+[INFO] 2026-02-22 21:30:54,463 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-22 21:30:55,674 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-22 21:30:58,980 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-22 21:30:59,572 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-22 21:30:59,572 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-22 21:30:59,573 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-22 21:30:59,574 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-22 21:31:02,691 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-22 21:31:02,704 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-22 21:31:02,706 __init__ interactive is False
+[DEBUG] 2026-02-22 21:31:02,707 __init__ platform is win32
+[DEBUG] 2026-02-22 21:31:02,770 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-22 21:31:02,773 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[INFO] 2026-02-22 21:31:06,865 server HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+[INFO] 2026-02-22 21:31:06,865 server Configuring endpoint tcp:port=8000:interface=127.0.0.1
+[INFO] 2026-02-22 21:31:06,868 server Listening on TCP address 127.0.0.1:8000
+[DEBUG] 2026-02-22 21:34:26,904 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-22 21:35:50,068 selector_events Using selector: SelectSelector
+[INFO] 2026-02-22 21:35:58,324 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-22 21:37:28,099 selector_events Using selector: SelectSelector
+[INFO] 2026-02-22 21:37:35,277 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-22 22:44:53,505 http_protocol HTTP b'GET' request for ['127.0.0.1', 55782]
+[DEBUG] 2026-02-22 22:44:54,999 http_protocol HTTP 200 response started for ['127.0.0.1', 55782]
+[DEBUG] 2026-02-22 22:44:55,023 http_protocol HTTP close for ['127.0.0.1', 55782]
+[DEBUG] 2026-02-22 22:44:55,032 http_protocol HTTP response complete for ['127.0.0.1', 55782]
+[INFO] 2026-02-22 22:44:55,038 runserver [mHTTP GET /admin/ 200 [1.53, 127.0.0.1:55782][0m

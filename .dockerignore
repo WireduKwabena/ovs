@@ -1,12 +1,46 @@
+# VCS / editors
 .git
+.github
 .idea
 .vscode
+.DS_Store
+Thumbs.db
+
+# Virtual envs
 .venv
+.venv/
+.venv312/
+venv/
+env/
+
+# Python caches / tooling output
 **/__pycache__
 **/*.pyc
 **/*.pyo
 **/*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Secrets
+.env
+.env.*
+backend/.env
+backend/.env.*
+
+# Runtime/generated backend data
 backend/db.sqlite3
 backend/media
 backend/logs
-frontend/node_modules
+backend/models/
+backend/ai_ml_services/datasets/raw_dataset/
+backend/ai_ml_services/datasets/processed/
+backend/ai_ml_services/**/checkpoints/
+backend/ai_ml_services/**/runs/
+backend/ai_ml_services/**/experiments/
+
+# Frontend is not needed in backend image build context
+frontend/
