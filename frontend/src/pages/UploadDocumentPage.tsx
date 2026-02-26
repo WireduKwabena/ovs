@@ -1,27 +1,26 @@
 // src/pages/UploadDocumentPage.tsx
-import React, { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
-import { Navbar } from '@/components/common/Navbar';
-import { FileUpload } from '@/components/common/FileUpload';
-import Modal from '@/components/common/Modal';
-import { toast } from 'react-toastify';
+import React, { useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+
+import { FileUpload } from "@/components/common/FileUpload";
+import Modal from "@/components/common/Modal";
+import { toast } from "react-toastify";
 
 export const UploadDocumentPage: React.FC = () => {
   const navigate = useNavigate();
   const { caseId } = useParams<{ caseId: string }>();
-  const [selectedFiles, setSelectedFiles] = useState<{ id: string; name: string; status: string }[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<
+    { id: string; name: string; status: string }[]
+  >([]);
   const [confirmState, setConfirmState] = useState<{
     open: boolean;
     file?: any;
     resolve?: (ok: boolean) => void;
   }>({ open: false });
-  
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <button
           onClick={() => navigate(`/applications/${caseId}`)}
@@ -32,8 +31,12 @@ export const UploadDocumentPage: React.FC = () => {
         </button>
 
         <div className="bg-white rounded-lg shadow-sm p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Upload Documents</h1>
-          <p className="text-gray-600 mb-8">Add additional documents to your application</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Upload Documents
+          </h1>
+          <p className="text-gray-600 mb-8">
+            Add additional documents to your application
+          </p>
 
           <div className="space-y-6">
             {/* File Upload */}
@@ -46,7 +49,13 @@ export const UploadDocumentPage: React.FC = () => {
                   <FileUpload
                     caseId={caseId}
                     onFilesChanged={(files) =>
-                      setSelectedFiles(files.map((f) => ({ id: f.id, name: f.file.name, status: f.status })))
+                      setSelectedFiles(
+                        files.map((f) => ({
+                          id: f.id,
+                          name: f.file.name,
+                          status: f.status,
+                        })),
+                      )
                     }
                     onRemoveRequest={(file) =>
                       new Promise<boolean>((resolve) => {
@@ -54,7 +63,7 @@ export const UploadDocumentPage: React.FC = () => {
                       })
                     }
                     onUploadComplete={() => {
-                      toast.success('Documents uploaded successfully!');
+                      toast.success("Documents uploaded successfully!");
                       navigate(`/applications/${caseId}`);
                     }}
                   />
@@ -62,12 +71,16 @@ export const UploadDocumentPage: React.FC = () => {
                   {/* Brief selected files list */}
                   {selectedFiles.length > 0 && (
                     <div className="mt-4 bg-gray-50 p-3 rounded">
-                      <h4 className="text-sm font-medium mb-2">Selected files</h4>
+                      <h4 className="text-sm font-medium mb-2">
+                        Selected files
+                      </h4>
                       <ul className="text-sm text-gray-700 space-y-1">
                         {selectedFiles.map((f) => (
                           <li key={f.id} className="flex justify-between">
                             <span className="truncate">{f.name}</span>
-                            <span className="ml-4 text-xs text-gray-500">{f.status}</span>
+                            <span className="ml-4 text-xs text-gray-500">
+                              {f.status}
+                            </span>
                           </li>
                         ))}
                       </ul>
@@ -98,17 +111,27 @@ export const UploadDocumentPage: React.FC = () => {
           open={confirmState.open}
           title="Remove File"
           onCancel={() => {
-            try { confirmState.resolve?.(false); } catch {}
+            try {
+              confirmState.resolve?.(false);
+            } catch {}
             setConfirmState({ open: false });
           }}
           onConfirm={() => {
-            try { confirmState.resolve?.(true); } catch {}
+            try {
+              confirmState.resolve?.(true);
+            } catch {}
             setConfirmState({ open: false });
           }}
           confirmLabel="Remove"
           cancelLabel="Cancel"
         >
-          <p className="text-sm text-gray-700">Are you sure you want to remove <strong>{confirmState.file?.file?.name ?? confirmState.file?.name}</strong>?</p>
+          <p className="text-sm text-gray-700">
+            Are you sure you want to remove{" "}
+            <strong>
+              {confirmState.file?.file?.name ?? confirmState.file?.name}
+            </strong>
+            ?
+          </p>
         </Modal>
       </React.Suspense>
     </div>

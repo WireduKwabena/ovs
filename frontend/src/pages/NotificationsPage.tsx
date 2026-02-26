@@ -1,11 +1,11 @@
 // src/pages/NotificationsPage.tsx (Safe version)
-import React, { useMemo } from 'react';
-import { useNotifications } from '@/hooks/useNotifications';
-import { Loader } from '@/components/common/Loader';
-import { Navbar } from '@/components/common/Navbar';
+import React, { useMemo } from "react";
+import { useNotifications } from "@/hooks/useNotifications";
+import { Loader } from "@/components/common/Loader";
 
 export const NotificationsPage: React.FC = () => {
-  const { notifications, isLoading, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, isLoading, markAsRead, markAllAsRead } =
+    useNotifications();
 
   // Safety check - ensure we have an array
   const notificationsArray = useMemo(() => {
@@ -15,11 +15,13 @@ export const NotificationsPage: React.FC = () => {
 
   // Filter with safe array
   const unreadNotifications = useMemo(() => {
-    return notificationsArray.filter(n => n.status === 'unread' || !n.is_read);
+    return notificationsArray.filter(
+      (n) => n.status === "unread" || !n.is_read,
+    );
   }, [notificationsArray]);
 
   const readNotifications = useMemo(() => {
-    return notificationsArray.filter(n => n.status === 'read' && n.is_read);
+    return notificationsArray.filter((n) => n.status === "read" && n.is_read);
   }, [notificationsArray]);
 
   if (isLoading && notificationsArray.length === 0) {
@@ -32,7 +34,6 @@ export const NotificationsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Notifications</h1>
@@ -60,8 +61,12 @@ export const NotificationsPage: React.FC = () => {
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">{notification.title}</h3>
-                      <p className="text-gray-700 mt-1">{notification.message}</p>
+                      <h3 className="font-semibold text-gray-900">
+                        {notification.title}
+                      </h3>
+                      <p className="text-gray-700 mt-1">
+                        {notification.message}
+                      </p>
                       <p className="text-sm text-gray-500 mt-2">
                         {new Date(notification.created_at).toLocaleString()}
                       </p>
@@ -91,7 +96,9 @@ export const NotificationsPage: React.FC = () => {
                   key={notification.id}
                   className="bg-white border border-gray-200 rounded-lg p-4 opacity-75"
                 >
-                  <h3 className="font-semibold text-gray-900">{notification.title}</h3>
+                  <h3 className="font-semibold text-gray-900">
+                    {notification.title}
+                  </h3>
                   <p className="text-gray-700 mt-1">{notification.message}</p>
                   <p className="text-sm text-gray-500 mt-2">
                     {new Date(notification.created_at).toLocaleString()}

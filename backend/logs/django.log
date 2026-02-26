@@ -19795,3 +19795,1055 @@ Syntax Error: Couldn't read xref table
 [INFO] 2026-02-24 19:23:02,099 fraud_detector Training fraud detector on 4000 samples
 [INFO] 2026-02-24 19:23:10,725 fraud_detector Training complete: F1=1.000, AUC=1.000
 [INFO] 2026-02-24 19:23:11,297 fraud_detector Model saved to C:\Project Setup\Django\OVS-Redo\backend\models\fraud_classifier.pkl
+[DEBUG] 2026-02-26 14:26:19,145 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-26 14:26:31,125 selector_events Using selector: SelectSelector
+[INFO] 2026-02-26 14:26:34,324 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-26 14:26:35,758 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-26 14:26:49,545 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-26 14:26:52,480 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-26 14:26:52,483 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-26 14:26:52,485 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-26 14:26:52,496 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-26 14:27:06,531 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-26 14:27:06,569 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-26 14:27:06,569 __init__ interactive is False
+[DEBUG] 2026-02-26 14:27:06,569 __init__ platform is win32
+[DEBUG] 2026-02-26 14:27:06,681 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-26 14:27:06,694 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[INFO] 2026-02-26 14:27:24,527 server HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+[INFO] 2026-02-26 14:27:24,530 server Configuring endpoint tcp:port=8000:interface=127.0.0.1
+[INFO] 2026-02-26 14:27:24,533 server Listening on TCP address 127.0.0.1:8000
+[DEBUG] 2026-02-26 14:27:26,788 http_protocol HTTP b'POST' request for ['127.0.0.1', 59243]
+[DEBUG] 2026-02-26 14:27:30,030 http_protocol HTTP 200 response started for ['127.0.0.1', 59243]
+[DEBUG] 2026-02-26 14:27:30,032 http_protocol HTTP close for ['127.0.0.1', 59243]
+[DEBUG] 2026-02-26 14:27:30,033 http_protocol HTTP response complete for ['127.0.0.1', 59243]
+[INFO] 2026-02-26 14:27:30,034 runserver [mHTTP POST /admin/login/?next=/admin/ 200 [3.25, 127.0.0.1:59243][0m
+[DEBUG] 2026-02-26 14:27:30,115 http_protocol HTTP b'GET' request for ['127.0.0.1', 59243]
+[DEBUG] 2026-02-26 14:27:30,123 http_protocol HTTP b'GET' request for ['127.0.0.1', 58103]
+[DEBUG] 2026-02-26 14:27:30,127 http_protocol HTTP b'GET' request for ['127.0.0.1', 54917]
+[DEBUG] 2026-02-26 14:27:30,130 http_protocol HTTP b'GET' request for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:27:30,135 http_protocol HTTP b'GET' request for ['127.0.0.1', 51750]
+[DEBUG] 2026-02-26 14:27:30,139 http_protocol HTTP b'GET' request for ['127.0.0.1', 58653]
+[DEBUG] 2026-02-26 14:27:30,156 http_protocol HTTP 304 response started for ['127.0.0.1', 59243]
+[DEBUG] 2026-02-26 14:27:30,162 http_protocol HTTP close for ['127.0.0.1', 59243]
+[DEBUG] 2026-02-26 14:27:30,188 http_protocol HTTP response complete for ['127.0.0.1', 59243]
+[INFO] 2026-02-26 14:27:30,189 runserver [36mHTTP GET /static/admin/css/base.css 304 [0.07, 127.0.0.1:59243][0m
+[DEBUG] 2026-02-26 14:27:30,195 http_protocol HTTP 304 response started for ['127.0.0.1', 58103]
+[DEBUG] 2026-02-26 14:27:30,198 http_protocol HTTP close for ['127.0.0.1', 58103]
+[DEBUG] 2026-02-26 14:27:30,202 http_protocol HTTP response complete for ['127.0.0.1', 58103]
+[INFO] 2026-02-26 14:27:30,202 runserver [36mHTTP GET /static/admin/css/dark_mode.css 304 [0.08, 127.0.0.1:58103][0m
+[DEBUG] 2026-02-26 14:27:30,203 http_protocol HTTP 304 response started for ['127.0.0.1', 54917]
+[DEBUG] 2026-02-26 14:27:30,204 http_protocol HTTP close for ['127.0.0.1', 54917]
+[DEBUG] 2026-02-26 14:27:30,205 http_protocol HTTP response complete for ['127.0.0.1', 54917]
+[INFO] 2026-02-26 14:27:30,206 runserver [36mHTTP GET /static/admin/js/theme.js 304 [0.08, 127.0.0.1:54917][0m
+[DEBUG] 2026-02-26 14:27:30,210 http_protocol HTTP 304 response started for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:27:30,213 http_protocol HTTP close for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:27:30,215 http_protocol HTTP response complete for ['127.0.0.1', 58420]
+[INFO] 2026-02-26 14:27:30,216 runserver [36mHTTP GET /static/admin/css/nav_sidebar.css 304 [0.09, 127.0.0.1:58420][0m
+[DEBUG] 2026-02-26 14:27:30,220 http_protocol HTTP 304 response started for ['127.0.0.1', 58653]
+[DEBUG] 2026-02-26 14:27:30,244 http_protocol HTTP close for ['127.0.0.1', 58653]
+[DEBUG] 2026-02-26 14:27:30,246 http_protocol HTTP response complete for ['127.0.0.1', 58653]
+[INFO] 2026-02-26 14:27:30,247 runserver [36mHTTP GET /static/admin/css/responsive.css 304 [0.11, 127.0.0.1:58653][0m
+[DEBUG] 2026-02-26 14:27:30,248 http_protocol HTTP 304 response started for ['127.0.0.1', 51750]
+[DEBUG] 2026-02-26 14:27:30,248 http_protocol HTTP close for ['127.0.0.1', 51750]
+[DEBUG] 2026-02-26 14:27:30,250 http_protocol HTTP response complete for ['127.0.0.1', 51750]
+[INFO] 2026-02-26 14:27:30,251 runserver [36mHTTP GET /static/admin/css/login.css 304 [0.12, 127.0.0.1:51750][0m
+[DEBUG] 2026-02-26 14:27:30,264 http_protocol HTTP b'GET' request for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:27:30,364 http_protocol HTTP 304 response started for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:27:30,365 http_protocol HTTP close for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:27:30,367 http_protocol HTTP response complete for ['127.0.0.1', 58420]
+[INFO] 2026-02-26 14:27:30,369 runserver [36mHTTP GET /static/admin/js/nav_sidebar.js 304 [0.11, 127.0.0.1:58420][0m
+[DEBUG] 2026-02-26 14:28:00,654 http_protocol HTTP b'POST' request for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:28:03,925 http_protocol HTTP 200 response started for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:28:03,946 http_protocol HTTP close for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:28:03,961 http_protocol HTTP response complete for ['127.0.0.1', 58420]
+[INFO] 2026-02-26 14:28:03,975 runserver [mHTTP POST /admin/login/?next=/admin/ 200 [3.32, 127.0.0.1:58420][0m
+[DEBUG] 2026-02-26 14:28:04,036 http_protocol HTTP b'GET' request for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:28:04,061 http_protocol HTTP b'GET' request for ['127.0.0.1', 58653]
+[DEBUG] 2026-02-26 14:28:04,069 http_protocol HTTP b'GET' request for ['127.0.0.1', 59243]
+[DEBUG] 2026-02-26 14:28:04,090 http_protocol HTTP b'GET' request for ['127.0.0.1', 51750]
+[DEBUG] 2026-02-26 14:28:04,144 http_protocol HTTP b'GET' request for ['127.0.0.1', 54917]
+[DEBUG] 2026-02-26 14:28:04,192 http_protocol HTTP b'GET' request for ['127.0.0.1', 58103]
+[DEBUG] 2026-02-26 14:28:04,339 http_protocol HTTP 304 response started for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:28:04,340 http_protocol HTTP close for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:28:04,341 http_protocol HTTP response complete for ['127.0.0.1', 58420]
+[INFO] 2026-02-26 14:28:04,342 runserver [36mHTTP GET /static/admin/css/base.css 304 [0.31, 127.0.0.1:58420][0m
+[DEBUG] 2026-02-26 14:28:04,343 http_protocol HTTP 304 response started for ['127.0.0.1', 59243]
+[DEBUG] 2026-02-26 14:28:04,345 http_protocol HTTP close for ['127.0.0.1', 59243]
+[DEBUG] 2026-02-26 14:28:04,350 http_protocol HTTP response complete for ['127.0.0.1', 59243]
+[INFO] 2026-02-26 14:28:04,352 runserver [36mHTTP GET /static/admin/css/responsive.css 304 [0.28, 127.0.0.1:59243][0m
+[DEBUG] 2026-02-26 14:28:04,353 http_protocol HTTP 304 response started for ['127.0.0.1', 58653]
+[DEBUG] 2026-02-26 14:28:04,355 http_protocol HTTP close for ['127.0.0.1', 58653]
+[DEBUG] 2026-02-26 14:28:04,355 http_protocol HTTP response complete for ['127.0.0.1', 58653]
+[INFO] 2026-02-26 14:28:04,358 runserver [36mHTTP GET /static/admin/css/dark_mode.css 304 [0.30, 127.0.0.1:58653][0m
+[DEBUG] 2026-02-26 14:28:04,360 http_protocol HTTP 304 response started for ['127.0.0.1', 51750]
+[DEBUG] 2026-02-26 14:28:04,360 http_protocol HTTP close for ['127.0.0.1', 51750]
+[DEBUG] 2026-02-26 14:28:04,360 http_protocol HTTP response complete for ['127.0.0.1', 51750]
+[INFO] 2026-02-26 14:28:04,366 runserver [36mHTTP GET /static/admin/js/theme.js 304 [0.28, 127.0.0.1:51750][0m
+[DEBUG] 2026-02-26 14:28:04,371 http_protocol HTTP 304 response started for ['127.0.0.1', 54917]
+[DEBUG] 2026-02-26 14:28:04,374 http_protocol HTTP close for ['127.0.0.1', 54917]
+[DEBUG] 2026-02-26 14:28:04,376 http_protocol HTTP response complete for ['127.0.0.1', 54917]
+[INFO] 2026-02-26 14:28:04,379 runserver [36mHTTP GET /static/admin/css/nav_sidebar.css 304 [0.23, 127.0.0.1:54917][0m
+[DEBUG] 2026-02-26 14:28:04,387 http_protocol HTTP 304 response started for ['127.0.0.1', 58103]
+[DEBUG] 2026-02-26 14:28:04,388 http_protocol HTTP close for ['127.0.0.1', 58103]
+[DEBUG] 2026-02-26 14:28:04,389 http_protocol HTTP response complete for ['127.0.0.1', 58103]
+[INFO] 2026-02-26 14:28:04,391 runserver [36mHTTP GET /static/admin/css/login.css 304 [0.20, 127.0.0.1:58103][0m
+[DEBUG] 2026-02-26 14:28:04,392 http_protocol HTTP b'GET' request for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:28:04,411 http_protocol HTTP 304 response started for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:28:04,437 http_protocol HTTP close for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:28:04,438 http_protocol HTTP response complete for ['127.0.0.1', 58420]
+[INFO] 2026-02-26 14:28:04,439 runserver [36mHTTP GET /static/admin/js/nav_sidebar.js 304 [0.05, 127.0.0.1:58420][0m
+[DEBUG] 2026-02-26 14:28:15,815 http_protocol HTTP b'POST' request for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:28:17,995 http_protocol HTTP 200 response started for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:28:17,996 http_protocol HTTP close for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:28:17,997 http_protocol HTTP response complete for ['127.0.0.1', 58420]
+[INFO] 2026-02-26 14:28:17,998 runserver [mHTTP POST /admin/login/?next=/admin/ 200 [2.18, 127.0.0.1:58420][0m
+[DEBUG] 2026-02-26 14:28:18,064 http_protocol HTTP b'GET' request for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:28:18,071 http_protocol HTTP b'GET' request for ['127.0.0.1', 58653]
+[DEBUG] 2026-02-26 14:28:18,074 http_protocol HTTP b'GET' request for ['127.0.0.1', 59243]
+[DEBUG] 2026-02-26 14:28:18,076 http_protocol HTTP b'GET' request for ['127.0.0.1', 51750]
+[DEBUG] 2026-02-26 14:28:18,078 http_protocol HTTP b'GET' request for ['127.0.0.1', 54917]
+[DEBUG] 2026-02-26 14:28:18,082 http_protocol HTTP b'GET' request for ['127.0.0.1', 58103]
+[DEBUG] 2026-02-26 14:28:18,116 http_protocol HTTP 304 response started for ['127.0.0.1', 58653]
+[DEBUG] 2026-02-26 14:28:18,125 http_protocol HTTP close for ['127.0.0.1', 58653]
+[DEBUG] 2026-02-26 14:28:18,126 http_protocol HTTP response complete for ['127.0.0.1', 58653]
+[INFO] 2026-02-26 14:28:18,127 runserver [36mHTTP GET /static/admin/css/responsive.css 304 [0.06, 127.0.0.1:58653][0m
+[DEBUG] 2026-02-26 14:28:18,129 http_protocol HTTP 304 response started for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:28:18,132 http_protocol HTTP close for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:28:18,133 http_protocol HTTP response complete for ['127.0.0.1', 58420]
+[INFO] 2026-02-26 14:28:18,137 runserver [36mHTTP GET /static/admin/css/base.css 304 [0.07, 127.0.0.1:58420][0m
+[DEBUG] 2026-02-26 14:28:18,140 http_protocol HTTP 304 response started for ['127.0.0.1', 51750]
+[DEBUG] 2026-02-26 14:28:18,144 http_protocol HTTP close for ['127.0.0.1', 51750]
+[DEBUG] 2026-02-26 14:28:18,144 http_protocol HTTP response complete for ['127.0.0.1', 51750]
+[INFO] 2026-02-26 14:28:18,146 runserver [36mHTTP GET /static/admin/css/nav_sidebar.css 304 [0.07, 127.0.0.1:51750][0m
+[DEBUG] 2026-02-26 14:28:18,147 http_protocol HTTP 304 response started for ['127.0.0.1', 59243]
+[DEBUG] 2026-02-26 14:28:18,150 http_protocol HTTP close for ['127.0.0.1', 59243]
+[DEBUG] 2026-02-26 14:28:18,157 http_protocol HTTP response complete for ['127.0.0.1', 59243]
+[INFO] 2026-02-26 14:28:18,160 runserver [36mHTTP GET /static/admin/css/login.css 304 [0.09, 127.0.0.1:59243][0m
+[DEBUG] 2026-02-26 14:28:18,162 http_protocol HTTP 304 response started for ['127.0.0.1', 54917]
+[DEBUG] 2026-02-26 14:28:18,164 http_protocol HTTP close for ['127.0.0.1', 54917]
+[DEBUG] 2026-02-26 14:28:18,172 http_protocol HTTP response complete for ['127.0.0.1', 54917]
+[INFO] 2026-02-26 14:28:18,177 runserver [36mHTTP GET /static/admin/js/theme.js 304 [0.10, 127.0.0.1:54917][0m
+[DEBUG] 2026-02-26 14:28:18,183 http_protocol HTTP 304 response started for ['127.0.0.1', 58103]
+[DEBUG] 2026-02-26 14:28:18,201 http_protocol HTTP close for ['127.0.0.1', 58103]
+[DEBUG] 2026-02-26 14:28:18,211 http_protocol HTTP response complete for ['127.0.0.1', 58103]
+[INFO] 2026-02-26 14:28:18,215 runserver [36mHTTP GET /static/admin/css/dark_mode.css 304 [0.13, 127.0.0.1:58103][0m
+[DEBUG] 2026-02-26 14:28:18,218 http_protocol HTTP b'GET' request for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:28:18,270 http_protocol HTTP 304 response started for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:28:18,285 http_protocol HTTP close for ['127.0.0.1', 58420]
+[DEBUG] 2026-02-26 14:28:18,294 http_protocol HTTP response complete for ['127.0.0.1', 58420]
+[INFO] 2026-02-26 14:28:18,296 runserver [36mHTTP GET /static/admin/js/nav_sidebar.js 304 [0.08, 127.0.0.1:58420][0m
+[DEBUG] 2026-02-26 14:39:28,502 selector_events Using selector: SelectSelector
+[INFO] 2026-02-26 14:39:32,666 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-26 14:43:10,145 selector_events Using selector: SelectSelector
+[INFO] 2026-02-26 14:43:20,429 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-26 18:09:02,873 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-26 18:09:40,118 selector_events Using selector: SelectSelector
+[INFO] 2026-02-26 18:10:00,535 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-26 18:10:04,477 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-26 18:10:29,045 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-26 18:10:35,474 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-26 18:10:35,631 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-26 18:10:36,002 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-26 18:10:36,170 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-26 18:10:55,396 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-26 18:10:55,491 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-26 18:10:55,511 __init__ interactive is False
+[DEBUG] 2026-02-26 18:10:55,569 __init__ platform is win32
+[DEBUG] 2026-02-26 18:10:55,769 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-26 18:10:55,869 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[INFO] 2026-02-26 18:11:21,963 server HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+[INFO] 2026-02-26 18:11:21,966 server Configuring endpoint tcp:port=8000:interface=127.0.0.1
+[INFO] 2026-02-26 18:11:21,982 server Listening on TCP address 127.0.0.1:8000
+[DEBUG] 2026-02-26 18:11:29,476 http_protocol HTTP b'GET' request for ['127.0.0.1', 65264]
+[WARNING] 2026-02-26 18:11:29,847 log Not Found: /
+[DEBUG] 2026-02-26 18:11:29,907 http_protocol HTTP 404 response started for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:11:29,976 http_protocol HTTP close for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:11:30,098 http_protocol HTTP response complete for ['127.0.0.1', 65264]
+[WARNING] 2026-02-26 18:11:30,129 runserver [33mHTTP GET / 404 [0.65, 127.0.0.1:65264][0m
+[DEBUG] 2026-02-26 18:11:38,083 http_protocol HTTP b'GET' request for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:11:38,846 http_protocol HTTP 302 response started for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:11:38,871 http_protocol HTTP close for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:11:38,880 http_protocol HTTP response complete for ['127.0.0.1', 65264]
+[INFO] 2026-02-26 18:11:38,903 runserver [32mHTTP GET /admin/ 302 [0.82, 127.0.0.1:65264][0m
+[DEBUG] 2026-02-26 18:11:38,984 http_protocol HTTP b'GET' request for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:11:39,362 http_protocol HTTP 200 response started for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:11:39,419 http_protocol HTTP close for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:11:39,578 http_protocol HTTP response complete for ['127.0.0.1', 65264]
+[INFO] 2026-02-26 18:11:39,971 runserver [mHTTP GET /admin/login/?next=/admin/ 200 [0.99, 127.0.0.1:65264][0m
+[DEBUG] 2026-02-26 18:11:40,516 http_protocol HTTP b'GET' request for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:11:40,518 http_protocol HTTP b'GET' request for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:11:40,981 http_protocol HTTP b'GET' request for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:11:40,983 http_protocol HTTP b'GET' request for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:11:41,171 http_protocol HTTP b'GET' request for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:11:41,437 http_protocol HTTP b'GET' request for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:11:41,754 http_protocol HTTP 304 response started for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:11:41,755 http_protocol HTTP close for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:11:41,757 http_protocol HTTP response complete for ['127.0.0.1', 65264]
+[INFO] 2026-02-26 18:11:41,827 runserver [36mHTTP GET /static/admin/css/base.css 304 [1.31, 127.0.0.1:65264][0m
+[DEBUG] 2026-02-26 18:11:41,828 http_protocol HTTP 304 response started for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:11:41,830 http_protocol HTTP close for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:11:41,835 http_protocol HTTP response complete for ['127.0.0.1', 53075]
+[INFO] 2026-02-26 18:11:41,920 runserver [36mHTTP GET /static/admin/css/dark_mode.css 304 [1.40, 127.0.0.1:53075][0m
+[DEBUG] 2026-02-26 18:11:41,927 http_protocol HTTP 304 response started for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:11:41,929 http_protocol HTTP close for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:11:41,929 http_protocol HTTP response complete for ['127.0.0.1', 65479]
+[INFO] 2026-02-26 18:11:41,934 runserver [36mHTTP GET /static/admin/js/theme.js 304 [0.95, 127.0.0.1:65479][0m
+[DEBUG] 2026-02-26 18:11:41,934 http_protocol HTTP 304 response started for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:11:42,011 http_protocol HTTP close for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:11:42,011 http_protocol HTTP response complete for ['127.0.0.1', 57577]
+[INFO] 2026-02-26 18:11:42,064 runserver [36mHTTP GET /static/admin/css/responsive.css 304 [1.08, 127.0.0.1:57577][0m
+[DEBUG] 2026-02-26 18:11:42,132 http_protocol HTTP 304 response started for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:11:42,174 http_protocol HTTP close for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:11:42,244 http_protocol HTTP response complete for ['127.0.0.1', 54534]
+[INFO] 2026-02-26 18:11:42,253 runserver [36mHTTP GET /static/admin/css/nav_sidebar.css 304 [1.08, 127.0.0.1:54534][0m
+[DEBUG] 2026-02-26 18:11:42,253 http_protocol HTTP 304 response started for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:11:42,302 http_protocol HTTP close for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:11:42,347 http_protocol HTTP response complete for ['127.0.0.1', 53502]
+[INFO] 2026-02-26 18:11:42,348 runserver [36mHTTP GET /static/admin/css/login.css 304 [0.91, 127.0.0.1:53502][0m
+[DEBUG] 2026-02-26 18:11:42,350 http_protocol HTTP b'GET' request for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:11:42,464 http_protocol HTTP 304 response started for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:11:42,465 http_protocol HTTP close for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:11:42,465 http_protocol HTTP response complete for ['127.0.0.1', 57577]
+[INFO] 2026-02-26 18:11:42,465 runserver [36mHTTP GET /static/admin/js/nav_sidebar.js 304 [0.12, 127.0.0.1:57577][0m
+[DEBUG] 2026-02-26 18:12:16,960 http_protocol HTTP b'POST' request for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:22,472 http_protocol HTTP 302 response started for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:22,473 http_protocol HTTP close for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:22,530 http_protocol HTTP response complete for ['127.0.0.1', 57577]
+[INFO] 2026-02-26 18:12:22,653 runserver [32mHTTP POST /admin/login/?next=/admin/ 302 [5.69, 127.0.0.1:57577][0m
+[DEBUG] 2026-02-26 18:12:22,702 http_protocol HTTP b'GET' request for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:23,145 http_protocol HTTP 200 response started for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:23,146 http_protocol HTTP close for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:23,147 http_protocol HTTP response complete for ['127.0.0.1', 57577]
+[INFO] 2026-02-26 18:12:23,147 runserver [mHTTP GET /admin/ 200 [0.45, 127.0.0.1:57577][0m
+[DEBUG] 2026-02-26 18:12:23,237 http_protocol HTTP b'GET' request for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:23,240 http_protocol HTTP b'GET' request for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:23,241 http_protocol HTTP b'GET' request for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:23,242 http_protocol HTTP b'GET' request for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:12:23,343 http_protocol HTTP b'GET' request for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:23,584 http_protocol HTTP b'GET' request for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:23,748 http_protocol HTTP 304 response started for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:23,766 http_protocol HTTP close for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:23,779 http_protocol HTTP response complete for ['127.0.0.1', 57577]
+[INFO] 2026-02-26 18:12:23,782 runserver [36mHTTP GET /static/admin/css/base.css 304 [0.54, 127.0.0.1:57577][0m
+[DEBUG] 2026-02-26 18:12:23,786 http_protocol HTTP 304 response started for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:23,801 http_protocol HTTP close for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:23,815 http_protocol HTTP response complete for ['127.0.0.1', 65479]
+[INFO] 2026-02-26 18:12:23,818 runserver [36mHTTP GET /static/admin/css/nav_sidebar.css 304 [0.58, 127.0.0.1:65479][0m
+[DEBUG] 2026-02-26 18:12:23,847 http_protocol HTTP 304 response started for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:23,852 http_protocol HTTP close for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:23,854 http_protocol HTTP response complete for ['127.0.0.1', 54534]
+[INFO] 2026-02-26 18:12:23,883 runserver [36mHTTP GET /static/admin/js/theme.js 304 [0.64, 127.0.0.1:54534][0m
+[DEBUG] 2026-02-26 18:12:23,883 http_protocol HTTP 304 response started for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:12:23,885 http_protocol HTTP close for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:12:23,887 http_protocol HTTP response complete for ['127.0.0.1', 53502]
+[INFO] 2026-02-26 18:12:23,894 runserver [36mHTTP GET /static/admin/css/dark_mode.css 304 [0.65, 127.0.0.1:53502][0m
+[DEBUG] 2026-02-26 18:12:23,895 http_protocol HTTP 304 response started for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:23,935 http_protocol HTTP close for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:23,962 http_protocol HTTP response complete for ['127.0.0.1', 53075]
+[INFO] 2026-02-26 18:12:23,964 runserver [36mHTTP GET /static/admin/css/responsive.css 304 [0.62, 127.0.0.1:53075][0m
+[DEBUG] 2026-02-26 18:12:23,967 http_protocol HTTP 304 response started for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:23,969 http_protocol HTTP close for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:23,970 http_protocol HTTP response complete for ['127.0.0.1', 65264]
+[INFO] 2026-02-26 18:12:23,971 runserver [36mHTTP GET /static/admin/css/dashboard.css 304 [0.39, 127.0.0.1:65264][0m
+[DEBUG] 2026-02-26 18:12:24,093 http_protocol HTTP b'GET' request for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:24,096 http_protocol HTTP b'GET' request for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:24,254 http_protocol HTTP b'GET' request for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:24,379 http_protocol HTTP 304 response started for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:24,379 http_protocol HTTP close for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:24,380 http_protocol HTTP response complete for ['127.0.0.1', 65264]
+[INFO] 2026-02-26 18:12:24,381 runserver [36mHTTP GET /static/admin/js/nav_sidebar.js 304 [0.29, 127.0.0.1:65264][0m
+[DEBUG] 2026-02-26 18:12:24,382 http_protocol HTTP 304 response started for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:24,383 http_protocol HTTP close for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:24,384 http_protocol HTTP response complete for ['127.0.0.1', 53075]
+[INFO] 2026-02-26 18:12:24,385 runserver [36mHTTP GET /static/admin/img/icon-addlink.svg 304 [0.29, 127.0.0.1:53075][0m
+[DEBUG] 2026-02-26 18:12:24,387 http_protocol HTTP 304 response started for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:24,388 http_protocol HTTP close for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:24,389 http_protocol HTTP response complete for ['127.0.0.1', 54534]
+[INFO] 2026-02-26 18:12:24,390 runserver [36mHTTP GET /static/admin/img/icon-changelink.svg 304 [0.14, 127.0.0.1:54534][0m
+[DEBUG] 2026-02-26 18:12:40,534 http_protocol HTTP b'GET' request for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:41,470 http_protocol HTTP 200 response started for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:41,471 http_protocol HTTP close for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:41,472 http_protocol HTTP response complete for ['127.0.0.1', 54534]
+[INFO] 2026-02-26 18:12:41,473 runserver [mHTTP GET /admin/authentication/user/ 200 [0.94, 127.0.0.1:54534][0m
+[DEBUG] 2026-02-26 18:12:41,588 http_protocol HTTP b'GET' request for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:41,719 http_protocol HTTP b'GET' request for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:41,768 http_protocol HTTP b'GET' request for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:41,831 http_protocol HTTP b'GET' request for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:12:41,880 http_protocol HTTP b'GET' request for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:41,882 http_protocol HTTP b'GET' request for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:42,225 http_protocol HTTP 304 response started for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:42,225 http_protocol HTTP close for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:42,232 http_protocol HTTP response complete for ['127.0.0.1', 54534]
+[INFO] 2026-02-26 18:12:42,232 runserver [36mHTTP GET /static/admin/css/base.css 304 [0.64, 127.0.0.1:54534][0m
+[DEBUG] 2026-02-26 18:12:42,232 http_protocol HTTP 304 response started for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:42,232 http_protocol HTTP close for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:42,232 http_protocol HTTP response complete for ['127.0.0.1', 57577]
+[INFO] 2026-02-26 18:12:42,232 runserver [36mHTTP GET /static/admin/js/core.js 304 [0.51, 127.0.0.1:57577][0m
+[DEBUG] 2026-02-26 18:12:42,240 http_protocol HTTP 304 response started for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:42,244 http_protocol HTTP close for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:42,245 http_protocol HTTP response complete for ['127.0.0.1', 65264]
+[INFO] 2026-02-26 18:12:42,246 runserver [36mHTTP GET /static/admin/js/theme.js 304 [0.48, 127.0.0.1:65264][0m
+[DEBUG] 2026-02-26 18:12:42,247 http_protocol HTTP 304 response started for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:12:42,248 http_protocol HTTP close for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:12:42,253 http_protocol HTTP response complete for ['127.0.0.1', 53502]
+[INFO] 2026-02-26 18:12:42,254 runserver [36mHTTP GET /static/admin/css/nav_sidebar.css 304 [0.42, 127.0.0.1:53502][0m
+[DEBUG] 2026-02-26 18:12:42,259 http_protocol HTTP 304 response started for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:42,260 http_protocol HTTP close for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:42,261 http_protocol HTTP response complete for ['127.0.0.1', 65479]
+[INFO] 2026-02-26 18:12:42,261 runserver [36mHTTP GET /static/admin/css/responsive.css 304 [0.38, 127.0.0.1:65479][0m
+[DEBUG] 2026-02-26 18:12:42,262 http_protocol HTTP 304 response started for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:42,263 http_protocol HTTP close for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:42,263 http_protocol HTTP response complete for ['127.0.0.1', 53075]
+[INFO] 2026-02-26 18:12:42,264 runserver [36mHTTP GET /static/admin/css/dark_mode.css 304 [0.38, 127.0.0.1:53075][0m
+[DEBUG] 2026-02-26 18:12:42,400 http_protocol HTTP b'GET' request for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:42,402 http_protocol HTTP b'GET' request for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:42,403 http_protocol HTTP b'GET' request for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:12:42,405 http_protocol HTTP b'GET' request for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:42,408 http_protocol HTTP b'GET' request for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:42,470 http_protocol HTTP b'GET' request for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:42,900 http_protocol HTTP 304 response started for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:42,901 http_protocol HTTP close for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:42,902 http_protocol HTTP response complete for ['127.0.0.1', 57577]
+[INFO] 2026-02-26 18:12:42,903 runserver [36mHTTP GET /static/admin/css/changelists.css 304 [0.50, 127.0.0.1:57577][0m
+[DEBUG] 2026-02-26 18:12:42,904 http_protocol HTTP 304 response started for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:42,905 http_protocol HTTP close for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:42,907 http_protocol HTTP response complete for ['127.0.0.1', 65479]
+[INFO] 2026-02-26 18:12:42,920 runserver [36mHTTP GET /static/admin/js/admin/RelatedObjectLookups.js 304 [0.52, 127.0.0.1:65479][0m
+[DEBUG] 2026-02-26 18:12:42,963 http_protocol HTTP 304 response started for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:43,012 http_protocol HTTP close for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:43,045 http_protocol HTTP response complete for ['127.0.0.1', 65264]
+[INFO] 2026-02-26 18:12:43,045 runserver [36mHTTP GET /static/admin/js/vendor/jquery/jquery.js 304 [0.64, 127.0.0.1:65264][0m
+[DEBUG] 2026-02-26 18:12:43,047 http_protocol HTTP 304 response started for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:43,048 http_protocol HTTP close for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:43,049 http_protocol HTTP response complete for ['127.0.0.1', 53075]
+[INFO] 2026-02-26 18:12:43,049 runserver [36mHTTP GET /static/admin/js/urlify.js 304 [0.64, 127.0.0.1:53075][0m
+[DEBUG] 2026-02-26 18:12:43,078 http_protocol HTTP 304 response started for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:43,127 http_protocol HTTP close for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:43,127 http_protocol HTTP response complete for ['127.0.0.1', 54534]
+[INFO] 2026-02-26 18:12:43,129 runserver [36mHTTP GET /static/admin/js/jquery.init.js 304 [0.66, 127.0.0.1:54534][0m
+[DEBUG] 2026-02-26 18:12:43,273 http_protocol HTTP b'GET' request for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:43,273 http_protocol HTTP b'GET' request for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:43,273 http_protocol HTTP b'GET' request for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:43,480 http_protocol HTTP b'GET' request for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:43,551 http_protocol HTTP b'GET' request for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:43,586 http_protocol HTTP 304 response started for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:43,586 http_protocol HTTP close for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:43,612 http_protocol HTTP response complete for ['127.0.0.1', 65264]
+[INFO] 2026-02-26 18:12:43,648 runserver [36mHTTP GET /static/admin/js/vendor/xregexp/xregexp.js 304 [0.38, 127.0.0.1:65264][0m
+[DEBUG] 2026-02-26 18:12:43,692 http_protocol HTTP 304 response started for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:43,712 http_protocol HTTP close for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:43,718 http_protocol HTTP response complete for ['127.0.0.1', 57577]
+[INFO] 2026-02-26 18:12:43,721 runserver [36mHTTP GET /static/admin/js/actions.js 304 [0.45, 127.0.0.1:57577][0m
+[DEBUG] 2026-02-26 18:12:43,750 http_protocol HTTP 304 response started for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:43,752 http_protocol HTTP close for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:43,767 http_protocol HTTP response complete for ['127.0.0.1', 65479]
+[INFO] 2026-02-26 18:12:43,784 runserver [36mHTTP GET /static/admin/js/prepopulate.js 304 [0.51, 127.0.0.1:65479][0m
+[DEBUG] 2026-02-26 18:12:43,825 http_protocol HTTP 304 response started for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:43,828 http_protocol HTTP close for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:43,828 http_protocol HTTP response complete for ['127.0.0.1', 54534]
+[INFO] 2026-02-26 18:12:43,850 runserver [36mHTTP GET /static/admin/img/search.svg 304 [0.37, 127.0.0.1:54534][0m
+[DEBUG] 2026-02-26 18:12:43,863 http_protocol HTTP 200 response started for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:12:43,863 http_protocol HTTP close for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:12:43,872 http_protocol HTTP response complete for ['127.0.0.1', 53502]
+[INFO] 2026-02-26 18:12:43,901 runserver [mHTTP GET /admin/jsi18n/ 200 [1.50, 127.0.0.1:53502][0m
+[DEBUG] 2026-02-26 18:12:44,013 http_protocol HTTP b'GET' request for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:12:44,137 http_protocol HTTP b'GET' request for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:44,137 http_protocol HTTP b'GET' request for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:44,137 http_protocol HTTP b'GET' request for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:44,143 http_protocol HTTP b'GET' request for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:44,484 http_protocol HTTP 200 response started for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:44,494 http_protocol HTTP response chunk for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:44,494 http_protocol HTTP close for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:44,495 http_protocol HTTP response complete for ['127.0.0.1', 53075]
+[INFO] 2026-02-26 18:12:44,496 runserver [mHTTP GET /static/admin/img/icon-yes.svg 200 [0.94, 127.0.0.1:53075][0m
+[DEBUG] 2026-02-26 18:12:44,497 http_protocol HTTP 304 response started for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:44,498 http_protocol HTTP close for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:44,499 http_protocol HTTP response complete for ['127.0.0.1', 57577]
+[INFO] 2026-02-26 18:12:44,500 runserver [36mHTTP GET /static/admin/js/filters.js 304 [0.36, 127.0.0.1:57577][0m
+[DEBUG] 2026-02-26 18:12:44,501 http_protocol HTTP 304 response started for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:44,502 http_protocol HTTP close for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:44,503 http_protocol HTTP response complete for ['127.0.0.1', 65479]
+[INFO] 2026-02-26 18:12:44,504 runserver [36mHTTP GET /static/admin/img/tooltag-add.svg 304 [0.37, 127.0.0.1:65479][0m
+[DEBUG] 2026-02-26 18:12:44,517 http_protocol HTTP 304 response started for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:44,518 http_protocol HTTP close for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:44,518 http_protocol HTTP response complete for ['127.0.0.1', 65264]
+[INFO] 2026-02-26 18:12:44,519 runserver [36mHTTP GET /static/admin/js/nav_sidebar.js 304 [0.38, 127.0.0.1:65264][0m
+[DEBUG] 2026-02-26 18:12:44,522 http_protocol HTTP 200 response started for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:12:44,531 http_protocol HTTP response chunk for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:12:44,532 http_protocol HTTP close for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:12:44,533 http_protocol HTTP response complete for ['127.0.0.1', 53502]
+[INFO] 2026-02-26 18:12:44,534 runserver [mHTTP GET /static/admin/img/icon-no.svg 200 [0.52, 127.0.0.1:53502][0m
+[DEBUG] 2026-02-26 18:12:44,535 http_protocol HTTP 200 response started for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:44,549 http_protocol HTTP response chunk for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:44,583 http_protocol HTTP close for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:44,613 http_protocol HTTP response complete for ['127.0.0.1', 54534]
+[INFO] 2026-02-26 18:12:44,613 runserver [mHTTP GET /static/admin/img/sorting-icons.svg 200 [0.47, 127.0.0.1:54534][0m
+[DEBUG] 2026-02-26 18:12:44,636 http_protocol HTTP b'GET' request for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:44,764 http_protocol HTTP 304 response started for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:44,764 http_protocol HTTP close for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:44,764 http_protocol HTTP response complete for ['127.0.0.1', 57577]
+[INFO] 2026-02-26 18:12:44,764 runserver [36mHTTP GET /static/admin/img/icon-viewlink.svg 304 [0.13, 127.0.0.1:57577][0m
+[DEBUG] 2026-02-26 18:12:53,654 http_protocol HTTP b'GET' request for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:54,449 http_protocol HTTP 200 response started for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:54,450 http_protocol HTTP response chunk for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:54,451 http_protocol HTTP close for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:54,452 http_protocol HTTP response complete for ['127.0.0.1', 57577]
+[INFO] 2026-02-26 18:12:54,452 runserver [mHTTP GET /admin/authentication/user/1/change/ 200 [0.80, 127.0.0.1:57577][0m
+[DEBUG] 2026-02-26 18:12:54,541 http_protocol HTTP b'GET' request for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:54,541 http_protocol HTTP b'GET' request for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:54,643 http_protocol HTTP b'GET' request for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:54,643 http_protocol HTTP b'GET' request for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:12:54,645 http_protocol HTTP b'GET' request for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:54,648 http_protocol HTTP b'GET' request for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:54,925 http_protocol HTTP 304 response started for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:54,926 http_protocol HTTP close for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:54,927 http_protocol HTTP response complete for ['127.0.0.1', 65264]
+[INFO] 2026-02-26 18:12:54,928 runserver [36mHTTP GET /static/admin/css/dark_mode.css 304 [0.29, 127.0.0.1:65264][0m
+[DEBUG] 2026-02-26 18:12:54,932 http_protocol HTTP 304 response started for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:54,934 http_protocol HTTP close for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:54,975 http_protocol HTTP response complete for ['127.0.0.1', 65479]
+[INFO] 2026-02-26 18:12:54,975 runserver [36mHTTP GET /static/admin/js/theme.js 304 [0.33, 127.0.0.1:65479][0m
+[DEBUG] 2026-02-26 18:12:54,977 http_protocol HTTP 200 response started for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:54,977 http_protocol HTTP 200 response started for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:54,981 http_protocol HTTP 200 response started for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:12:55,040 http_protocol HTTP 304 response started for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:55,040 http_protocol HTTP close for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:55,040 http_protocol HTTP response complete for ['127.0.0.1', 53075]
+[INFO] 2026-02-26 18:12:55,040 runserver [36mHTTP GET /static/admin/css/base.css 304 [0.39, 127.0.0.1:53075][0m
+[DEBUG] 2026-02-26 18:12:55,040 http_protocol HTTP response chunk for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:55,046 http_protocol HTTP close for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:12:55,053 http_protocol HTTP response complete for ['127.0.0.1', 57577]
+[INFO] 2026-02-26 18:12:55,054 runserver [mHTTP GET /static/admin/css/forms.css 200 [0.51, 127.0.0.1:57577][0m
+[DEBUG] 2026-02-26 18:12:55,073 http_protocol HTTP response chunk for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:55,074 http_protocol HTTP close for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:12:55,075 http_protocol HTTP response complete for ['127.0.0.1', 54534]
+[INFO] 2026-02-26 18:12:55,076 runserver [mHTTP GET /static/admin/js/SelectBox.js 200 [0.53, 127.0.0.1:54534][0m
+[DEBUG] 2026-02-26 18:12:55,076 http_protocol HTTP response chunk for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:12:55,101 http_protocol HTTP close for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:12:55,137 http_protocol HTTP response complete for ['127.0.0.1', 53502]
+[INFO] 2026-02-26 18:12:55,138 runserver [mHTTP GET /static/admin/js/SelectFilter2.js 200 [0.49, 127.0.0.1:53502][0m
+[DEBUG] 2026-02-26 18:12:55,140 http_protocol HTTP b'GET' request for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:55,141 http_protocol HTTP b'GET' request for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:55,143 http_protocol HTTP b'GET' request for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:55,299 http_protocol HTTP 304 response started for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:55,300 http_protocol HTTP close for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:55,302 http_protocol HTTP response complete for ['127.0.0.1', 65479]
+[INFO] 2026-02-26 18:12:55,303 runserver [36mHTTP GET /static/admin/css/nav_sidebar.css 304 [0.16, 127.0.0.1:65479][0m
+[DEBUG] 2026-02-26 18:12:55,304 http_protocol HTTP 304 response started for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:55,305 http_protocol HTTP close for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:55,306 http_protocol HTTP response complete for ['127.0.0.1', 53075]
+[INFO] 2026-02-26 18:12:55,306 runserver [36mHTTP GET /static/admin/css/responsive.css 304 [0.16, 127.0.0.1:53075][0m
+[DEBUG] 2026-02-26 18:12:55,406 http_protocol HTTP b'GET' request for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:55,502 http_protocol HTTP b'GET' request for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:55,588 http_protocol HTTP 200 response started for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:55,617 http_protocol HTTP response chunk for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:55,628 http_protocol HTTP close for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:12:55,636 http_protocol HTTP response complete for ['127.0.0.1', 53075]
+[INFO] 2026-02-26 18:12:55,646 runserver [mHTTP GET /static/admin/css/widgets.css 200 [0.24, 127.0.0.1:53075][0m
+[DEBUG] 2026-02-26 18:12:55,676 http_protocol HTTP 200 response started for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:55,693 http_protocol HTTP response chunk for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:55,742 http_protocol HTTP close for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:55,756 http_protocol HTTP response complete for ['127.0.0.1', 65479]
+[INFO] 2026-02-26 18:12:55,757 runserver [mHTTP GET /static/admin/js/prepopulate_init.js 200 [0.26, 127.0.0.1:65479][0m
+[DEBUG] 2026-02-26 18:12:55,833 http_protocol HTTP 200 response started for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:55,869 http_protocol HTTP close for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:55,919 http_protocol HTTP response complete for ['127.0.0.1', 65264]
+[INFO] 2026-02-26 18:12:55,958 runserver [mHTTP GET /admin/jsi18n/ 200 [0.82, 127.0.0.1:65264][0m
+[DEBUG] 2026-02-26 18:12:55,966 http_protocol HTTP b'GET' request for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:56,061 http_protocol HTTP b'GET' request for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:56,188 http_protocol HTTP 304 response started for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:56,220 http_protocol HTTP close for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:12:56,236 http_protocol HTTP response complete for ['127.0.0.1', 65479]
+[INFO] 2026-02-26 18:12:56,254 runserver [36mHTTP GET /static/admin/js/nav_sidebar.js 304 [0.29, 127.0.0.1:65479][0m
+[DEBUG] 2026-02-26 18:12:56,281 http_protocol HTTP 200 response started for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:56,290 http_protocol HTTP response chunk for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:56,317 http_protocol HTTP close for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:56,342 http_protocol HTTP response complete for ['127.0.0.1', 65264]
+[INFO] 2026-02-26 18:12:56,424 runserver [mHTTP GET /static/admin/js/change_form.js 200 [0.36, 127.0.0.1:65264][0m
+[DEBUG] 2026-02-26 18:12:56,720 http_protocol HTTP b'GET' request for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:56,994 http_protocol HTTP 200 response started for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:57,050 http_protocol HTTP response chunk for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:57,081 http_protocol HTTP close for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:12:57,157 http_protocol HTTP response complete for ['127.0.0.1', 65264]
+[INFO] 2026-02-26 18:12:57,193 runserver [mHTTP GET /static/admin/img/selector-icons.svg 200 [0.47, 127.0.0.1:65264][0m
+[DEBUG] 2026-02-26 18:13:22,447 http_protocol HTTP b'GET' request for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:13:23,333 http_protocol HTTP 200 response started for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:13:23,355 http_protocol HTTP close for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:13:23,374 http_protocol HTTP response complete for ['127.0.0.1', 65264]
+[INFO] 2026-02-26 18:13:23,396 runserver [mHTTP GET /admin/authentication/user/1/password/ 200 [0.95, 127.0.0.1:65264][0m
+[DEBUG] 2026-02-26 18:13:23,531 http_protocol HTTP b'GET' request for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:13:23,581 http_protocol HTTP b'GET' request for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:13:23,598 http_protocol HTTP b'GET' request for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:13:23,661 http_protocol HTTP b'GET' request for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:13:23,693 http_protocol HTTP b'GET' request for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:13:23,753 http_protocol HTTP b'GET' request for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:13:24,378 http_protocol HTTP 304 response started for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:13:24,389 http_protocol HTTP close for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:13:24,392 http_protocol HTTP response complete for ['127.0.0.1', 53502]
+[INFO] 2026-02-26 18:13:24,395 runserver [36mHTTP GET /static/admin/css/nav_sidebar.css 304 [0.80, 127.0.0.1:53502][0m
+[DEBUG] 2026-02-26 18:13:24,396 http_protocol HTTP 304 response started for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:13:24,399 http_protocol HTTP close for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:13:24,420 http_protocol HTTP response complete for ['127.0.0.1', 65479]
+[INFO] 2026-02-26 18:13:24,461 runserver [36mHTTP GET /static/admin/css/base.css 304 [0.80, 127.0.0.1:65479][0m
+[DEBUG] 2026-02-26 18:13:24,480 http_protocol HTTP 304 response started for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:13:24,510 http_protocol HTTP close for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:13:24,554 http_protocol HTTP response complete for ['127.0.0.1', 53075]
+[INFO] 2026-02-26 18:13:24,567 runserver [36mHTTP GET /static/admin/css/dark_mode.css 304 [0.87, 127.0.0.1:53075][0m
+[DEBUG] 2026-02-26 18:13:24,570 http_protocol HTTP 304 response started for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:13:24,634 http_protocol HTTP close for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:13:24,686 http_protocol HTTP response complete for ['127.0.0.1', 57577]
+[INFO] 2026-02-26 18:13:24,705 runserver [36mHTTP GET /static/admin/css/responsive.css 304 [1.12, 127.0.0.1:57577][0m
+[DEBUG] 2026-02-26 18:13:24,782 http_protocol HTTP 200 response started for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:13:24,843 http_protocol HTTP 304 response started for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:13:24,862 http_protocol HTTP close for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:13:24,891 http_protocol HTTP response complete for ['127.0.0.1', 54534]
+[INFO] 2026-02-26 18:13:24,910 runserver [36mHTTP GET /static/admin/js/theme.js 304 [1.16, 127.0.0.1:54534][0m
+[DEBUG] 2026-02-26 18:13:24,926 http_protocol HTTP response chunk for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:13:24,943 http_protocol HTTP close for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:13:25,009 http_protocol HTTP response complete for ['127.0.0.1', 65264]
+[INFO] 2026-02-26 18:13:25,053 runserver [mHTTP GET /static/admin/css/unusable_password_field.css 200 [1.52, 127.0.0.1:65264][0m
+[DEBUG] 2026-02-26 18:13:25,093 http_protocol HTTP b'GET' request for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:13:25,131 http_protocol HTTP b'GET' request for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:13:25,404 http_protocol HTTP 304 response started for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:13:25,465 http_protocol HTTP close for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:13:25,545 http_protocol HTTP response complete for ['127.0.0.1', 54534]
+[INFO] 2026-02-26 18:13:25,657 runserver [36mHTTP GET /static/admin/js/nav_sidebar.js 304 [0.56, 127.0.0.1:54534][0m
+[DEBUG] 2026-02-26 18:13:25,718 http_protocol HTTP 200 response started for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:13:25,800 http_protocol HTTP response chunk for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:13:25,885 http_protocol HTTP close for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:13:26,043 http_protocol HTTP response complete for ['127.0.0.1', 53075]
+[INFO] 2026-02-26 18:13:26,132 runserver [mHTTP GET /static/admin/js/unusable_password_field.js 200 [1.00, 127.0.0.1:53075][0m
+[DEBUG] 2026-02-26 18:13:59,075 http_protocol HTTP b'POST' request for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:14:05,081 http_protocol HTTP 302 response started for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:14:05,098 http_protocol HTTP close for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:14:05,117 http_protocol HTTP response complete for ['127.0.0.1', 53075]
+[INFO] 2026-02-26 18:14:05,134 runserver [32mHTTP POST /admin/authentication/user/1/password/ 302 [6.06, 127.0.0.1:53075][0m
+[DEBUG] 2026-02-26 18:14:05,169 http_protocol HTTP b'GET' request for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:14:05,863 http_protocol HTTP 200 response started for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:14:05,890 http_protocol HTTP response chunk for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:14:05,924 http_protocol HTTP close for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:14:05,935 http_protocol HTTP response complete for ['127.0.0.1', 53075]
+[INFO] 2026-02-26 18:14:05,942 runserver [mHTTP GET /admin/authentication/user/1/change/ 200 [0.77, 127.0.0.1:53075][0m
+[DEBUG] 2026-02-26 18:14:06,068 http_protocol HTTP b'GET' request for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:14:06,144 http_protocol HTTP b'GET' request for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:14:06,272 http_protocol HTTP b'GET' request for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:14:06,401 http_protocol HTTP b'GET' request for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:14:06,452 http_protocol HTTP b'GET' request for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:14:06,515 http_protocol HTTP b'GET' request for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:14:08,145 http_protocol HTTP 304 response started for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:14:08,233 http_protocol HTTP close for ['127.0.0.1', 57577]
+[DEBUG] 2026-02-26 18:14:08,233 http_protocol HTTP response complete for ['127.0.0.1', 57577]
+[INFO] 2026-02-26 18:14:08,342 runserver [36mHTTP GET /static/admin/css/responsive.css 304 [2.07, 127.0.0.1:57577][0m
+[DEBUG] 2026-02-26 18:14:08,412 http_protocol HTTP 304 response started for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:14:08,478 http_protocol HTTP close for ['127.0.0.1', 65264]
+[DEBUG] 2026-02-26 18:14:08,500 http_protocol HTTP response complete for ['127.0.0.1', 65264]
+[INFO] 2026-02-26 18:14:08,546 runserver [36mHTTP GET /static/admin/js/theme.js 304 [2.40, 127.0.0.1:65264][0m
+[DEBUG] 2026-02-26 18:14:08,595 http_protocol HTTP 304 response started for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:14:08,668 http_protocol HTTP close for ['127.0.0.1', 54534]
+[DEBUG] 2026-02-26 18:14:08,748 http_protocol HTTP response complete for ['127.0.0.1', 54534]
+[INFO] 2026-02-26 18:14:08,800 runserver [36mHTTP GET /static/admin/css/dark_mode.css 304 [2.28, 127.0.0.1:54534][0m
+[DEBUG] 2026-02-26 18:14:08,879 http_protocol HTTP 304 response started for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:14:08,983 http_protocol HTTP close for ['127.0.0.1', 53075]
+[DEBUG] 2026-02-26 18:14:09,063 http_protocol HTTP response complete for ['127.0.0.1', 53075]
+[INFO] 2026-02-26 18:14:09,151 runserver [36mHTTP GET /static/admin/css/base.css 304 [3.08, 127.0.0.1:53075][0m
+[DEBUG] 2026-02-26 18:14:09,315 http_protocol HTTP 304 response started for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:14:09,433 http_protocol HTTP close for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:14:09,507 http_protocol HTTP response complete for ['127.0.0.1', 65479]
+[INFO] 2026-02-26 18:14:09,557 runserver [36mHTTP GET /static/admin/css/nav_sidebar.css 304 [3.10, 127.0.0.1:65479][0m
+[DEBUG] 2026-02-26 18:14:09,713 http_protocol HTTP b'GET' request for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:14:09,763 http_protocol HTTP 304 response started for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:14:09,777 http_protocol HTTP close for ['127.0.0.1', 65479]
+[DEBUG] 2026-02-26 18:14:09,795 http_protocol HTTP response complete for ['127.0.0.1', 65479]
+[INFO] 2026-02-26 18:14:09,817 runserver [36mHTTP GET /static/admin/js/nav_sidebar.js 304 [0.10, 127.0.0.1:65479][0m
+[DEBUG] 2026-02-26 18:14:10,006 http_protocol HTTP 200 response started for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:14:10,009 http_protocol HTTP close for ['127.0.0.1', 53502]
+[DEBUG] 2026-02-26 18:14:10,010 http_protocol HTTP response complete for ['127.0.0.1', 53502]
+[INFO] 2026-02-26 18:14:10,013 runserver [mHTTP GET /admin/jsi18n/ 200 [3.61, 127.0.0.1:53502][0m
+[DEBUG] 2026-02-26 18:16:20,535 http_protocol HTTP b'POST' request for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:16:21,114 http_protocol HTTP 200 response started for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:16:21,157 http_protocol HTTP close for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:16:21,222 http_protocol HTTP response complete for ['127.0.0.1', 57495]
+[INFO] 2026-02-26 18:16:21,234 runserver [mHTTP POST /admin/logout/ 200 [0.70, 127.0.0.1:57495][0m
+[DEBUG] 2026-02-26 18:16:21,596 http_protocol HTTP b'GET' request for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:16:21,653 http_protocol HTTP b'GET' request for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:16:21,804 http_protocol HTTP b'GET' request for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:16:21,852 http_protocol HTTP b'GET' request for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:16:21,875 http_protocol HTTP b'GET' request for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:16:21,938 http_protocol HTTP 304 response started for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:16:21,951 http_protocol HTTP close for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:16:21,968 http_protocol HTTP response complete for ['127.0.0.1', 57495]
+[INFO] 2026-02-26 18:16:21,983 runserver [36mHTTP GET /static/admin/css/base.css 304 [0.39, 127.0.0.1:57495][0m
+[DEBUG] 2026-02-26 18:16:21,996 http_protocol HTTP 304 response started for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:16:22,025 http_protocol HTTP close for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:16:22,039 http_protocol HTTP response complete for ['127.0.0.1', 55041]
+[INFO] 2026-02-26 18:16:22,061 runserver [36mHTTP GET /static/admin/css/nav_sidebar.css 304 [0.26, 127.0.0.1:55041][0m
+[DEBUG] 2026-02-26 18:16:22,070 http_protocol HTTP 304 response started for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:16:22,071 http_protocol HTTP close for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:16:22,112 http_protocol HTTP response complete for ['127.0.0.1', 57403]
+[INFO] 2026-02-26 18:16:22,125 runserver [36mHTTP GET /static/admin/css/responsive.css 304 [0.27, 127.0.0.1:57403][0m
+[DEBUG] 2026-02-26 18:16:22,141 http_protocol HTTP 304 response started for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:16:22,156 http_protocol HTTP close for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:16:22,189 http_protocol HTTP response complete for ['127.0.0.1', 57402]
+[INFO] 2026-02-26 18:16:22,217 runserver [36mHTTP GET /static/admin/css/dark_mode.css 304 [0.56, 127.0.0.1:57402][0m
+[DEBUG] 2026-02-26 18:16:22,266 http_protocol HTTP 304 response started for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:16:22,269 http_protocol HTTP close for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:16:22,284 http_protocol HTTP response complete for ['127.0.0.1', 63478]
+[INFO] 2026-02-26 18:16:22,298 runserver [36mHTTP GET /static/admin/js/theme.js 304 [0.42, 127.0.0.1:63478][0m
+[DEBUG] 2026-02-26 18:16:22,394 http_protocol HTTP b'GET' request for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:16:22,506 http_protocol HTTP 304 response started for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:16:22,537 http_protocol HTTP close for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:16:22,553 http_protocol HTTP response complete for ['127.0.0.1', 63478]
+[INFO] 2026-02-26 18:16:22,587 runserver [36mHTTP GET /static/admin/js/nav_sidebar.js 304 [0.19, 127.0.0.1:63478][0m
+[DEBUG] 2026-02-26 18:16:24,566 http_protocol HTTP b'GET' request for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:16:24,784 http_protocol HTTP 302 response started for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:16:24,846 http_protocol HTTP close for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:16:24,948 http_protocol HTTP response complete for ['127.0.0.1', 63478]
+[INFO] 2026-02-26 18:16:24,962 runserver [32mHTTP GET /admin/ 302 [0.40, 127.0.0.1:63478][0m
+[DEBUG] 2026-02-26 18:16:25,169 http_protocol HTTP b'GET' request for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:16:25,418 http_protocol HTTP 200 response started for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:16:25,471 http_protocol HTTP close for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:16:25,488 http_protocol HTTP response complete for ['127.0.0.1', 63478]
+[INFO] 2026-02-26 18:16:25,488 runserver [mHTTP GET /admin/login/?next=/admin/ 200 [0.32, 127.0.0.1:63478][0m
+[DEBUG] 2026-02-26 18:16:25,650 http_protocol HTTP b'GET' request for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:16:25,704 http_protocol HTTP b'GET' request for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:16:25,833 http_protocol HTTP b'GET' request for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:16:25,915 http_protocol HTTP b'GET' request for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:16:25,988 http_protocol HTTP b'GET' request for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:16:26,261 http_protocol HTTP b'GET' request for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:16:27,046 http_protocol HTTP 304 response started for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:16:27,094 http_protocol HTTP close for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:16:27,210 http_protocol HTTP response complete for ['127.0.0.1', 63478]
+[INFO] 2026-02-26 18:16:27,234 runserver [36mHTTP GET /static/admin/css/base.css 304 [1.58, 127.0.0.1:63478][0m
+[DEBUG] 2026-02-26 18:16:27,251 http_protocol HTTP 304 response started for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:16:27,267 http_protocol HTTP close for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:16:27,329 http_protocol HTTP response complete for ['127.0.0.1', 57403]
+[INFO] 2026-02-26 18:16:27,393 runserver [36mHTTP GET /static/admin/css/nav_sidebar.css 304 [1.48, 127.0.0.1:57403][0m
+[DEBUG] 2026-02-26 18:16:27,485 http_protocol HTTP 304 response started for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:16:27,619 http_protocol HTTP close for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:16:27,702 http_protocol HTTP response complete for ['127.0.0.1', 57402]
+[INFO] 2026-02-26 18:16:27,911 runserver [36mHTTP GET /static/admin/js/theme.js 304 [1.92, 127.0.0.1:57402][0m
+[DEBUG] 2026-02-26 18:16:28,003 http_protocol HTTP 304 response started for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:16:28,064 http_protocol HTTP close for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:16:28,084 http_protocol HTTP response complete for ['127.0.0.1', 57495]
+[INFO] 2026-02-26 18:16:28,150 runserver [36mHTTP GET /static/admin/css/login.css 304 [2.45, 127.0.0.1:57495][0m
+[DEBUG] 2026-02-26 18:16:28,237 http_protocol HTTP 304 response started for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:16:28,285 http_protocol HTTP close for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:16:28,303 http_protocol HTTP response complete for ['127.0.0.1', 55041]
+[INFO] 2026-02-26 18:16:28,321 runserver [36mHTTP GET /static/admin/css/dark_mode.css 304 [2.49, 127.0.0.1:55041][0m
+[DEBUG] 2026-02-26 18:16:28,347 http_protocol HTTP 304 response started for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:16:28,386 http_protocol HTTP close for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:16:28,414 http_protocol HTTP response complete for ['127.0.0.1', 51384]
+[INFO] 2026-02-26 18:16:28,461 runserver [36mHTTP GET /static/admin/css/responsive.css 304 [2.20, 127.0.0.1:51384][0m
+[DEBUG] 2026-02-26 18:16:28,835 http_protocol HTTP b'GET' request for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:16:29,063 http_protocol HTTP 304 response started for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:16:29,078 http_protocol HTTP close for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:16:29,110 http_protocol HTTP response complete for ['127.0.0.1', 57402]
+[INFO] 2026-02-26 18:16:29,244 runserver [36mHTTP GET /static/admin/js/nav_sidebar.js 304 [0.41, 127.0.0.1:57402][0m
+[DEBUG] 2026-02-26 18:16:40,317 http_protocol HTTP b'POST' request for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:16:46,021 http_protocol HTTP 302 response started for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:16:46,031 http_protocol HTTP close for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:16:46,032 http_protocol HTTP response complete for ['127.0.0.1', 57402]
+[INFO] 2026-02-26 18:16:46,036 runserver [32mHTTP POST /admin/login/?next=/admin/ 302 [5.72, 127.0.0.1:57402][0m
+[DEBUG] 2026-02-26 18:16:46,074 http_protocol HTTP b'GET' request for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:16:46,361 http_protocol HTTP 200 response started for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:16:46,395 http_protocol HTTP close for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:16:46,405 http_protocol HTTP response complete for ['127.0.0.1', 57402]
+[INFO] 2026-02-26 18:16:46,632 runserver [mHTTP GET /admin/ 200 [0.56, 127.0.0.1:57402][0m
+[DEBUG] 2026-02-26 18:16:47,021 http_protocol HTTP b'GET' request for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:16:47,040 http_protocol HTTP b'GET' request for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:16:47,040 http_protocol HTTP b'GET' request for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:16:47,047 http_protocol HTTP b'GET' request for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:16:47,049 http_protocol HTTP b'GET' request for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:16:47,610 http_protocol HTTP 304 response started for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:16:47,622 http_protocol HTTP close for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:16:47,637 http_protocol HTTP response complete for ['127.0.0.1', 57402]
+[INFO] 2026-02-26 18:16:47,639 runserver [36mHTTP GET /static/admin/css/base.css 304 [0.62, 127.0.0.1:57402][0m
+[DEBUG] 2026-02-26 18:16:47,669 http_protocol HTTP 304 response started for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:16:47,732 http_protocol HTTP close for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:16:47,817 http_protocol HTTP response complete for ['127.0.0.1', 57403]
+[INFO] 2026-02-26 18:16:47,864 runserver [36mHTTP GET /static/admin/css/dark_mode.css 304 [0.82, 127.0.0.1:57403][0m
+[DEBUG] 2026-02-26 18:16:48,000 http_protocol HTTP 304 response started for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:16:48,039 http_protocol HTTP close for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:16:48,096 http_protocol HTTP response complete for ['127.0.0.1', 63478]
+[INFO] 2026-02-26 18:16:48,150 runserver [36mHTTP GET /static/admin/js/theme.js 304 [1.11, 127.0.0.1:63478][0m
+[DEBUG] 2026-02-26 18:16:48,228 http_protocol HTTP 304 response started for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:16:48,330 http_protocol HTTP close for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:16:48,386 http_protocol HTTP response complete for ['127.0.0.1', 51384]
+[INFO] 2026-02-26 18:16:48,393 runserver [36mHTTP GET /static/admin/css/nav_sidebar.css 304 [1.35, 127.0.0.1:51384][0m
+[DEBUG] 2026-02-26 18:16:48,402 http_protocol HTTP 304 response started for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:16:48,412 http_protocol HTTP close for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:16:48,412 http_protocol HTTP response complete for ['127.0.0.1', 55041]
+[INFO] 2026-02-26 18:16:48,433 runserver [36mHTTP GET /static/admin/css/responsive.css 304 [1.39, 127.0.0.1:55041][0m
+[DEBUG] 2026-02-26 18:16:48,505 http_protocol HTTP b'GET' request for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:16:48,597 http_protocol HTTP 304 response started for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:16:48,601 http_protocol HTTP close for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:16:48,602 http_protocol HTTP response complete for ['127.0.0.1', 51384]
+[INFO] 2026-02-26 18:16:48,604 runserver [36mHTTP GET /static/admin/js/nav_sidebar.js 304 [0.10, 127.0.0.1:51384][0m
+[DEBUG] 2026-02-26 18:16:52,178 http_protocol HTTP b'GET' request for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:16:52,981 http_protocol HTTP 200 response started for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:16:53,041 http_protocol HTTP close for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:16:53,183 http_protocol HTTP response complete for ['127.0.0.1', 51384]
+[INFO] 2026-02-26 18:16:53,373 runserver [mHTTP GET /admin/authentication/user/ 200 [1.20, 127.0.0.1:51384][0m
+[DEBUG] 2026-02-26 18:16:53,641 http_protocol HTTP b'GET' request for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:16:53,723 http_protocol HTTP b'GET' request for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:16:53,824 http_protocol HTTP b'GET' request for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:16:53,922 http_protocol HTTP b'GET' request for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:16:54,107 http_protocol HTTP b'GET' request for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:16:54,181 http_protocol HTTP b'GET' request for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:16:54,814 http_protocol HTTP 304 response started for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:16:54,831 http_protocol HTTP close for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:16:54,844 http_protocol HTTP response complete for ['127.0.0.1', 51384]
+[INFO] 2026-02-26 18:16:54,844 runserver [36mHTTP GET /static/admin/css/base.css 304 [1.20, 127.0.0.1:51384][0m
+[DEBUG] 2026-02-26 18:16:54,850 http_protocol HTTP 304 response started for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:16:54,882 http_protocol HTTP close for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:16:54,910 http_protocol HTTP response complete for ['127.0.0.1', 63478]
+[INFO] 2026-02-26 18:16:54,943 runserver [36mHTTP GET /static/admin/js/theme.js 304 [1.22, 127.0.0.1:63478][0m
+[DEBUG] 2026-02-26 18:16:54,972 http_protocol HTTP 304 response started for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:16:55,039 http_protocol HTTP close for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:16:55,125 http_protocol HTTP response complete for ['127.0.0.1', 55041]
+[INFO] 2026-02-26 18:16:55,205 runserver [36mHTTP GET /static/admin/css/dark_mode.css 304 [1.28, 127.0.0.1:55041][0m
+[DEBUG] 2026-02-26 18:16:55,227 http_protocol HTTP 304 response started for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:16:55,272 http_protocol HTTP close for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:16:55,308 http_protocol HTTP response complete for ['127.0.0.1', 57403]
+[INFO] 2026-02-26 18:16:55,326 runserver [36mHTTP GET /static/admin/css/nav_sidebar.css 304 [1.50, 127.0.0.1:57403][0m
+[DEBUG] 2026-02-26 18:16:55,358 http_protocol HTTP 304 response started for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:16:55,441 http_protocol HTTP close for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:16:55,535 http_protocol HTTP response complete for ['127.0.0.1', 57495]
+[INFO] 2026-02-26 18:16:55,596 runserver [36mHTTP GET /static/admin/css/responsive.css 304 [1.49, 127.0.0.1:57495][0m
+[DEBUG] 2026-02-26 18:16:55,806 http_protocol HTTP b'GET' request for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:16:55,997 http_protocol HTTP 304 response started for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:16:56,014 http_protocol HTTP close for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:16:56,039 http_protocol HTTP response complete for ['127.0.0.1', 55041]
+[INFO] 2026-02-26 18:16:56,145 runserver [36mHTTP GET /static/admin/js/nav_sidebar.js 304 [0.34, 127.0.0.1:55041][0m
+[DEBUG] 2026-02-26 18:16:56,189 http_protocol HTTP 200 response started for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:16:56,209 http_protocol HTTP close for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:16:56,290 http_protocol HTTP response complete for ['127.0.0.1', 57402]
+[INFO] 2026-02-26 18:16:56,370 runserver [mHTTP GET /admin/jsi18n/ 200 [2.19, 127.0.0.1:57402][0m
+[DEBUG] 2026-02-26 18:17:08,629 http_protocol HTTP b'GET' request for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:09,143 http_protocol HTTP 200 response started for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:09,183 http_protocol HTTP close for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:09,202 http_protocol HTTP response complete for ['127.0.0.1', 57402]
+[INFO] 2026-02-26 18:17:09,217 runserver [mHTTP GET /admin/authentication/user/ 200 [0.59, 127.0.0.1:57402][0m
+[DEBUG] 2026-02-26 18:17:09,341 http_protocol HTTP b'GET' request for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:09,367 http_protocol HTTP b'GET' request for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:17:09,436 http_protocol HTTP b'GET' request for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:17:09,523 http_protocol HTTP b'GET' request for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:17:09,630 http_protocol HTTP b'GET' request for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:17:09,720 http_protocol HTTP b'GET' request for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:17:10,326 http_protocol HTTP 304 response started for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:10,332 http_protocol HTTP close for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:10,350 http_protocol HTTP response complete for ['127.0.0.1', 57402]
+[INFO] 2026-02-26 18:17:10,427 runserver [36mHTTP GET /static/admin/css/base.css 304 [1.09, 127.0.0.1:57402][0m
+[DEBUG] 2026-02-26 18:17:10,492 http_protocol HTTP 304 response started for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:17:10,561 http_protocol HTTP close for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:17:10,577 http_protocol HTTP response complete for ['127.0.0.1', 57495]
+[INFO] 2026-02-26 18:17:10,590 runserver [36mHTTP GET /static/admin/css/nav_sidebar.css 304 [1.22, 127.0.0.1:57495][0m
+[DEBUG] 2026-02-26 18:17:10,651 http_protocol HTTP 304 response started for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:17:10,719 http_protocol HTTP close for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:17:10,732 http_protocol HTTP response complete for ['127.0.0.1', 57403]
+[INFO] 2026-02-26 18:17:10,796 runserver [36mHTTP GET /static/admin/js/theme.js 304 [1.08, 127.0.0.1:57403][0m
+[DEBUG] 2026-02-26 18:17:10,891 http_protocol HTTP 304 response started for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:17:10,958 http_protocol HTTP close for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:17:11,158 http_protocol HTTP response complete for ['127.0.0.1', 51384]
+[INFO] 2026-02-26 18:17:11,333 runserver [36mHTTP GET /static/admin/css/responsive.css 304 [1.81, 127.0.0.1:51384][0m
+[DEBUG] 2026-02-26 18:17:11,496 http_protocol HTTP 304 response started for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:17:11,599 http_protocol HTTP close for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:17:11,691 http_protocol HTTP response complete for ['127.0.0.1', 55041]
+[INFO] 2026-02-26 18:17:11,715 runserver [36mHTTP GET /static/admin/css/dark_mode.css 304 [2.28, 127.0.0.1:55041][0m
+[DEBUG] 2026-02-26 18:17:11,913 http_protocol HTTP b'GET' request for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:17:12,023 http_protocol HTTP 200 response started for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:17:12,050 http_protocol HTTP close for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:17:12,052 http_protocol HTTP response complete for ['127.0.0.1', 63478]
+[INFO] 2026-02-26 18:17:12,083 runserver [mHTTP GET /admin/jsi18n/ 200 [2.45, 127.0.0.1:63478][0m
+[DEBUG] 2026-02-26 18:17:12,128 http_protocol HTTP 304 response started for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:17:12,179 http_protocol HTTP close for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:17:12,201 http_protocol HTTP response complete for ['127.0.0.1', 57403]
+[INFO] 2026-02-26 18:17:12,213 runserver [36mHTTP GET /static/admin/js/nav_sidebar.js 304 [0.30, 127.0.0.1:57403][0m
+[DEBUG] 2026-02-26 18:17:22,384 http_protocol HTTP b'GET' request for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:17:23,003 http_protocol HTTP 200 response started for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:17:23,037 http_protocol HTTP response chunk for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:17:23,055 http_protocol HTTP close for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:17:23,166 http_protocol HTTP response complete for ['127.0.0.1', 57403]
+[INFO] 2026-02-26 18:17:23,173 runserver [mHTTP GET /admin/authentication/user/3/change/ 200 [0.79, 127.0.0.1:57403][0m
+[DEBUG] 2026-02-26 18:17:23,460 http_protocol HTTP b'GET' request for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:17:23,538 http_protocol HTTP b'GET' request for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:17:23,690 http_protocol HTTP b'GET' request for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:17:23,774 http_protocol HTTP b'GET' request for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:17:23,843 http_protocol HTTP b'GET' request for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:17:23,919 http_protocol HTTP b'GET' request for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:24,407 http_protocol HTTP 304 response started for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:17:24,457 http_protocol HTTP close for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:17:24,538 http_protocol HTTP response complete for ['127.0.0.1', 51384]
+[INFO] 2026-02-26 18:17:24,602 runserver [36mHTTP GET /static/admin/js/theme.js 304 [0.83, 127.0.0.1:51384][0m
+[DEBUG] 2026-02-26 18:17:24,655 http_protocol HTTP 304 response started for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:17:24,700 http_protocol HTTP close for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:17:24,767 http_protocol HTTP response complete for ['127.0.0.1', 55041]
+[INFO] 2026-02-26 18:17:24,811 runserver [36mHTTP GET /static/admin/css/nav_sidebar.css 304 [1.12, 127.0.0.1:55041][0m
+[DEBUG] 2026-02-26 18:17:24,872 http_protocol HTTP 304 response started for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:17:24,970 http_protocol HTTP close for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:17:24,986 http_protocol HTTP response complete for ['127.0.0.1', 57403]
+[INFO] 2026-02-26 18:17:25,021 runserver [36mHTTP GET /static/admin/css/base.css 304 [1.56, 127.0.0.1:57403][0m
+[DEBUG] 2026-02-26 18:17:25,081 http_protocol HTTP 304 response started for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:25,097 http_protocol HTTP close for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:25,115 http_protocol HTTP response complete for ['127.0.0.1', 57402]
+[INFO] 2026-02-26 18:17:25,124 runserver [36mHTTP GET /static/admin/css/responsive.css 304 [1.20, 127.0.0.1:57402][0m
+[DEBUG] 2026-02-26 18:17:25,133 http_protocol HTTP 304 response started for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:17:25,135 http_protocol HTTP close for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:17:25,149 http_protocol HTTP response complete for ['127.0.0.1', 63478]
+[INFO] 2026-02-26 18:17:25,153 runserver [36mHTTP GET /static/admin/css/dark_mode.css 304 [1.31, 127.0.0.1:63478][0m
+[DEBUG] 2026-02-26 18:17:25,303 http_protocol HTTP b'GET' request for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:25,418 http_protocol HTTP 304 response started for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:25,453 http_protocol HTTP close for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:25,483 http_protocol HTTP response complete for ['127.0.0.1', 57402]
+[INFO] 2026-02-26 18:17:25,501 runserver [36mHTTP GET /static/admin/js/nav_sidebar.js 304 [0.20, 127.0.0.1:57402][0m
+[DEBUG] 2026-02-26 18:17:25,519 http_protocol HTTP 200 response started for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:17:25,523 http_protocol HTTP close for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:17:25,527 http_protocol HTTP response complete for ['127.0.0.1', 57495]
+[INFO] 2026-02-26 18:17:25,548 runserver [mHTTP GET /admin/jsi18n/ 200 [2.01, 127.0.0.1:57495][0m
+[DEBUG] 2026-02-26 18:17:31,109 http_protocol HTTP b'GET' request for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:17:32,161 http_protocol HTTP 200 response started for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:17:32,162 http_protocol HTTP close for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:17:32,163 http_protocol HTTP response complete for ['127.0.0.1', 57495]
+[INFO] 2026-02-26 18:17:32,163 runserver [mHTTP GET /admin/authentication/user/3/delete/ 200 [1.05, 127.0.0.1:57495][0m
+[DEBUG] 2026-02-26 18:17:32,257 http_protocol HTTP b'GET' request for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:17:32,345 http_protocol HTTP b'GET' request for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:17:32,355 http_protocol HTTP b'GET' request for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:17:32,355 http_protocol HTTP b'GET' request for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:17:32,355 http_protocol HTTP b'GET' request for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:32,817 http_protocol HTTP 304 response started for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:17:32,819 http_protocol HTTP close for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:17:32,820 http_protocol HTTP response complete for ['127.0.0.1', 57495]
+[INFO] 2026-02-26 18:17:32,829 runserver [36mHTTP GET /static/admin/css/base.css 304 [0.57, 127.0.0.1:57495][0m
+[DEBUG] 2026-02-26 18:17:32,830 http_protocol HTTP 304 response started for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:17:32,830 http_protocol HTTP close for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:17:32,832 http_protocol HTTP response complete for ['127.0.0.1', 63478]
+[INFO] 2026-02-26 18:17:32,833 runserver [36mHTTP GET /static/admin/js/theme.js 304 [0.48, 127.0.0.1:63478][0m
+[DEBUG] 2026-02-26 18:17:32,838 http_protocol HTTP 304 response started for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:17:32,839 http_protocol HTTP close for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:17:32,840 http_protocol HTTP response complete for ['127.0.0.1', 51384]
+[INFO] 2026-02-26 18:17:32,840 runserver [36mHTTP GET /static/admin/css/responsive.css 304 [0.50, 127.0.0.1:51384][0m
+[DEBUG] 2026-02-26 18:17:32,892 http_protocol HTTP 304 response started for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:17:32,914 http_protocol HTTP close for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:17:32,943 http_protocol HTTP response complete for ['127.0.0.1', 57403]
+[INFO] 2026-02-26 18:17:32,943 runserver [36mHTTP GET /static/admin/css/nav_sidebar.css 304 [0.59, 127.0.0.1:57403][0m
+[DEBUG] 2026-02-26 18:17:32,943 http_protocol HTTP 304 response started for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:32,943 http_protocol HTTP close for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:32,998 http_protocol HTTP response complete for ['127.0.0.1', 57402]
+[INFO] 2026-02-26 18:17:33,013 runserver [36mHTTP GET /static/admin/css/dark_mode.css 304 [0.66, 127.0.0.1:57402][0m
+[DEBUG] 2026-02-26 18:17:33,110 http_protocol HTTP b'GET' request for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:17:33,112 http_protocol HTTP b'GET' request for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:33,267 http_protocol HTTP 304 response started for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:33,312 http_protocol HTTP close for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:33,364 http_protocol HTTP response complete for ['127.0.0.1', 57402]
+[INFO] 2026-02-26 18:17:33,379 runserver [36mHTTP GET /static/admin/js/nav_sidebar.js 304 [0.27, 127.0.0.1:57402][0m
+[DEBUG] 2026-02-26 18:17:33,397 http_protocol HTTP 200 response started for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:17:33,429 http_protocol HTTP response chunk for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:17:33,430 http_protocol HTTP close for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:17:33,431 http_protocol HTTP response complete for ['127.0.0.1', 51384]
+[INFO] 2026-02-26 18:17:33,433 runserver [mHTTP GET /static/admin/js/cancel.js 200 [0.32, 127.0.0.1:51384][0m
+[DEBUG] 2026-02-26 18:17:37,584 http_protocol HTTP b'POST' request for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:17:38,357 http_protocol HTTP 302 response started for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:17:38,357 http_protocol HTTP close for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:17:38,357 http_protocol HTTP response complete for ['127.0.0.1', 51384]
+[INFO] 2026-02-26 18:17:38,357 runserver [32mHTTP POST /admin/authentication/user/3/delete/ 302 [0.77, 127.0.0.1:51384][0m
+[DEBUG] 2026-02-26 18:17:38,376 http_protocol HTTP b'GET' request for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:17:38,743 http_protocol HTTP 200 response started for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:17:38,744 http_protocol HTTP close for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:17:38,745 http_protocol HTTP response complete for ['127.0.0.1', 51384]
+[INFO] 2026-02-26 18:17:38,746 runserver [mHTTP GET /admin/authentication/user/ 200 [0.37, 127.0.0.1:51384][0m
+[DEBUG] 2026-02-26 18:17:38,857 http_protocol HTTP b'GET' request for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:17:38,858 http_protocol HTTP b'GET' request for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:17:38,860 http_protocol HTTP b'GET' request for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:17:38,861 http_protocol HTTP b'GET' request for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:17:38,862 http_protocol HTTP b'GET' request for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:17:38,864 http_protocol HTTP b'GET' request for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:39,079 http_protocol HTTP 304 response started for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:17:39,095 http_protocol HTTP close for ['127.0.0.1', 51384]
+[DEBUG] 2026-02-26 18:17:39,140 http_protocol HTTP response complete for ['127.0.0.1', 51384]
+[INFO] 2026-02-26 18:17:39,160 runserver [36mHTTP GET /static/admin/css/base.css 304 [0.30, 127.0.0.1:51384][0m
+[DEBUG] 2026-02-26 18:17:39,162 http_protocol HTTP 304 response started for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:17:39,165 http_protocol HTTP close for ['127.0.0.1', 55041]
+[DEBUG] 2026-02-26 18:17:39,203 http_protocol HTTP response complete for ['127.0.0.1', 55041]
+[INFO] 2026-02-26 18:17:39,221 runserver [36mHTTP GET /static/admin/css/responsive.css 304 [0.36, 127.0.0.1:55041][0m
+[DEBUG] 2026-02-26 18:17:39,222 http_protocol HTTP 304 response started for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:17:39,223 http_protocol HTTP close for ['127.0.0.1', 57403]
+[DEBUG] 2026-02-26 18:17:39,224 http_protocol HTTP response complete for ['127.0.0.1', 57403]
+[INFO] 2026-02-26 18:17:39,225 runserver [36mHTTP GET /static/admin/js/theme.js 304 [0.36, 127.0.0.1:57403][0m
+[DEBUG] 2026-02-26 18:17:39,226 http_protocol HTTP 304 response started for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:39,227 http_protocol HTTP close for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:39,258 http_protocol HTTP response complete for ['127.0.0.1', 57402]
+[INFO] 2026-02-26 18:17:39,262 runserver [36mHTTP GET /static/admin/css/dark_mode.css 304 [0.40, 127.0.0.1:57402][0m
+[DEBUG] 2026-02-26 18:17:39,268 http_protocol HTTP 304 response started for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:17:39,290 http_protocol HTTP close for ['127.0.0.1', 63478]
+[DEBUG] 2026-02-26 18:17:39,291 http_protocol HTTP response complete for ['127.0.0.1', 63478]
+[INFO] 2026-02-26 18:17:39,292 runserver [36mHTTP GET /static/admin/css/nav_sidebar.css 304 [0.43, 127.0.0.1:63478][0m
+[DEBUG] 2026-02-26 18:17:39,463 http_protocol HTTP b'GET' request for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:39,552 http_protocol HTTP 304 response started for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:39,553 http_protocol HTTP close for ['127.0.0.1', 57402]
+[DEBUG] 2026-02-26 18:17:39,554 http_protocol HTTP response complete for ['127.0.0.1', 57402]
+[INFO] 2026-02-26 18:17:39,554 runserver [36mHTTP GET /static/admin/js/nav_sidebar.js 304 [0.09, 127.0.0.1:57402][0m
+[DEBUG] 2026-02-26 18:17:39,592 http_protocol HTTP 200 response started for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:17:39,593 http_protocol HTTP close for ['127.0.0.1', 57495]
+[DEBUG] 2026-02-26 18:17:39,594 http_protocol HTTP response complete for ['127.0.0.1', 57495]
+[INFO] 2026-02-26 18:17:39,594 runserver [mHTTP GET /admin/jsi18n/ 200 [0.74, 127.0.0.1:57495][0m
+[DEBUG] 2026-02-26 18:30:24,793 http_protocol HTTP b'GET' request for ['127.0.0.1', 58559]
+[DEBUG] 2026-02-26 18:30:26,547 http_protocol HTTP 200 response started for ['127.0.0.1', 58559]
+[DEBUG] 2026-02-26 18:30:26,548 http_protocol HTTP close for ['127.0.0.1', 58559]
+[DEBUG] 2026-02-26 18:30:26,552 http_protocol HTTP response complete for ['127.0.0.1', 58559]
+[INFO] 2026-02-26 18:30:26,605 runserver [mHTTP GET /admin/authentication/user/ 200 [1.81, 127.0.0.1:58559][0m
+[DEBUG] 2026-02-26 18:30:26,940 http_protocol HTTP b'GET' request for ['127.0.0.1', 58559]
+[DEBUG] 2026-02-26 18:30:26,943 http_protocol HTTP b'GET' request for ['127.0.0.1', 52132]
+[DEBUG] 2026-02-26 18:30:27,196 http_protocol HTTP b'GET' request for ['127.0.0.1', 55483]
+[DEBUG] 2026-02-26 18:30:27,467 http_protocol HTTP b'GET' request for ['127.0.0.1', 62052]
+[DEBUG] 2026-02-26 18:30:27,609 http_protocol HTTP b'GET' request for ['127.0.0.1', 56590]
+[DEBUG] 2026-02-26 18:30:27,858 http_protocol HTTP b'GET' request for ['127.0.0.1', 52875]
+[DEBUG] 2026-02-26 18:30:28,278 http_protocol HTTP 304 response started for ['127.0.0.1', 52132]
+[DEBUG] 2026-02-26 18:30:28,279 http_protocol HTTP close for ['127.0.0.1', 52132]
+[DEBUG] 2026-02-26 18:30:28,281 http_protocol HTTP response complete for ['127.0.0.1', 52132]
+[INFO] 2026-02-26 18:30:28,282 runserver [36mHTTP GET /static/admin/css/dark_mode.css 304 [1.34, 127.0.0.1:52132][0m
+[DEBUG] 2026-02-26 18:30:28,287 http_protocol HTTP 304 response started for ['127.0.0.1', 58559]
+[DEBUG] 2026-02-26 18:30:28,288 http_protocol HTTP close for ['127.0.0.1', 58559]
+[DEBUG] 2026-02-26 18:30:28,289 http_protocol HTTP response complete for ['127.0.0.1', 58559]
+[INFO] 2026-02-26 18:30:28,290 runserver [36mHTTP GET /static/admin/css/base.css 304 [1.35, 127.0.0.1:58559][0m
+[DEBUG] 2026-02-26 18:30:28,291 http_protocol HTTP 304 response started for ['127.0.0.1', 55483]
+[DEBUG] 2026-02-26 18:30:28,292 http_protocol HTTP close for ['127.0.0.1', 55483]
+[DEBUG] 2026-02-26 18:30:28,292 http_protocol HTTP response complete for ['127.0.0.1', 55483]
+[INFO] 2026-02-26 18:30:28,293 runserver [36mHTTP GET /static/admin/css/nav_sidebar.css 304 [1.10, 127.0.0.1:55483][0m
+[DEBUG] 2026-02-26 18:30:28,293 http_protocol HTTP 304 response started for ['127.0.0.1', 62052]
+[DEBUG] 2026-02-26 18:30:28,295 http_protocol HTTP close for ['127.0.0.1', 62052]
+[DEBUG] 2026-02-26 18:30:28,295 http_protocol HTTP response complete for ['127.0.0.1', 62052]
+[INFO] 2026-02-26 18:30:28,296 runserver [36mHTTP GET /static/admin/css/responsive.css 304 [0.83, 127.0.0.1:62052][0m
+[DEBUG] 2026-02-26 18:30:28,298 http_protocol HTTP 304 response started for ['127.0.0.1', 56590]
+[DEBUG] 2026-02-26 18:30:28,302 http_protocol HTTP close for ['127.0.0.1', 56590]
+[DEBUG] 2026-02-26 18:30:28,304 http_protocol HTTP response complete for ['127.0.0.1', 56590]
+[INFO] 2026-02-26 18:30:28,305 runserver [36mHTTP GET /static/admin/js/theme.js 304 [0.70, 127.0.0.1:56590][0m
+[DEBUG] 2026-02-26 18:30:28,828 http_protocol HTTP b'GET' request for ['127.0.0.1', 56590]
+[DEBUG] 2026-02-26 18:30:29,006 http_protocol HTTP 304 response started for ['127.0.0.1', 56590]
+[DEBUG] 2026-02-26 18:30:29,007 http_protocol HTTP close for ['127.0.0.1', 56590]
+[DEBUG] 2026-02-26 18:30:29,008 http_protocol HTTP response complete for ['127.0.0.1', 56590]
+[INFO] 2026-02-26 18:30:29,008 runserver [36mHTTP GET /static/admin/js/nav_sidebar.js 304 [0.18, 127.0.0.1:56590][0m
+[DEBUG] 2026-02-26 18:30:29,348 http_protocol HTTP 200 response started for ['127.0.0.1', 52875]
+[DEBUG] 2026-02-26 18:30:29,350 http_protocol HTTP close for ['127.0.0.1', 52875]
+[DEBUG] 2026-02-26 18:30:29,351 http_protocol HTTP response complete for ['127.0.0.1', 52875]
+[INFO] 2026-02-26 18:30:29,352 runserver [mHTTP GET /admin/jsi18n/ 200 [1.49, 127.0.0.1:52875][0m
+[DEBUG] 2026-02-26 18:41:35,549 http_protocol HTTP b'GET' request for ['127.0.0.1', 51307]
+[DEBUG] 2026-02-26 18:41:35,966 http_protocol HTTP 200 response started for ['127.0.0.1', 51307]
+[DEBUG] 2026-02-26 18:41:35,969 http_protocol HTTP close for ['127.0.0.1', 51307]
+[DEBUG] 2026-02-26 18:41:35,976 http_protocol HTTP response complete for ['127.0.0.1', 51307]
+[INFO] 2026-02-26 18:41:35,996 runserver [mHTTP GET /admin/authentication/user/ 200 [0.45, 127.0.0.1:51307][0m
+[DEBUG] 2026-02-26 18:41:36,148 http_protocol HTTP b'GET' request for ['127.0.0.1', 51307]
+[DEBUG] 2026-02-26 18:41:36,149 http_protocol HTTP b'GET' request for ['127.0.0.1', 65159]
+[DEBUG] 2026-02-26 18:41:36,274 http_protocol HTTP b'GET' request for ['127.0.0.1', 50862]
+[DEBUG] 2026-02-26 18:41:36,275 http_protocol HTTP b'GET' request for ['127.0.0.1', 50464]
+[DEBUG] 2026-02-26 18:41:36,291 http_protocol HTTP b'GET' request for ['127.0.0.1', 63818]
+[DEBUG] 2026-02-26 18:41:36,406 http_protocol HTTP b'GET' request for ['127.0.0.1', 53410]
+[DEBUG] 2026-02-26 18:41:36,551 http_protocol HTTP 304 response started for ['127.0.0.1', 51307]
+[DEBUG] 2026-02-26 18:41:36,551 http_protocol HTTP close for ['127.0.0.1', 51307]
+[DEBUG] 2026-02-26 18:41:36,552 http_protocol HTTP response complete for ['127.0.0.1', 51307]
+[INFO] 2026-02-26 18:41:36,579 runserver [36mHTTP GET /static/admin/css/base.css 304 [0.43, 127.0.0.1:51307][0m
+[DEBUG] 2026-02-26 18:41:36,659 http_protocol HTTP 304 response started for ['127.0.0.1', 65159]
+[DEBUG] 2026-02-26 18:41:36,693 http_protocol HTTP close for ['127.0.0.1', 65159]
+[DEBUG] 2026-02-26 18:41:36,694 http_protocol HTTP response complete for ['127.0.0.1', 65159]
+[INFO] 2026-02-26 18:41:36,694 runserver [36mHTTP GET /static/admin/css/dark_mode.css 304 [0.55, 127.0.0.1:65159][0m
+[DEBUG] 2026-02-26 18:41:36,697 http_protocol HTTP 304 response started for ['127.0.0.1', 50862]
+[DEBUG] 2026-02-26 18:41:36,698 http_protocol HTTP close for ['127.0.0.1', 50862]
+[DEBUG] 2026-02-26 18:41:36,699 http_protocol HTTP response complete for ['127.0.0.1', 50862]
+[INFO] 2026-02-26 18:41:36,768 runserver [36mHTTP GET /static/admin/css/nav_sidebar.css 304 [0.49, 127.0.0.1:50862][0m
+[DEBUG] 2026-02-26 18:41:36,768 http_protocol HTTP 304 response started for ['127.0.0.1', 50464]
+[DEBUG] 2026-02-26 18:41:36,768 http_protocol HTTP close for ['127.0.0.1', 50464]
+[DEBUG] 2026-02-26 18:41:36,775 http_protocol HTTP response complete for ['127.0.0.1', 50464]
+[INFO] 2026-02-26 18:41:36,775 runserver [36mHTTP GET /static/admin/js/theme.js 304 [0.50, 127.0.0.1:50464][0m
+[DEBUG] 2026-02-26 18:41:36,775 http_protocol HTTP 304 response started for ['127.0.0.1', 53410]
+[DEBUG] 2026-02-26 18:41:36,775 http_protocol HTTP close for ['127.0.0.1', 53410]
+[DEBUG] 2026-02-26 18:41:36,775 http_protocol HTTP response complete for ['127.0.0.1', 53410]
+[INFO] 2026-02-26 18:41:36,863 runserver [36mHTTP GET /static/admin/css/responsive.css 304 [0.46, 127.0.0.1:53410][0m
+[DEBUG] 2026-02-26 18:41:36,990 http_protocol HTTP b'GET' request for ['127.0.0.1', 53410]
+[DEBUG] 2026-02-26 18:41:37,062 http_protocol HTTP 304 response started for ['127.0.0.1', 53410]
+[DEBUG] 2026-02-26 18:41:37,063 http_protocol HTTP close for ['127.0.0.1', 53410]
+[DEBUG] 2026-02-26 18:41:37,064 http_protocol HTTP response complete for ['127.0.0.1', 53410]
+[INFO] 2026-02-26 18:41:37,065 runserver [36mHTTP GET /static/admin/js/nav_sidebar.js 304 [0.08, 127.0.0.1:53410][0m
+[DEBUG] 2026-02-26 18:41:37,288 http_protocol HTTP 200 response started for ['127.0.0.1', 63818]
+[DEBUG] 2026-02-26 18:41:37,289 http_protocol HTTP close for ['127.0.0.1', 63818]
+[DEBUG] 2026-02-26 18:41:37,290 http_protocol HTTP response complete for ['127.0.0.1', 63818]
+[INFO] 2026-02-26 18:41:37,291 runserver [mHTTP GET /admin/jsi18n/ 200 [1.00, 127.0.0.1:63818][0m
+[DEBUG] 2026-02-26 18:41:41,872 http_protocol HTTP b'GET' request for ['127.0.0.1', 63818]
+[DEBUG] 2026-02-26 18:41:43,103 http_protocol HTTP 200 response started for ['127.0.0.1', 63818]
+[DEBUG] 2026-02-26 18:41:43,105 http_protocol HTTP close for ['127.0.0.1', 63818]
+[DEBUG] 2026-02-26 18:41:43,106 http_protocol HTTP response complete for ['127.0.0.1', 63818]
+[INFO] 2026-02-26 18:41:43,106 runserver [mHTTP GET /admin/applications/document/ 200 [1.23, 127.0.0.1:63818][0m
+[DEBUG] 2026-02-26 18:41:43,174 http_protocol HTTP b'GET' request for ['127.0.0.1', 63818]
+[DEBUG] 2026-02-26 18:41:43,238 http_protocol HTTP b'GET' request for ['127.0.0.1', 65159]
+[DEBUG] 2026-02-26 18:41:43,258 http_protocol HTTP b'GET' request for ['127.0.0.1', 50862]
+[DEBUG] 2026-02-26 18:41:43,275 http_protocol HTTP b'GET' request for ['127.0.0.1', 53410]
+[DEBUG] 2026-02-26 18:41:43,311 http_protocol HTTP b'GET' request for ['127.0.0.1', 51307]
+[DEBUG] 2026-02-26 18:41:43,324 http_protocol HTTP b'GET' request for ['127.0.0.1', 50464]
+[DEBUG] 2026-02-26 18:41:43,597 http_protocol HTTP 304 response started for ['127.0.0.1', 50862]
+[DEBUG] 2026-02-26 18:41:43,599 http_protocol HTTP close for ['127.0.0.1', 50862]
+[DEBUG] 2026-02-26 18:41:43,600 http_protocol HTTP response complete for ['127.0.0.1', 50862]
+[INFO] 2026-02-26 18:41:43,600 runserver [36mHTTP GET /static/admin/css/nav_sidebar.css 304 [0.34, 127.0.0.1:50862][0m
+[DEBUG] 2026-02-26 18:41:43,602 http_protocol HTTP 304 response started for ['127.0.0.1', 65159]
+[DEBUG] 2026-02-26 18:41:43,603 http_protocol HTTP close for ['127.0.0.1', 65159]
+[DEBUG] 2026-02-26 18:41:43,604 http_protocol HTTP response complete for ['127.0.0.1', 65159]
+[INFO] 2026-02-26 18:41:43,605 runserver [36mHTTP GET /static/admin/css/responsive.css 304 [0.37, 127.0.0.1:65159][0m
+[DEBUG] 2026-02-26 18:41:43,605 http_protocol HTTP 304 response started for ['127.0.0.1', 50464]
+[DEBUG] 2026-02-26 18:41:43,607 http_protocol HTTP close for ['127.0.0.1', 50464]
+[DEBUG] 2026-02-26 18:41:43,607 http_protocol HTTP response complete for ['127.0.0.1', 50464]
+[INFO] 2026-02-26 18:41:43,608 runserver [36mHTTP GET /static/admin/js/theme.js 304 [0.28, 127.0.0.1:50464][0m
+[DEBUG] 2026-02-26 18:41:43,611 http_protocol HTTP 304 response started for ['127.0.0.1', 63818]
+[DEBUG] 2026-02-26 18:41:43,612 http_protocol HTTP close for ['127.0.0.1', 63818]
+[DEBUG] 2026-02-26 18:41:43,613 http_protocol HTTP response complete for ['127.0.0.1', 63818]
+[INFO] 2026-02-26 18:41:43,614 runserver [36mHTTP GET /static/admin/css/base.css 304 [0.44, 127.0.0.1:63818][0m
+[DEBUG] 2026-02-26 18:41:43,615 http_protocol HTTP 304 response started for ['127.0.0.1', 53410]
+[DEBUG] 2026-02-26 18:41:43,654 http_protocol HTTP close for ['127.0.0.1', 53410]
+[DEBUG] 2026-02-26 18:41:43,661 http_protocol HTTP response complete for ['127.0.0.1', 53410]
+[INFO] 2026-02-26 18:41:43,701 runserver [36mHTTP GET /static/admin/css/dark_mode.css 304 [0.43, 127.0.0.1:53410][0m
+[DEBUG] 2026-02-26 18:41:43,722 http_protocol HTTP b'GET' request for ['127.0.0.1', 53410]
+[DEBUG] 2026-02-26 18:41:43,739 http_protocol HTTP 304 response started for ['127.0.0.1', 53410]
+[DEBUG] 2026-02-26 18:41:43,740 http_protocol HTTP close for ['127.0.0.1', 53410]
+[DEBUG] 2026-02-26 18:41:43,754 http_protocol HTTP response complete for ['127.0.0.1', 53410]
+[INFO] 2026-02-26 18:41:43,769 runserver [36mHTTP GET /static/admin/js/nav_sidebar.js 304 [0.05, 127.0.0.1:53410][0m
+[DEBUG] 2026-02-26 18:41:44,434 http_protocol HTTP 200 response started for ['127.0.0.1', 51307]
+[DEBUG] 2026-02-26 18:41:44,434 http_protocol HTTP close for ['127.0.0.1', 51307]
+[DEBUG] 2026-02-26 18:41:44,434 http_protocol HTTP response complete for ['127.0.0.1', 51307]
+[INFO] 2026-02-26 18:41:44,497 runserver [mHTTP GET /admin/jsi18n/ 200 [1.19, 127.0.0.1:51307][0m
+[DEBUG] 2026-02-26 18:42:05,157 http_protocol HTTP b'GET' request for ['127.0.0.1', 51307]
+[DEBUG] 2026-02-26 18:42:05,819 http_protocol HTTP 200 response started for ['127.0.0.1', 51307]
+[DEBUG] 2026-02-26 18:42:05,820 http_protocol HTTP close for ['127.0.0.1', 51307]
+[DEBUG] 2026-02-26 18:42:05,821 http_protocol HTTP response complete for ['127.0.0.1', 51307]
+[INFO] 2026-02-26 18:42:05,822 runserver [mHTTP GET /admin/applications/vettingcase/ 200 [0.66, 127.0.0.1:51307][0m
+[DEBUG] 2026-02-26 18:42:05,856 http_protocol HTTP b'GET' request for ['127.0.0.1', 51307]
+[DEBUG] 2026-02-26 18:42:05,858 http_protocol HTTP b'GET' request for ['127.0.0.1', 53410]
+[DEBUG] 2026-02-26 18:42:05,964 http_protocol HTTP b'GET' request for ['127.0.0.1', 63818]
+[DEBUG] 2026-02-26 18:42:05,965 http_protocol HTTP b'GET' request for ['127.0.0.1', 65159]
+[DEBUG] 2026-02-26 18:42:05,967 http_protocol HTTP b'GET' request for ['127.0.0.1', 50862]
+[DEBUG] 2026-02-26 18:42:05,968 http_protocol HTTP b'GET' request for ['127.0.0.1', 50464]
+[DEBUG] 2026-02-26 18:42:06,118 http_protocol HTTP 304 response started for ['127.0.0.1', 51307]
+[DEBUG] 2026-02-26 18:42:06,118 http_protocol HTTP close for ['127.0.0.1', 51307]
+[DEBUG] 2026-02-26 18:42:06,119 http_protocol HTTP response complete for ['127.0.0.1', 51307]
+[INFO] 2026-02-26 18:42:06,120 runserver [36mHTTP GET /static/admin/css/base.css 304 [0.26, 127.0.0.1:51307][0m
+[DEBUG] 2026-02-26 18:42:06,121 http_protocol HTTP 304 response started for ['127.0.0.1', 53410]
+[DEBUG] 2026-02-26 18:42:06,121 http_protocol HTTP close for ['127.0.0.1', 53410]
+[DEBUG] 2026-02-26 18:42:06,122 http_protocol HTTP response complete for ['127.0.0.1', 53410]
+[INFO] 2026-02-26 18:42:06,123 runserver [36mHTTP GET /static/admin/css/dark_mode.css 304 [0.26, 127.0.0.1:53410][0m
+[DEBUG] 2026-02-26 18:42:06,124 http_protocol HTTP 304 response started for ['127.0.0.1', 50464]
+[DEBUG] 2026-02-26 18:42:06,125 http_protocol HTTP close for ['127.0.0.1', 50464]
+[DEBUG] 2026-02-26 18:42:06,126 http_protocol HTTP response complete for ['127.0.0.1', 50464]
+[INFO] 2026-02-26 18:42:06,152 runserver [36mHTTP GET /static/admin/css/nav_sidebar.css 304 [0.18, 127.0.0.1:50464][0m
+[DEBUG] 2026-02-26 18:42:06,187 http_protocol HTTP 304 response started for ['127.0.0.1', 63818]
+[DEBUG] 2026-02-26 18:42:06,220 http_protocol HTTP close for ['127.0.0.1', 63818]
+[DEBUG] 2026-02-26 18:42:06,250 http_protocol HTTP response complete for ['127.0.0.1', 63818]
+[INFO] 2026-02-26 18:42:06,297 runserver [36mHTTP GET /static/admin/js/theme.js 304 [0.33, 127.0.0.1:63818][0m
+[DEBUG] 2026-02-26 18:42:06,316 http_protocol HTTP 304 response started for ['127.0.0.1', 50862]
+[DEBUG] 2026-02-26 18:42:06,360 http_protocol HTTP close for ['127.0.0.1', 50862]
+[DEBUG] 2026-02-26 18:42:06,373 http_protocol HTTP response complete for ['127.0.0.1', 50862]
+[INFO] 2026-02-26 18:42:06,380 runserver [36mHTTP GET /static/admin/css/responsive.css 304 [0.41, 127.0.0.1:50862][0m
+[DEBUG] 2026-02-26 18:42:06,449 http_protocol HTTP b'GET' request for ['127.0.0.1', 50862]
+[DEBUG] 2026-02-26 18:42:06,540 http_protocol HTTP 304 response started for ['127.0.0.1', 50862]
+[DEBUG] 2026-02-26 18:42:06,541 http_protocol HTTP close for ['127.0.0.1', 50862]
+[DEBUG] 2026-02-26 18:42:06,542 http_protocol HTTP response complete for ['127.0.0.1', 50862]
+[INFO] 2026-02-26 18:42:06,567 runserver [36mHTTP GET /static/admin/js/nav_sidebar.js 304 [0.12, 127.0.0.1:50862][0m
+[DEBUG] 2026-02-26 18:42:06,844 http_protocol HTTP 200 response started for ['127.0.0.1', 65159]
+[DEBUG] 2026-02-26 18:42:06,845 http_protocol HTTP close for ['127.0.0.1', 65159]
+[DEBUG] 2026-02-26 18:42:06,845 http_protocol HTTP response complete for ['127.0.0.1', 65159]
+[INFO] 2026-02-26 18:42:06,847 runserver [mHTTP GET /admin/jsi18n/ 200 [0.88, 127.0.0.1:65159][0m
