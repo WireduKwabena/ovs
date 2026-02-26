@@ -15,5 +15,6 @@ backend/.env
 backend/media/
 backend/logs/
 backend/models/
+backend/gunicorn.ctl
 backend/ai_ml_services/datasets/raw_dataset/
 backend/ai_ml_services/datasets/processed/

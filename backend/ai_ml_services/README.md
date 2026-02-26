@@ -238,6 +238,7 @@ Health check for AI/ML services.
 Runtime monitor status is available at:
 
 - `GET /api/ai-monitor/health/`
+- `POST /api/ai-monitor/classify-document/`
 
 Access rules:
 
@@ -247,6 +248,12 @@ Access rules:
 Optional query params:
 
 - `model_name` (default: `default`)
+
+`POST /api/ai-monitor/classify-document/` accepts multipart form fields:
+
+- `file` (required; image or PDF)
+- `document_type` (optional declared type)
+- `top_k` (optional, 1..5; default 3)
 
 ## Error Handling
 
@@ -286,11 +293,16 @@ AI_ML_AUTHENTICITY_MODEL_PATH = "models/authenticity_best.h5"
 AI_ML_AUTHENTICITY_TORCH_MODEL_PATH = "models/authenticity_detector.pth"
 AI_ML_FRAUD_MODEL_PATH = "models/fraud_classifier.pkl"
 AI_ML_SIGNATURE_MODEL_PATH = "models/signature_authenticity.pkl"
+AI_ML_RVL_CDIP_MODEL_PATH = "models/rvl_cdip_classifier.pkl"
+AI_ML_MIDV500_MODEL_PATH = "models/midv500_classifier.pkl"
 AI_ML_POPPLER_PATH = ""  # optional Poppler bin directory if not on PATH
+AI_ML_PDF_CONVERSION_WARNING_LIMIT = 5
 AI_ML_IDENTITY_MATCH_THRESHOLD = 0.72
 AI_ML_IDENTITY_EMBEDDING_BACKEND = "auto"  # auto | facenet | deepface
 AI_ML_IDENTITY_FACENET_WEIGHTS = "vggface2"
 AI_ML_IDENTITY_VIDEO_SAMPLE_RATE = 8
+AI_ML_DOC_TYPE_MISMATCH_ENABLED = True
+AI_ML_DOC_TYPE_MISMATCH_CONFIDENCE = 0.65
 ```
 
 ## Identity Match (Document vs Interview)
@@ -309,6 +321,20 @@ result = matcher.match_document_to_interview(
 
 `run_interview_pipeline(...)` now accepts `document_path` and returns
 `identity_match` in the response payload.
+
+## Document Type Classification
+
+After training (`train_document_classifiers`), `verify_document(...)` includes:
+
+- `results.document_classification.rvl_cdip` (16-class document taxonomy prediction)
+- `results.document_classification.midv500` (50-class ID type prediction)
+
+Each payload includes `predicted_label`, `confidence`, and `top_k` scores when
+the model artifact is available.
+
+`verify_document(...)` also includes `results.document_type_alignment`. When
+classifier confidence exceeds `AI_ML_DOC_TYPE_MISMATCH_CONFIDENCE`, declared
+type mismatches are added as `document_type_mismatch` decision constraints.
 
 ## Dependencies
 
@@ -350,6 +376,10 @@ Useful options:
 - `--keep-workspace`: retain generated training data for inspection
 - `--max-auth-samples`: cap authenticity training samples for faster CPU runs
 - `--freeze-backbone`: train only the classifier head for faster convergence on CPU
+- `--forgery-types`: control forgery mix (`copy_move`, `resampling`, `jpeg`)
+- `--copy-move-regions`: number of pasted regions per copy-move variant
+- `--jpeg-quality-min`/`--jpeg-quality-max`: bound JPEG attack intensity
+- `--verify-forgery-determinism`: assert reproducible forgery generation for the seed
 
 ## Using Raw Datasets
 
@@ -398,6 +428,51 @@ This writes:
 - `metadata.csv` (filepath, normalized label, split)
 - `labels.csv` (label to label_id mapping)
 - `raw_to_normalized_labels.csv` (folder-name normalization map)
+
+For RVL-CDIP document-type classification metadata:
+
+```bash
+python ai_ml_services/datasets/create_rvl_cdip_metadata.py \
+  --source_dir ai_ml_services/datasets/raw_dataset/RVL-CDIP \
+  --output_dir ai_ml_services/datasets/processed/rvl_cdip \
+  --val_ratio 0.1 \
+  --test_ratio 0.1 \
+  --min_samples_per_label 10
+```
+
+For MIDV-500 identity-document metadata (preserves sequence IDs and frame-level quad annotations):
+
+```bash
+python ai_ml_services/datasets/create_midv500_metadata.py \
+  --source_dir ai_ml_services/datasets/raw_dataset/midv500 \
+  --output_dir ai_ml_services/datasets/processed/midv500 \
+  --max_frames_per_sequence 30 \
+  --val_ratio 0.1 \
+  --test_ratio 0.1
+```
+
+MIDV output metadata includes:
+
+- `source_type` (`template` or `frame`)
+- `sequence_id` (camera/lighting sequence key like `CA`, `TS`)
+- `annotation_path` and `quad_points` when frame JSON is available
+
+Train document-type classifiers from those metadata files:
+
+```bash
+python manage.py train_document_classifiers \
+  --rvl-metadata ai_ml_services/datasets/processed/rvl_cdip/metadata.csv \
+  --midv-metadata ai_ml_services/datasets/processed/midv500/metadata.csv \
+  --midv-source-types frame template
+```
+
+This writes model artifacts by default to:
+
+- `models/rvl_cdip_classifier.pkl`
+- `models/midv500_classifier.pkl`
+- `models/document_classifier_training_report.json`
+
+Use `--dry-run` to validate paths and metadata stats before training.
 
 ## Architecture
 

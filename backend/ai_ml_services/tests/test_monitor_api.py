@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import cv2
+import numpy as np
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, override_settings
 from rest_framework.test import APIClient
 
@@ -51,4 +55,62 @@ class TestMonitorHealthAPI(SimpleTestCase):
         client = APIClient()
         response = client.get("/api/ai-monitor/health/")
 
+        self.assertEqual(response.status_code, 403)
+
+    @patch("ai_ml_services.views.get_ai_service")
+    @override_settings(SERVICE_TOKEN="test-service-token")
+    def test_document_classification_endpoint_accepts_valid_token(self, mock_get_service):
+        mock_service = MagicMock()
+        mock_service.classify_document_image.return_value = {
+            "document_classification": {
+                "rvl_cdip": {"available": True, "predicted_label": "invoice", "confidence": 0.81},
+                "midv500": {"available": True, "predicted_label": "16_deu_passport_new", "confidence": 0.77},
+            },
+            "document_type_alignment": {
+                "enabled": True,
+                "mismatch_detected": False,
+                "details": [],
+            },
+        }
+        mock_get_service.return_value = mock_service
+
+        canvas = np.full((64, 64, 3), 255, dtype=np.uint8)
+        ok, encoded = cv2.imencode(".png", canvas)
+        self.assertTrue(ok)
+        upload = SimpleUploadedFile(
+            "doc.png",
+            encoded.tobytes(),
+            content_type="image/png",
+        )
+
+        client = APIClient()
+        response = client.post(
+            "/api/ai-monitor/classify-document/",
+            {"file": upload, "document_type": "passport", "top_k": 3},
+            format="multipart",
+            HTTP_X_SERVICE_TOKEN="test-service-token",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], "ok")
+        self.assertIn("document_classification", response.data)
+        self.assertIn("document_type_alignment", response.data)
+
+    @override_settings(SERVICE_TOKEN="test-service-token")
+    def test_document_classification_endpoint_requires_token_or_admin(self):
+        canvas = np.full((64, 64, 3), 255, dtype=np.uint8)
+        ok, encoded = cv2.imencode(".png", canvas)
+        self.assertTrue(ok)
+        upload = SimpleUploadedFile(
+            "doc.png",
+            encoded.tobytes(),
+            content_type="image/png",
+        )
+
+        client = APIClient()
+        response = client.post(
+            "/api/ai-monitor/classify-document/",
+            {"file": upload},
+            format="multipart",
+        )
         self.assertEqual(response.status_code, 403)

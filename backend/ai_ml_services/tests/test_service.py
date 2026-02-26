@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 import numpy as np
 
 from ai_ml_services.service import (
     AIOrchestrator,
     AIServiceException,
     batch_verify_documents,
+    classify_document,
     check_consistency,
     detect_fraud,
     get_ai_service,
@@ -75,6 +76,23 @@ class TestServiceDelegation(SimpleTestCase):
             ["a.jpg", "b.jpg"], "id_card", "CASE-2"
         )
         self.assertEqual(result["total_documents"], 2)
+
+    @patch("ai_ml_services.service.get_ai_service")
+    def test_classify_document_delegates_to_orchestrator(self, mock_get_service):
+        orchestrator = MagicMock()
+        orchestrator.classify_document.return_value = {
+            "document_classification": {"rvl_cdip": {"predicted_label": "invoice"}}
+        }
+        mock_get_service.return_value = orchestrator
+
+        result = classify_document("file.jpg", "invoice", top_k=3)
+
+        orchestrator.classify_document.assert_called_once_with(
+            file_path="file.jpg",
+            document_type="invoice",
+            top_k=3,
+        )
+        self.assertIn("document_classification", result)
 
     @patch("ai_ml_services.service.AIOrchestrator")
     def test_get_ai_service_singleton(self, mock_orchestrator_cls):
@@ -199,3 +217,122 @@ class TestOrchestratorHardening(SimpleTestCase):
 
         self.assertEqual(result["results"]["signature"]["authenticity_score"], 82.0)
         self.assertAlmostEqual(result["results"]["overall_score"], 84.0, places=2)
+
+    @patch("cv2.imread")
+    def test_verify_document_includes_document_classification_results(self, mock_imread):
+        orchestrator = AIOrchestrator.__new__(AIOrchestrator)
+        orchestrator.ocr_service = MagicMock()
+        orchestrator.authenticity_detector = MagicMock()
+        orchestrator.cv_detector = MagicMock()
+        orchestrator.rvl_document_classifier = MagicMock()
+        orchestrator.midv_document_classifier = MagicMock()
+
+        mock_imread.return_value = np.zeros((32, 32, 3), dtype=np.uint8)
+        orchestrator.ocr_service.extract_structured_data.return_value = {"confidence": 80.0}
+        orchestrator.authenticity_detector.predict.return_value = {
+            "authenticity_score": 60.0,
+            "is_authentic": True,
+            "confidence": 70.0,
+            "mode": "model",
+        }
+        orchestrator.cv_detector.check_metadata.return_value = {
+            "suspicious": False,
+            "score": 100.0,
+        }
+        orchestrator.cv_detector.detect_copy_move.return_value = {
+            "copy_move_detected": False,
+            "confidence": 0.0,
+            "score": 100.0,
+        }
+        orchestrator.cv_detector.check_compression_artifacts.return_value = {
+            "suspicious": False,
+            "score": 100.0,
+        }
+        orchestrator.rvl_document_classifier.predict_image.return_value = {
+            "available": True,
+            "predicted_label": "invoice",
+            "confidence": 0.9,
+            "top_k": [{"label": "invoice", "score": 0.9}],
+        }
+        orchestrator.midv_document_classifier.predict_image.return_value = {
+            "available": True,
+            "predicted_label": "usa_passportcard",
+            "confidence": 0.7,
+            "top_k": [{"label": "usa_passportcard", "score": 0.7}],
+        }
+
+        result = AIOrchestrator.verify_document(
+            orchestrator,
+            file_path="doc.png",
+            document_type="id_card",
+            case_id="CASE-CLS-1",
+        )
+
+        self.assertIn("document_classification", result["results"])
+        self.assertEqual(
+            result["results"]["document_classification"]["rvl_cdip"]["predicted_label"],
+            "invoice",
+        )
+        self.assertEqual(
+            result["results"]["document_classification"]["midv500"]["predicted_label"],
+            "usa_passportcard",
+        )
+
+    @override_settings(
+        AI_ML_DOC_TYPE_MISMATCH_ENABLED=True,
+        AI_ML_DOC_TYPE_MISMATCH_CONFIDENCE=0.6,
+    )
+    @patch("cv2.imread")
+    def test_verify_document_adds_mismatch_constraint_when_doc_type_conflicts(self, mock_imread):
+        orchestrator = AIOrchestrator.__new__(AIOrchestrator)
+        orchestrator.ocr_service = MagicMock()
+        orchestrator.authenticity_detector = MagicMock()
+        orchestrator.cv_detector = MagicMock()
+        orchestrator.rvl_document_classifier = MagicMock()
+        orchestrator.midv_document_classifier = MagicMock()
+
+        mock_imread.return_value = np.zeros((32, 32, 3), dtype=np.uint8)
+        orchestrator.ocr_service.extract_structured_data.return_value = {"confidence": 92.0}
+        orchestrator.authenticity_detector.predict.return_value = {
+            "authenticity_score": 95.0,
+            "is_authentic": True,
+            "confidence": 90.0,
+            "mode": "model",
+        }
+        orchestrator.cv_detector.check_metadata.return_value = {
+            "suspicious": False,
+            "score": 100.0,
+        }
+        orchestrator.cv_detector.detect_copy_move.return_value = {
+            "copy_move_detected": False,
+            "confidence": 0.0,
+            "score": 100.0,
+        }
+        orchestrator.cv_detector.check_compression_artifacts.return_value = {
+            "suspicious": False,
+            "score": 100.0,
+        }
+        orchestrator.rvl_document_classifier.predict_image.return_value = {
+            "available": True,
+            "predicted_label": "resume",
+            "confidence": 0.88,
+            "top_k": [{"label": "resume", "score": 0.88}],
+        }
+        orchestrator.midv_document_classifier.predict_image.return_value = {
+            "available": True,
+            "predicted_label": "40_srb_id",
+            "confidence": 0.91,
+            "top_k": [{"label": "40_srb_id", "score": 0.91}],
+        }
+
+        result = AIOrchestrator.verify_document(
+            orchestrator,
+            file_path="doc.png",
+            document_type="passport",
+            case_id="CASE-MISMATCH-1",
+        )
+
+        codes = {item["code"] for item in result["results"]["decision_constraints"]}
+        self.assertIn("document_type_mismatch", codes)
+        self.assertEqual(result["results"]["recommendation"], "MANUAL_REVIEW")
+        self.assertTrue(result["results"]["document_type_alignment"]["mismatch_detected"])

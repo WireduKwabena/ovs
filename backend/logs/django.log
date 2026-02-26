@@ -19130,3 +19130,668 @@ botocore.exceptions.BotoCoreError: An unspecified error occurred
 [DEBUG] 2026-02-22 22:44:55,023 http_protocol HTTP close for ['127.0.0.1', 55782]
 [DEBUG] 2026-02-22 22:44:55,032 http_protocol HTTP response complete for ['127.0.0.1', 55782]
 [INFO] 2026-02-22 22:44:55,038 runserver [mHTTP GET /admin/ 200 [1.53, 127.0.0.1:55782][0m
+[DEBUG] 2026-02-24 14:58:32,075 selector_events Using selector: SelectSelector
+[INFO] 2026-02-24 14:59:31,357 create_dataset Dataset output directory: C:\Users\admin\AppData\Local\Temp\tmpls4bgr57\out
+[INFO] 2026-02-24 14:59:31,366 create_dataset Processed COVERAGE source C:\Users\admin\AppData\Local\Temp\tmpls4bgr57\COVERAGE -> authentic=2 forged=1 skipped=1 invalid_names=1
+[INFO] 2026-02-24 14:59:31,498 create_midv500_metadata MIDV-500 metadata written: C:\Users\admin\AppData\Local\Temp\tmpmq4o99qh\processed_midv\metadata.csv (total=5 train=5 val=0 test=0 labels=2)
+[INFO] 2026-02-24 14:59:31,562 create_rvl_cdip_metadata RVL-CDIP metadata written: C:\Users\admin\AppData\Local\Temp\tmpz9fuzapg\processed\metadata.csv (total=3 train=3 val=0 test=0 labels=2)
+[INFO] 2026-02-24 14:59:31,670 create_resume_metadata Resume metadata written: C:\Users\admin\AppData\Local\Temp\tmp3h6t9v3z\processed\metadata.csv (total=3 train=3 val=0 test=0 labels=2)
+[DEBUG] 2026-02-24 15:10:39,954 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-24 15:12:53,948 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-24 15:12:56,940 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 15:12:56,940 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 15:12:56,944 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 15:12:56,944 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 15:13:06,351 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-24 15:13:06,417 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 15:13:06,422 __init__ interactive is False
+[DEBUG] 2026-02-24 15:13:06,423 __init__ platform is win32
+[DEBUG] 2026-02-24 15:13:06,515 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 15:13:06,559 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[DEBUG] 2026-02-24 15:33:01,806 selector_events Using selector: SelectSelector
+[INFO] 2026-02-24 15:33:19,137 create_dataset Dataset output directory: C:\Users\admin\AppData\Local\Temp\tmp1c9fcbl7\out
+[INFO] 2026-02-24 15:33:19,153 create_dataset Processed COVERAGE source C:\Users\admin\AppData\Local\Temp\tmp1c9fcbl7\COVERAGE -> authentic=2 forged=1 skipped=1 invalid_names=1
+[INFO] 2026-02-24 15:33:19,337 create_midv500_metadata MIDV-500 metadata written: C:\Users\admin\AppData\Local\Temp\tmpldvt6eg6\processed_midv\metadata.csv (total=5 train=5 val=0 test=0 labels=2)
+[INFO] 2026-02-24 15:33:19,460 create_rvl_cdip_metadata RVL-CDIP metadata written: C:\Users\admin\AppData\Local\Temp\tmpwnhl8hcg\processed\metadata.csv (total=3 train=3 val=0 test=0 labels=2)
+[INFO] 2026-02-24 15:33:19,603 create_resume_metadata Resume metadata written: C:\Users\admin\AppData\Local\Temp\tmpk5adefd7\processed\metadata.csv (total=3 train=3 val=0 test=0 labels=2)
+[DEBUG] 2026-02-24 15:42:02,176 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-24 15:42:03,862 selector_events Using selector: SelectSelector
+[INFO] 2026-02-24 15:42:50,836 create_dataset Dataset output directory: C:\Users\admin\AppData\Local\Temp\tmpmacfaws7\out
+[INFO] 2026-02-24 15:42:50,864 create_dataset Processed COVERAGE source C:\Users\admin\AppData\Local\Temp\tmpmacfaws7\COVERAGE -> authentic=2 forged=1 skipped=1 invalid_names=1
+[INFO] 2026-02-24 15:42:50,957 create_midv500_metadata MIDV-500 metadata written: C:\Users\admin\AppData\Local\Temp\tmpe5o1qgo0\processed_midv\metadata.csv (total=5 train=5 val=0 test=0 labels=2)
+[INFO] 2026-02-24 15:42:50,998 create_rvl_cdip_metadata RVL-CDIP metadata written: C:\Users\admin\AppData\Local\Temp\tmpy9q5r7mq\processed\metadata.csv (total=3 train=3 val=0 test=0 labels=2)
+[INFO] 2026-02-24 15:42:51,042 create_resume_metadata Resume metadata written: C:\Users\admin\AppData\Local\Temp\tmp7tw4syib\processed\metadata.csv (total=3 train=3 val=0 test=0 labels=2)
+[DEBUG] 2026-02-24 15:42:57,724 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-24 15:42:59,604 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 15:42:59,605 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 15:42:59,606 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 15:42:59,606 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 15:43:04,928 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-24 15:43:04,956 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 15:43:04,966 __init__ interactive is False
+[DEBUG] 2026-02-24 15:43:04,967 __init__ platform is win32
+[DEBUG] 2026-02-24 15:43:05,176 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 15:43:05,187 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[DEBUG] 2026-02-24 15:43:27,996 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-24 15:43:56,667 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-24 15:44:23,914 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-24 16:05:14,416 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-24 16:20:55,109 selector_events Using selector: SelectSelector
+[INFO] 2026-02-24 16:21:08,518 service Starting fraud detection
+[INFO] 2026-02-24 16:21:08,519 service Fraud detection completed: is_fraud=False, probability=22.00
+[INFO] 2026-02-24 16:21:08,524 service Starting document verification for case CASE-STRICT-1
+[WARNING] 2026-02-24 16:21:08,524 service Case CASE-STRICT-1 recommendation changed from APPROVE to MANUAL_REVIEW due to degraded model state.
+[INFO] 2026-02-24 16:21:08,525 service Document verification completed for case CASE-STRICT-1: score=99.00, recommendation=MANUAL_REVIEW
+[INFO] 2026-02-24 16:21:08,529 service Starting document verification for case CASE-CLS-1
+[INFO] 2026-02-24 16:21:08,530 service Document verification completed for case CASE-CLS-1: score=85.00, recommendation=APPROVE
+[INFO] 2026-02-24 16:21:08,539 service Starting document verification for case CASE-SIGN-1
+[INFO] 2026-02-24 16:21:08,540 service Document verification completed for case CASE-SIGN-1: score=84.00, recommendation=MANUAL_REVIEW
+[DEBUG] 2026-02-24 16:21:23,158 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-24 16:22:36,478 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-24 16:22:38,037 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 16:22:38,038 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 16:22:38,038 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 16:22:38,039 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 16:22:42,902 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-24 16:22:42,959 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 16:22:42,966 __init__ interactive is False
+[DEBUG] 2026-02-24 16:22:42,977 __init__ platform is win32
+[DEBUG] 2026-02-24 16:22:43,118 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 16:22:43,128 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[DEBUG] 2026-02-24 16:23:48,986 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-24 16:44:48,687 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-24 16:44:56,613 selector_events Using selector: SelectSelector
+[INFO] 2026-02-24 16:45:27,012 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[INFO] 2026-02-24 16:45:27,661 service Starting fraud detection
+[INFO] 2026-02-24 16:45:27,667 service Fraud detection completed: is_fraud=False, probability=22.00
+[INFO] 2026-02-24 16:45:27,695 service Starting document verification for case CASE-MISMATCH-1
+[INFO] 2026-02-24 16:45:27,696 service Document verification completed for case CASE-MISMATCH-1: score=95.38, recommendation=APPROVE
+[INFO] 2026-02-24 16:45:27,900 service Starting document verification for case CASE-STRICT-1
+[WARNING] 2026-02-24 16:45:27,923 service Case CASE-STRICT-1 recommendation changed from APPROVE to MANUAL_REVIEW due to degraded model state.
+[INFO] 2026-02-24 16:45:27,924 service Document verification completed for case CASE-STRICT-1: score=99.00, recommendation=MANUAL_REVIEW
+[INFO] 2026-02-24 16:45:27,930 service Starting document verification for case CASE-CLS-1
+[INFO] 2026-02-24 16:45:27,931 service Document verification completed for case CASE-CLS-1: score=85.00, recommendation=APPROVE
+[INFO] 2026-02-24 16:45:27,938 service Starting document verification for case CASE-SIGN-1
+[INFO] 2026-02-24 16:45:27,939 service Document verification completed for case CASE-SIGN-1: score=84.00, recommendation=MANUAL_REVIEW
+[WARNING] 2026-02-24 16:45:28,112 log Forbidden: /api/ai-monitor/classify-document/
+[WARNING] 2026-02-24 16:45:28,208 log Forbidden: /api/ai-monitor/health/
+[DEBUG] 2026-02-24 16:47:08,683 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-24 16:47:11,886 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 16:47:11,887 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 16:47:11,888 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 16:47:11,888 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 16:47:46,434 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-24 16:47:46,482 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 16:47:46,487 __init__ interactive is False
+[DEBUG] 2026-02-24 16:47:46,488 __init__ platform is win32
+[DEBUG] 2026-02-24 16:47:46,644 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 16:47:46,650 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[DEBUG] 2026-02-24 16:49:25,607 selector_events Using selector: SelectSelector
+[INFO] 2026-02-24 16:49:34,263 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[INFO] 2026-02-24 16:49:34,614 service Starting fraud detection
+[INFO] 2026-02-24 16:49:34,616 service Fraud detection completed: is_fraud=False, probability=22.00
+[INFO] 2026-02-24 16:49:34,645 service Starting document verification for case CASE-MISMATCH-1
+[WARNING] 2026-02-24 16:49:34,649 service Case CASE-MISMATCH-1 recommendation changed from APPROVE to MANUAL_REVIEW due to degraded model state.
+[INFO] 2026-02-24 16:49:34,657 service Document verification completed for case CASE-MISMATCH-1: score=95.38, recommendation=MANUAL_REVIEW
+[INFO] 2026-02-24 16:49:34,664 service Starting document verification for case CASE-STRICT-1
+[WARNING] 2026-02-24 16:49:34,666 service Case CASE-STRICT-1 recommendation changed from APPROVE to MANUAL_REVIEW due to degraded model state.
+[INFO] 2026-02-24 16:49:34,674 service Document verification completed for case CASE-STRICT-1: score=99.00, recommendation=MANUAL_REVIEW
+[INFO] 2026-02-24 16:49:34,698 service Starting document verification for case CASE-CLS-1
+[WARNING] 2026-02-24 16:49:34,703 service Case CASE-CLS-1 recommendation changed from APPROVE to MANUAL_REVIEW due to degraded model state.
+[INFO] 2026-02-24 16:49:34,710 service Document verification completed for case CASE-CLS-1: score=85.00, recommendation=MANUAL_REVIEW
+[INFO] 2026-02-24 16:49:34,722 service Starting document verification for case CASE-SIGN-1
+[INFO] 2026-02-24 16:49:34,729 service Document verification completed for case CASE-SIGN-1: score=84.00, recommendation=MANUAL_REVIEW
+[WARNING] 2026-02-24 16:49:34,833 log Forbidden: /api/ai-monitor/classify-document/
+[WARNING] 2026-02-24 16:49:34,863 log Forbidden: /api/ai-monitor/health/
+[DEBUG] 2026-02-24 16:50:01,035 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-24 16:50:01,054 selector_events Using selector: SelectSelector
+[INFO] 2026-02-24 16:51:58,325 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[INFO] 2026-02-24 16:51:59,808 create_dataset Dataset output directory: C:\Users\admin\AppData\Local\Temp\tmpcbjyritg\out
+[INFO] 2026-02-24 16:51:59,822 create_dataset Processed COVERAGE source C:\Users\admin\AppData\Local\Temp\tmpcbjyritg\COVERAGE -> authentic=2 forged=1 skipped=1 invalid_names=1
+[INFO] 2026-02-24 16:51:59,999 create_midv500_metadata MIDV-500 metadata written: C:\Users\admin\AppData\Local\Temp\tmp5twqkkdi\processed_midv\metadata.csv (total=5 train=5 val=0 test=0 labels=2)
+[INFO] 2026-02-24 16:52:00,089 create_rvl_cdip_metadata RVL-CDIP metadata written: C:\Users\admin\AppData\Local\Temp\tmpeaplpge9\processed\metadata.csv (total=3 train=3 val=0 test=0 labels=2)
+[INFO] 2026-02-24 16:52:00,142 create_resume_metadata Resume metadata written: C:\Users\admin\AppData\Local\Temp\tmprx0vb2jd\processed\metadata.csv (total=3 train=3 val=0 test=0 labels=2)
+[DEBUG] 2026-02-24 16:52:12,462 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-24 16:52:14,110 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 16:52:14,111 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 16:52:14,111 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 16:52:14,112 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 16:52:22,300 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-24 16:52:22,390 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 16:52:22,394 __init__ interactive is False
+[DEBUG] 2026-02-24 16:52:22,395 __init__ platform is win32
+[DEBUG] 2026-02-24 16:52:22,570 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 16:52:22,577 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[DEBUG] 2026-02-24 16:53:35,601 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-24 16:53:37,876 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 16:53:37,877 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 16:53:37,878 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 16:53:37,879 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 16:53:51,695 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-24 16:53:51,738 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 16:53:51,752 __init__ interactive is False
+[DEBUG] 2026-02-24 16:53:51,753 __init__ platform is win32
+[DEBUG] 2026-02-24 16:53:51,911 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 16:53:51,917 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[DEBUG] 2026-02-24 16:55:08,953 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-24 17:29:34,735 selector_events Using selector: SelectSelector
+[INFO] 2026-02-24 17:30:50,282 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[INFO] 2026-02-24 17:30:50,589 generate_forgeries Found 3 authentic images in C:\Users\admin\AppData\Local\Temp\tmpkqaj2vjr\auth
+[INFO] 2026-02-24 17:30:50,653 generate_forgeries Generated 6 forged samples in C:\Users\admin\AppData\Local\Temp\tmpkqaj2vjr\forged
+[INFO] 2026-02-24 17:30:50,811 pytorch_loaders Train samples: 4, Validation samples: 2
+[DEBUG] 2026-02-24 17:31:08,696 selector_events Using selector: SelectSelector
+[INFO] 2026-02-24 17:33:14,171 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-24 17:33:31,683 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-24 17:33:34,643 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 17:33:34,644 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 17:33:34,644 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 17:33:34,644 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 17:33:41,572 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-24 17:33:42,192 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 17:33:42,195 __init__ interactive is False
+[DEBUG] 2026-02-24 17:33:42,197 __init__ platform is win32
+[DEBUG] 2026-02-24 17:33:42,332 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 17:33:42,366 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[DEBUG] 2026-02-24 17:34:03,514 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-24 17:37:06,188 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-24 17:37:08,470 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 17:37:08,470 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 17:37:08,471 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 17:37:08,472 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 17:37:14,692 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-24 17:37:14,714 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 17:37:14,718 __init__ interactive is False
+[DEBUG] 2026-02-24 17:37:14,721 __init__ platform is win32
+[DEBUG] 2026-02-24 17:37:14,841 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 17:37:14,856 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[DEBUG] 2026-02-24 18:05:15,791 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-24 18:05:44,338 selector_events Using selector: SelectSelector
+[INFO] 2026-02-24 18:08:41,845 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-24 18:08:50,835 selector_events Using selector: SelectSelector
+[INFO] 2026-02-24 18:10:51,683 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[INFO] 2026-02-24 18:12:09,225 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-24 18:12:40,423 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-24 18:12:48,585 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 18:12:48,589 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 18:12:48,589 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 18:12:48,590 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 18:13:06,433 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-24 18:13:06,491 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 18:13:06,585 __init__ interactive is False
+[DEBUG] 2026-02-24 18:13:06,593 __init__ platform is win32
+[DEBUG] 2026-02-24 18:13:06,998 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 18:13:07,374 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[DEBUG] 2026-02-24 18:14:16,171 selector_events Using selector: SelectSelector
+[INFO] 2026-02-24 18:16:20,909 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[INFO] 2026-02-24 18:16:23,336 generate_forgeries Found 3 authentic images in C:\Users\admin\AppData\Local\Temp\tmpwxpesjee\auth
+[INFO] 2026-02-24 18:16:24,022 generate_forgeries Generated 6 forged samples in C:\Users\admin\AppData\Local\Temp\tmpwxpesjee\forged
+[INFO] 2026-02-24 18:16:27,073 pytorch_loaders Train samples: 4, Validation samples: 2
+[DEBUG] 2026-02-24 18:17:50,951 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-24 18:22:28,608 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-24 18:22:32,832 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 18:22:32,832 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 18:22:32,832 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 18:22:32,832 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 18:22:46,534 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-24 18:22:46,576 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 18:22:46,582 __init__ interactive is False
+[DEBUG] 2026-02-24 18:22:46,583 __init__ platform is win32
+[DEBUG] 2026-02-24 18:22:46,995 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 18:22:47,047 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[DEBUG] 2026-02-24 18:27:58,216 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-24 18:31:27,397 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-24 18:31:35,389 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 18:31:35,390 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 18:31:35,391 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 18:31:35,393 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 18:31:48,643 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-24 18:31:48,689 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 18:31:48,692 __init__ interactive is False
+[DEBUG] 2026-02-24 18:31:48,693 __init__ platform is win32
+[DEBUG] 2026-02-24 18:31:48,947 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 18:31:49,064 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[DEBUG] 2026-02-24 18:32:53,336 selector_events Using selector: SelectSelector
+[INFO] 2026-02-24 18:34:31,161 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-24 18:34:54,544 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-24 18:35:00,002 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 18:35:00,002 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 18:35:00,003 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 18:35:00,003 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 18:35:26,353 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-24 18:35:26,428 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 18:35:26,446 __init__ interactive is False
+[DEBUG] 2026-02-24 18:35:26,446 __init__ platform is win32
+[DEBUG] 2026-02-24 18:35:27,201 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 18:35:27,226 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[DEBUG] 2026-02-24 18:36:07,614 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-24 18:40:29,626 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-24 18:41:13,181 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-24 18:41:16,223 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 18:41:16,224 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 18:41:16,224 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 18:41:16,225 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 18:41:34,739 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-24 18:41:34,775 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 18:41:34,789 __init__ interactive is False
+[DEBUG] 2026-02-24 18:41:34,790 __init__ platform is win32
+[DEBUG] 2026-02-24 18:41:35,081 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 18:41:35,099 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[WARNING] 2026-02-24 18:42:02,620 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260221-0622F1\a76dc857-0550-4c4d-be4d-b35810fc85bd.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:02,691 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260221-254B76\161c2aff-c971-4f2f-ab82-5faa310e41af.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:03,099 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260221-5568C6\d2ed1451-af92-4ba1-ab61-87ff4fe20494.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:03,343 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260221-6CE98F\d3d204c2-8f07-4110-b233-170b37e6db81.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:03,454 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260221-AA2495\cf6588e5-1318-44f5-aed3-cd5d8a1efd96.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:03,623 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260221-C2FEB2\fb1d82fc-e944-4f6b-9e1b-15c80d8eee09.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:03,707 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-006757\d925ab06-fbe8-464a-8cbf-e8e1f7be1e67.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:03,818 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-05715D\ab5bf951-cf4c-40e6-a3db-65e019115bd3.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:03,892 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-097519\81c3bf0c-30e6-4bf1-ae09-cab02f2217ff.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:03,993 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-0A3305\a925c4c9-2157-442b-8899-8bdd6554eb9f.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:04,060 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-115104\94e58ba2-6ebe-4abf-8ff4-b6d2b6708059.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:04,140 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-1B1390\e46b1e9d-5c7e-4637-8852-4686250ade58.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:04,216 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-1FDBB4\559bd575-c054-456f-8dc5-ef059af51071.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:04,349 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-232A30\5c63d2b2-a487-41a1-8401-dc56df64f0fb.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:04,452 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-29DDDF\9a5e167e-8394-4df5-9e62-52179de7e11b.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:04,603 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-2F3727\e4ca3919-8270-4747-9716-8136aa4d891f.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:04,686 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-4104E0\93079973-e502-4ba9-9ff8-4044c28a35ab.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:04,770 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-42A3B8\8741cc67-3e85-4cfb-bf17-f8e90ef9a47d.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:04,843 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-4D308A\cd3c9e68-8611-4fd0-b221-fe4e92b92919.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:04,932 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-5332E2\d5e74ec6-4198-4f49-930a-dcad7eab8cf3.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:05,001 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-56DDA5\8af27108-efc0-4e4e-8783-fa41a07b6633.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:05,058 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-57257D\bee1388b-8335-41b8-98e4-57f9dd18e956.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:05,132 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-57AB42\242efa1e-6abb-4aae-bdf4-b3bd8b176919.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:05,238 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-62973C\3fcc1714-245c-40fe-9a4f-eae89fca8022.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:05,308 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-6A585B\29a74ef2-2b57-4ed1-bfd8-9c67a2b1f6a1.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:05,390 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-6B8B9E\23a91340-b80c-4c1b-b48a-dd0efe970349.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:05,450 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-6DAFB5\ff741161-7840-41be-a19b-1b26651c9513.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:05,535 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-6E471F\ebddf89e-9f75-4985-affb-ee7c7f56ff6f.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:05,597 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-7459AB\95dda7dd-2baa-4900-9964-7466ae969102.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:05,713 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-791B31\269643c4-b0ce-4067-957b-b6d0c4a7815c.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:05,833 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-7AA23B\19fd0fc5-d238-4d70-a56a-d2abe5c05e5c.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:05,967 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-873663\d5531632-1abb-4627-9614-93b98eb59da8.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:06,128 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-911385\341a84c9-fcc5-43f6-ae34-f67e94928e40.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:06,206 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-92B02C\c2066cec-f72a-4ab4-96f6-a09f27d0624e.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:06,324 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-93AAAE\5de9949e-afe7-4349-bb8f-39884c210563.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:06,429 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-93E6C7\42a00344-7789-48dc-9858-c5a544f692ae.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:06,550 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-95A1A3\c34b1e6d-2d8d-41d7-bedf-fca1a6a56a2b.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:06,653 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-970AAD\8c4ac850-368b-48ba-9dfc-06de4d44ac30.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:06,751 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-A024B3\483fe6a9-c3a0-45c6-a4c4-d81f5792cfc9.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:06,903 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-A4B5F0\a6bc790a-6937-4774-88e6-ac8278a65dd4.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:07,136 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-ADFD39\2f097461-dfee-4f04-8f06-4b23492a8312.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:07,396 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-B1F5DB\e5edfc2f-d54d-4dd8-bf88-500b6a24ff48.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:07,548 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-B28BA6\ff5bde43-33fa-47a8-a997-dc21880c69ad.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:07,628 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-B5E571\a5b280e5-1486-4d68-a02b-158825673655.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:07,783 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-B7DAE4\4c2a8a79-b8ba-4701-a24a-9fd5207346ad.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:07,895 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-BCFDFF\20f0c54d-fefd-464b-bd66-5be2924be149.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:08,017 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-BD439A\54747e09-5222-45c4-a35f-053ee8ba8a16.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:08,085 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-BE2052\3cf1c078-8941-40f0-8f0b-f97904c1b486.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:08,220 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-C8A6C4\a22b84b9-ca89-466b-9cc1-ab63b0190a86.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:08,283 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-CE89E1\aedd6d9c-d1e3-4a9e-b603-45c7fffebe0f.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:08,370 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-D54742\f6fae375-1bbf-429f-a193-c63d2f31a865.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:08,469 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-E426F0\feaac927-20e6-481d-8385-e5162095d3e5.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:08,597 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-E54893\095d55fa-85f4-40da-b305-030a4cddb63a.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:08,751 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-E92EA3\c06587aa-da84-4c6e-a461-12c2cd1d6338.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:08,829 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-EFDA1D\c92d03ef-c807-4a57-8232-75605645d56a.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:08,963 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-F0B231\1c6af697-5212-4dda-8663-5fce8d8847ac.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:09,060 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-F591B0\d21f6b50-2e09-4a87-b74a-861f03297495.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:09,197 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-F935B6\adb4614c-3d71-4d8a-a600-2106a83e8390.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:09,388 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-FC79C4\efe0551d-cac7-4891-975b-312574883e31.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 18:42:09,514 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260222-FE8BE6\e558d660-b97e-4135-ac56-8ec5efb3c86f.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[INFO] 2026-02-24 18:42:26,292 cnn_detector Created resnet18 model with pretrained=False
+[WARNING] 2026-02-24 18:43:18,840 saving_api You are saving your model as an HDF5 file via `model.save()` or `keras.saving.save_model(model)`. This file format is considered legacy. We recommend using instead the native Keras format, e.g. `model.save('my_model.keras')` or `keras.saving.save_model(model, 'my_model.keras')`. 
+[DEBUG] 2026-02-24 18:43:18,911 attrs Creating converter from 5 to 3
+[INFO] 2026-02-24 18:43:19,743 fraud_detector Training fraud detector on 2400 samples
+[INFO] 2026-02-24 18:43:25,137 fraud_detector Training complete: F1=1.000, AUC=1.000
+[INFO] 2026-02-24 18:43:25,337 fraud_detector Model saved to C:\Project Setup\Django\OVS-Redo\backend\models\fraud_classifier.pkl
+[DEBUG] 2026-02-24 18:44:48,316 selector_events Using selector: SelectSelector
+[INFO] 2026-02-24 18:45:36,651 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-24 18:45:46,974 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-24 18:45:48,741 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 18:45:48,741 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 18:45:48,741 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 18:45:48,742 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 18:45:55,447 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-24 18:45:55,479 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 18:45:55,515 __init__ interactive is False
+[DEBUG] 2026-02-24 18:45:55,515 __init__ platform is win32
+[DEBUG] 2026-02-24 18:45:55,883 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 18:45:55,903 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[DEBUG] 2026-02-24 18:46:34,114 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-24 18:47:17,998 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-24 18:47:20,809 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 18:47:20,809 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 18:47:20,811 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 18:47:20,811 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 18:47:28,613 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-24 18:47:28,650 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 18:47:28,654 __init__ interactive is False
+[DEBUG] 2026-02-24 18:47:28,663 __init__ platform is win32
+[DEBUG] 2026-02-24 18:47:28,855 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 18:47:28,866 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[INFO] 2026-02-24 18:47:58,230 cnn_detector Created resnet18 model with pretrained=False
+[WARNING] 2026-02-24 18:48:17,147 saving_api You are saving your model as an HDF5 file via `model.save()` or `keras.saving.save_model(model)`. This file format is considered legacy. We recommend using instead the native Keras format, e.g. `model.save('my_model.keras')` or `keras.saving.save_model(model, 'my_model.keras')`. 
+[DEBUG] 2026-02-24 18:48:17,175 attrs Creating converter from 5 to 3
+[DEBUG] 2026-02-24 18:49:33,644 selector_events Using selector: SelectSelector
+[INFO] 2026-02-24 18:50:09,991 cnn_detector Created resnet18 model with pretrained=False
+[DEBUG] 2026-02-24 18:50:33,540 selector_events Using selector: SelectSelector
+[INFO] 2026-02-24 18:51:24,904 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-24 18:51:34,803 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-24 18:51:36,962 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 18:51:36,963 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 18:51:36,963 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 18:51:36,965 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 18:51:46,771 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-24 18:51:46,807 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 18:51:46,860 __init__ interactive is False
+[DEBUG] 2026-02-24 18:51:46,862 __init__ platform is win32
+[DEBUG] 2026-02-24 18:51:47,190 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 18:51:47,205 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[DEBUG] 2026-02-24 18:52:31,905 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-24 18:54:40,966 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-24 18:54:44,450 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 18:54:44,450 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 18:54:44,451 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 18:54:44,452 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 18:54:57,584 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-24 18:54:57,606 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 18:54:57,612 __init__ interactive is False
+[DEBUG] 2026-02-24 18:54:57,614 __init__ platform is win32
+[DEBUG] 2026-02-24 18:54:57,929 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 18:54:57,935 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[DEBUG] 2026-02-24 19:08:26,536 selector_events Using selector: SelectSelector
+[INFO] 2026-02-24 19:09:13,112 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+[DEBUG] 2026-02-24 19:09:26,084 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-24 19:09:28,854 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 19:09:28,855 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 19:09:28,855 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 19:09:28,856 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 19:09:34,955 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-24 19:09:34,997 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 19:09:35,014 __init__ interactive is False
+[DEBUG] 2026-02-24 19:09:35,031 __init__ platform is win32
+[DEBUG] 2026-02-24 19:09:35,130 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 19:09:35,142 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[DEBUG] 2026-02-24 19:10:04,983 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-24 19:14:41,281 selector_events Using selector: SelectSelector
+[DEBUG] 2026-02-24 19:16:41,052 tpu_cluster_resolver Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+[DEBUG] 2026-02-24 19:16:45,078 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 19:16:45,079 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 19:16:45,079 __init__ Creating converter from 7 to 5
+[DEBUG] 2026-02-24 19:16:45,080 __init__ Creating converter from 5 to 7
+[DEBUG] 2026-02-24 19:16:55,800 __init__ matplotlib data path: C:\Project Setup\Django\OVS-Redo\.venv312\Lib\site-packages\matplotlib\mpl-data
+[DEBUG] 2026-02-24 19:16:55,828 __init__ CONFIGDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 19:16:55,833 __init__ interactive is False
+[DEBUG] 2026-02-24 19:16:55,833 __init__ platform is win32
+[DEBUG] 2026-02-24 19:16:56,242 __init__ CACHEDIR=C:\Users\admin\.matplotlib
+[DEBUG] 2026-02-24 19:16:56,251 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[WARNING] 2026-02-24 19:17:53,745 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260221-0622F1\a76dc857-0550-4c4d-be4d-b35810fc85bd.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 19:17:53,976 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260221-254B76\161c2aff-c971-4f2f-ab82-5faa310e41af.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 19:17:54,205 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260221-5568C6\d2ed1451-af92-4ba1-ab61-87ff4fe20494.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 19:17:54,411 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260221-6CE98F\d3d204c2-8f07-4110-b233-170b37e6db81.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 19:17:54,636 train_ai_models Skipping PDF C:\Project Setup\Django\OVS-Redo\backend\media\documents\VET-20260221-AA2495\cf6588e5-1318-44f5-aed3-cd5d8a1efd96.pdf due to conversion error: Unable to get page count.
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't find trailer dictionary
+Syntax Error: Couldn't read xref table
+
+[WARNING] 2026-02-24 19:18:06,467 train_ai_models Suppressed 55 additional PDF conversion warnings after first 5 failures.
+[INFO] 2026-02-24 19:19:29,022 cnn_detector Created resnet18 model with pretrained=False
+[WARNING] 2026-02-24 19:22:59,268 saving_api You are saving your model as an HDF5 file via `model.save()` or `keras.saving.save_model(model)`. This file format is considered legacy. We recommend using instead the native Keras format, e.g. `model.save('my_model.keras')` or `keras.saving.save_model(model, 'my_model.keras')`. 
+[DEBUG] 2026-02-24 19:22:59,683 attrs Creating converter from 5 to 3
+[INFO] 2026-02-24 19:23:02,099 fraud_detector Training fraud detector on 4000 samples
+[INFO] 2026-02-24 19:23:10,725 fraud_detector Training complete: F1=1.000, AUC=1.000
+[INFO] 2026-02-24 19:23:11,297 fraud_detector Model saved to C:\Project Setup\Django\OVS-Redo\backend\models\fraud_classifier.pkl

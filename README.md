@@ -478,6 +478,25 @@ docker-compose exec backend python manage.py createsuperuser
 Docker Compose now runs `backend`, `celery_worker`, `celery_beat`, and `flower`.
 Flower UI is available at `http://localhost:5555`.
 
+### Production Compose (No Bind Mounts)
+
+Use the dedicated production stack file:
+
+```bash
+# 1) Build/publish images first (example local tags)
+docker build -t ovs-redo-backend:latest -f Dockerfile .
+docker build -t ovs-redo-frontend:latest -f frontend/Dockerfile frontend --build-arg VITE_API_URL=/api
+
+# 2) Prepare prod env
+cp .env.prod.example .env
+# Edit DATABASE_URL, SECRET_KEY, ALLOWED_HOSTS, and FLOWER_BASIC_AUTH
+
+# 3) Start production stack
+docker compose -f docker-compose.prod.yml up -d
+```
+
+`docker-compose.prod.yml` uses prebuilt images and named volumes only (no source bind mounts).
+
 ### Manual Deployment
 
 See [DEPLOYMENT.md](docs/DEPLOYMENT.md) for production deployment guide.

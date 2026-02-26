@@ -6,6 +6,7 @@ with the AI/ML services without needing to know implementation details.
 
 import logging
 import os
+import re
 import time
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -21,6 +22,27 @@ MANUAL_REVIEW_THRESHOLD = float(getattr(settings, "AI_ML_MANUAL_REVIEW_THRESHOLD
 RECOMMENDATION_APPROVE = "APPROVE"
 RECOMMENDATION_MANUAL_REVIEW = "MANUAL_REVIEW"
 RECOMMENDATION_REJECT = "REJECT"
+
+RVL_DOCUMENT_LABELS = {
+    "advertisement",
+    "budget",
+    "email",
+    "file_folder",
+    "form",
+    "handwritten",
+    "invoice",
+    "letter",
+    "memo",
+    "news_article",
+    "presentation",
+    "questionnaire",
+    "resume",
+    "scientific_publication",
+    "scientific_report",
+    "specification",
+}
+
+MIDV_FAMILIES = {"passport", "id_card", "driver_license", "social_security"}
 
 
 class AIServiceException(Exception):
@@ -57,6 +79,9 @@ class AIOrchestrator:
         from ai_ml_services.signature.signature_detector import (
             SignatureAuthenticityDetector,
         )
+        from ai_ml_services.document_classification.classifier import (
+            DocumentTypeClassifier,
+        )
 
         authenticity_model_path = self._resolve_path(
             str(
@@ -85,6 +110,24 @@ class AIOrchestrator:
                 )
             )
         )
+        rvl_model_path = self._resolve_path(
+            str(
+                getattr(
+                    settings,
+                    "AI_ML_RVL_CDIP_MODEL_PATH",
+                    settings.MODEL_PATH / "rvl_cdip_classifier.pkl",
+                )
+            )
+        )
+        midv_model_path = self._resolve_path(
+            str(
+                getattr(
+                    settings,
+                    "AI_ML_MIDV500_MODEL_PATH",
+                    settings.MODEL_PATH / "midv500_classifier.pkl",
+                )
+            )
+        )
 
         self.ocr_service = OCRService()
         self.authenticity_detector = AuthenticityDetector(
@@ -98,10 +141,24 @@ class AIOrchestrator:
         self.signature_detector = SignatureAuthenticityDetector(
             model_path=str(signature_model_path)
         )
+        self.rvl_document_classifier = DocumentTypeClassifier(model_path=rvl_model_path)
+        self.midv_document_classifier = DocumentTypeClassifier(model_path=midv_model_path)
         if not fraud_model_path.exists():
             logger.warning(
                 "Fraud model artifact not found at %s; heuristic mode will be used.",
                 fraud_model_path,
+            )
+        if not self.rvl_document_classifier.available:
+            logger.warning(
+                "RVL document classifier unavailable at %s (%s)",
+                rvl_model_path,
+                self.rvl_document_classifier.error,
+            )
+        if not self.midv_document_classifier.available:
+            logger.warning(
+                "MIDV document classifier unavailable at %s (%s)",
+                midv_model_path,
+                self.midv_document_classifier.error,
             )
 
         logger.info("AI service orchestrator initialized")
@@ -117,6 +174,253 @@ class AIOrchestrator:
     @staticmethod
     def _contains_error(payload: Dict) -> bool:
         return isinstance(payload, dict) and bool(payload.get("error"))
+
+    @staticmethod
+    def _normalize_text_token(value: str) -> str:
+        return re.sub(r"[^a-z0-9]+", "_", str(value or "").lower()).strip("_")
+
+    def _expected_document_profile(self, document_type: str) -> Dict[str, str]:
+        normalized = self._normalize_text_token(document_type)
+        tokens = [token for token in normalized.split("_") if token]
+        token_set = set(tokens)
+
+        if normalized in RVL_DOCUMENT_LABELS:
+            return {"domain": "rvl", "label": normalized}
+
+        if {"resume", "cv"}.intersection(token_set):
+            return {"domain": "rvl", "label": "resume"}
+        if {"invoice"}.intersection(token_set):
+            return {"domain": "rvl", "label": "invoice"}
+        if {"letter"}.intersection(token_set):
+            return {"domain": "rvl", "label": "letter"}
+        if {"form"}.intersection(token_set):
+            return {"domain": "rvl", "label": "form"}
+
+        if {"passport", "passportcard", "travel"}.intersection(token_set):
+            return {"domain": "midv500", "family": "passport"}
+        if {"driver", "drivers", "driving", "license", "licence", "drvlic"}.intersection(token_set):
+            return {"domain": "midv500", "family": "driver_license"}
+        if {"ssn", "social", "security"}.issubset(token_set) or {"ssn"}.intersection(token_set):
+            return {"domain": "midv500", "family": "social_security"}
+        if {"id", "identity", "national"}.intersection(token_set):
+            return {"domain": "midv500", "family": "id_card"}
+
+        return {"domain": "unknown", "label": normalized}
+
+    def _midv_family_from_label(self, predicted_label: str) -> str:
+        normalized = self._normalize_text_token(predicted_label)
+        if "passport" in normalized:
+            return "passport"
+        if "drvlic" in normalized or "driver" in normalized:
+            return "driver_license"
+        if "ssn" in normalized or "social_security" in normalized:
+            return "social_security"
+        if normalized.endswith("_id") or "_id_" in normalized or normalized == "id":
+            return "id_card"
+        return "unknown"
+
+    @staticmethod
+    def _get_doc_type_mismatch_threshold() -> float:
+        threshold = float(getattr(settings, "AI_ML_DOC_TYPE_MISMATCH_CONFIDENCE", 0.65))
+        return min(1.0, max(0.0, threshold))
+
+    @staticmethod
+    def _doc_type_mismatch_enabled() -> bool:
+        return bool(getattr(settings, "AI_ML_DOC_TYPE_MISMATCH_ENABLED", True))
+
+    def _evaluate_document_type_alignment(
+        self,
+        declared_document_type: str,
+        classification: Dict[str, Dict],
+    ) -> Dict:
+        if not self._doc_type_mismatch_enabled():
+            return {
+                "enabled": False,
+                "declared_document_type": declared_document_type,
+                "mismatch_detected": False,
+                "mismatch_reason": "",
+                "details": [],
+            }
+
+        expected = self._expected_document_profile(declared_document_type)
+        threshold = self._get_doc_type_mismatch_threshold()
+        details: List[Dict[str, str]] = []
+
+        rvl_result = classification.get("rvl_cdip") or {}
+        midv_result = classification.get("midv500") or {}
+        rvl_label = self._normalize_text_token(rvl_result.get("predicted_label", ""))
+        midv_label = self._normalize_text_token(midv_result.get("predicted_label", ""))
+        rvl_conf = float(rvl_result.get("confidence", 0.0) or 0.0)
+        midv_conf = float(midv_result.get("confidence", 0.0) or 0.0)
+
+        if expected.get("domain") == "midv500":
+            expected_family = expected.get("family", "")
+            predicted_family = self._midv_family_from_label(midv_label)
+            if (
+                midv_result.get("available")
+                and midv_conf >= threshold
+                and predicted_family in MIDV_FAMILIES
+                and predicted_family != expected_family
+            ):
+                details.append(
+                    {
+                        "model": "midv500",
+                        "reason": (
+                            f"Declared type expects `{expected_family}` but MIDV predicted "
+                            f"`{predicted_family}` (label={midv_label}, confidence={midv_conf:.3f})."
+                        ),
+                    }
+                )
+
+            if (
+                rvl_result.get("available")
+                and rvl_conf >= threshold
+                and rvl_label in RVL_DOCUMENT_LABELS
+            ):
+                details.append(
+                    {
+                        "model": "rvl_cdip",
+                        "reason": (
+                            f"Declared ID-like type but RVL predicted non-ID class "
+                            f"`{rvl_label}` (confidence={rvl_conf:.3f})."
+                        ),
+                    }
+                )
+
+        if expected.get("domain") == "rvl":
+            expected_label = expected.get("label", "")
+            if (
+                rvl_result.get("available")
+                and rvl_conf >= threshold
+                and rvl_label
+                and rvl_label != expected_label
+            ):
+                details.append(
+                    {
+                        "model": "rvl_cdip",
+                        "reason": (
+                            f"Declared type expects `{expected_label}` but RVL predicted "
+                            f"`{rvl_label}` (confidence={rvl_conf:.3f})."
+                        ),
+                    }
+                )
+            if (
+                midv_result.get("available")
+                and midv_conf >= threshold
+                and self._midv_family_from_label(midv_label) in MIDV_FAMILIES
+            ):
+                details.append(
+                    {
+                        "model": "midv500",
+                        "reason": (
+                            f"Declared non-ID type but MIDV predicted ID family "
+                            f"`{self._midv_family_from_label(midv_label)}` "
+                            f"(label={midv_label}, confidence={midv_conf:.3f})."
+                        ),
+                    }
+                )
+
+        mismatch_detected = len(details) > 0
+        mismatch_reason = (
+            "Declared document type does not align with classifier prediction."
+            if mismatch_detected
+            else ""
+        )
+
+        return {
+            "enabled": True,
+            "declared_document_type": declared_document_type,
+            "expected": expected,
+            "confidence_threshold": threshold,
+            "mismatch_detected": mismatch_detected,
+            "mismatch_reason": mismatch_reason,
+            "details": details,
+        }
+
+    def _classify_document_image(self, image, top_k: int = 3) -> Dict[str, Dict]:
+        if image is None:
+            return {
+                "rvl_cdip": {
+                    "available": bool(
+                        getattr(self, "rvl_document_classifier", None)
+                        and self.rvl_document_classifier.available
+                    ),
+                    "error": "image_unavailable",
+                },
+                "midv500": {
+                    "available": bool(
+                        getattr(self, "midv_document_classifier", None)
+                        and self.midv_document_classifier.available
+                    ),
+                    "error": "image_unavailable",
+                },
+            }
+
+        result: Dict[str, Dict] = {}
+        rvl_classifier = getattr(self, "rvl_document_classifier", None)
+        midv_classifier = getattr(self, "midv_document_classifier", None)
+
+        if rvl_classifier is not None:
+            result["rvl_cdip"] = rvl_classifier.predict_image(image, top_k=top_k)
+        else:
+            result["rvl_cdip"] = {"available": False, "error": "classifier_not_initialized"}
+
+        if midv_classifier is not None:
+            result["midv500"] = midv_classifier.predict_image(image, top_k=top_k)
+        else:
+            result["midv500"] = {"available": False, "error": "classifier_not_initialized"}
+
+        return result
+
+    def classify_document_image(
+        self,
+        image,
+        document_type: Optional[str] = None,
+        top_k: int = 3,
+    ) -> Dict:
+        classification = self._classify_document_image(image=image, top_k=top_k)
+        alignment = self._evaluate_document_type_alignment(
+            declared_document_type=document_type or "",
+            classification=classification,
+        )
+        return {
+            "document_classification": classification,
+            "document_type_alignment": alignment,
+        }
+
+    def classify_document(
+        self,
+        file_path: str,
+        document_type: Optional[str] = None,
+        top_k: int = 3,
+    ) -> Dict:
+        import cv2
+
+        image = None
+        if str(file_path).lower().endswith(".pdf"):
+            from pdf2image import convert_from_path
+
+            pages = convert_from_path(
+                str(file_path),
+                first_page=1,
+                last_page=1,
+                **pdf2image_kwargs(),
+            )
+            if pages:
+                import numpy as np
+
+                image = cv2.cvtColor(np.array(pages[0]), cv2.COLOR_RGB2BGR)
+        else:
+            image = cv2.imread(str(file_path))
+
+        if image is None:
+            raise AIServiceException(f"Could not decode document image: {file_path}")
+
+        return self.classify_document_image(
+            image=image,
+            document_type=document_type,
+            top_k=top_k,
+        )
 
     def verify_document(
         self, file_path: str, document_type: str, case_id: Optional[str] = None
@@ -289,6 +593,24 @@ class AIOrchestrator:
             overall_score = sum(scores) / len(scores)
 
             recommendation = self._apply_threshold_recommendation(overall_score)
+
+            document_classification = self._classify_document_image(image=image, top_k=3)
+            document_type_alignment = self._evaluate_document_type_alignment(
+                declared_document_type=document_type,
+                classification=document_classification,
+            )
+            if document_type_alignment.get("mismatch_detected"):
+                decision_constraints.append(
+                    {
+                        "code": "document_type_mismatch",
+                        "reason": document_type_alignment.get(
+                            "mismatch_reason",
+                            "Declared document type does not align with model predictions.",
+                        ),
+                        "details": document_type_alignment.get("details", []),
+                    }
+                )
+
             automated_decision_allowed = not decision_constraints
             if decision_constraints and recommendation != RECOMMENDATION_MANUAL_REVIEW:
                 logger.warning(
@@ -316,6 +638,8 @@ class AIOrchestrator:
                         "computer_vision": cv_checks,
                     },
                     "signature": signature_result,
+                    "document_classification": document_classification,
+                    "document_type_alignment": document_type_alignment,
                     "overall_score": overall_score,
                     "recommendation": recommendation,
                     "automated_decision_allowed": automated_decision_allowed,
@@ -490,4 +814,17 @@ def batch_verify_documents(
 ) -> Dict:
     """Convenience function to batch verify documents."""
     return get_ai_service().batch_verify_documents(file_paths, document_type, case_id)
+
+
+def classify_document(
+    file_path: str,
+    document_type: Optional[str] = None,
+    top_k: int = 3,
+) -> Dict:
+    """Convenience function to classify a document file."""
+    return get_ai_service().classify_document(
+        file_path=file_path,
+        document_type=document_type,
+        top_k=top_k,
+    )
 

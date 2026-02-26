@@ -75,6 +75,22 @@ LOCAL_RAW_DATASET_LAYOUTS = {
         "forged_dirs": ["train/forge", "test/*/forge"],
         "filename_hints": ["c-*.jpg => authentic", "cf-*.jpg => forged"],
     },
+    "rvl_cdip": {
+        "root": "RVL-CDIP",
+        "special_parser": "rvl_cdip_metadata",
+        "notes": [
+            "Expected layout: one folder per document class (16 classes).",
+            "Use create_rvl_cdip_metadata.py for normalized labels and split generation.",
+        ],
+    },
+    "midv500": {
+        "root": "midv500",
+        "special_parser": "midv500_metadata",
+        "notes": [
+            "Expected layout per class: images/, ground_truth/, videos/.",
+            "Use create_midv500_metadata.py to preserve sequence and quad annotation paths.",
+        ],
+    },
     "resumes_pdf": {
         "root": "Resumes PDF",
         "special_parser": "resume_metadata",
