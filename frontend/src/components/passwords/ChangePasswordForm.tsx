@@ -1,25 +1,28 @@
 // src/components/passwords/ChangePasswordForm.tsx
-import React, { useState, useEffect } from 'react';
-import { useForm, type SubmitHandler } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
-import * as yup from 'yup';
-import { toast } from 'react-toastify';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Loader } from '@/components/common/Loader';
-import { LockKeyhole, Eye, EyeOff } from 'lucide-react';
-import { useDispatch, useSelector } from 'react-redux';
-import { type AppDispatch, type RootState } from '@/app/store';
-import { changePassword, clearError } from '@/store/authSlice';
+import React, { useState, useEffect } from "react";
+import { useForm, type SubmitHandler } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
+import { toast } from "react-toastify";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader } from "@/components/common/Loader";
+import { LockKeyhole, Eye, EyeOff, Shield } from "lucide-react";
+import { useDispatch, useSelector } from "react-redux";
+import { type AppDispatch, type RootState } from "@/app/store";
+import { changePassword, clearError } from "@/store/authSlice";
 
 const schema = yup.object().shape({
-  old_password: yup.string().required('Old password is required'),
-  new_password: yup.string().min(8, 'New password must be at least 8 characters').required('New password is required'),
+  old_password: yup.string().required("Old password is required"),
+  new_password: yup
+    .string()
+    .min(8, "New password must be at least 8 characters")
+    .required("New password is required"),
   new_password_confirm: yup
     .string()
-    .oneOf([yup.ref('new_password')], 'Passwords must match')
-    .required('Password confirmation is required'),
+    .oneOf([yup.ref("new_password")], "Passwords must match")
+    .required("Password confirmation is required"),
 });
 
 type ChangePasswordFormData = yup.InferType<typeof schema>;
@@ -36,20 +39,14 @@ export const ChangePasswordForm: React.FC = () => {
     handleSubmit,
     formState: { errors },
     reset,
-  } = useForm<ChangePasswordFormData>({
-    resolver: yupResolver(schema),
-  });
+  } = useForm<ChangePasswordFormData>({ resolver: yupResolver(schema) });
 
   useEffect(() => {
     dispatch(clearError());
   }, [dispatch]);
-
   useEffect(() => {
-    if (error) {
-      toast.error(error, { toastId: `change-password-${error}` });
-    }
+    if (error) toast.error(error, { toastId: `change-password-${error}` });
   }, [error]);
-
   useEffect(() => {
     return () => {
       dispatch(clearError());
@@ -57,13 +54,10 @@ export const ChangePasswordForm: React.FC = () => {
   }, [dispatch]);
 
   const onSubmit: SubmitHandler<ChangePasswordFormData> = async (data) => {
-    if (loading) {
-      return;
-    }
-
+    if (loading) return;
     try {
       await dispatch(changePassword(data)).unwrap();
-      toast.success('Your password has been changed successfully!');
+      toast.success("Your password has been changed successfully!");
       dispatch(clearError());
       reset();
     } catch {
@@ -71,133 +65,190 @@ export const ChangePasswordForm: React.FC = () => {
     }
   };
 
+  const inputClass = (hasError: boolean) =>
+    `w-full bg-gray-50 border text-gray-900 placeholder:text-gray-400 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 pr-10 ${
+      hasError ? "border-red-400 bg-red-50" : "border-gray-200"
+    }`;
+
+  const PasswordToggle = ({
+    show,
+    onToggle,
+    disabled,
+  }: {
+    show: boolean;
+    onToggle: () => void;
+    disabled: boolean;
+  }) => (
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={disabled}
+      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 disabled:cursor-not-allowed transition-colors"
+      aria-label={show ? "Hide password" : "Show password"}
+    >
+      {show ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+    </button>
+  );
+
   return (
-    <div className="min-h-screen bg-transparent text-white flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl mx-auto lg:grid lg:grid-cols-2 rounded-3xl shadow-2xl overflow-hidden bg-gray-800 border border-gray-700">
-        {/* Left Side: Decorative */}
-        <div className="relative hidden lg:block overflow-hidden">
-          <div className="absolute inset-0 bg-linear-to-br from-purple-600 to-blue-500"></div>
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-lg border-r border-white/20"></div>
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse delay-1000 pointer-events-none" />
+
+      <div className="relative w-full max-w-4xl mx-auto lg:grid lg:grid-cols-2 rounded-3xl shadow-2xl overflow-hidden bg-white border border-gray-100">
+        {/* Left decorative panel */}
+        <div className="relative hidden lg:flex flex-col bg-indigo-600 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600" />
+          <div className="absolute top-0 left-0 w-64 h-64 bg-white/10 rounded-full -translate-x-1/2 -translate-y-1/2" />
+          <div className="absolute bottom-0 right-0 w-80 h-80 bg-white/10 rounded-full translate-x-1/2 translate-y-1/2" />
           <div className="relative z-10 flex flex-col justify-between h-full p-12">
+            <div className="flex items-center gap-3">
+              <div className="bg-white/20 rounded-lg p-2">
+                <Shield className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xl font-bold text-white">
+                VettingSystem
+              </span>
+            </div>
             <div>
-              <h2 className="text-4xl font-bold tracking-tighter text-white">
-                Online Vetting System
+              <h2 className="text-4xl font-extrabold tracking-tight text-white leading-tight">
+                Keep your account secure
               </h2>
-              <p className="mt-4 text-lg text-gray-200">
-                Keep your account secure by using a strong and unique password.
+              <p className="mt-4 text-lg text-indigo-100">
+                Use a strong, unique password to protect your firm account from
+                unauthorized access.
               </p>
             </div>
-            <div className="mt-auto text-sm text-gray-300">
+            <div className="text-sm text-indigo-200">
               © {new Date().getFullYear()} OVS Inc. All Rights Reserved.
             </div>
           </div>
         </div>
 
-        {/* Right Side: Form */}
-        <div className="p-8 md:p-12 bg-gray-800">
-          <div className="flex flex-col items-center text-center mb-8">
-            <div className="p-4 bg-linear-to-br from-purple-600 to-blue-500 rounded-full mb-4">
-              <LockKeyhole className="h-12 w-12 text-white" />
+        {/* Right form panel */}
+        <div className="p-8 md:p-12 bg-white">
+          <div className="flex justify-center mb-6">
+            <div className="bg-indigo-50 rounded-2xl p-4">
+              <LockKeyhole className="w-8 h-8 text-indigo-600" />
             </div>
-            <h1 className="text-4xl font-bold tracking-tighter">Change Your Password</h1>
-            <p className="text-gray-400 mt-2">
-              For your security, choose a strong and unique password.
-            </p>
           </div>
+          <h1 className="text-3xl font-extrabold text-center text-gray-900 tracking-tight">
+            Change Your Password
+          </h1>
+          <p className="text-center text-gray-500 mt-2 mb-8">
+            For your security, choose a strong and unique password.
+          </p>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            {/* Current Password */}
             <div className="space-y-2">
-              <Label htmlFor="old_password" className="text-gray-300 font-medium">Current Password</Label>
+              <Label
+                htmlFor="old_password"
+                className="text-gray-700 font-medium text-sm"
+              >
+                Current Password
+              </Label>
               <div className="relative">
                 <Input
-                  {...register('old_password')}
+                  {...register("old_password")}
                   id="old_password"
-                  type={showOldPassword ? 'text' : 'password'}
+                  type={showOldPassword ? "text" : "password"}
                   autoComplete="current-password"
                   placeholder="Enter your current password"
                   disabled={loading}
                   aria-invalid={Boolean(errors.old_password)}
-                  aria-describedby={errors.old_password ? 'change-password-error-old-password' : undefined}
-                  className={`w-full bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 transition-shadow duration-300 pr-10 ${errors.old_password ? 'border-red-500' : ''}`}
+                  className={inputClass(Boolean(errors.old_password))}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowOldPassword(!showOldPassword)}
+                <PasswordToggle
+                  show={showOldPassword}
+                  onToggle={() => setShowOldPassword(!showOldPassword)}
                   disabled={loading}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
-                  aria-label={showOldPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showOldPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
+                />
               </div>
               {errors.old_password && (
-                <p id="change-password-error-old-password" className="text-sm text-red-400 mt-1">{errors.old_password.message}</p>
+                <p className="text-sm text-red-500 mt-1">
+                  {errors.old_password.message}
+                </p>
               )}
             </div>
+
+            {/* New Password */}
             <div className="space-y-2">
-              <Label htmlFor="new_password" className="text-gray-300 font-medium">New Password</Label>
+              <Label
+                htmlFor="new_password"
+                className="text-gray-700 font-medium text-sm"
+              >
+                New Password
+              </Label>
               <div className="relative">
                 <Input
-                  {...register('new_password')}
+                  {...register("new_password")}
                   id="new_password"
-                  type={showNewPassword ? 'text' : 'password'}
+                  type={showNewPassword ? "text" : "password"}
                   autoComplete="new-password"
                   placeholder="Enter a new strong password"
                   disabled={loading}
                   aria-invalid={Boolean(errors.new_password)}
-                  aria-describedby={errors.new_password ? 'change-password-error-new-password' : undefined}
-                  className={`w-full bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 transition-shadow duration-300 pr-10 ${errors.new_password ? 'border-red-500' : ''}`}
+                  className={inputClass(Boolean(errors.new_password))}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowNewPassword(!showNewPassword)}
+                <PasswordToggle
+                  show={showNewPassword}
+                  onToggle={() => setShowNewPassword(!showNewPassword)}
                   disabled={loading}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
-                  aria-label={showNewPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
+                />
               </div>
               {errors.new_password && (
-                <p id="change-password-error-new-password" className="text-sm text-red-400 mt-1">{errors.new_password.message}</p>
+                <p className="text-sm text-red-500 mt-1">
+                  {errors.new_password.message}
+                </p>
               )}
             </div>
+
+            {/* Confirm Password */}
             <div className="space-y-2">
-              <Label htmlFor="new_password_confirm" className="text-gray-300 font-medium">Confirm New Password</Label>
+              <Label
+                htmlFor="new_password_confirm"
+                className="text-gray-700 font-medium text-sm"
+              >
+                Confirm New Password
+              </Label>
               <div className="relative">
                 <Input
-                  {...register('new_password_confirm')}
+                  {...register("new_password_confirm")}
                   id="new_password_confirm"
-                  type={showConfirmPassword ? 'text' : 'password'}
+                  type={showConfirmPassword ? "text" : "password"}
                   autoComplete="new-password"
                   placeholder="Confirm your new password"
                   disabled={loading}
                   aria-invalid={Boolean(errors.new_password_confirm)}
-                  aria-describedby={errors.new_password_confirm ? 'change-password-error-new-password-confirm' : undefined}
-                  className={`w-full bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 transition-shadow duration-300 pr-10 ${errors.new_password_confirm ? 'border-red-500' : ''}`}
+                  className={inputClass(Boolean(errors.new_password_confirm))}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                <PasswordToggle
+                  show={showConfirmPassword}
+                  onToggle={() => setShowConfirmPassword(!showConfirmPassword)}
                   disabled={loading}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
-                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
+                />
               </div>
               {errors.new_password_confirm && (
-                <p id="change-password-error-new-password-confirm" className="text-sm text-red-400 mt-1">{errors.new_password_confirm.message}</p>
+                <p className="text-sm text-red-500 mt-1">
+                  {errors.new_password_confirm.message}
+                </p>
               )}
             </div>
-            <Button type="submit" size="lg" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg rounded-lg py-3 transition-transform duration-200 active:scale-95" disabled={loading}>
+
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-base rounded-xl py-3 transition-all duration-200 hover:scale-[1.02] active:scale-95 shadow-md hover:shadow-indigo-200"
+              disabled={loading}
+            >
               {loading ? (
                 <span className="inline-flex items-center gap-2">
                   <Loader size="sm" color="white" />
                   Updating...
                 </span>
               ) : (
-                'Update Password'
+                "Update Password"
               )}
             </Button>
           </form>
