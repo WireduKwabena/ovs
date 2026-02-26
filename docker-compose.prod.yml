@@ -1,0 +1,212 @@
+services:
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend_init:
+    image: ${BACKEND_IMAGE:-ovs-redo-backend:latest}
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput"
+    env_file:
+      - .env
+    environment:
+      DEBUG: "false"
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      PYTHONDONTWRITEBYTECODE: "0"
+      ENABLE_REALTIME: ${ENABLE_REALTIME:-false}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CHANNELS_REDIS_URL: ${CHANNELS_REDIS_URL:-redis://redis:6379/0}
+      CELERY_EAGER: "false"
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+    restart: "no"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  backend:
+    image: ${BACKEND_IMAGE:-ovs-redo-backend:latest}
+    command: >
+      sh -c "gunicorn config.wsgi:application
+             --bind 0.0.0.0:8000
+             --workers $${GUNICORN_WORKERS:-3}
+             --timeout $${GUNICORN_TIMEOUT:-120}"
+    env_file:
+      - .env
+    environment:
+      DEBUG: "false"
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      PYTHONDONTWRITEBYTECODE: "0"
+      ENABLE_REALTIME: ${ENABLE_REALTIME:-false}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CHANNELS_REDIS_URL: ${CHANNELS_REDIS_URL:-redis://redis:6379/0}
+      CELERY_EAGER: "false"
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - media_data:/app/media
+      - logs_data:/app/logs
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/admin/login/', timeout=5)",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      backend_init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  celery_worker:
+    image: ${BACKEND_IMAGE:-ovs-redo-backend:latest}
+    command: celery -A config.celery:app worker -l info -E --concurrency=${CELERY_WORKER_CONCURRENCY:-2}
+    env_file:
+      - .env
+    environment:
+      DEBUG: "false"
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      PYTHONDONTWRITEBYTECODE: "0"
+      ENABLE_REALTIME: ${ENABLE_REALTIME:-false}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CHANNELS_REDIS_URL: ${CHANNELS_REDIS_URL:-redis://redis:6379/0}
+      CELERY_EAGER: "false"
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+    restart: unless-stopped
+    volumes:
+      - media_data:/app/media
+      - logs_data:/app/logs
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery -A config.celery:app inspect ping -d celery@$$HOSTNAME --timeout=5 | grep -q pong",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery_beat:
+    image: ${BACKEND_IMAGE:-ovs-redo-backend:latest}
+    command: celery -A config.celery:app beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    env_file:
+      - .env
+    environment:
+      DEBUG: "false"
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      PYTHONDONTWRITEBYTECODE: "0"
+      ENABLE_REALTIME: ${ENABLE_REALTIME:-false}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CHANNELS_REDIS_URL: ${CHANNELS_REDIS_URL:-redis://redis:6379/0}
+      CELERY_EAGER: "false"
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+    restart: unless-stopped
+    volumes:
+      - logs_data:/app/logs
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import pathlib,sys;sys.exit(0 if any('celery' in p.read_text(errors='ignore') and 'beat' in p.read_text(errors='ignore') for p in pathlib.Path('/proc').glob('[0-9]*/cmdline')) else 1)",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  flower:
+    image: ${BACKEND_IMAGE:-ovs-redo-backend:latest}
+    command: >
+      sh -c 'if [ "$$FLOWER_REQUIRE_AUTH" = "true" ] && [ -n "$$APP_FLOWER_BASIC_AUTH" ]; then
+               celery -A config.celery:app flower --port=$${FLOWER_PORT:-5555} --basic_auth="$$APP_FLOWER_BASIC_AUTH";
+             else
+               celery -A config.celery:app flower --port=$${FLOWER_PORT:-5555};
+             fi'
+    env_file:
+      - .env
+    environment:
+      DEBUG: "false"
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      PYTHONDONTWRITEBYTECODE: "0"
+      ENABLE_REALTIME: ${ENABLE_REALTIME:-false}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CHANNELS_REDIS_URL: ${CHANNELS_REDIS_URL:-redis://redis:6379/0}
+      CELERY_EAGER: "false"
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      FLOWER_PORT: ${FLOWER_PORT:-5555}
+      FLOWER_REQUIRE_AUTH: ${FLOWER_REQUIRE_AUTH:-true}
+      APP_FLOWER_BASIC_AUTH: ${FLOWER_BASIC_AUTH:-}
+    restart: unless-stopped
+    ports:
+      - "${FLOWER_PORT:-5555}:5555"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import socket; s=socket.create_connection(('127.0.0.1', 5555), timeout=5); s.close()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      redis:
+        condition: service_healthy
+      celery_worker:
+        condition: service_healthy
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-ovs-redo-frontend:latest}
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  redis_data:
+  media_data:
+  logs_data:

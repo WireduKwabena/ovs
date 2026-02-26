@@ -56,6 +56,8 @@ def _redis_db_url(redis_url: str, db_index: int) -> str:
 
 
 # Application definition
+ENABLE_REALTIME = config("ENABLE_REALTIME", default=False, cast=bool)
+
 INSTALLED_APPS = [
     # Django apps
     "django.contrib.admin",
@@ -81,9 +83,9 @@ INSTALLED_APPS = [
     "ai_ml_services.apps.AiMlServicesConfig",
 ]
 
-if _has_module("daphne"):
+if ENABLE_REALTIME and _has_module("daphne"):
     INSTALLED_APPS.insert(0, "daphne")
-if _has_module("channels"):
+if ENABLE_REALTIME and _has_module("channels"):
     INSTALLED_APPS.insert(1 if "daphne" in INSTALLED_APPS else 0, "channels")
 
 INSTALLED_APPS.append("rest_framework")
@@ -274,7 +276,7 @@ if _has_module("django_celery_results"):
 # Redis Configuration
 REDIS_URL = config('REDIS_URL', default='redis://localhost:6379/0')
 CHANNELS_REDIS_URL = config('CHANNELS_REDIS_URL', default=REDIS_URL)
-if _has_module("channels_redis") and USE_REDIS:
+if ENABLE_REALTIME and _has_module("channels_redis") and USE_REDIS:
     CHANNEL_LAYERS = {
         "default": {
             "BACKEND": "channels_redis.core.RedisChannelLayer",
@@ -283,12 +285,14 @@ if _has_module("channels_redis") and USE_REDIS:
             },
         }
     }
-else:
+elif ENABLE_REALTIME and _has_module("channels"):
     CHANNEL_LAYERS = {
         "default": {
             "BACKEND": "channels.layers.InMemoryChannelLayer",
         }
     }
+else:
+    CHANNEL_LAYERS = {}
 AI_ML_RATE_LIMIT_PER_MINUTE = config('AI_ML_RATE_LIMIT_PER_MINUTE', default=120, cast=int)
 AI_ML_RATE_LIMIT_REDIS_URL = config('AI_ML_RATE_LIMIT_REDIS_URL', default=REDIS_URL)
 AI_ML_RATE_LIMIT_PATH_PREFIXES = tuple(
@@ -425,6 +429,14 @@ AI_ML_SIGNATURE_MODEL_PATH = config(
     "AI_ML_SIGNATURE_MODEL_PATH",
     default=str(MODEL_PATH / "signature_authenticity.pkl"),
 )
+AI_ML_RVL_CDIP_MODEL_PATH = config(
+    "AI_ML_RVL_CDIP_MODEL_PATH",
+    default=str(MODEL_PATH / "rvl_cdip_classifier.pkl"),
+)
+AI_ML_MIDV500_MODEL_PATH = config(
+    "AI_ML_MIDV500_MODEL_PATH",
+    default=str(MODEL_PATH / "midv500_classifier.pkl"),
+)
 AI_ML_POPPLER_PATH = config("AI_ML_POPPLER_PATH", default="")
 AI_ML_IDENTITY_MATCH_THRESHOLD = config(
     "AI_ML_IDENTITY_MATCH_THRESHOLD",
@@ -443,6 +455,16 @@ AI_ML_IDENTITY_VIDEO_SAMPLE_RATE = config(
     "AI_ML_IDENTITY_VIDEO_SAMPLE_RATE",
     default=8,
     cast=int,
+)
+AI_ML_DOC_TYPE_MISMATCH_ENABLED = config(
+    "AI_ML_DOC_TYPE_MISMATCH_ENABLED",
+    default=True,
+    cast=bool,
+)
+AI_ML_DOC_TYPE_MISMATCH_CONFIDENCE = config(
+    "AI_ML_DOC_TYPE_MISMATCH_CONFIDENCE",
+    default=0.65,
+    cast=float,
 )
 
 # Security Settings (will be overridden in production)

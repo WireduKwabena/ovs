@@ -26,10 +26,15 @@ from ai_ml_services.service import (
     AIServiceException,
     AIOrchestrator,
     batch_verify_documents,
+    classify_document,
     check_consistency,
     detect_fraud,
     get_ai_service,
     verify_document,
+)
+from ai_ml_services.document_classification import (
+    DocumentFeatureExtractor,
+    DocumentTypeClassifier,
 )
 
 __all__ = [
@@ -40,5 +45,8 @@ __all__ = [
     "check_consistency",
     "detect_fraud",
     "batch_verify_documents",
+    "classify_document",
+    "DocumentFeatureExtractor",
+    "DocumentTypeClassifier",
 ]
 

@@ -124,6 +124,7 @@ class Command(BaseCommand):
             "ai_ml_services.ocr.ocr_service",
             "ai_ml_services.interview.websocket_handler",
             "ai_ml_services.video.identity_matcher",
+            "ai_ml_services.document_classification.classifier",
         )
         errors: List[str] = []
         for module in required_modules:
@@ -197,6 +198,14 @@ class Command(BaseCommand):
         if identity_sample_rate < 1:
             errors.append("AI_ML_IDENTITY_VIDEO_SAMPLE_RATE must be >= 1.")
 
+        mismatch_confidence = float(
+            getattr(settings, "AI_ML_DOC_TYPE_MISMATCH_CONFIDENCE", 0.65)
+        )
+        if mismatch_confidence < 0.0 or mismatch_confidence > 1.0:
+            errors.append(
+                "AI_ML_DOC_TYPE_MISMATCH_CONFIDENCE must be between 0.0 and 1.0."
+            )
+
         facenet_available = importlib.util.find_spec("facenet_pytorch") is not None
         deepface_available = importlib.util.find_spec("deepface") is not None
         if identity_backend == "facenet" and not facenet_available:
@@ -241,6 +250,8 @@ class Command(BaseCommand):
             ),
             ("AI_ML_FRAUD_MODEL_PATH", getattr(settings, "AI_ML_FRAUD_MODEL_PATH", "")),
             ("AI_ML_SIGNATURE_MODEL_PATH", getattr(settings, "AI_ML_SIGNATURE_MODEL_PATH", "")),
+            ("AI_ML_RVL_CDIP_MODEL_PATH", getattr(settings, "AI_ML_RVL_CDIP_MODEL_PATH", "")),
+            ("AI_ML_MIDV500_MODEL_PATH", getattr(settings, "AI_ML_MIDV500_MODEL_PATH", "")),
         )
 
         for setting_name, raw_path in artifact_paths:
@@ -258,4 +269,3 @@ class Command(BaseCommand):
                 )
 
         return warnings
-

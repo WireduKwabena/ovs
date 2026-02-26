@@ -43,6 +43,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _build_resnet18(pretrained: bool) -> nn.Module:
+    """Construct resnet18 across torchvision API versions."""
+    if pretrained:
+        try:
+            return models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+        except (AttributeError, TypeError):
+            return models.resnet18(pretrained=True)
+    try:
+        return models.resnet18(weights=None)
+    except TypeError:
+        return models.resnet18(pretrained=False)
+
+
 class DocumentAuthenticityNet(nn.Module):
     """
     CNN for document authenticity detection.
@@ -79,7 +92,7 @@ class DocumentAuthenticityNet(nn.Module):
         super(DocumentAuthenticityNet, self).__init__()
         
         # Load pretrained ResNet-18
-        self.backbone = models.resnet18(pretrained=pretrained)
+        self.backbone = _build_resnet18(pretrained=pretrained)
         
         # Remove the original classifier
         num_features = self.backbone.fc.in_features
@@ -171,10 +184,7 @@ class MultiScaleAuthenticityNet(nn.Module):
         self.num_scales = num_scales
         
         # Separate backbone for each scale
-        self.backbones = nn.ModuleList([
-            models.resnet18(pretrained=True)
-            for _ in range(num_scales)
-        ])
+        self.backbones = nn.ModuleList([_build_resnet18(pretrained=True) for _ in range(num_scales)])
         
         # Remove classifiers
         for backbone in self.backbones:

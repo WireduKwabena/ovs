@@ -63,8 +63,15 @@ const buildWsBaseUrl = (): string => {
   }
 
   const apiUrl =
-    (import.meta as { env?: Record<string, string> }).env?.VITE_API_URL || 'http://localhost:8000/api';
-  const apiOrigin = new URL(apiUrl).origin;
+    (import.meta as { env?: Record<string, string> }).env?.VITE_API_URL || '/api';
+
+  let apiOrigin = 'http://localhost:8000';
+  if (/^https?:\/\//i.test(apiUrl)) {
+    apiOrigin = new URL(apiUrl).origin;
+  } else if (typeof window !== 'undefined' && window.location?.origin) {
+    apiOrigin = window.location.origin;
+  }
+
   const wsProtocol = apiOrigin.startsWith('https') ? 'wss' : 'ws';
   return apiOrigin.replace(/^https?/, wsProtocol);
 };

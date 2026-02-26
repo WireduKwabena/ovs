@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import argparse
 import logging
-import random
 import re
 from pathlib import Path
 from typing import Dict, Iterable, List, Sequence, Tuple
 
 import pandas as pd
+
+from ai_ml_services.datasets.metadata_utils import assign_stratified_splits, normalize_extensions
 
 logger = logging.getLogger(__name__)
 
@@ -98,46 +99,11 @@ def normalize_resume_label(raw_label: str) -> str:
 
 
 def iter_resume_files(root_dir: Path, extensions: Sequence[str]) -> Iterable[Tuple[Path, str]]:
-    allowed = {ext.lower() if ext.startswith(".") else f".{ext.lower()}" for ext in extensions}
+    allowed = normalize_extensions(extensions)
     for class_dir in sorted(path for path in root_dir.iterdir() if path.is_dir()):
         for file_path in class_dir.rglob("*"):
             if file_path.is_file() and file_path.suffix.lower() in allowed:
                 yield file_path, class_dir.name
-
-
-def _assign_stratified_splits(
-    df: pd.DataFrame,
-    val_ratio: float,
-    test_ratio: float,
-    random_seed: int,
-) -> pd.DataFrame:
-    result = df.copy()
-    result["split"] = "train"
-    rng = random.Random(random_seed)
-
-    for label in sorted(result["label"].unique()):
-        label_indices = result.index[result["label"] == label].tolist()
-        if len(label_indices) < 2:
-            continue
-        rng.shuffle(label_indices)
-
-        val_count = int(round(len(label_indices) * val_ratio))
-        test_count = int(round(len(label_indices) * test_ratio))
-        while val_count + test_count >= len(label_indices):
-            if test_count > 0:
-                test_count -= 1
-            elif val_count > 0:
-                val_count -= 1
-            else:
-                break
-
-        val_indices = label_indices[:val_count]
-        test_indices = label_indices[val_count : val_count + test_count]
-        if val_indices:
-            result.loc[val_indices, "split"] = "val"
-        if test_indices:
-            result.loc[test_indices, "split"] = "test"
-    return result
 
 
 def build_resume_metadata(
@@ -200,7 +166,7 @@ def build_resume_metadata(
     label_to_id = {label: idx for idx, label in enumerate(labels)}
     df["label_id"] = df["label"].map(label_to_id)
 
-    df = _assign_stratified_splits(
+    df = assign_stratified_splits(
         df,
         val_ratio=val_ratio,
         test_ratio=test_ratio,

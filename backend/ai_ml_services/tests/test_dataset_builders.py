@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -10,9 +11,17 @@ import numpy as np
 from django.test import SimpleTestCase
 
 from ai_ml_services.datasets.create_dataset import DocumentDatasetCreator
+from ai_ml_services.datasets.create_midv500_metadata import (
+    build_midv500_metadata,
+    normalize_midv_label,
+)
 from ai_ml_services.datasets.create_resume_metadata import (
     build_resume_metadata,
     normalize_resume_label,
+)
+from ai_ml_services.datasets.create_rvl_cdip_metadata import (
+    build_rvl_cdip_metadata,
+    normalize_rvl_label,
 )
 
 
@@ -78,3 +87,97 @@ class ResumeMetadataBuilderTests(SimpleTestCase):
             normalized_labels = set(df["label"].tolist())
             self.assertIn("accountant", normalized_labels)
             self.assertIn("data science", normalized_labels)
+
+
+class RVLCDIPMetadataBuilderTests(SimpleTestCase):
+    def test_normalize_rvl_label(self):
+        self.assertEqual(normalize_rvl_label("News Article"), "news_article")
+        self.assertEqual(normalize_rvl_label("scientific-publication"), "scientific_publication")
+
+    def test_build_rvl_cdip_metadata_generates_expected_columns(self):
+        with TemporaryDirectory() as tmp_dir:
+            tmp_root = Path(tmp_dir)
+            src = tmp_root / "RVL-CDIP"
+            (src / "news_article").mkdir(parents=True, exist_ok=True)
+            (src / "resume").mkdir(parents=True, exist_ok=True)
+
+            (src / "news_article" / "a.tif").write_bytes(b"fake")
+            (src / "news_article" / "b.tif").write_bytes(b"fake")
+            (src / "resume" / "c.tif").write_bytes(b"fake")
+
+            output_dir = tmp_root / "processed"
+            df = build_rvl_cdip_metadata(
+                source_dir=src,
+                output_dir=output_dir,
+                val_ratio=0.0,
+                test_ratio=0.0,
+                random_seed=42,
+            )
+
+            self.assertEqual(len(df), 3)
+            self.assertIn("label_raw", df.columns)
+            self.assertIn("label", df.columns)
+            self.assertIn("label_id", df.columns)
+            self.assertIn("split", df.columns)
+            self.assertTrue((output_dir / "metadata.csv").exists())
+            self.assertTrue((output_dir / "labels.csv").exists())
+            self.assertTrue((output_dir / "raw_to_normalized_labels.csv").exists())
+            self.assertIn("news_article", set(df["label"].tolist()))
+            self.assertIn("resume", set(df["label"].tolist()))
+
+
+class MIDV500MetadataBuilderTests(SimpleTestCase):
+    def test_normalize_midv_label(self):
+        self.assertEqual(normalize_midv_label("01_alb_id"), "alb_id")
+        self.assertEqual(normalize_midv_label("47_usa_bordercrossing"), "usa_bordercrossing")
+
+    def test_build_midv500_metadata_generates_expected_columns(self):
+        with TemporaryDirectory() as tmp_dir:
+            tmp_root = Path(tmp_dir)
+            src = tmp_root / "midv500"
+
+            class_dir = src / "01_alb_id"
+            (class_dir / "images" / "CA").mkdir(parents=True, exist_ok=True)
+            (class_dir / "ground_truth" / "CA").mkdir(parents=True, exist_ok=True)
+            (class_dir / "images" / "01_alb_id.tif").write_bytes(b"fake")
+            (class_dir / "images" / "CA" / "CA01_01.tif").write_bytes(b"fake")
+            (class_dir / "images" / "CA" / "CA01_02.tif").write_bytes(b"fake")
+            (class_dir / "ground_truth" / "01_alb_id.json").write_text("{}", encoding="utf-8")
+            (class_dir / "ground_truth" / "CA" / "CA01_01.json").write_text(
+                json.dumps({"quad": [[0, 0], [1, 0], [1, 1], [0, 1]]}),
+                encoding="utf-8",
+            )
+
+            class_dir_2 = src / "02_aut_id"
+            (class_dir_2 / "images" / "TS").mkdir(parents=True, exist_ok=True)
+            (class_dir_2 / "ground_truth" / "TS").mkdir(parents=True, exist_ok=True)
+            (class_dir_2 / "images" / "02_aut_id.tif").write_bytes(b"fake")
+            (class_dir_2 / "images" / "TS" / "TS02_01.tif").write_bytes(b"fake")
+
+            output_dir = tmp_root / "processed_midv"
+            df = build_midv500_metadata(
+                source_dir=src,
+                output_dir=output_dir,
+                val_ratio=0.0,
+                test_ratio=0.0,
+                random_seed=42,
+                include_templates=True,
+                include_frames=True,
+                parse_quads=True,
+            )
+
+            self.assertEqual(len(df), 5)
+            self.assertIn("source_type", df.columns)
+            self.assertIn("sequence_id", df.columns)
+            self.assertIn("annotation_path", df.columns)
+            self.assertIn("quad_points", df.columns)
+            self.assertIn("group_id", df.columns)
+            self.assertIn("split", df.columns)
+            self.assertTrue((output_dir / "metadata.csv").exists())
+            self.assertTrue((output_dir / "labels.csv").exists())
+            self.assertTrue((output_dir / "raw_to_normalized_labels.csv").exists())
+            self.assertIn("alb_id", set(df["label"].tolist()))
+            self.assertIn("aut_id", set(df["label"].tolist()))
+
+            frame_rows = df[df["source_type"] == "frame"]
+            self.assertGreaterEqual(int(frame_rows["has_annotation"].sum()), 1)
