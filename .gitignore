@@ -18,3 +18,10 @@ backend/models/
 backend/gunicorn.ctl
 backend/ai_ml_services/datasets/raw_dataset/
 backend/ai_ml_services/datasets/processed/
+
+.tmp_ai_training/
+.tmp_ai_training_smoke/
+.tmp_ai_training_run/
+.tmp_ai_training_smoke2/
+.tmp_ai_training_test/
+
