@@ -7,8 +7,12 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import ConsistencyCheckResult, FraudDetectionResult
-from .serializers import ConsistencyCheckResultSerializer, FraudDetectionResultSerializer
+from .models import ConsistencyCheckResult, FraudDetectionResult, SocialProfileCheckResult
+from .serializers import (
+    ConsistencyCheckResultSerializer,
+    FraudDetectionResultSerializer,
+    SocialProfileCheckResultSerializer,
+)
 
 
 def _is_privileged(user) -> bool:
@@ -143,3 +147,57 @@ class ConsistencyCheckResultViewSet(viewsets.ReadOnlyModelViewSet):
 
         serializer = self.get_serializer(self.get_queryset()[:limit], many=True)
         return Response({"history": serializer.data, "limit": limit})
+
+
+class SocialProfileCheckResultViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API endpoints for social profile check results.
+
+    list: GET /api/fraud/social-profiles/
+    retrieve: GET /api/fraud/social-profiles/{id}/
+    """
+
+    queryset = SocialProfileCheckResult.objects.select_related("application", "application__applicant").all()
+    serializer_class = SocialProfileCheckResultSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return SocialProfileCheckResult.objects.none()
+
+        queryset = super().get_queryset()
+        user = self.request.user
+        if not _is_privileged(user):
+            queryset = queryset.filter(application__applicant=user)
+
+        case_id = self.request.query_params.get("case_id")
+        if case_id:
+            queryset = queryset.filter(application__case_id=case_id)
+
+        risk_level = self.request.query_params.get("risk_level")
+        if risk_level:
+            queryset = queryset.filter(risk_level=risk_level.upper())
+
+        return queryset.order_by("-checked_at")
+
+    @action(detail=False, methods=["get"])
+    def statistics(self, request):
+        """Get social profile check statistics."""
+        queryset = self.get_queryset()
+        total = queryset.count()
+        manual = queryset.filter(recommendation="MANUAL_REVIEW").count()
+        avg_score = mean(queryset.values_list("overall_score", flat=True)) if total else 0.0
+
+        return Response(
+            {
+                "total_checks": total,
+                "manual_review_count": manual,
+                "manual_review_rate": (manual / total * 100) if total > 0 else 0.0,
+                "average_score": avg_score,
+                "risk_distribution": {
+                    "HIGH": queryset.filter(risk_level="HIGH").count(),
+                    "MEDIUM": queryset.filter(risk_level="MEDIUM").count(),
+                    "LOW": queryset.filter(risk_level="LOW").count(),
+                },
+            }
+        )

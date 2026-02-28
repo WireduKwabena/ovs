@@ -1,7 +1,9 @@
 import hashlib
+import json
 import logging
 import secrets
 from datetime import timedelta
+from decimal import Decimal
 
 from django.conf import settings
 from django.core.mail import send_mail
@@ -17,6 +19,40 @@ class CandidateAccessError(Exception):
     def __init__(self, message: str, code: str = "invalid"):
         super().__init__(message)
         self.code = code
+
+
+def _json_sanitize(value):
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, dict):
+        normalized = {}
+        for key, item in value.items():
+            if not isinstance(key, str):
+                key = str(key)
+            normalized[key] = _json_sanitize(item)
+        return normalized
+    if isinstance(value, (list, tuple, set)):
+        return [_json_sanitize(item) for item in value]
+    if hasattr(value, "isoformat"):
+        try:
+            return value.isoformat()
+        except Exception:
+            return str(value)
+    try:
+        json.dumps(value)
+        return value
+    except Exception:
+        return str(value)
+
+
+def _normalize_metadata(metadata):
+    if metadata is None:
+        return {}
+    if isinstance(metadata, dict):
+        return _json_sanitize(metadata)
+    return {"value": _json_sanitize(metadata)}
 
 
 def _hash_token(raw_token: str) -> str:
@@ -73,7 +109,7 @@ def issue_candidate_access_pass(
                     max_uses=max_uses,
                     expires_at=expires_at,
                     issued_by=issued_by,
-                    metadata=metadata or {},
+                    metadata=_normalize_metadata(metadata),
                 )
                 return access_pass, raw_token
 
@@ -194,6 +230,12 @@ def send_invitation(invitation: Invitation) -> None:
 
     SMS integration is left as a provider adapter and currently logs as sent.
     """
+    if invitation.channel not in {"email", "sms"}:
+        raise CandidateAccessError(
+            f"Unsupported invitation channel '{invitation.channel}'.",
+            code="unsupported_channel",
+        )
+
     accept_url = f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:3000').rstrip('/')}/invite/{invitation.token}"
     access_pass, raw_access_token = issue_candidate_access_pass(
         enrollment=invitation.enrollment,
@@ -224,22 +266,15 @@ def send_invitation(invitation: Invitation) -> None:
 
     # Placeholder for SMS provider integration.
     if invitation.channel == "sms":
+        access_pass.metadata = {
+            **_normalize_metadata(access_pass.metadata),
+            "delivery_channel": "sms",
+            "delivery_target": invitation.send_to,
+            "access_url": access_url,
+        }
+        access_pass.save(update_fields=["metadata", "updated_at"])
         logger.warning(
             "SMS delivery adapter is not configured. Marking invitation_id=%s as sent placeholder.",
             invitation.id,
         )
         return
-
-    raise CandidateAccessError(
-        f"Unsupported invitation channel '{invitation.channel}'.",
-        code="unsupported_channel",
-    )
-    # This marks the invitation as sent for now and records a fresh token issue.
-    access_pass.metadata = {
-        **(access_pass.metadata or {}),
-        "delivery_channel": "sms",
-        "delivery_target": invitation.send_to,
-        "access_url": access_url,
-    }
-    access_pass.save(update_fields=["metadata", "updated_at"])
-    return

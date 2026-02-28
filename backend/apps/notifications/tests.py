@@ -244,6 +244,49 @@ class NotificationServiceTests(TestCase):
         self.assertEqual(email_notification.status, "sent")
         mock_logger_exception.assert_not_called()
 
+    @patch("apps.notifications.services.send_mail", return_value=1)
+    def test_send_admin_notification_wraps_non_dict_metadata(self, _send_mail):
+        result = NotificationService.send_admin_notification(
+            self.hr,
+            notification_type="processing_error",
+            title="Error",
+            message="Something failed",
+            metadata=["first", {"code": 500}],
+        )
+
+        self.assertTrue(result)
+        notifications = Notification.objects.filter(
+            recipient=self.hr,
+            metadata__event_type="processing_error",
+        )
+        self.assertEqual(notifications.count(), 2)
+        for notification in notifications:
+            self.assertEqual(notification.metadata.get("value"), ["first", {"code": 500}])
+
+    @patch("apps.notifications.services.send_mail", return_value=1)
+    def test_send_admin_notification_sanitizes_non_serializable_metadata(self, _send_mail):
+        class NonSerializable:
+            def __str__(self):
+                return "nons"
+
+        result = NotificationService.send_admin_notification(
+            self.hr,
+            notification_type="processing_error",
+            title="Error",
+            message="Something failed",
+            metadata={"raw": NonSerializable(), "nested": [NonSerializable()]},
+        )
+
+        self.assertTrue(result)
+        notifications = Notification.objects.filter(
+            recipient=self.hr,
+            metadata__event_type="processing_error",
+        )
+        self.assertEqual(notifications.count(), 2)
+        for notification in notifications:
+            self.assertEqual(notification.metadata.get("raw"), "nons")
+            self.assertEqual(notification.metadata.get("nested"), ["nons"])
+
 
 class InterviewAlertTaskTests(TestCase):
     def test_send_completion_summary_returns_clean_error_for_missing_session(self):

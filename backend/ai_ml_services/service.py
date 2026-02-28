@@ -82,6 +82,7 @@ class AIOrchestrator:
         from ai_ml_services.document_classification.classifier import (
             DocumentTypeClassifier,
         )
+        from ai_ml_services.social.profile_checker import SocialProfileChecker
 
         authenticity_model_path = self._resolve_path(
             str(
@@ -143,6 +144,18 @@ class AIOrchestrator:
         )
         self.rvl_document_classifier = DocumentTypeClassifier(model_path=rvl_model_path)
         self.midv_document_classifier = DocumentTypeClassifier(model_path=midv_model_path)
+
+        allowed_social_platforms = [
+            item.strip()
+            for item in str(getattr(settings, "AI_ML_SOCIAL_ALLOWED_PLATFORMS", "") or "").split(",")
+            if item.strip()
+        ]
+        self.social_profile_checker = SocialProfileChecker(
+            verify_urls=bool(getattr(settings, "AI_ML_SOCIAL_VERIFY_URLS", False)),
+            request_timeout=float(getattr(settings, "AI_ML_SOCIAL_HTTP_TIMEOUT", 5.0)),
+            require_consent=bool(getattr(settings, "AI_ML_SOCIAL_CONSENT_REQUIRED", True)),
+            allowed_platforms=allowed_social_platforms or None,
+        )
         if not fraud_model_path.exists():
             logger.warning(
                 "Fraud model artifact not found at %s; heuristic mode will be used.",
@@ -714,6 +727,35 @@ class AIOrchestrator:
             logger.error(f"Fraud detection failed: {e}", exc_info=True)
             raise AIServiceException(f"Fraud detection failed: {str(e)}")
 
+    def check_social_profiles(
+        self,
+        profiles: List[Dict],
+        consent_provided: bool,
+        case_id: Optional[str] = None,
+    ) -> Dict:
+        """Run consent-gated social profile checks (advisory only)."""
+        case_id = case_id or "unknown"
+        logger.info(
+            "Starting social profile checks for case %s (profiles=%d)",
+            case_id,
+            len(profiles or []),
+        )
+
+        try:
+            return self.social_profile_checker.check_profiles(
+                profiles=profiles or [],
+                consent_provided=bool(consent_provided),
+                case_id=case_id,
+            )
+        except Exception as exc:
+            logger.error(
+                "Social profile check failed for case %s: %s",
+                case_id,
+                exc,
+                exc_info=True,
+            )
+            raise AIServiceException(f"Social profile check failed: {exc}")
+
     def batch_verify_documents(
         self,
         file_paths: List[str],
@@ -805,6 +847,19 @@ def check_consistency(documents: List[Dict]) -> Dict:
 def detect_fraud(application_data: Dict) -> Dict:
     """Convenience function to detect fraud."""
     return get_ai_service().detect_fraud(application_data)
+
+
+def check_social_profiles(
+    profiles: List[Dict],
+    consent_provided: bool,
+    case_id: Optional[str] = None,
+) -> Dict:
+    """Convenience function to run social profile checks."""
+    return get_ai_service().check_social_profiles(
+        profiles=profiles,
+        consent_provided=consent_provided,
+        case_id=case_id,
+    )
 
 
 def batch_verify_documents(

@@ -45,6 +45,49 @@ DATABASES = {
     )
 }
 
+# Require a strong explicit secret key in production.
+if not SECRET_KEY or SECRET_KEY.startswith("django-insecure-"):
+    raise ImproperlyConfigured(
+        "SECRET_KEY cannot use the default insecure Django value in production."
+    )
+if len(SECRET_KEY) < 50 or len(set(SECRET_KEY)) < 5:
+    raise ImproperlyConfigured(
+        "SECRET_KEY must be at least 50 chars with adequate entropy in production."
+    )
+
+# AI quality gates should be enforced in production by default.
+AI_ML_METRIC_GATES_ENABLED = config(
+    "AI_ML_METRIC_GATES_ENABLED",
+    default=True,
+    cast=bool,
+)
+
+# Background checks must not run against mock providers in production.
+background_provider = str(BACKGROUND_CHECK_DEFAULT_PROVIDER or "").strip().lower()
+if background_provider == "mock":
+    raise ImproperlyConfigured(
+        "BACKGROUND_CHECK_DEFAULT_PROVIDER cannot be 'mock' when DEBUG=False."
+    )
+
+if not BACKGROUND_CHECK_WEBHOOK_TOKEN:
+    raise ImproperlyConfigured(
+        "BACKGROUND_CHECK_WEBHOOK_TOKEN is required in production."
+    )
+
+if background_provider == "http":
+    if not BACKGROUND_CHECK_HTTP_BASE_URL:
+        raise ImproperlyConfigured(
+            "BACKGROUND_CHECK_HTTP_BASE_URL is required for http background check provider."
+        )
+    if not str(BACKGROUND_CHECK_HTTP_BASE_URL).startswith(("http://", "https://")):
+        raise ImproperlyConfigured(
+            "BACKGROUND_CHECK_HTTP_BASE_URL must start with http:// or https://."
+        )
+    if not BACKGROUND_CHECK_HTTP_API_KEY:
+        raise ImproperlyConfigured(
+            "BACKGROUND_CHECK_HTTP_API_KEY is required for http background check provider."
+        )
+
 # Email - use real SMTP
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 

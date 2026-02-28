@@ -3,13 +3,14 @@ from __future__ import annotations
 import unittest
 
 from django.conf import settings
+from django.test import RequestFactory
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.authentication.models import User
 
+from .events import log_event, request_ip_address
 from .models import AuditLog
-
 
 APP_ENABLED = "apps.audit" in settings.INSTALLED_APPS
 
@@ -119,3 +120,82 @@ class AuditApiTests(APITestCase):
         self.assertEqual(response.data["total_logs"], 3)
         self.assertTrue(any(item["action"] == "create" for item in response.data["action_distribution"]))
         self.assertTrue(any(item["entity_type"] == "VettingCase" for item in response.data["entity_distribution"]))
+
+
+    def test_log_event_creates_audit_row_with_request_metadata(self):
+        request = RequestFactory().post(
+            "/api/applications/cases/123/recheck-social-profiles/",
+            HTTP_USER_AGENT="audit-tests",
+            HTTP_X_FORWARDED_FOR="203.0.113.10, 10.0.0.4",
+        )
+        request.user = self.admin_user
+
+        created = log_event(
+            request=request,
+            action="other",
+            entity_type="VettingCase",
+            entity_id="CASE-2001",
+            changes={"event": "social_profile_recheck", "status": "ok"},
+        )
+
+        self.assertTrue(created)
+        row = AuditLog.objects.get(entity_type="VettingCase", entity_id="CASE-2001")
+        self.assertEqual(row.user, self.admin_user)
+        self.assertEqual(row.admin_user, self.admin_user)
+        self.assertEqual(row.ip_address, "203.0.113.10")
+        self.assertEqual(row.user_agent, "audit-tests")
+
+    def test_request_ip_address_prefers_forwarded_for_header(self):
+        request = RequestFactory().get(
+            "/",
+            HTTP_X_FORWARDED_FOR="198.51.100.3, 10.1.0.8",
+            REMOTE_ADDR="127.0.0.1",
+        )
+
+        self.assertEqual(request_ip_address(request), "198.51.100.3")
+
+
+    def test_log_event_sanitizes_non_json_changes(self):
+        class NonSerializable:
+            def __str__(self):
+                return "non-serializable"
+
+        request = RequestFactory().post("/api/audit/test")
+        request.user = self.admin_user
+
+        created = log_event(
+            request=request,
+            action="other",
+            entity_type="SanitizeTest",
+            entity_id="S-1",
+            changes={
+                "plain": "ok",
+                "obj": NonSerializable(),
+                "nested": [NonSerializable(), {"inner": NonSerializable()}],
+            },
+        )
+
+        self.assertTrue(created)
+        row = AuditLog.objects.get(entity_type="SanitizeTest", entity_id="S-1")
+        self.assertEqual(row.changes["plain"], "ok")
+        self.assertIsInstance(row.changes["obj"], str)
+        self.assertEqual(row.changes["obj"], "non-serializable")
+        self.assertIsInstance(row.changes["nested"][0], str)
+        self.assertEqual(row.changes["nested"][0], "non-serializable")
+        self.assertEqual(row.changes["nested"][1]["inner"], "non-serializable")
+
+    def test_log_event_wraps_non_dict_changes(self):
+        request = RequestFactory().post("/api/audit/test")
+        request.user = self.admin_user
+
+        created = log_event(
+            request=request,
+            action="other",
+            entity_type="SanitizeTest",
+            entity_id="S-2",
+            changes=["a", "b"],
+        )
+
+        self.assertTrue(created)
+        row = AuditLog.objects.get(entity_type="SanitizeTest", entity_id="S-2")
+        self.assertEqual(row.changes, {"value": ["a", "b"]})

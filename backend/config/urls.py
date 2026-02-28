@@ -40,6 +40,7 @@ urlpatterns = [
     path("api/notifications/", include("apps.notifications.urls")),
     path("api/audit/", include("apps.audit.urls")),
     path("api/fraud/", include("apps.fraud.urls")),
+    path("api/background-checks/", include("apps.background_checks.urls")),
     path("api/ml-monitoring/", include("apps.ml_monitoring.urls")),
     path("api/ai-monitor/", include("ai_ml_services.urls")),
     path("api/", include("apps.candidates.urls")),

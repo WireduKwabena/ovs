@@ -1,10 +1,32 @@
 from rest_framework import serializers
 
-from .models import Candidate, CandidateEnrollment
+from .models import Candidate, CandidateEnrollment, CandidateSocialProfile
+
+
+class CandidateSocialProfileSerializer(serializers.ModelSerializer):
+    platform_display = serializers.CharField(source="get_platform_display", read_only=True)
+
+    class Meta:
+        model = CandidateSocialProfile
+        fields = [
+            "id",
+            "candidate",
+            "platform",
+            "platform_display",
+            "url",
+            "username",
+            "display_name",
+            "is_primary",
+            "metadata",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at", "platform_display"]
 
 
 class CandidateSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField(read_only=True)
+    social_profiles = CandidateSocialProfileSerializer(many=True, read_only=True)
 
     class Meta:
         model = Candidate
@@ -18,10 +40,11 @@ class CandidateSerializer(serializers.ModelSerializer):
             "preferred_channel",
             "consent_recording",
             "consent_ai_processing",
+            "social_profiles",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at", "full_name"]
+        read_only_fields = ["id", "created_at", "updated_at", "full_name", "social_profiles"]
 
     def get_full_name(self, obj) -> str:
         return f"{obj.first_name} {obj.last_name}".strip()

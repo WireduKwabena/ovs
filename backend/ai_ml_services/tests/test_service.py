@@ -13,6 +13,7 @@ from ai_ml_services.service import (
     batch_verify_documents,
     classify_document,
     check_consistency,
+    check_social_profiles,
     detect_fraud,
     get_ai_service,
     verify_document,
@@ -64,6 +65,25 @@ class TestServiceDelegation(SimpleTestCase):
         orchestrator.detect_fraud.assert_called_once_with(payload)
         self.assertFalse(result["is_fraud"])
 
+    @patch("ai_ml_services.service.get_ai_service")
+    def test_check_social_profiles_delegates_to_orchestrator(self, mock_get_service):
+        orchestrator = MagicMock()
+        orchestrator.check_social_profiles.return_value = {"overall_score": 72.5}
+        mock_get_service.return_value = orchestrator
+
+        profiles = [{"platform": "linkedin", "url": "https://linkedin.com/in/sample"}]
+        result = check_social_profiles(
+            profiles=profiles,
+            consent_provided=True,
+            case_id="CASE-SOC-1",
+        )
+
+        orchestrator.check_social_profiles.assert_called_once_with(
+            profiles=profiles,
+            consent_provided=True,
+            case_id="CASE-SOC-1",
+        )
+        self.assertEqual(result["overall_score"], 72.5)
     @patch("ai_ml_services.service.get_ai_service")
     def test_batch_verify_documents_delegates_to_orchestrator(self, mock_get_service):
         orchestrator = MagicMock()
@@ -336,3 +356,4 @@ class TestOrchestratorHardening(SimpleTestCase):
         self.assertIn("document_type_mismatch", codes)
         self.assertEqual(result["results"]["recommendation"], "MANUAL_REVIEW")
         self.assertTrue(result["results"]["document_type_alignment"]["mismatch_detected"])
+

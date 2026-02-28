@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,6 +19,9 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 from ai_ml_services.document_classification.features import DocumentFeatureExtractor
+from ai_ml_services.utils.path_rebase import infer_backend_root, rebase_moved_backend_path
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_path(raw_path: str) -> Path:
@@ -213,6 +217,27 @@ class Command(BaseCommand):
             )
         if metadata.empty:
             raise CommandError(f"metadata file is empty: {metadata_path}")
+
+        backend_root = infer_backend_root(metadata_path)
+        original_paths = metadata["filepath"].astype(str)
+        resolved_paths = [
+            str(rebase_moved_backend_path(raw_path, backend_root=backend_root))
+            for raw_path in original_paths
+        ]
+        metadata = metadata.copy()
+        metadata["filepath"] = resolved_paths
+
+        rebased_count = int(sum(orig != resolved for orig, resolved in zip(original_paths, resolved_paths)))
+        if rebased_count > 0:
+            logger.info("Rebased %d metadata filepaths for %s", rebased_count, metadata_path)
+
+        existing_count = int(metadata["filepath"].map(lambda value: Path(str(value)).exists()).sum())
+        if existing_count == 0:
+            raise CommandError(
+                "No readable filepaths in metadata after path resolution: "
+                f"{metadata_path}"
+            )
+
         return metadata
 
     @staticmethod
@@ -393,3 +418,4 @@ class Command(BaseCommand):
         if source_types:
             result["source_types"] = list(source_types)
         return result
+

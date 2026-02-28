@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
 from django.conf import settings
 from django.core.mail import send_mail
+from django.core.serializers.json import DjangoJSONEncoder
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 
@@ -19,6 +21,36 @@ class NotificationService:
     """Service methods used by workflow tasks to notify users."""
 
     @staticmethod
+    def _json_sanitize(value: Any) -> Any:
+        """Best-effort JSON sanitization for metadata payloads."""
+        try:
+            json.dumps(value, cls=DjangoJSONEncoder)
+            return value
+        except TypeError:
+            pass
+
+        if isinstance(value, dict):
+            return {str(key): NotificationService._json_sanitize(item) for key, item in value.items()}
+        if isinstance(value, (list, tuple, set)):
+            return [NotificationService._json_sanitize(item) for item in value]
+        if isinstance(value, bytes):
+            return value.decode("utf-8", errors="replace")
+        if hasattr(value, "isoformat"):
+            try:
+                return value.isoformat()
+            except Exception:
+                return str(value)
+        return str(value)
+
+    @staticmethod
+    def _normalize_metadata(metadata: Any | None) -> dict[str, Any]:
+        """Normalize metadata to a JSON-safe dict for Notification.metadata."""
+        sanitized = NotificationService._json_sanitize(metadata if metadata is not None else {})
+        if isinstance(sanitized, dict):
+            return sanitized
+        return {"value": sanitized}
+
+    @staticmethod
     def _create_in_app_notification(
         *,
         recipient,
@@ -26,7 +58,7 @@ class NotificationService:
         message: str,
         related_case=None,
         related_interview=None,
-        metadata: dict[str, Any] | None = None,
+        metadata: Any | None = None,
         priority: str = "normal",
     ) -> Notification:
         return Notification.objects.create(
@@ -38,7 +70,7 @@ class NotificationService:
             priority=priority,
             related_case=related_case,
             related_interview=related_interview,
-            metadata=metadata or {},
+            metadata=NotificationService._normalize_metadata(metadata),
         )
 
     @staticmethod
@@ -51,7 +83,7 @@ class NotificationService:
         context: dict[str, Any] | None = None,
         related_case=None,
         related_interview=None,
-        metadata: dict[str, Any] | None = None,
+        metadata: Any | None = None,
         priority: str = "normal",
     ) -> Notification | None:
         email = getattr(recipient, "email", "")
@@ -68,7 +100,7 @@ class NotificationService:
             related_case=related_case,
             related_interview=related_interview,
             email_to=email,
-            metadata=metadata or {},
+            metadata=NotificationService._normalize_metadata(metadata),
         )
 
         html_message = None
@@ -275,7 +307,8 @@ class NotificationService:
             logger.warning("Skipping send_admin_notification: missing admin user.")
             return None
 
-        payload = {"event_type": notification_type, **(metadata or {})}
+        extra_metadata = NotificationService._normalize_metadata(metadata)
+        payload = {"event_type": notification_type, **extra_metadata}
 
         NotificationService._create_in_app_notification(
             recipient=admin_user,

@@ -59,6 +59,96 @@ paths:
               schema:
                 $ref: '#/components/schemas/AdminDashboardResponse'
           description: ''
+  /api/ai-monitor/check-social-profiles/:
+    post:
+      operationId: ai_monitor_check_social_profiles_create
+      description: Run advisory social profile checks for a case.
+      tags:
+      - ai-monitor
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SocialProfileCheck'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SocialProfileCheck'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SocialProfileCheck'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/ai-monitor/classify-document/:
+    post:
+      operationId: ai_monitor_classify_document_create
+      description: |-
+        Classify document image into RVL-CDIP/MIDV-500 taxonomy.
+
+        Access:
+        - authenticated admin/staff user, or
+        - valid X-Service-Token header (matches SERVICE_TOKEN setting)
+      tags:
+      - ai-monitor
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DocumentClassificationUpload'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DocumentClassificationUpload'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/ai-monitor/health/:
     get:
       operationId: ai_monitor_health_retrieve
@@ -260,6 +350,40 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/applications/cases/{id}/recheck-social-profiles/:
+    post:
+      operationId: applications_cases_recheck_social_profiles_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Vetting Case.
+        required: true
+      tags:
+      - applications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VettingCase'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VettingCase'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VettingCase'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingCase'
+          description: ''
   /api/applications/cases/{id}/upload-document/:
     post:
       operationId: applications_cases_upload_document_create
@@ -1012,6 +1136,265 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/background-checks/checks/:
+    get:
+      operationId: background_checks_checks_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - background-checks
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBackgroundCheckList'
+          description: ''
+    post:
+      operationId: background_checks_checks_create
+      tags:
+      - background-checks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackgroundCheckCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BackgroundCheckCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BackgroundCheckCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackgroundCheckCreate'
+          description: ''
+  /api/background-checks/checks/{id}/:
+    get:
+      operationId: background_checks_checks_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this background check.
+        required: true
+      tags:
+      - background-checks
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackgroundCheck'
+          description: ''
+    put:
+      operationId: background_checks_checks_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this background check.
+        required: true
+      tags:
+      - background-checks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackgroundCheck'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BackgroundCheck'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BackgroundCheck'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackgroundCheck'
+          description: ''
+    patch:
+      operationId: background_checks_checks_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this background check.
+        required: true
+      tags:
+      - background-checks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedBackgroundCheck'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedBackgroundCheck'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedBackgroundCheck'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackgroundCheck'
+          description: ''
+    delete:
+      operationId: background_checks_checks_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this background check.
+        required: true
+      tags:
+      - background-checks
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/background-checks/checks/{id}/events/:
+    get:
+      operationId: background_checks_checks_events_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this background check.
+        required: true
+      tags:
+      - background-checks
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackgroundCheck'
+          description: ''
+  /api/background-checks/checks/{id}/refresh/:
+    post:
+      operationId: background_checks_checks_refresh_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this background check.
+        required: true
+      tags:
+      - background-checks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackgroundCheck'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BackgroundCheck'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BackgroundCheck'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackgroundCheck'
+          description: ''
+  /api/background-checks/providers/{provider_key}/webhook/:
+    post:
+      operationId: background_checks_providers_webhook_create
+      parameters:
+      - in: path
+        name: provider_key
+        schema:
+          type: string
+        required: true
+      tags:
+      - background-checks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProviderWebhook'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProviderWebhook'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProviderWebhook'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderWebhook'
           description: ''
   /api/campaigns/:
     get:
@@ -1817,6 +2200,89 @@ paths:
               schema:
                 $ref: '#/components/schemas/FraudDetectionResult'
           description: ''
+  /api/fraud/social-profiles/:
+    get:
+      operationId: fraud_social_profiles_list
+      description: |-
+        API endpoints for social profile check results.
+
+        list: GET /api/fraud/social-profiles/
+        retrieve: GET /api/fraud/social-profiles/{id}/
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - fraud
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSocialProfileCheckResultList'
+          description: ''
+  /api/fraud/social-profiles/{id}/:
+    get:
+      operationId: fraud_social_profiles_retrieve
+      description: |-
+        API endpoints for social profile check results.
+
+        list: GET /api/fraud/social-profiles/
+        retrieve: GET /api/fraud/social-profiles/{id}/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this social profile check result.
+        required: true
+      tags:
+      - fraud
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialProfileCheckResult'
+          description: ''
+  /api/fraud/social-profiles/statistics/:
+    get:
+      operationId: fraud_social_profiles_statistics_retrieve
+      description: Get social profile check statistics.
+      tags:
+      - fraud
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialProfileCheckResult'
+          description: ''
   /api/interviews/feedback/:
     get:
       operationId: interviews_feedback_list
@@ -2507,6 +2973,40 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/interviews/sessions/{id}/avatar-session/:
+    post:
+      operationId: interviews_sessions_avatar_session_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Interview Session.
+        required: true
+      tags:
+      - interviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InterviewSession'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewSession'
+          description: ''
   /api/interviews/sessions/{id}/complete/:
     post:
       operationId: interviews_sessions_complete_create
@@ -4086,6 +4586,170 @@ paths:
               schema:
                 $ref: '#/components/schemas/VettingRubric'
           description: ''
+  /api/social-profiles/:
+    get:
+      operationId: social_profiles_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - social-profiles
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCandidateSocialProfileList'
+          description: ''
+    post:
+      operationId: social_profiles_create
+      tags:
+      - social-profiles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateSocialProfile'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CandidateSocialProfile'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CandidateSocialProfile'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateSocialProfile'
+          description: ''
+  /api/social-profiles/{id}/:
+    get:
+      operationId: social_profiles_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate social profile.
+        required: true
+      tags:
+      - social-profiles
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateSocialProfile'
+          description: ''
+    put:
+      operationId: social_profiles_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate social profile.
+        required: true
+      tags:
+      - social-profiles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateSocialProfile'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CandidateSocialProfile'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CandidateSocialProfile'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateSocialProfile'
+          description: ''
+    patch:
+      operationId: social_profiles_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate social profile.
+        required: true
+      tags:
+      - social-profiles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidateSocialProfile'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidateSocialProfile'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidateSocialProfile'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateSocialProfile'
+          description: ''
+    delete:
+      operationId: social_profiles_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate social profile.
+        required: true
+      tags:
+      - social-profiles
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
 components:
   schemas:
     AcceptInvitation:
@@ -4315,6 +4979,178 @@ components:
       - created_at
       - id
       - user_name
+    BackgroundCheck:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        case:
+          type: integer
+        case_id:
+          type: string
+          readOnly: true
+        applicant_email:
+          type: string
+          readOnly: true
+        check_type:
+          $ref: '#/components/schemas/CheckTypeEnum'
+        provider_key:
+          type: string
+          maxLength: 50
+        status:
+          allOf:
+          - $ref: '#/components/schemas/BackgroundCheckStatusEnum'
+          readOnly: true
+        external_reference:
+          type: string
+          readOnly: true
+        score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+          description: Normalized provider score (0-100).
+        risk_level:
+          allOf:
+          - $ref: '#/components/schemas/BackgroundCheckRiskLevelEnum'
+          readOnly: true
+        recommendation:
+          allOf:
+          - $ref: '#/components/schemas/BackgroundCheckRecommendationEnum'
+          readOnly: true
+        request_payload: {}
+        response_payload:
+          readOnly: true
+        result_summary:
+          readOnly: true
+        consent_evidence: {}
+        submitted_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        submitted_by_email:
+          type: string
+          readOnly: true
+        error_code:
+          type: string
+          readOnly: true
+        error_message:
+          type: string
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        last_polled_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        webhook_received_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - applicant_email
+      - case
+      - case_id
+      - check_type
+      - completed_at
+      - created_at
+      - error_code
+      - error_message
+      - external_reference
+      - id
+      - last_polled_at
+      - recommendation
+      - response_payload
+      - result_summary
+      - risk_level
+      - score
+      - status
+      - submitted_at
+      - submitted_by
+      - submitted_by_email
+      - updated_at
+      - webhook_received_at
+    BackgroundCheckCreate:
+      type: object
+      properties:
+        case:
+          type: integer
+        check_type:
+          $ref: '#/components/schemas/CheckTypeEnum'
+        provider_key:
+          type: string
+          maxLength: 50
+        request_payload: {}
+        consent_evidence: {}
+        run_async:
+          type: boolean
+          writeOnly: true
+          default: false
+      required:
+      - case
+      - check_type
+    BackgroundCheckRecommendationEnum:
+      enum:
+      - clear
+      - review
+      - reject
+      - unavailable
+      type: string
+      description: |-
+        * `clear` - Clear
+        * `review` - Manual Review
+        * `reject` - Reject
+        * `unavailable` - Unavailable
+    BackgroundCheckRiskLevelEnum:
+      enum:
+      - low
+      - medium
+      - high
+      - unknown
+      type: string
+      description: |-
+        * `low` - Low
+        * `medium` - Medium
+        * `high` - High
+        * `unknown` - Unknown
+    BackgroundCheckStatusEnum:
+      enum:
+      - pending
+      - submitted
+      - in_progress
+      - completed
+      - manual_review
+      - failed
+      - cancelled
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `submitted` - Submitted
+        * `in_progress` - In Progress
+        * `completed` - Completed
+        * `manual_review` - Manual Review
+        * `failed` - Failed
+        * `cancelled` - Cancelled
     Candidate:
       type: object
       properties:
@@ -4343,6 +5179,11 @@ components:
           type: boolean
         consent_ai_processing:
           type: boolean
+        social_profiles:
+          type: array
+          items:
+            $ref: '#/components/schemas/CandidateSocialProfile'
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -4358,6 +5199,7 @@ components:
       - full_name
       - id
       - last_name
+      - social_profiles
       - updated_at
     CandidateAccessConsume:
       type: object
@@ -4454,6 +5296,49 @@ components:
         * `approved` - Approved
         * `rejected` - Rejected
         * `escalated` - Escalated
+    CandidateSocialProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        candidate:
+          type: integer
+        platform:
+          $ref: '#/components/schemas/PlatformEnum'
+        platform_display:
+          type: string
+          readOnly: true
+        url:
+          type: string
+          format: uri
+          maxLength: 200
+        username:
+          type: string
+          maxLength: 120
+        display_name:
+          type: string
+          maxLength: 150
+        is_primary:
+          type: boolean
+        metadata: {}
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - candidate
+      - created_at
+      - id
+      - platform
+      - platform_display
+      - updated_at
+      - url
+      - username
     ChangePassword:
       type: object
       description: Serializer for password change
@@ -4468,6 +5353,20 @@ components:
       - new_password
       - new_password_confirm
       - old_password
+    CheckTypeEnum:
+      enum:
+      - criminal
+      - employment
+      - education
+      - kyc_aml
+      - identity
+      type: string
+      description: |-
+        * `criminal` - Criminal Records
+        * `employment` - Employment History
+        * `education` - Education Verification
+        * `kyc_aml` - KYC/AML
+        * `identity` - Identity Verification
     CommunicationChannelEnum:
       enum:
       - email
@@ -4756,6 +5655,22 @@ components:
       - status_display
       - uploaded_at
       - verification_result
+    DocumentClassificationUpload:
+      type: object
+      properties:
+        file:
+          type: string
+          format: uri
+        document_type:
+          type: string
+          default: ''
+        top_k:
+          type: integer
+          maximum: 5
+          minimum: 1
+          default: 3
+      required:
+      - file
     DocumentStatusEnum:
       enum:
       - uploaded
@@ -4829,7 +5744,7 @@ components:
           type: number
           format: double
         risk_level:
-          $ref: '#/components/schemas/RiskLevelEnum'
+          $ref: '#/components/schemas/RiskLevelBbcEnum'
         risk_level_display:
           type: string
           readOnly: true
@@ -5599,6 +6514,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AuditLog'
+    PaginatedBackgroundCheckList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/BackgroundCheck'
     PaginatedCandidateEnrollmentList:
       type: object
       required:
@@ -5645,6 +6583,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Candidate'
+    PaginatedCandidateSocialProfileList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/CandidateSocialProfile'
     PaginatedConsistencyCheckResultList:
       type: object
       required:
@@ -5921,6 +6882,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RubricEvaluation'
+    PaginatedSocialProfileCheckResultList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SocialProfileCheckResult'
     PaginatedVettingCampaignList:
       type: object
       required:
@@ -6039,6 +7023,94 @@ components:
           type: string
           format: date-time
           readOnly: true
+    PatchedBackgroundCheck:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        case:
+          type: integer
+        case_id:
+          type: string
+          readOnly: true
+        applicant_email:
+          type: string
+          readOnly: true
+        check_type:
+          $ref: '#/components/schemas/CheckTypeEnum'
+        provider_key:
+          type: string
+          maxLength: 50
+        status:
+          allOf:
+          - $ref: '#/components/schemas/BackgroundCheckStatusEnum'
+          readOnly: true
+        external_reference:
+          type: string
+          readOnly: true
+        score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+          description: Normalized provider score (0-100).
+        risk_level:
+          allOf:
+          - $ref: '#/components/schemas/BackgroundCheckRiskLevelEnum'
+          readOnly: true
+        recommendation:
+          allOf:
+          - $ref: '#/components/schemas/BackgroundCheckRecommendationEnum'
+          readOnly: true
+        request_payload: {}
+        response_payload:
+          readOnly: true
+        result_summary:
+          readOnly: true
+        consent_evidence: {}
+        submitted_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        submitted_by_email:
+          type: string
+          readOnly: true
+        error_code:
+          type: string
+          readOnly: true
+        error_message:
+          type: string
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        last_polled_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        webhook_received_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     PatchedCandidate:
       type: object
       properties:
@@ -6067,6 +7139,11 @@ components:
           type: boolean
         consent_ai_processing:
           type: boolean
+        social_profiles:
+          type: array
+          items:
+            $ref: '#/components/schemas/CandidateSocialProfile'
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -6118,6 +7195,40 @@ components:
         decision_by:
           type: integer
           nullable: true
+        metadata: {}
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedCandidateSocialProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        candidate:
+          type: integer
+        platform:
+          $ref: '#/components/schemas/PlatformEnum'
+        platform_display:
+          type: string
+          readOnly: true
+        url:
+          type: string
+          format: uri
+          maxLength: 200
+        username:
+          type: string
+          maxLength: 120
+        display_name:
+          type: string
+          maxLength: 150
+        is_primary:
+          type: boolean
         metadata: {}
         created_at:
           type: string
@@ -6708,6 +7819,9 @@ components:
         rubric_evaluation:
           nullable: true
           readOnly: true
+        social_profile_result:
+          nullable: true
+          readOnly: true
     PatchedVettingRubric:
       type: object
       properties:
@@ -6809,6 +7923,24 @@ components:
         total_weight:
           type: integer
           readOnly: true
+    PlatformEnum:
+      enum:
+      - linkedin
+      - github
+      - x
+      - facebook
+      - instagram
+      - tiktok
+      - other
+      type: string
+      description: |-
+        * `linkedin` - LinkedIn
+        * `github` - GitHub
+        * `x` - X
+        * `facebook` - Facebook
+        * `instagram` - Instagram
+        * `tiktok` - TikTok
+        * `other` - Other
     PriorityD67Enum:
       enum:
       - low
@@ -6850,6 +7982,25 @@ components:
       oneOf:
       - $ref: '#/components/schemas/User'
       - $ref: '#/components/schemas/AdminUser'
+    ProviderWebhook:
+      type: object
+      properties:
+        external_reference:
+          type: string
+        reference:
+          type: string
+        status:
+          type: string
+        score:
+          type: number
+          format: double
+        risk_level:
+          type: string
+        recommendation:
+          type: string
+        completed_at:
+          type: string
+          format: date-time
     QuestionTypeEnum:
       enum:
       - general
@@ -6868,7 +8019,7 @@ components:
         * `flag_specific` - Flag-Specific Clarification
         * `behavioral` - Behavioral Assessment
         * `situational` - Situational Question
-    RiskLevelEnum:
+    RiskLevelBbcEnum:
       enum:
       - LOW
       - MEDIUM
@@ -7143,6 +8294,85 @@ components:
         * `manual_rating` - Manual Rating
         * `binary` - Pass/Fail
         * `calculated` - Calculated from Sub-Criteria
+    SocialProfileCheck:
+      type: object
+      properties:
+        case_id:
+          type: string
+          default: ''
+        consent_provided:
+          type: boolean
+          default: false
+        profiles:
+          type: array
+          items:
+            $ref: '#/components/schemas/SocialProfileItem'
+      required:
+      - profiles
+    SocialProfileCheckResult:
+      type: object
+      description: Serializer for social profile check results.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        application:
+          type: integer
+        application_case_id:
+          type: string
+          readOnly: true
+        consent_provided:
+          type: boolean
+        profiles_checked:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        overall_score:
+          type: number
+          format: double
+        risk_level:
+          $ref: '#/components/schemas/RiskLevelBbcEnum'
+        risk_level_display:
+          type: string
+          readOnly: true
+        recommendation:
+          type: string
+          maxLength: 30
+        automated_decision_allowed:
+          type: boolean
+        decision_constraints: {}
+        profiles: {}
+        checked_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - application
+      - application_case_id
+      - checked_at
+      - id
+      - risk_level_display
+      - updated_at
+    SocialProfileItem:
+      type: object
+      properties:
+        platform:
+          type: string
+          default: ''
+        url:
+          type: string
+          default: ''
+        username:
+          type: string
+          default: ''
+        display_name:
+          type: string
+          default: ''
     StatusDebEnum:
       enum:
       - pending
@@ -7561,6 +8791,9 @@ components:
         rubric_evaluation:
           nullable: true
           readOnly: true
+        social_profile_result:
+          nullable: true
+          readOnly: true
       required:
       - applicant_email
       - assigned_to_email
@@ -7579,6 +8812,7 @@ components:
       - priority_display
       - red_flags_count
       - rubric_evaluation
+      - social_profile_result
       - status_display
       - updated_at
     VettingCaseAdmin:

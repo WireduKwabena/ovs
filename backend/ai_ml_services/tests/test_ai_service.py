@@ -10,6 +10,7 @@ from django.test import SimpleTestCase
 from ai_ml_services.utils.tasks import (
     batch_verify_documents_task,
     check_consistency_task,
+    check_social_profiles_task,
     detect_fraud_task,
     health_check_task,
     verify_document_task,
@@ -43,6 +44,21 @@ class TestTasks(SimpleTestCase):
         self.assertTrue(result["success"])
         self.assertEqual(result["case_id"], "CASE-2")
         self.assertFalse(result["result"]["is_fraud"])
+
+    @patch("ai_ml_services.utils.tasks.check_social_profiles")
+    def test_check_social_profiles_task(self, mock_check_social_profiles):
+        mock_check_social_profiles.return_value = {
+            "overall_score": 68.0,
+            "risk_level": "medium",
+            "recommendation": "MANUAL_REVIEW",
+        }
+
+        profiles = [{"platform": "linkedin", "url": "https://linkedin.com/in/user"}]
+        result = check_social_profiles_task.run("CASE-SOC-2", profiles, True)
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["case_id"], "CASE-SOC-2")
+        self.assertEqual(result["result"]["overall_score"], 68.0)
 
     @patch("ai_ml_services.utils.tasks.check_consistency")
     def test_check_consistency_task(self, mock_check_consistency):
@@ -89,3 +105,4 @@ class TestTasks(SimpleTestCase):
         self.assertEqual(result["status"], "healthy")
         self.assertEqual(result["services"]["ocr"], "operational")
         self.assertEqual(result["services"]["fraud_detection"], "operational")
+

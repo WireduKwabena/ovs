@@ -1,8 +1,13 @@
+import logging
+
 from celery import shared_task
 from django.db.models import Avg
 from django.utils import timezone
 
 from .models import Document, InterrogationFlag, VerificationResult
+from apps.applications.social_checks import run_case_social_profile_check
+
+logger = logging.getLogger(__name__)
 
 
 def _build_placeholder_analysis(document: Document) -> dict:
@@ -79,7 +84,7 @@ def _upsert_flag_for_document(document: Document, result: VerificationResult) ->
         flag.related_documents.add(document)
 
 
-def _refresh_case_aggregates(document: Document) -> None:
+def _refresh_case_aggregates(document: Document):
     case = document.case
     documents = case.documents.all()
     verification_qs = VerificationResult.objects.filter(document__case=case)
@@ -116,6 +121,17 @@ def _refresh_case_aggregates(document: Document) -> None:
             "updated_at",
         ]
     )
+    return case
+
+
+def _sync_case_social_profile_result(document: Document) -> None:
+    outcome = run_case_social_profile_check(document.case)
+    if not outcome.get("success") and outcome.get("reason") != "no_profiles":
+        logger.warning(
+            "Social profile sync did not complete for case %s: %s",
+            outcome.get("case_id", "unknown"),
+            outcome,
+        )
 
 
 @shared_task(bind=True, max_retries=2)
@@ -163,7 +179,9 @@ def verify_document_async(self, document_id: int):
         )
 
         _upsert_flag_for_document(document, result)
-        _refresh_case_aggregates(document)
+        case = _refresh_case_aggregates(document)
+        if case.documents_verified:
+            _sync_case_social_profile_result(document)
 
         return {
             "success": True,
@@ -178,3 +196,9 @@ def verify_document_async(self, document_id: int):
         document.processed_at = timezone.now()
         document.save(update_fields=["status", "retry_count", "processing_error", "processed_at"])
         raise
+
+
+
+
+
+
