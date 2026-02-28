@@ -25798,3 +25798,4 @@ def auto_assign_rubric(self, case_id):
 [DEBUG] 2026-02-27 23:49:50,600 __init__ platform is win32
 [DEBUG] 2026-02-27 23:49:50,788 __init__ CACHEDIR=C:\Users\admin\.matplotlib
 [DEBUG] 2026-02-27 23:49:50,795 font_manager Using fontManager instance from C:\Users\admin\.matplotlib\fontlist-v390.json
+[INFO] 2026-02-27 23:49:57,566 cnn_detector Created resnet18 model with pretrained=False
