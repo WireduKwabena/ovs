@@ -16,14 +16,19 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 from ai_ml_services.signature.features import extract_signature_features
+from ai_ml_services.utils.path_rebase import infer_backend_root, rebase_moved_backend_path
 
 
-def _load_matrix(metadata: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def _load_matrix(
+    metadata: pd.DataFrame,
+    backend_root: Path,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     features: List[np.ndarray] = []
     labels: List[int] = []
     kept_indices: List[int] = []
     for index, row in enumerate(metadata.itertuples(index=False)):
-        image = cv2.imread(str(row.filepath))
+        resolved_path = rebase_moved_backend_path(str(row.filepath), backend_root=backend_root)
+        image = cv2.imread(str(resolved_path))
         if image is None:
             continue
         features.append(extract_signature_features(image))
@@ -51,7 +56,8 @@ def train_signature_model(
     if missing:
         raise ValueError(f"metadata missing required columns: {sorted(missing)}")
 
-    x_all, y_all, kept_indices = _load_matrix(metadata)
+    backend_root = infer_backend_root(metadata_path)
+    x_all, y_all, kept_indices = _load_matrix(metadata, backend_root=backend_root)
     if len(x_all) < 20 or len(np.unique(y_all)) < 2:
         raise ValueError(
             "insufficient signature training samples: need >=20 rows and both classes present"
@@ -125,3 +131,4 @@ def train_signature_model(
         **{k: round(v, 6) if isinstance(v, float) else v for k, v in metrics.items()},
         "output_path": str(output_path),
     }
+

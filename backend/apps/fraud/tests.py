@@ -8,7 +8,7 @@ APP_ENABLED = "apps.fraud" in settings.INSTALLED_APPS
 
 from apps.applications.models import VettingCase
 from apps.authentication.models import User
-from apps.fraud.models import ConsistencyCheckResult, FraudDetectionResult
+from apps.fraud.models import ConsistencyCheckResult, FraudDetectionResult, SocialProfileCheckResult
 
 
 @unittest.skipUnless(APP_ENABLED, "Fraud app is not enabled in INSTALLED_APPS.")
@@ -54,6 +54,21 @@ class FraudModelTests(TestCase):
         )
         self.assertFalse(result.overall_consistent)
         self.assertEqual(result.application_id, self.case.id)
+
+    def test_can_create_social_profile_check_result(self):
+        result = SocialProfileCheckResult.objects.create(
+            application=self.case,
+            consent_provided=True,
+            profiles_checked=1,
+            overall_score=82.5,
+            risk_level="LOW",
+            recommendation="MANUAL_REVIEW",
+            automated_decision_allowed=False,
+            decision_constraints=[{"code": "social_check_advisory_only"}],
+            profiles=[{"platform": "linkedin", "url": "https://linkedin.com/in/sample"}],
+        )
+        self.assertEqual(result.application_id, self.case.id)
+        self.assertEqual(result.risk_level, "LOW")
 
 
 @unittest.skipUnless(APP_ENABLED, "Fraud app is not enabled in INSTALLED_APPS.")
@@ -135,6 +150,29 @@ class FraudApiTests(APITestCase):
             recommendation="PROCEED",
         )
 
+        self.user_social_result = SocialProfileCheckResult.objects.create(
+            application=self.case,
+            consent_provided=True,
+            profiles_checked=1,
+            overall_score=82.0,
+            risk_level="LOW",
+            recommendation="MANUAL_REVIEW",
+            automated_decision_allowed=False,
+            decision_constraints=[{"code": "social_check_advisory_only"}],
+            profiles=[{"platform": "linkedin", "url": "https://linkedin.com/in/user"}],
+        )
+        self.other_social_result = SocialProfileCheckResult.objects.create(
+            application=self.other_case,
+            consent_provided=False,
+            profiles_checked=0,
+            overall_score=0.0,
+            risk_level="HIGH",
+            recommendation="MANUAL_REVIEW",
+            automated_decision_allowed=False,
+            decision_constraints=[{"code": "social_consent_missing"}],
+            profiles=[],
+        )
+
     def test_regular_user_sees_only_own_fraud_results(self):
         self.client.force_authenticate(self.user)
         response = self.client.get("/api/fraud/results/")
@@ -205,3 +243,20 @@ class FraudApiTests(APITestCase):
         self.assertEqual(response.data["total_checks"], 1)
         self.assertEqual(response.data["consistent_count"], 0)
         self.assertEqual(response.data["average_score"], 48.0)
+
+    def test_regular_user_sees_only_own_social_profile_results(self):
+        self.client.force_authenticate(self.user)
+        response = self.client.get("/api/fraud/social-profiles/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["id"], str(self.user_social_result.id))
+
+    def test_social_profile_statistics_for_regular_user_uses_scoped_queryset(self):
+        self.client.force_authenticate(self.user)
+        response = self.client.get("/api/fraud/social-profiles/statistics/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["total_checks"], 1)
+        self.assertEqual(response.data["manual_review_count"], 1)
+        self.assertEqual(response.data["risk_distribution"]["LOW"], 1)

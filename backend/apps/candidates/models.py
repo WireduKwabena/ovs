@@ -28,6 +28,45 @@ class Candidate(models.Model):
         return f"{self.first_name} {self.last_name} <{self.email}>"
 
 
+class CandidateSocialProfile(models.Model):
+    PLATFORM_CHOICES = [
+        ("linkedin", "LinkedIn"),
+        ("github", "GitHub"),
+        ("x", "X"),
+        ("facebook", "Facebook"),
+        ("instagram", "Instagram"),
+        ("tiktok", "TikTok"),
+        ("other", "Other"),
+    ]
+
+    id = models.BigAutoField(primary_key=True)
+    candidate = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name="social_profiles")
+    platform = models.CharField(max_length=20, choices=PLATFORM_CHOICES, db_index=True)
+    url = models.URLField(blank=True)
+    username = models.CharField(max_length=120, blank=True)
+    display_name = models.CharField(max_length=150, blank=True)
+    is_primary = models.BooleanField(default=False)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["candidate_id", "platform", "-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["candidate", "platform", "url", "username"],
+                name="uniq_candidate_social_profile",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["candidate", "platform"]),
+        ]
+
+    def __str__(self):
+        handle = self.username or self.url or "profile"
+        return f"{self.candidate.email} :: {self.platform} :: {handle}"
+
+
 class CandidateEnrollment(models.Model):
     STATUS_CHOICES = [
         ("invited", "Invited"),

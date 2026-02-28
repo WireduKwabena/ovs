@@ -1,0 +1,367 @@
+import unittest
+from unittest.mock import Mock, patch
+
+from django.conf import settings
+from django.test import TestCase, override_settings
+from rest_framework import status
+from rest_framework.test import APITestCase
+
+from apps.applications.models import VettingCase
+from apps.authentication.models import User
+
+from .services import refresh_background_check, submit_background_check
+
+APP_ENABLED = "apps.background_checks" in settings.INSTALLED_APPS
+
+
+@unittest.skipUnless(APP_ENABLED, "Background checks app is not enabled in INSTALLED_APPS.")
+class BackgroundCheckServiceTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="bg-check-user@example.com",
+            password="Pass1234!",
+            first_name="BG",
+            last_name="User",
+            user_type="applicant",
+        )
+        self.case = VettingCase.objects.create(
+            applicant=self.user,
+            position_applied="Risk Analyst",
+            department="Compliance",
+            priority="medium",
+            status="under_review",
+        )
+
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True)
+    def test_submit_requires_consent(self):
+        with self.assertRaises(ValueError):
+            submit_background_check(
+                case=self.case,
+                check_type="kyc_aml",
+                submitted_by=self.user,
+                consent_evidence={"granted": False},
+            )
+
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True, BACKGROUND_CHECK_DEFAULT_PROVIDER="mock")
+    def test_submit_then_refresh_completes(self):
+        check = submit_background_check(
+            case=self.case,
+            check_type="employment",
+            submitted_by=self.user,
+            request_payload={"subject": {"full_name": "BG User"}},
+            consent_evidence={"granted": True, "method": "checkbox"},
+        )
+
+        self.assertEqual(check.status, "submitted")
+        self.assertTrue(bool(check.external_reference))
+
+        refreshed = refresh_background_check(check)
+        self.assertEqual(refreshed.status, "completed")
+        self.assertIsNotNone(refreshed.score)
+        self.assertIn(refreshed.recommendation, {"clear", "review"})
+
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True, BACKGROUND_CHECK_DEFAULT_PROVIDER="mock")
+    @patch("apps.background_checks.services.log_event", return_value=True)
+    def test_submit_logs_audit(self, mock_log_event):
+        check = submit_background_check(
+            case=self.case,
+            check_type="employment",
+            submitted_by=self.user,
+            consent_evidence={"granted": True},
+        )
+
+        self.assertTrue(mock_log_event.called)
+        kwargs = mock_log_event.call_args.kwargs
+        self.assertEqual(kwargs["action"], "create")
+        self.assertEqual(kwargs["entity_type"], "background_check")
+        self.assertEqual(kwargs["entity_id"], str(check.id))
+        self.assertEqual(kwargs["user"], self.user)
+        self.assertEqual(kwargs["changes"]["event"], "submit")
+
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True, BACKGROUND_CHECK_DEFAULT_PROVIDER="mock")
+    @patch("apps.background_checks.services.log_event", return_value=True)
+    def test_refresh_logs_audit(self, mock_log_event):
+        check = submit_background_check(
+            case=self.case,
+            check_type="employment",
+            submitted_by=self.user,
+            consent_evidence={"granted": True},
+        )
+
+        mock_log_event.reset_mock()
+        refreshed = refresh_background_check(check)
+
+        self.assertEqual(refreshed.status, "completed")
+        self.assertTrue(mock_log_event.called)
+        kwargs = mock_log_event.call_args.kwargs
+        self.assertEqual(kwargs["action"], "update")
+        self.assertEqual(kwargs["entity_type"], "background_check")
+        self.assertEqual(kwargs["entity_id"], str(check.id))
+        self.assertEqual(kwargs["changes"]["event"], "provider_refresh")
+
+    @override_settings(
+        BACKGROUND_CHECK_REQUIRE_CONSENT=True,
+        BACKGROUND_CHECK_HTTP_BASE_URL="https://provider.example.com",
+        BACKGROUND_CHECK_HTTP_SUBMIT_PATH="/api/checks",
+        BACKGROUND_CHECK_HTTP_REFRESH_PATH_TEMPLATE="/api/checks/{external_reference}",
+    )
+    def test_http_provider_submit_then_refresh(self):
+        mock_post_response = Mock()
+        mock_post_response.raise_for_status.return_value = None
+        mock_post_response.json.return_value = {
+            "external_reference": "ext-123",
+            "status": "submitted",
+        }
+
+        mock_get_response = Mock()
+        mock_get_response.raise_for_status.return_value = None
+        mock_get_response.json.return_value = {
+            "status": "completed",
+            "score": 92,
+            "risk_level": "low",
+            "recommendation": "clear",
+        }
+
+        with patch("apps.background_checks.providers.http_provider.httpx.post", return_value=mock_post_response) as mock_post:
+            with patch("apps.background_checks.providers.http_provider.httpx.get", return_value=mock_get_response) as mock_get:
+                check = submit_background_check(
+                    case=self.case,
+                    check_type="kyc_aml",
+                    submitted_by=self.user,
+                    provider_key="http",
+                    consent_evidence={"granted": True},
+                )
+                refreshed = refresh_background_check(check)
+
+        self.assertEqual(check.provider_key, "http")
+        self.assertEqual(check.external_reference, "ext-123")
+        self.assertEqual(refreshed.status, "completed")
+        self.assertEqual(refreshed.score, 92)
+        self.assertEqual(refreshed.recommendation, "clear")
+        mock_post.assert_called_once()
+        mock_get.assert_called_once()
+
+
+@unittest.skipUnless(APP_ENABLED, "Background checks app is not enabled in INSTALLED_APPS.")
+class BackgroundCheckApiTests(APITestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_user(
+            email="bg-admin@example.com",
+            password="Pass1234!",
+            first_name="BG",
+            last_name="Admin",
+            user_type="admin",
+            is_staff=True,
+        )
+        self.user = User.objects.create_user(
+            email="bg-api-user@example.com",
+            password="Pass1234!",
+            first_name="BG",
+            last_name="Applicant",
+            user_type="applicant",
+        )
+        self.other_user = User.objects.create_user(
+            email="bg-api-other@example.com",
+            password="Pass1234!",
+            first_name="BG",
+            last_name="Other",
+            user_type="applicant",
+        )
+
+        self.case = VettingCase.objects.create(
+            applicant=self.user,
+            position_applied="Risk Analyst",
+            department="Compliance",
+            priority="medium",
+            status="under_review",
+        )
+        self.other_case = VettingCase.objects.create(
+            applicant=self.other_user,
+            position_applied="Security Analyst",
+            department="Operations",
+            priority="high",
+            status="under_review",
+        )
+
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True)
+    def test_applicant_can_create_own_background_check(self):
+        self.client.force_authenticate(self.user)
+        response = self.client.post(
+            "/api/background-checks/checks/",
+            {
+                "case": self.case.id,
+                "check_type": "kyc_aml",
+                "provider_key": "mock",
+                "request_payload": {"country": "US"},
+                "consent_evidence": {"granted": True},
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["case"], self.case.id)
+        self.assertEqual(response.data["status"], "submitted")
+
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True)
+    def test_applicant_cannot_create_for_other_case(self):
+        self.client.force_authenticate(self.user)
+        response = self.client.post(
+            "/api/background-checks/checks/",
+            {
+                "case": self.other_case.id,
+                "check_type": "criminal",
+                "provider_key": "mock",
+                "consent_evidence": {"granted": True},
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True)
+    @patch("apps.background_checks.views.refresh_background_check_task.delay", return_value=None)
+    def test_create_with_async_queues_refresh(self, mock_delay):
+        self.client.force_authenticate(self.user)
+        response = self.client.post(
+            "/api/background-checks/checks/",
+            {
+                "case": self.case.id,
+                "check_type": "identity",
+                "provider_key": "mock",
+                "consent_evidence": {"granted": True},
+                "run_async": True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(response.data["refresh_queued"])
+        mock_delay.assert_called_once()
+
+
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True)
+    @patch("apps.background_checks.services.log_event", return_value=True)
+    def test_create_passes_request_to_audit_log(self, mock_log_event):
+        self.client.force_authenticate(self.user)
+        response = self.client.post(
+            "/api/background-checks/checks/",
+            {
+                "case": self.case.id,
+                "check_type": "kyc_aml",
+                "provider_key": "mock",
+                "consent_evidence": {"granted": True},
+            },
+            format="json",
+            HTTP_USER_AGENT="bg-audit-agent",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(mock_log_event.called)
+        kwargs = mock_log_event.call_args.kwargs
+        self.assertIsNotNone(kwargs.get("request"))
+        self.assertEqual(kwargs["request"].META.get("HTTP_USER_AGENT"), "bg-audit-agent")
+
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True)
+    @patch("apps.background_checks.services.log_event", return_value=True)
+    def test_refresh_passes_request_to_audit_log(self, mock_log_event):
+        check = submit_background_check(
+            case=self.case,
+            check_type="employment",
+            submitted_by=self.user,
+            consent_evidence={"granted": True},
+        )
+        mock_log_event.reset_mock()
+
+        self.client.force_authenticate(self.user)
+        response = self.client.post(
+            f"/api/background-checks/checks/{check.id}/refresh/",
+            {},
+            format="json",
+            HTTP_USER_AGENT="bg-refresh-agent",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(mock_log_event.called)
+        kwargs = mock_log_event.call_args.kwargs
+        self.assertIsNotNone(kwargs.get("request"))
+        self.assertEqual(kwargs["request"].META.get("HTTP_USER_AGENT"), "bg-refresh-agent")
+
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True)
+    def test_scoped_listing_and_admin_visibility(self):
+        submit_background_check(
+            case=self.case,
+            check_type="employment",
+            submitted_by=self.user,
+            consent_evidence={"granted": True},
+        )
+        submit_background_check(
+            case=self.other_case,
+            check_type="employment",
+            submitted_by=self.other_user,
+            consent_evidence={"granted": True},
+        )
+
+        self.client.force_authenticate(self.user)
+        user_response = self.client.get("/api/background-checks/checks/")
+        self.assertEqual(user_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(user_response.data["count"], 1)
+
+        self.client.force_authenticate(self.admin_user)
+        admin_response = self.client.get("/api/background-checks/checks/")
+        self.assertEqual(admin_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(admin_response.data["count"], 2)
+
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True, BACKGROUND_CHECK_WEBHOOK_TOKEN="secret-webhook")
+    @patch("apps.background_checks.services.log_event", return_value=True)
+    def test_provider_webhook_updates_check(self, mock_log_event):
+        check = submit_background_check(
+            case=self.case,
+            check_type="criminal",
+            submitted_by=self.user,
+            consent_evidence={"granted": True},
+        )
+        mock_log_event.reset_mock()
+
+        self.client.force_authenticate(None)
+        response = self.client.post(
+            "/api/background-checks/providers/mock/webhook/",
+            {
+                "external_reference": check.external_reference,
+                "status": "completed",
+                "score": 97,
+                "risk_level": "low",
+                "recommendation": "clear",
+            },
+            format="json",
+            HTTP_X_BACKGROUND_WEBHOOK_TOKEN="secret-webhook",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        check.refresh_from_db()
+        self.assertEqual(check.status, "completed")
+        self.assertEqual(check.score, 97)
+        self.assertEqual(check.recommendation, "clear")
+        self.assertTrue(mock_log_event.called)
+        self.assertEqual(mock_log_event.call_args.kwargs["changes"]["event"], "provider_webhook")
+        self.assertIsNotNone(mock_log_event.call_args.kwargs.get("request"))
+
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True, BACKGROUND_CHECK_WEBHOOK_TOKEN="secret-webhook")
+    def test_provider_webhook_rejects_invalid_token(self):
+        check = submit_background_check(
+            case=self.case,
+            check_type="criminal",
+            submitted_by=self.user,
+            consent_evidence={"granted": True},
+        )
+
+        self.client.force_authenticate(None)
+        response = self.client.post(
+            "/api/background-checks/providers/mock/webhook/",
+            {
+                "external_reference": check.external_reference,
+                "status": "completed",
+            },
+            format="json",
+            HTTP_X_BACKGROUND_WEBHOOK_TOKEN="wrong-token",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

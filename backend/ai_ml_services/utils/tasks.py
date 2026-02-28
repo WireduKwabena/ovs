@@ -13,6 +13,7 @@ from ai_ml_services.service import (
     AIServiceException,
     verify_document,
     detect_fraud,
+    check_social_profiles,
     check_consistency,
     batch_verify_documents,
 )
@@ -163,6 +164,68 @@ def detect_fraud_task(
         )
         raise
 
+
+@shared_task(
+    bind=True,
+    max_retries=2,
+    autoretry_for=(AIServiceException,),
+    retry_backoff=True,
+    retry_backoff_max=300,
+)
+def check_social_profiles_task(
+    self,
+    case_id: str,
+    profiles: list,
+    consent_provided: bool = False,
+):
+    """
+    Asynchronously run social profile checks.
+
+    Args:
+        case_id: Case ID for tracking
+        profiles: List of social profile dictionaries
+        consent_provided: Whether candidate has explicitly consented
+
+    Returns:
+        Dictionary containing social profile verification results
+    """
+    logger.info(
+        f"Starting social profile checks for case={case_id} "
+        f"({len(profiles or [])} profiles)"
+    )
+
+    try:
+        result = check_social_profiles(
+            profiles=profiles or [],
+            consent_provided=bool(consent_provided),
+            case_id=case_id,
+        )
+
+        logger.info(
+            f"Social profile checks completed for case={case_id}: "
+            f"score={result.get('overall_score', 0.0):.2f}, "
+            f"risk={result.get('risk_level', 'unknown')}"
+        )
+
+        return {
+            "success": True,
+            "case_id": case_id,
+            "result": result,
+        }
+
+    except AIServiceException as exc:
+        logger.error(
+            f"AI service error for social profile checks case={case_id}: {exc}",
+            exc_info=True,
+        )
+        raise
+
+    except Exception as exc:
+        logger.error(
+            f"Unexpected error checking social profiles for case={case_id}: {exc}",
+            exc_info=True,
+        )
+        raise
 
 @shared_task(
     bind=True,

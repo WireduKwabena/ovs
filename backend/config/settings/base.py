@@ -29,17 +29,50 @@ except ModuleNotFoundError:  # pragma: no cover - optional in lightweight dev/te
 # Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+def env_bool(name: str, default: bool = False) -> bool:
+    """Parse bool-like env values robustly (including deployment aliases)."""
+    value = config(name, default=default)
+    if isinstance(value, bool):
+        return value
+
+    normalized = str(value).strip().lower()
+    truthy = {"1", "true", "t", "yes", "y", "on"}
+    falsy = {"0", "false", "f", "no", "n", "off", "", "prod", "production", "release"}
+
+    if normalized in truthy:
+        return True
+    if normalized in falsy:
+        return False
+    return bool(default)
+
+
+def env_list(name: str, default: str = "") -> list[str]:
+    """Parse CSV or JSON-ish list env values into a clean string list."""
+    raw = config(name, default=default)
+    if isinstance(raw, (list, tuple, set)):
+        return [str(item).strip() for item in raw if str(item).strip()]
+
+    text = str(raw or "").strip()
+    if not text:
+        return []
+
+    if text.startswith("[") and text.endswith("]"):
+        text = text[1:-1]
+
+    values: list[str] = []
+    for chunk in text.split(","):
+        item = chunk.strip().strip("\"'")
+        if item:
+            values.append(item)
+    return values
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-j!^!kca^!j*r4=krx%(*1yfsg_5!mnehigj3svhs-64)t%p=h9')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=False, cast=bool)
+DEBUG = env_bool('DEBUG', default=False)
 
-ALLOWED_HOSTS = config(
-    'ALLOWED_HOSTS',
-    default='localhost,127.0.0.1',
-    cast=lambda v: [s.strip() for s in v.split(',')]
-)
+ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', default='localhost,127.0.0.1')
 
 def _has_module(module_name: str) -> bool:
     return importlib.util.find_spec(module_name) is not None
@@ -79,6 +112,7 @@ INSTALLED_APPS = [
     "apps.notifications.apps.NotificationsConfig",
     "apps.audit",
     "apps.fraud",
+    "apps.background_checks",
     "apps.ml_monitoring",
     "ai_ml_services.apps.AiMlServicesConfig",
 ]
@@ -230,6 +264,16 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "ENUM_NAME_OVERRIDES": {
         "CommunicationChannelEnum": "apps.candidates.models.Candidate.CHANNEL_CHOICES",
+        "VettingCasePriorityEnum": "apps.applications.models.VettingCase.PRIORITY_CHOICES",
+        "NotificationPriorityEnum": "apps.notifications.models.Notification.PRIORITY_CHOICES",
+        "VettingCaseStatusEnum": "apps.applications.models.VettingCase.STATUS_CHOICES",
+        "CampaignStatusEnum": "apps.campaigns.models.VettingCampaign.STATUS_CHOICES",
+        "EnrollmentStatusEnum": "apps.candidates.models.CandidateEnrollment.STATUS_CHOICES",
+        "InterviewSessionStatusEnum": "apps.interviews.models.InterviewSession.STATUS_CHOICES",
+        "NotificationStatusEnum": "apps.notifications.models.Notification.STATUS_CHOICES",
+        "BackgroundCheckStatusEnum": "apps.background_checks.models.BackgroundCheck.STATUS_CHOICES",
+        "BackgroundCheckRiskLevelEnum": "apps.background_checks.models.BackgroundCheck.RISK_LEVEL_CHOICES",
+        "FraudRiskLevelEnum": "apps.fraud.models.FraudDetectionResult.RISK_LEVELS",
     },
 }
 
@@ -245,11 +289,7 @@ SIMPLE_JWT = {
 }
 
 # CORS Configuration
-CORS_ALLOWED_ORIGINS = config(
-    'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:3000',
-    cast=lambda v: [s.strip() for s in v.split(',')]
-)
+CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS', default='http://localhost:3000')
 CORS_ALLOW_CREDENTIALS = True
 
 # Celery Configuration
@@ -437,6 +477,49 @@ AI_ML_MIDV500_MODEL_PATH = config(
     "AI_ML_MIDV500_MODEL_PATH",
     default=str(MODEL_PATH / "midv500_classifier.pkl"),
 )
+AI_ML_TRAINING_REPORT_PATH = config(
+    "AI_ML_TRAINING_REPORT_PATH",
+    default=str(MODEL_PATH / "training_report.json"),
+)
+AI_ML_DOC_CLASSIFIER_REPORT_PATH = config(
+    "AI_ML_DOC_CLASSIFIER_REPORT_PATH",
+    default=str(MODEL_PATH / "document_classifier_training_report.json"),
+)
+AI_ML_METRIC_GATES_ENABLED = config(
+    "AI_ML_METRIC_GATES_ENABLED",
+    default=False,
+    cast=bool,
+)
+AI_ML_METRIC_MIN_AUTHENTICITY_F1 = config(
+    "AI_ML_METRIC_MIN_AUTHENTICITY_F1",
+    default=0.70,
+    cast=float,
+)
+AI_ML_METRIC_MIN_AUTHENTICITY_ACCURACY = config(
+    "AI_ML_METRIC_MIN_AUTHENTICITY_ACCURACY",
+    default=0.70,
+    cast=float,
+)
+AI_ML_METRIC_MIN_SIGNATURE_F1 = config(
+    "AI_ML_METRIC_MIN_SIGNATURE_F1",
+    default=0.70,
+    cast=float,
+)
+AI_ML_METRIC_MIN_SIGNATURE_ACCURACY = config(
+    "AI_ML_METRIC_MIN_SIGNATURE_ACCURACY",
+    default=0.70,
+    cast=float,
+)
+AI_ML_METRIC_MIN_RVL_CDIP_MACRO_F1 = config(
+    "AI_ML_METRIC_MIN_RVL_CDIP_MACRO_F1",
+    default=0.60,
+    cast=float,
+)
+AI_ML_METRIC_MIN_MIDV500_MACRO_F1 = config(
+    "AI_ML_METRIC_MIN_MIDV500_MACRO_F1",
+    default=0.40,
+    cast=float,
+)
 AI_ML_POPPLER_PATH = config("AI_ML_POPPLER_PATH", default="")
 AI_ML_IDENTITY_MATCH_THRESHOLD = config(
     "AI_ML_IDENTITY_MATCH_THRESHOLD",
@@ -466,6 +549,38 @@ AI_ML_DOC_TYPE_MISMATCH_CONFIDENCE = config(
     default=0.65,
     cast=float,
 )
+AI_ML_SOCIAL_CONSENT_REQUIRED = config(
+    "AI_ML_SOCIAL_CONSENT_REQUIRED",
+    default=True,
+    cast=bool,
+)
+AI_ML_SOCIAL_VERIFY_URLS = config(
+    "AI_ML_SOCIAL_VERIFY_URLS",
+    default=False,
+    cast=bool,
+)
+AI_ML_SOCIAL_HTTP_TIMEOUT = config(
+    "AI_ML_SOCIAL_HTTP_TIMEOUT",
+    default=5.0,
+    cast=float,
+)
+AI_ML_SOCIAL_ALLOWED_PLATFORMS = config(
+    "AI_ML_SOCIAL_ALLOWED_PLATFORMS",
+    default="",
+)
+BACKGROUND_CHECK_DEFAULT_PROVIDER = config("BACKGROUND_CHECK_DEFAULT_PROVIDER", default="mock")
+BACKGROUND_CHECK_REQUIRE_CONSENT = config("BACKGROUND_CHECK_REQUIRE_CONSENT", default=True, cast=bool)
+BACKGROUND_CHECK_WEBHOOK_TOKEN = config("BACKGROUND_CHECK_WEBHOOK_TOKEN", default="")
+BACKGROUND_CHECK_HTTP_BASE_URL = config("BACKGROUND_CHECK_HTTP_BASE_URL", default="")
+BACKGROUND_CHECK_HTTP_API_KEY = config("BACKGROUND_CHECK_HTTP_API_KEY", default="")
+BACKGROUND_CHECK_HTTP_TIMEOUT = config("BACKGROUND_CHECK_HTTP_TIMEOUT", default=15.0, cast=float)
+BACKGROUND_CHECK_HTTP_SUBMIT_PATH = config("BACKGROUND_CHECK_HTTP_SUBMIT_PATH", default="/checks")
+BACKGROUND_CHECK_HTTP_REFRESH_PATH_TEMPLATE = config(
+    "BACKGROUND_CHECK_HTTP_REFRESH_PATH_TEMPLATE",
+    default="/checks/{external_reference}",
+)
+BACKGROUND_CHECK_HTTP_AUTH_HEADER = config("BACKGROUND_CHECK_HTTP_AUTH_HEADER", default="Authorization")
+BACKGROUND_CHECK_HTTP_AUTH_SCHEME = config("BACKGROUND_CHECK_HTTP_AUTH_SCHEME", default="Bearer")
 
 # Security Settings (will be overridden in production)
 SECURE_SSL_REDIRECT = False
@@ -530,6 +645,7 @@ HEYGEN_AVATAR_ACTIVITY_IDLE_TIMEOUT = config(
 HEYGEN_AVATAR_LANGUAGE = config("HEYGEN_AVATAR_LANGUAGE", default="en")
 DJANGO_API_URL = config("DJANGO_API_URL", default="http://localhost:8000")
 SERVICE_TOKEN = config("SERVICE_TOKEN", default="")
+
 
 
 

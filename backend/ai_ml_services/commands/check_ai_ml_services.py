@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import compileall
 import importlib
+import json
 import re
 import shutil
 from pathlib import Path
-from typing import List, Tuple
+from typing import Any, List, Tuple
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
@@ -22,7 +23,7 @@ LEGACY_IMPORT_PATTERNS = (
 class Command(BaseCommand):
     help = (
         "Run AI/ML preflight checks: syntax/import smoke checks plus runtime "
-        "configuration and artifact validation."
+        "configuration, artifact validation, and model quality gates."
     )
     # Avoid unrelated project URL/system-check failures from blocking this targeted check.
     requires_system_checks: list[str] = []
@@ -38,7 +39,11 @@ class Command(BaseCommand):
         strict = bool(options.get("strict"))
         ai_ml_dir = Path(settings.BASE_DIR) / "ai_ml_services"
         if not ai_ml_dir.exists():
-            raise CommandError(f"Directory not found: {ai_ml_dir}")
+            module_dir = Path(__file__).resolve().parents[1]
+            if module_dir.exists():
+                ai_ml_dir = module_dir
+            else:
+                raise CommandError(f"Directory not found: {ai_ml_dir}")
 
         errors: List[str] = []
         warnings: List[str] = []
@@ -73,6 +78,11 @@ class Command(BaseCommand):
         self.stdout.write("Checking model artifact paths...")
         warnings.extend(self._check_model_artifacts())
 
+        self.stdout.write("Checking model quality gates...")
+        quality_errors, quality_warnings = self._check_model_quality()
+        errors.extend(quality_errors)
+        warnings.extend(quality_warnings)
+
         for message in warnings:
             self.stdout.write(self.style.WARNING(f"WARNING: {message}"))
         for message in errors:
@@ -84,7 +94,7 @@ class Command(BaseCommand):
             )
         if strict and warnings:
             raise CommandError(
-                f"ai_ml_services preflight strict mode failed with "
+                "ai_ml_services preflight strict mode failed with "
                 f"{len(warnings)} warning(s)."
             )
 
@@ -260,12 +270,151 @@ class Command(BaseCommand):
                     f"{setting_name} is not configured; runtime may fall back to heuristics."
                 )
                 continue
-            path = Path(str(raw_path))
-            if not path.is_absolute():
-                path = Path(settings.BASE_DIR) / path
+            path = self._resolve_path(raw_path)
             if not path.exists():
                 warnings.append(
                     f"{setting_name} points to a missing file: {path}"
                 )
 
         return warnings
+
+    def _resolve_path(self, raw_path: str | Path) -> Path:
+        path = Path(str(raw_path))
+        if not path.is_absolute():
+            path = Path(settings.BASE_DIR) / path
+        return path
+
+    def _load_report(self, setting_name: str, default_name: str) -> tuple[dict[str, Any] | None, Path, str | None]:
+        raw_path = getattr(settings, setting_name, default_name)
+        path = self._resolve_path(raw_path)
+        if not path.exists():
+            return None, path, f"{setting_name} not found at {path}"
+
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            return None, path, f"Failed to parse {path}: {exc}"
+
+        if not isinstance(payload, dict):
+            return None, path, f"{path} does not contain a JSON object."
+        return payload, path, None
+
+    def _check_metric(
+        self,
+        *,
+        metric_name: str,
+        metric_value: Any,
+        threshold: float,
+        gates_enabled: bool,
+        errors: List[str],
+        warnings: List[str],
+    ) -> None:
+        if metric_value is None:
+            warnings.append(f"Metric `{metric_name}` is missing from report.")
+            return
+
+        try:
+            value = float(metric_value)
+        except (TypeError, ValueError):
+            target = errors if gates_enabled else warnings
+            target.append(
+                f"Metric `{metric_name}` is non-numeric: {metric_value!r}."
+            )
+            return
+
+        if value < threshold:
+            message = (
+                f"Metric `{metric_name}`={value:.4f} is below minimum "
+                f"{threshold:.4f}."
+            )
+            if gates_enabled:
+                errors.append(message)
+            else:
+                warnings.append(message)
+
+    def _check_model_quality(self) -> Tuple[List[str], List[str]]:
+        errors: List[str] = []
+        warnings: List[str] = []
+
+        gates_enabled = bool(getattr(settings, "AI_ML_METRIC_GATES_ENABLED", False))
+
+        training_report, training_path, training_error = self._load_report(
+            "AI_ML_TRAINING_REPORT_PATH",
+            "models/training_report.json",
+        )
+        if training_error:
+            if gates_enabled:
+                errors.append(training_error)
+            else:
+                warnings.append(training_error)
+        elif training_report is not None:
+            self._check_metric(
+                metric_name="authenticity_pytorch.val_f1",
+                metric_value=(training_report.get("authenticity_pytorch") or {}).get("val_f1"),
+                threshold=float(getattr(settings, "AI_ML_METRIC_MIN_AUTHENTICITY_F1", 0.70)),
+                gates_enabled=gates_enabled,
+                errors=errors,
+                warnings=warnings,
+            )
+            self._check_metric(
+                metric_name="authenticity_pytorch.val_accuracy",
+                metric_value=(training_report.get("authenticity_pytorch") or {}).get("val_accuracy"),
+                threshold=float(
+                    getattr(settings, "AI_ML_METRIC_MIN_AUTHENTICITY_ACCURACY", 0.70)
+                ),
+                gates_enabled=gates_enabled,
+                errors=errors,
+                warnings=warnings,
+            )
+            self._check_metric(
+                metric_name="signature.val_f1",
+                metric_value=(training_report.get("signature") or {}).get("val_f1"),
+                threshold=float(getattr(settings, "AI_ML_METRIC_MIN_SIGNATURE_F1", 0.70)),
+                gates_enabled=gates_enabled,
+                errors=errors,
+                warnings=warnings,
+            )
+            self._check_metric(
+                metric_name="signature.val_accuracy",
+                metric_value=(training_report.get("signature") or {}).get("val_accuracy"),
+                threshold=float(
+                    getattr(settings, "AI_ML_METRIC_MIN_SIGNATURE_ACCURACY", 0.70)
+                ),
+                gates_enabled=gates_enabled,
+                errors=errors,
+                warnings=warnings,
+            )
+
+        classifier_report, classifier_path, classifier_error = self._load_report(
+            "AI_ML_DOC_CLASSIFIER_REPORT_PATH",
+            "models/document_classifier_training_report.json",
+        )
+        if classifier_error:
+            if gates_enabled:
+                errors.append(classifier_error)
+            else:
+                warnings.append(classifier_error)
+        elif classifier_report is not None:
+            self._check_metric(
+                metric_name="rvl_cdip.metrics.macro_f1",
+                metric_value=((classifier_report.get("rvl_cdip") or {}).get("metrics") or {}).get("macro_f1"),
+                threshold=float(getattr(settings, "AI_ML_METRIC_MIN_RVL_CDIP_MACRO_F1", 0.60)),
+                gates_enabled=gates_enabled,
+                errors=errors,
+                warnings=warnings,
+            )
+            self._check_metric(
+                metric_name="midv500.metrics.macro_f1",
+                metric_value=((classifier_report.get("midv500") or {}).get("metrics") or {}).get("macro_f1"),
+                threshold=float(getattr(settings, "AI_ML_METRIC_MIN_MIDV500_MACRO_F1", 0.40)),
+                gates_enabled=gates_enabled,
+                errors=errors,
+                warnings=warnings,
+            )
+
+        if gates_enabled and not errors and not warnings:
+            # Gives a positive signal that production-quality checks are active.
+            self.stdout.write(self.style.SUCCESS("Model quality gates are enabled and passed."))
+
+        _ = training_path, classifier_path
+        return errors, warnings

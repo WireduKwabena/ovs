@@ -11,10 +11,11 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.audit.events import log_event
 from apps.core.security import has_valid_service_token
+from ai_ml_services.monitoring.model_monitor import model_monitor
 from ai_ml_services.service import get_ai_service
 from ai_ml_services.utils.pdf import pdf2image_kwargs
-from ai_ml_services.monitoring.model_monitor import model_monitor
 
 try:
     from drf_spectacular.types import OpenApiTypes
@@ -42,6 +43,17 @@ def _is_admin_request(request) -> bool:
         or getattr(user, "user_type", None) in {"admin", "hr_manager"}
     )
 
+
+def _audit_ai_monitor_event(request, endpoint: str, changes: dict) -> None:
+    log_event(
+        request=request,
+        action="other",
+        entity_type="AIMonitorEndpoint",
+        entity_id=endpoint,
+        changes=changes,
+    )
+
+
 class MonitorHealthQuerySerializer(serializers.Serializer):
     model_name = serializers.CharField(required=False, default="default")
 
@@ -50,6 +62,19 @@ class DocumentClassificationUploadSerializer(serializers.Serializer):
     file = serializers.FileField(required=True)
     document_type = serializers.CharField(required=False, allow_blank=True, default="")
     top_k = serializers.IntegerField(required=False, default=3, min_value=1, max_value=5)
+
+
+class SocialProfileItemSerializer(serializers.Serializer):
+    platform = serializers.CharField(required=False, allow_blank=True, default="")
+    url = serializers.CharField(required=False, allow_blank=True, default="")
+    username = serializers.CharField(required=False, allow_blank=True, default="")
+    display_name = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class SocialProfileCheckSerializer(serializers.Serializer):
+    case_id = serializers.CharField(required=False, allow_blank=True, default="")
+    consent_provided = serializers.BooleanField(required=False, default=False)
+    profiles = SocialProfileItemSerializer(many=True, required=True, allow_empty=False)
 
 
 class MonitorHealthAPIView(APIView):
@@ -85,6 +110,12 @@ class MonitorHealthAPIView(APIView):
 
         metrics = model_monitor.get_metrics(model_name=model_name)
         drift = model_monitor.check_data_drift(model_name=model_name)
+
+        _audit_ai_monitor_event(
+            request,
+            endpoint="health",
+            changes={"model_name": model_name, "status": "ok"},
+        )
 
         return Response(
             {
@@ -179,6 +210,18 @@ class DocumentClassificationAPIView(APIView):
             document_type=document_type,
             top_k=top_k,
         )
+
+        _audit_ai_monitor_event(
+            request,
+            endpoint="classify-document",
+            changes={
+                "status": "ok",
+                "document_type": document_type,
+                "top_k": top_k,
+                "filename": uploaded_file.name,
+            },
+        )
+
         return Response(
             {
                 "status": "ok",
@@ -190,5 +233,66 @@ class DocumentClassificationAPIView(APIView):
         )
 
 
+class SocialProfileCheckAPIView(APIView):
+    permission_classes = [AllowAny]
+    serializer_class = SocialProfileCheckSerializer
+
+    @extend_schema(
+        request=SocialProfileCheckSerializer,
+        responses={
+            200: OpenApiTypes.OBJECT,
+            400: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+        },
+    )
+    def post(self, request):
+        """Run advisory social profile checks for a case."""
+        if not (_is_admin_request(request) or has_valid_service_token(request)):
+            return Response(
+                {
+                    "detail": "Forbidden. Use an admin account or a valid X-Service-Token."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        case_id = str(serializer.validated_data.get("case_id", "") or "").strip() or None
+        consent_provided = bool(serializer.validated_data.get("consent_provided", False))
+        profiles = serializer.validated_data.get("profiles", [])
+
+        result = get_ai_service().check_social_profiles(
+            profiles=profiles,
+            consent_provided=consent_provided,
+            case_id=case_id,
+        )
+
+        _audit_ai_monitor_event(
+            request,
+            endpoint="check-social-profiles",
+            changes={
+                "status": "ok",
+                "case_id": case_id or result.get("case_id"),
+                "consent_provided": bool(consent_provided),
+                "profiles_requested": len(profiles),
+                "profiles_checked": int(result.get("profiles_checked", 0) or 0),
+                "overall_score": float(result.get("overall_score", 0.0) or 0.0),
+                "risk_level": str(result.get("risk_level", "") or ""),
+                "recommendation": str(result.get("recommendation", "") or ""),
+            },
+        )
+
+        return Response(
+            {
+                "status": "ok",
+                "timestamp": timezone.now().isoformat(),
+                **result,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 monitor_health_view = MonitorHealthAPIView.as_view()
 document_classification_view = DocumentClassificationAPIView.as_view()
+social_profile_check_view = SocialProfileCheckAPIView.as_view()

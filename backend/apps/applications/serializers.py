@@ -162,6 +162,7 @@ class VettingCaseSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
     rubric_evaluation = serializers.SerializerMethodField(read_only=True)
+    social_profile_result = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = VettingCase
@@ -204,6 +205,7 @@ class VettingCaseSerializer(serializers.ModelSerializer):
             "expected_completion_date",
             "documents",
             "rubric_evaluation",
+            "social_profile_result",
         ]
         read_only_fields = [
             "id",
@@ -224,6 +226,7 @@ class VettingCaseSerializer(serializers.ModelSerializer):
             "completed_at",
             "documents",
             "rubric_evaluation",
+            "social_profile_result",
         ]
 
     @extend_schema_field(serializers.JSONField(allow_null=True))
@@ -238,6 +241,30 @@ class VettingCaseSerializer(serializers.ModelSerializer):
             "passes_threshold": evaluation.passes_threshold,
             "final_decision": evaluation.final_decision,
             "requires_manual_review": evaluation.requires_manual_review,
+        }
+
+    @extend_schema_field(serializers.JSONField(allow_null=True))
+    def get_social_profile_result(self, obj) -> dict[str, object] | None:
+        try:
+            social_result = obj.social_profile_result
+        except Exception:
+            social_result = None
+
+        if not social_result:
+            return None
+
+        return {
+            "id": str(social_result.id),
+            "consent_provided": social_result.consent_provided,
+            "profiles_checked": social_result.profiles_checked,
+            "overall_score": social_result.overall_score,
+            "risk_level": social_result.risk_level,
+            "recommendation": social_result.recommendation,
+            "automated_decision_allowed": social_result.automated_decision_allowed,
+            "decision_constraints": social_result.decision_constraints,
+            "profiles": social_result.profiles,
+            "checked_at": social_result.checked_at,
+            "updated_at": social_result.updated_at,
         }
 
 

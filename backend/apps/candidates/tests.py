@@ -2,7 +2,7 @@ from rest_framework.test import APITestCase
 
 from apps.authentication.models import User
 from apps.campaigns.models import VettingCampaign
-from apps.candidates.models import Candidate, CandidateEnrollment
+from apps.candidates.models import Candidate, CandidateEnrollment, CandidateSocialProfile
 
 
 class CandidateEnrollmentAuthorizationTests(APITestCase):
@@ -51,6 +51,20 @@ class CandidateEnrollmentAuthorizationTests(APITestCase):
             ),
             status="invited",
         )
+        self.profile_one = CandidateSocialProfile.objects.create(
+            candidate=self.candidate,
+            platform="linkedin",
+            url="https://linkedin.com/in/candidate-scope",
+            username="candidate-scope",
+            is_primary=True,
+        )
+        self.profile_two = CandidateSocialProfile.objects.create(
+            candidate=self.enrollment_two.candidate,
+            platform="github",
+            url="https://github.com/other-scope",
+            username="other-scope",
+            is_primary=True,
+        )
 
     def _items(self, payload):
         if isinstance(payload, list):
@@ -86,3 +100,44 @@ class CandidateEnrollmentAuthorizationTests(APITestCase):
         ids = {item["id"] for item in self._items(response.json())}
         self.assertIn(self.enrollment_one.id, ids)
         self.assertIn(self.enrollment_two.id, ids)
+
+    def test_hr_manager_lists_only_own_social_profiles(self):
+        self.client.force_authenticate(self.hr_one)
+        response = self.client.get("/api/social-profiles/")
+
+        self.assertEqual(response.status_code, 200)
+        ids = {item["id"] for item in self._items(response.json())}
+        self.assertIn(self.profile_one.id, ids)
+        self.assertNotIn(self.profile_two.id, ids)
+
+    def test_hr_manager_cannot_create_social_profile_for_other_campaign_candidate(self):
+        self.client.force_authenticate(self.hr_one)
+        response = self.client.post(
+            "/api/social-profiles/",
+            {
+                "candidate": self.enrollment_two.candidate.id,
+                "platform": "linkedin",
+                "url": "https://linkedin.com/in/not-allowed",
+                "username": "not-allowed",
+                "is_primary": False,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_can_create_social_profile_for_any_candidate(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(
+            "/api/social-profiles/",
+            {
+                "candidate": self.enrollment_two.candidate.id,
+                "platform": "linkedin",
+                "url": "https://linkedin.com/in/admin-created",
+                "username": "admin-created",
+                "is_primary": False,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["candidate"], self.enrollment_two.candidate.id)

@@ -5,10 +5,12 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
+from apps.audit.events import log_event
 from apps.invitations.permissions import IsAuthenticatedOrCandidateAccessSession
 
 from .models import Document, VettingCase
 from .serializers import DocumentSerializer, DocumentUploadSerializer, VettingCaseSerializer
+from .social_checks import run_case_social_profile_check
 from .tasks import verify_document_async
 
 
@@ -16,6 +18,35 @@ def _candidate_enrollment_id(request) -> int | None:
     candidate_session = getattr(request, "candidate_access_session", None)
     return getattr(candidate_session, "enrollment_id", None)
 
+
+def _audit_social_recheck(request, case: VettingCase, outcome: dict) -> None:
+    """Persist manual social re-check activity to audit trail when available."""
+    status_label = "ok" if outcome.get("success") else ("skipped" if outcome.get("reason") == "no_profiles" else "error")
+
+    result_payload = outcome.get("result") if isinstance(outcome.get("result"), dict) else {}
+    summary = {
+        "profiles_checked": int(result_payload.get("profiles_checked", 0) or 0),
+        "overall_score": float(result_payload.get("overall_score", 0.0) or 0.0),
+        "risk_level": str(result_payload.get("risk_level", "") or ""),
+        "recommendation": str(result_payload.get("recommendation", "") or ""),
+    }
+
+    changes = {
+        "event": "social_profile_recheck",
+        "status": status_label,
+        "case_code": str(case.case_id),
+        "reason": outcome.get("reason"),
+        "record_id": outcome.get("record_id"),
+        "result_summary": summary,
+    }
+
+    log_event(
+        request=request,
+        action="other",
+        entity_type="VettingCase",
+        entity_id=str(case.id),
+        changes=changes,
+    )
 
 class VettingCaseViewSet(viewsets.ModelViewSet):
     serializer_class = VettingCaseSerializer
@@ -115,6 +146,10 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
 
         unresolved_flags = case.interrogation_flags.exclude(status__in=["resolved", "dismissed"])
         evaluation = getattr(case, "rubric_evaluation", None)
+        try:
+            social_result = case.social_profile_result
+        except Exception:
+            social_result = None
 
         return Response(
             {
@@ -143,8 +178,50 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
                     if evaluation
                     else None
                 ),
+                "social_profile_result": (
+                    {
+                        "id": str(social_result.id),
+                        "consent_provided": social_result.consent_provided,
+                        "profiles_checked": social_result.profiles_checked,
+                        "overall_score": social_result.overall_score,
+                        "risk_level": social_result.risk_level,
+                        "recommendation": social_result.recommendation,
+                        "automated_decision_allowed": social_result.automated_decision_allowed,
+                        "decision_constraints": social_result.decision_constraints,
+                        "profiles": social_result.profiles,
+                        "checked_at": social_result.checked_at,
+                        "updated_at": social_result.updated_at,
+                    }
+                    if social_result
+                    else None
+                ),
             }
         )
+
+    @action(detail=True, methods=["post"], url_path="recheck-social-profiles")
+    def recheck_social_profiles(self, request, pk=None):
+        case = self.get_object()
+
+        if _candidate_enrollment_id(request):
+            raise PermissionDenied("Candidate session cannot trigger social profile re-check.")
+
+        user = request.user
+        if not (
+            getattr(user, "is_staff", False)
+            or getattr(user, "is_superuser", False)
+            or getattr(user, "user_type", None) in {"admin", "hr_manager"}
+        ):
+            raise PermissionDenied("Only HR managers/admins can trigger social profile re-check.")
+
+        outcome = run_case_social_profile_check(case)
+        _audit_social_recheck(request=request, case=case, outcome=outcome)
+        if outcome.get("success"):
+            return Response({"status": "ok", **outcome}, status=status.HTTP_200_OK)
+
+        if outcome.get("reason") == "no_profiles":
+            return Response({"status": "skipped", **outcome}, status=status.HTTP_200_OK)
+
+        return Response({"status": "error", **outcome}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class DocumentViewSet(viewsets.ReadOnlyModelViewSet):
@@ -173,3 +250,4 @@ class DocumentViewSet(viewsets.ReadOnlyModelViewSet):
         if getattr(user, "is_staff", False) or getattr(user, "user_type", None) in {"admin", "hr_manager"}:
             return queryset.order_by("-uploaded_at")
         return queryset.filter(Q(case__applicant=user) | Q(case__assigned_to=user)).order_by("-uploaded_at")
+

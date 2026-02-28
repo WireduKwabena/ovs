@@ -11,9 +11,9 @@ from apps.authentication.models import User
 from apps.campaigns.models import VettingCampaign
 from apps.candidates.models import Candidate, CandidateEnrollment
 from apps.interviews.models import InterviewQuestion, InterviewSession
-from apps.invitations.models import Invitation
+from apps.invitations.models import CandidateAccessPass, Invitation
 from apps.invitations.permissions import IsAuthenticatedOrCandidateAccessSession
-from apps.invitations.services import issue_candidate_access_pass
+from apps.invitations.services import CandidateAccessError, issue_candidate_access_pass, send_invitation
 
 
 class InvitationAuthorizationAndNegativeTests(APITestCase):
@@ -291,7 +291,10 @@ class CandidateAccessVettingEndpointsTests(APITestCase):
             return payload
         return payload.get("results", [])
 
-    def test_candidate_session_can_use_application_and_interview_endpoints(self):
+    @patch("apps.interviews.views.generate_session_summary_task.delay", return_value=None)
+    @patch("apps.interviews.signals.analyze_response_task.delay", return_value=None)
+    @patch("apps.applications.views.verify_document_async.delay", return_value=None)
+    def test_candidate_session_can_use_application_and_interview_endpoints(self, _mock_verify_delay, _mock_analyze_delay, _mock_summary_delay):
         cases = self.client.get("/api/applications/cases/")
         self.assertEqual(cases.status_code, 200)
         case_rows = self._items(cases.json())
@@ -455,3 +458,78 @@ class ServiceTokenPermissionTests(SimpleTestCase):
         allowed = self.permission.has_permission(request, view=None)
 
         self.assertFalse(allowed)
+
+
+class InvitationServiceHardeningTests(APITestCase):
+    def setUp(self):
+        self.hr = User.objects.create_user(
+            email="hr_inv_service@example.com",
+            password="Pass1234!",
+            first_name="HR",
+            last_name="Service",
+            user_type="hr_manager",
+        )
+        self.campaign = VettingCampaign.objects.create(name="Invitation Service Campaign", initiated_by=self.hr)
+        self.candidate = Candidate.objects.create(
+            first_name="Invite",
+            last_name="SMS",
+            email="invite_sms_candidate@example.com",
+            phone_number="+15550001111",
+        )
+        self.enrollment = CandidateEnrollment.objects.create(
+            campaign=self.campaign,
+            candidate=self.candidate,
+            status="invited",
+        )
+
+    def test_issue_candidate_access_pass_sanitizes_metadata(self):
+        access_pass, _ = issue_candidate_access_pass(
+            enrollment=self.enrollment,
+            issued_by=self.hr,
+            metadata={
+                "created_at": timezone.now(),
+                "tags": {"a", "b"},
+                99: object(),
+            },
+        )
+
+        self.assertIn("created_at", access_pass.metadata)
+        self.assertTrue(isinstance(access_pass.metadata["created_at"], str))
+        self.assertIn("tags", access_pass.metadata)
+        self.assertTrue(isinstance(access_pass.metadata["tags"], list))
+        self.assertIn("99", access_pass.metadata)
+        self.assertTrue(isinstance(access_pass.metadata["99"], str))
+
+    def test_send_invitation_sms_records_delivery_metadata(self):
+        invitation = Invitation.objects.create(
+            enrollment=self.enrollment,
+            channel="sms",
+            send_to=self.candidate.phone_number,
+            expires_at=timezone.now() + timedelta(hours=24),
+            created_by=self.hr,
+        )
+
+        send_invitation(invitation)
+
+        access_pass = CandidateAccessPass.objects.get(invitation=invitation)
+        self.assertEqual(access_pass.metadata.get("delivery_channel"), "sms")
+        self.assertEqual(access_pass.metadata.get("delivery_target"), invitation.send_to)
+        self.assertIn("access_url", access_pass.metadata)
+
+    def test_send_invitation_unsupported_channel_does_not_issue_access_pass(self):
+        invitation = Invitation.objects.create(
+            enrollment=self.enrollment,
+            channel="email",
+            send_to=self.candidate.email,
+            expires_at=timezone.now() + timedelta(hours=24),
+            created_by=self.hr,
+        )
+        Invitation.objects.filter(id=invitation.id).update(channel="fax")
+        invitation.refresh_from_db()
+
+        with self.assertRaises(CandidateAccessError) as exc:
+            send_invitation(invitation)
+
+        self.assertEqual(exc.exception.code, "unsupported_channel")
+        self.assertEqual(CandidateAccessPass.objects.filter(invitation=invitation).count(), 0)
+
