@@ -87,9 +87,21 @@ class Command(BaseCommand):
         parser.add_argument("--device", type=str, default="auto", choices=["auto", "cpu", "cuda"])
         parser.add_argument("--workspace", type=str, default=".tmp_ai_training")
         parser.add_argument("--keep-workspace", action="store_true")
-        parser.set_defaults(freeze_backbone=True)
+        parser.set_defaults(freeze_backbone=True, auth_pretrained_backbone=True)
         parser.add_argument("--freeze-backbone", dest="freeze_backbone", action="store_true")
         parser.add_argument("--no-freeze-backbone", dest="freeze_backbone", action="store_false")
+        parser.add_argument(
+            "--auth-pretrained-backbone",
+            dest="auth_pretrained_backbone",
+            action="store_true",
+            help="Use ImageNet pretrained weights for authenticity ResNet backbone.",
+        )
+        parser.add_argument(
+            "--no-auth-pretrained-backbone",
+            dest="auth_pretrained_backbone",
+            action="store_false",
+            help="Train authenticity ResNet backbone from random initialization.",
+        )
         parser.add_argument("--skip-authenticity", action="store_true")
         parser.add_argument("--skip-fraud", action="store_true")
         parser.add_argument("--skip-signature", action="store_true")
@@ -189,6 +201,7 @@ class Command(BaseCommand):
                     batch_size=int(options["batch_size"]),
                     num_workers=int(options["num_workers"]),
                     freeze_backbone=bool(options["freeze_backbone"]),
+                    pretrained_backbone=bool(options.get("auth_pretrained_backbone", True)),
                 )
                 report["authenticity_pytorch"] = pt_metrics
 
@@ -617,6 +630,7 @@ class Command(BaseCommand):
         batch_size: int,
         num_workers: int,
         freeze_backbone: bool,
+        pretrained_backbone: bool,
     ) -> Dict[str, float]:
         metadata = pd.read_csv(metadata_path)
         train_meta = metadata[metadata["split"] == "train"].reset_index(drop=True)
@@ -624,7 +638,7 @@ class Command(BaseCommand):
         train_dataset = DocumentAuthenticityDataset(
             metadata_df=train_meta,
             target_size=(224, 224),
-            augment=False,
+            augment=True,
         )
         val_dataset = DocumentAuthenticityDataset(
             metadata_df=val_meta,
@@ -646,7 +660,18 @@ class Command(BaseCommand):
             pin_memory=False,
         )
 
-        model = create_model("resnet18", pretrained=False).to(device)
+        try:
+            model = create_model("resnet18", pretrained=pretrained_backbone).to(device)
+        except Exception as exc:
+            if pretrained_backbone:
+                logger.warning(
+                    "Failed to initialize pretrained backbone (%s). Falling back to random init.",
+                    exc,
+                )
+                model = create_model("resnet18", pretrained=False).to(device)
+            else:
+                raise
+
         if freeze_backbone and hasattr(model, "backbone"):
             for parameter in model.backbone.parameters():
                 parameter.requires_grad = False
@@ -656,39 +681,74 @@ class Command(BaseCommand):
             raise CommandError("No trainable parameters found for authenticity model.")
 
         optimizer = torch.optim.Adam(trainable_params, lr=2e-4, weight_decay=1e-5)
-        criterion = torch.nn.BCELoss()
+        criterion = torch.nn.BCELoss(reduction="none")
 
-        best = {"f1": -1.0, "acc": 0.0, "epoch": 0, "state": None}
+        authentic_count = int((train_meta["label"].astype(str).str.lower() == "authentic").sum())
+        forged_count = max(0, int(len(train_meta) - authentic_count))
+        positive_weight = 1.0
+        if authentic_count > 0 and forged_count > 0:
+            positive_weight = max(1.0, float(forged_count) / float(authentic_count))
+        pos_weight_tensor = torch.tensor(float(positive_weight), dtype=torch.float32, device=device)
+        one_weight_tensor = torch.tensor(1.0, dtype=torch.float32, device=device)
+
+        if positive_weight > 1.0:
+            logger.info(
+                "Using authenticity positive class weight %.4f (authentic=%d, forged=%d)",
+                positive_weight,
+                authentic_count,
+                forged_count,
+            )
+
+        best = {"f1": -1.0, "acc": 0.0, "epoch": 0, "state": None, "threshold": 0.5}
         for epoch in range(max(1, epochs)):
             model.train()
             for batch in train_loader:
                 images, labels = batch[0].to(device), batch[1].float().unsqueeze(1).to(device)
                 optimizer.zero_grad()
                 out = model(images)
-                loss = criterion(out, labels)
+                loss_raw = criterion(out, labels)
+                sample_weights = torch.where(labels > 0.5, pos_weight_tensor, one_weight_tensor)
+                loss = (loss_raw * sample_weights).mean()
                 loss.backward()
                 optimizer.step()
 
             model.eval()
             y_true: List[int] = []
-            y_pred: List[int] = []
+            y_scores: List[float] = []
             with torch.no_grad():
                 for batch in val_loader:
                     images, labels = batch[0].to(device), batch[1].float().unsqueeze(1).to(device)
                     out = model(images)
-                    pred = (out > 0.5).int().cpu().numpy().flatten().tolist()
+                    scores = out.cpu().numpy().flatten().tolist()
                     truth = labels.int().cpu().numpy().flatten().tolist()
-                    y_pred.extend(pred)
+                    y_scores.extend([float(score) for score in scores])
                     y_true.extend(truth)
 
-            acc = float(accuracy_score(y_true, y_pred))
-            f1 = float(f1_score(y_true, y_pred, zero_division=0))
-            if f1 >= best["f1"]:
+            if not y_scores:
+                continue
+
+            thresholds = np.linspace(0.2, 0.8, 25, dtype=np.float32)
+            epoch_best_threshold = 0.5
+            epoch_best_f1 = -1.0
+            epoch_best_acc = 0.0
+            y_true_np = np.asarray(y_true, dtype=np.int32)
+            y_scores_np = np.asarray(y_scores, dtype=np.float32)
+
+            for threshold in thresholds:
+                preds = (y_scores_np >= float(threshold)).astype(np.int32)
+                f1_candidate = float(f1_score(y_true_np, preds, zero_division=0))
+                if f1_candidate > epoch_best_f1:
+                    epoch_best_f1 = f1_candidate
+                    epoch_best_threshold = float(threshold)
+                    epoch_best_acc = float(accuracy_score(y_true_np, preds))
+
+            if epoch_best_f1 >= best["f1"]:
                 best = {
-                    "f1": f1,
-                    "acc": acc,
+                    "f1": epoch_best_f1,
+                    "acc": epoch_best_acc,
                     "epoch": epoch + 1,
                     "state": {k: v.cpu() for k, v in model.state_dict().items()},
+                    "threshold": epoch_best_threshold,
                 }
 
         if best["state"] is None:
@@ -699,6 +759,7 @@ class Command(BaseCommand):
                 "model_state_dict": best["state"],
                 "epoch": best["epoch"],
                 "metrics": {"val_f1": best["f1"], "val_accuracy": best["acc"]},
+                "decision_threshold": best["threshold"],
             },
             output_path,
         )
@@ -707,6 +768,7 @@ class Command(BaseCommand):
             "val_accuracy": round(best["acc"], 6),
             "best_epoch": int(best["epoch"]),
             "output_path": str(output_path),
+            "decision_threshold": round(float(best.get("threshold", 0.5)), 6),
         }
 
     def _train_authenticity_tensorflow(

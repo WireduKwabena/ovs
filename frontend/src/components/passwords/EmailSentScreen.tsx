@@ -1,49 +1,49 @@
-// src/components/passwords/EmailSentScreen.tsx
 import React, { useMemo, useState } from "react";
-import { useLocation, Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import { ArrowLeft, MailCheck } from "lucide-react";
 import { toast } from "react-toastify";
+
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/common/Loader";
-import { MailCheck, ArrowLeft } from "lucide-react";
 import { authService } from "@/services/auth.service";
 
 export const EmailSentScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const location = useLocation();
+
   const email = location.state?.email || "";
   const hasEmail = Boolean(email.trim());
 
   const maskedEmail = useMemo(() => {
     if (!hasEmail || !email.includes("@")) return "";
+
     const [localPart, domain] = email.split("@");
     if (!localPart || !domain) return "";
-    const safeLocalPart =
+
+    const maskedLocal =
       localPart.length <= 2
         ? `${localPart[0] || ""}*`
         : `${localPart.slice(0, 2)}${"*".repeat(Math.max(localPart.length - 2, 2))}`;
-    return `${safeLocalPart}@${domain}`;
+
+    return `${maskedLocal}@${domain}`;
   }, [email, hasEmail]);
 
   const handleResend = async () => {
     if (!hasEmail) {
-      toast.error("No email address found. Please go back and try again.");
+      toast.error("No email address found. Request another reset link.");
       return;
     }
     if (loading) return;
+
     setLoading(true);
     try {
       await authService.requestPasswordReset(email);
-      toast.success(
-        "A new password reset link has been sent to your email address.",
-      );
+      toast.success("A new reset link has been sent.");
     } catch (error) {
       const err = error as Error;
-      toast.error(
-        err.message || "An unexpected error occurred. Please try again.",
-        {
-          toastId: "email-sent-resend-error",
-        },
-      );
+      toast.error(err.message || "Failed to resend email. Try again.", {
+        toastId: "email-sent-resend-error",
+      });
     } finally {
       setLoading(false);
     }
@@ -51,32 +51,27 @@ export const EmailSentScreen: React.FC = () => {
 
   if (!hasEmail) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center p-4">
-        <div className="w-full max-w-md rounded-3xl border border-gray-100 bg-white shadow-2xl p-8 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="bg-amber-50 rounded-2xl p-4">
-              <MailCheck className="mx-auto h-10 w-10 text-amber-500" />
-            </div>
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-8">
+        <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-[0_24px_60px_-40px_rgba(15,23,42,0.8)]">
+          <div className="mx-auto mb-4 inline-flex rounded-full bg-amber-50 p-4 text-amber-700">
+            <MailCheck className="h-8 w-8" />
           </div>
-          <h1 className="mt-2 text-2xl font-extrabold text-gray-900">
-            Email context missing
-          </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            This page was opened without an email context. Request another
-            password reset link to continue.
+          <h1 className="text-2xl font-black text-slate-900">Email context missing</h1>
+          <p className="mt-3 text-sm text-slate-600">
+            This page needs an email context. Request another password reset link.
           </p>
-          <div className="mt-6 flex flex-col gap-3">
+          <div className="mt-6 space-y-3">
             <Link
               to="/forgot-password"
-              className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition-all hover:scale-[1.02]"
+              className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-cyan-700 px-4 text-sm font-semibold text-white transition hover:bg-cyan-800"
             >
               Request reset link
             </Link>
             <Link
               to="/login"
-              className="inline-flex items-center justify-center rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
             >
-              Back to Sign In
+              Back to sign in
             </Link>
           </div>
         </div>
@@ -85,57 +80,46 @@ export const EmailSentScreen: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-green-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse delay-1000 pointer-events-none" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-100 px-4 py-8">
+      <div className="pointer-events-none absolute -left-20 top-4 h-72 w-72 rounded-full bg-cyan-200/50 blur-3xl" />
+      <div className="pointer-events-none absolute -right-24 bottom-0 h-80 w-80 rounded-full bg-amber-200/50 blur-3xl" />
 
-      <div className="relative w-full max-w-lg mx-auto rounded-3xl shadow-2xl overflow-hidden bg-white border border-gray-100">
-        <div className="p-8 md:p-12 text-center">
-          {/* Success icon */}
-          <div className="flex justify-center mb-6">
-            <div className="bg-green-50 rounded-full p-5 ring-8 ring-green-50">
-              <MailCheck className="h-12 w-12 text-green-500" />
-            </div>
-          </div>
+      <div className="relative w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-[0_24px_70px_-40px_rgba(15,23,42,0.8)] sm:p-10">
+        <div className="mx-auto mb-5 inline-flex rounded-full bg-emerald-50 p-4 text-emerald-700 ring-8 ring-emerald-100/70">
+          <MailCheck className="h-10 w-10" />
+        </div>
 
-          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
-            Check Your Email
-          </h1>
-          <p className="text-gray-500 mt-4">
-            We&apos;ve sent a password reset link to{" "}
-            <span className="font-semibold text-indigo-600">{maskedEmail}</span>
-            .
-          </p>
-          <p className="text-gray-400 mt-2 text-sm">
-            Please follow the instructions in the email to reset your password.
-            If you don&apos;t see it, check your spam folder.
-          </p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">Password actions</p>
+        <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Check your inbox</h1>
+        <p className="mt-4 text-sm text-slate-600">
+          We sent a reset link to <span className="font-bold text-slate-900">{maskedEmail}</span>. If you do not see it,
+          check spam.
+        </p>
 
-          <div className="mt-8 space-y-3">
-            <Button
-              onClick={handleResend}
-              size="lg"
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-base rounded-xl py-3 transition-all duration-200 hover:scale-[1.02] active:scale-95 shadow-md hover:shadow-indigo-200"
-              disabled={loading}
-            >
-              {loading ? (
-                <span className="inline-flex items-center gap-2">
-                  <Loader size="sm" color="white" />
-                  Resending...
-                </span>
-              ) : (
-                "Resend Email"
-              )}
-            </Button>
+        <div className="mt-8 space-y-3">
+          <Button
+            onClick={handleResend}
+            size="lg"
+            className="h-12 w-full rounded-xl bg-cyan-700 text-sm font-bold text-white transition hover:bg-cyan-800"
+            disabled={loading}
+          >
+            {loading ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader size="sm" color="white" />
+                Resending...
+              </span>
+            ) : (
+              "Resend email"
+            )}
+          </Button>
 
-            <Link
-              to="/login"
-              className="inline-flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Sign In
-            </Link>
-          </div>
+          <Link
+            to="/login"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to sign in
+          </Link>
         </div>
       </div>
     </div>

@@ -1,6 +1,16 @@
-// src/services/auth.service.ts (Tweaked)
-import api from './api';
-import type { User, AdminUser, AuthTokens, ApiError } from '@/types';  // Add ApiError
+import api from "./api";
+import type {
+  AdminUser,
+  ApiError,
+  AuthTokens,
+  LoginAttemptResponse,
+  LoginResponse,
+  RegisterResponse,
+  TwoFactorBackupCodesResponse,
+  TwoFactorSetupResponse,
+  TwoFactorStatusResponse,
+  User,
+} from "@/types";
 
 export interface LoginCredentials {
   email: string;
@@ -16,57 +26,80 @@ export interface RegisterData {
   phone_number: string;
   organization: string;
   department: string;
+  subscription_reference?: string;
 }
 
-export interface LoginResponse {
-  user: User | AdminUser;
-  tokens: AuthTokens;
-  user_type?: 'applicant' | 'hr_manager' | 'admin';
+export interface TwoFactorVerifyPayload {
+  token: string;
+  otp?: string;
+  backup_code?: string;
 }
+
+export interface ProfileResponse {
+  user: User | AdminUser;
+  user_type: "applicant" | "hr_manager" | "admin";
+}
+
+const toApiError = (error: any, fallback: string): Error => {
+  const payload = error?.response?.data as ApiError & {
+    detail?: string;
+    error?: string;
+  };
+
+  return new Error(payload?.message || payload?.detail || payload?.error || fallback);
+};
 
 export const authService = {
-  async login(credentials: LoginCredentials): Promise<LoginResponse> {
+  async login(credentials: LoginCredentials): Promise<LoginAttemptResponse> {
     try {
-      const response = await api.post<LoginResponse>('/auth/login/', credentials);
+      const response = await api.post<LoginAttemptResponse>("/auth/login/", credentials);
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Login failed');  // Typed error
+      throw toApiError(error, "Login failed");
     }
   },
 
-  async register(data: RegisterData): Promise<LoginResponse> {
+  async verifyTwoFactor(data: TwoFactorVerifyPayload): Promise<LoginResponse> {
     try {
-      const response = await api.post<LoginResponse>('/auth/register/', data);
+      const response = await api.post<LoginResponse>("/auth/login/verify/", data);
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Registration failed');
+      throw toApiError(error, "Two-factor verification failed");
+    }
+  },
+
+  async register(data: RegisterData): Promise<RegisterResponse> {
+    try {
+      const response = await api.post<RegisterResponse>("/auth/register/", data);
+      return response.data;
+    } catch (error: any) {
+      throw toApiError(error, "Registration failed");
     }
   },
 
   async logout(refreshToken: string): Promise<void> {
     try {
-      await api.post('/auth/logout/', { refresh: refreshToken });
-    } catch (error: any) {
-      // Logout even on error (blacklist best-effort)
-      console.warn('Logout API failed:', error);
+      await api.post("/auth/logout/", { refresh: refreshToken });
+    } catch {
+      // best effort only
     }
   },
 
-  async getProfile(): Promise<{ user: User | AdminUser; user_type: string }> {
+  async getProfile(): Promise<ProfileResponse> {
     try {
-      const response = await api.get('/auth/profile/');
+      const response = await api.get<ProfileResponse>("/auth/profile/");
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Profile fetch failed');
+      throw toApiError(error, "Profile fetch failed");
     }
   },
 
   async updateProfile(data: Partial<User | AdminUser>): Promise<User | AdminUser> {
     try {
-      const response = await api.put('/auth/profile/update/', data);
+      const response = await api.put<User | AdminUser>("/auth/profile/update/", data);
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Update failed');
+      throw toApiError(error, "Update failed");
     }
   },
 
@@ -76,40 +109,79 @@ export const authService = {
     new_password_confirm: string;
   }): Promise<void> {
     try {
-      await api.post('/auth/change-password/', data);
+      await api.post("/auth/change-password/", data);
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Password change failed');
+      throw toApiError(error, "Password change failed");
     }
   },
 
-  async resetPassword(token: string, data: {
-    new_password1: string;
-    new_password2: string;
-  }): Promise<void> {
+  async resetPassword(
+    token: string,
+    data: { new_password: string; new_password_confirm: string },
+  ): Promise<void> {
     try {
-      await api.post('/auth/password-reset/confirm/', { ...data, token });
+      await api.post("/auth/password-reset-confirm/", { ...data, token });
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Password reset failed');
+      throw toApiError(error, "Password reset failed");
     }
   },
 
   async requestPasswordReset(email: string): Promise<void> {
     try {
-      await api.post('/auth/password-reset/', { email });
+      await api.post("/auth/password-reset/", { email });
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Reset request failed');
+      throw toApiError(error, "Reset request failed");
     }
   },
 
   async refreshToken(refreshToken: string): Promise<AuthTokens> {
     try {
-      const response = await api.post<AuthTokens>('/auth/token/refresh/', {
+      const response = await api.post<AuthTokens>("/auth/token/refresh/", {
         refresh: refreshToken,
       });
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Refresh failed');
+      throw toApiError(error, "Refresh failed");
     }
   },
 
+  async getTwoFactorStatus(): Promise<TwoFactorStatusResponse> {
+    try {
+      const response = await api.get<TwoFactorStatusResponse>("/auth/2fa/status/");
+      return response.data;
+    } catch (error: any) {
+      throw toApiError(error, "Failed to fetch security status");
+    }
+  },
+
+  async setupTwoFactor(): Promise<TwoFactorSetupResponse> {
+    try {
+      const response = await api.get<TwoFactorSetupResponse>("/auth/admin/2fa/setup/");
+      return response.data;
+    } catch (error: any) {
+      throw toApiError(error, "Failed to start 2FA setup");
+    }
+  },
+
+  async enableTwoFactor(otp: string): Promise<{ message: string }> {
+    try {
+      const response = await api.post<{ message: string }>("/auth/admin/2fa/enable/", { otp });
+      return response.data;
+    } catch (error: any) {
+      throw toApiError(error, "Failed to enable 2FA");
+    }
+  },
+
+  async regenerateBackupCodes(data: { otp?: string; backup_code?: string }): Promise<TwoFactorBackupCodesResponse> {
+    try {
+      const response = await api.post<TwoFactorBackupCodesResponse>(
+        "/auth/2fa/backup-codes/regenerate/",
+        data,
+      );
+      return response.data;
+    } catch (error: any) {
+      throw toApiError(error, "Failed to regenerate backup codes");
+    }
+  },
 };
+

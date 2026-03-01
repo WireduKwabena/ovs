@@ -89,3 +89,18 @@ class AdminDashboardAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["page"], 1)
         self.assertEqual(response.data["page_size"], 20)
+
+    def test_cases_supports_ordering(self):
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.get("/api/admin/cases/?ordering=created_at")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["ordering"], "created_at")
+        self.assertEqual(response.data["results"][0]["application_type"], "Employment")
+
+    def test_cases_invalid_ordering_falls_back_to_default(self):
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.get("/api/admin/cases/?ordering=unsupported_field")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["ordering"], "-created_at")

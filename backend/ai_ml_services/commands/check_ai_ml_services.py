@@ -337,7 +337,10 @@ class Command(BaseCommand):
         warnings: List[str] = []
 
         gates_enabled = bool(getattr(settings, "AI_ML_METRIC_GATES_ENABLED", False))
-
+        if not gates_enabled:
+            warnings.append(
+                "AI_ML_METRIC_GATES_ENABLED is disabled; strict quality gating is not enforced."
+            )
         training_report, training_path, training_error = self._load_report(
             "AI_ML_TRAINING_REPORT_PATH",
             "models/training_report.json",

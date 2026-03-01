@@ -11,6 +11,8 @@ Implements role-based access control (RBAC) with three user types:
 3. System Admins (full access)
 """
 
+from django.conf import settings
+from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 from django.core.validators import RegexValidator
@@ -18,6 +20,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 from datetime import timedelta
+import secrets
 import uuid
 try:
     import pyotp
@@ -107,6 +110,7 @@ class User(AbstractUser):
     # 2FA fields
     is_two_factor_enabled = models.BooleanField(default=False)
     two_factor_secret = models.CharField(max_length=32, blank=True, null=True)
+    two_factor_backup_codes = models.JSONField(default=list, blank=True)
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -154,6 +158,71 @@ class User(AbstractUser):
             return False
         totp = pyotp.TOTP(self.two_factor_secret)
         return totp.verify(token)
+
+    @staticmethod
+    def _normalize_backup_code(code: str) -> str:
+        return "".join(char for char in str(code or "").strip().upper() if char.isalnum())
+
+    def has_backup_codes(self) -> bool:
+        return bool(self.two_factor_backup_codes)
+
+    def generate_backup_codes(self, *, count=None, length=None, save=True) -> list[str]:
+        code_count = int(count or getattr(settings, "AUTH_TWO_FACTOR_BACKUP_CODE_COUNT", 8))
+        code_length = int(length or getattr(settings, "AUTH_TWO_FACTOR_BACKUP_CODE_LENGTH", 8))
+
+        if code_count <= 0:
+            code_count = 8
+        if code_length < 6:
+            code_length = 8
+
+        alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+        generated_codes: list[str] = []
+
+        while len(generated_codes) < code_count:
+            raw = "".join(secrets.choice(alphabet) for _ in range(code_length))
+            code = "-".join(raw[index:index + 4] for index in range(0, len(raw), 4))
+            if code not in generated_codes:
+                generated_codes.append(code)
+
+        self.two_factor_backup_codes = [
+            make_password(self._normalize_backup_code(code))
+            for code in generated_codes
+        ]
+        if save:
+            self.save(update_fields=["two_factor_backup_codes", "updated_at"])
+
+        return generated_codes
+
+    def verify_backup_code(self, code: str) -> bool:
+        normalized = self._normalize_backup_code(code)
+        if not normalized:
+            return False
+
+        for hashed_code in self.two_factor_backup_codes or []:
+            if hashed_code and check_password(normalized, hashed_code):
+                return True
+        return False
+
+    def consume_backup_code(self, code: str) -> bool:
+        normalized = self._normalize_backup_code(code)
+        if not normalized:
+            return False
+
+        remaining_codes: list[str] = []
+        consumed = False
+
+        for hashed_code in self.two_factor_backup_codes or []:
+            if not consumed and hashed_code and check_password(normalized, hashed_code):
+                consumed = True
+                continue
+            remaining_codes.append(hashed_code)
+
+        if not consumed:
+            return False
+
+        self.two_factor_backup_codes = remaining_codes
+        self.save(update_fields=["two_factor_backup_codes", "updated_at"])
+        return True
 
 
 class UserProfile(models.Model):

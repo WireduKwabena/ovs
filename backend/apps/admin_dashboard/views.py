@@ -42,6 +42,32 @@ def _parse_positive_int(value, *, default: int, minimum: int = 1, maximum: int |
     return parsed
 
 
+ADMIN_CASE_ORDERING_FIELDS = {
+    "case_id": "case_id",
+    "application_type": "position_applied",
+    "status": "status",
+    "priority": "priority",
+    "consistency_score": "consistency_score",
+    "fraud_risk_score": "fraud_risk_score",
+    "created_at": "created_at",
+    "updated_at": "updated_at",
+}
+
+
+def _parse_admin_case_ordering(value: str | None, *, default: str = "-created_at") -> str:
+    raw = (value or "").strip()
+    if not raw:
+        return default
+
+    descending = raw.startswith("-")
+    key = raw[1:] if descending else raw
+    mapped = ADMIN_CASE_ORDERING_FIELDS.get(key)
+    if not mapped:
+        return default
+
+    return f"-{mapped}" if descending else mapped
+
+
 @extend_schema(responses={200: AdminDashboardResponseSerializer})
 @api_view(['GET'])
 @permission_classes([IsAdminUser])
@@ -205,19 +231,23 @@ def admin_cases(request):
     if priority_filter:
         cases = cases.filter(priority=priority_filter)
     
-    # Pagination
+    # Ordering + pagination
+    ordering = _parse_admin_case_ordering(request.query_params.get('ordering'), default='-created_at')
     page = _parse_positive_int(request.query_params.get('page'), default=1, minimum=1)
     page_size = _parse_positive_int(request.query_params.get('page_size'), default=20, minimum=1, maximum=200)
-    
-    paginator = Paginator(cases.order_by('-created_at'), page_size)
+
+    paginator = Paginator(cases.order_by(ordering), page_size)
     page_obj = paginator.get_page(page)
-    
+
     serializer = VettingCaseAdminSerializer(page_obj, many=True)
-    
+
     return Response({
         'results': serializer.data,
         'count': paginator.count,
         'page': page,
         'page_size': page_size,
-        'total_pages': paginator.num_pages
+        'total_pages': paginator.num_pages,
+        'ordering': ordering,
     })
+
+

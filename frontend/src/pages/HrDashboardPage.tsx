@@ -17,6 +17,7 @@ import { campaignService } from '@/services/campaign.service';
 import type { CampaignDashboard, VettingCampaign } from '@/types';
 import { formatDate } from '@/utils/helper';
 import { useAuth } from '@/hooks/useAuth';
+import BillingHealthCard, { type BillingHealthStatus } from '@/components/admin/BillingHealthCard';
 
 interface CampaignWithMetrics {
   campaign: VettingCampaign;
@@ -83,6 +84,32 @@ const FILTER_PRESETS: Array<{
   { id: 'draft_only', label: 'Drafts Only', status: 'draft', window: 'all' },
   { id: 'archived_365', label: 'Archived 1y', status: 'archived', window: '365' },
 ];
+
+const BILLING_HEALTH_STATUS_META: Record<
+  BillingHealthStatus,
+  { label: string; containerClass: string; dotClass: string }
+> = {
+  checking: {
+    label: 'Checking',
+    containerClass: 'bg-white/10 text-slate-100 border border-white/20',
+    dotClass: 'bg-slate-300',
+  },
+  healthy: {
+    label: 'Healthy',
+    containerClass: 'bg-emerald-500/20 text-emerald-100 border border-emerald-300/40',
+    dotClass: 'bg-emerald-300',
+  },
+  attention: {
+    label: 'Needs Attention',
+    containerClass: 'bg-amber-500/20 text-amber-100 border border-amber-300/40',
+    dotClass: 'bg-amber-300',
+  },
+  unavailable: {
+    label: 'Unavailable',
+    containerClass: 'bg-rose-500/20 text-rose-100 border border-rose-300/40',
+    dotClass: 'bg-rose-300',
+  },
+};
 
 const isDashboardStatusFilter = (value: string): value is DashboardStatusFilter =>
   STATUS_FILTER_OPTIONS.includes(value as DashboardStatusFilter);
@@ -223,6 +250,7 @@ const HrDashboardPage: React.FC = () => {
     isCampaignPulseSort(pulseFromQuery) ? pulseFromQuery : 'recent'
   );
   const [shouldLoadCharts, setShouldLoadCharts] = useState(false);
+  const [billingHealthStatus, setBillingHealthStatus] = useState<BillingHealthStatus>('checking');
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
@@ -929,6 +957,14 @@ const HrDashboardPage: React.FC = () => {
             <p className="text-slate-200 mt-1">
               Welcome, {displayName}. Campaign performance and candidate pipeline are summarized here.
             </p>
+            <div
+              className={`mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${BILLING_HEALTH_STATUS_META[billingHealthStatus].containerClass}`}
+            >
+              <span
+                className={`h-2 w-2 rounded-full ${BILLING_HEALTH_STATUS_META[billingHealthStatus].dotClass}`}
+              />
+              <span>Billing Runtime Status: {BILLING_HEALTH_STATUS_META[billingHealthStatus].label}</span>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -1311,38 +1347,41 @@ const HrDashboardPage: React.FC = () => {
           )}
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="text-lg font-semibold inline-flex items-center gap-2">
-            <Activity className="w-5 h-5 text-teal-600" />
-            Quick Actions
-          </h2>
-          <div className="mt-4 space-y-3">
-            <button
-              type="button"
-              onClick={() => navigate('/campaigns')}
-              className="w-full rounded-lg border border-slate-200 px-4 py-3 text-left hover:bg-slate-50"
-            >
-              <p className="font-medium text-slate-900">Create / Edit Campaign</p>
-              <p className="text-xs text-slate-500">Configure campaign window and rules.</p>
-            </button>
+        <div className="space-y-4">
+          <BillingHealthCard onStatusChange={setBillingHealthStatus} />
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <h2 className="text-lg font-semibold inline-flex items-center gap-2">
+              <Activity className="w-5 h-5 text-teal-600" />
+              Quick Actions
+            </h2>
+            <div className="mt-4 space-y-3">
+              <button
+                type="button"
+                onClick={() => navigate('/campaigns')}
+                className="w-full rounded-lg border border-slate-200 px-4 py-3 text-left hover:bg-slate-50"
+              >
+                <p className="font-medium text-slate-900">Create / Edit Campaign</p>
+                <p className="text-xs text-slate-500">Configure campaign window and rules.</p>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => navigate('/campaigns')}
-              className="w-full rounded-lg border border-slate-200 px-4 py-3 text-left hover:bg-slate-50"
-            >
-              <p className="font-medium text-slate-900">Import Candidate Batch</p>
-              <p className="text-xs text-slate-500">Upload candidate list and trigger invitations.</p>
-            </button>
+              <button
+                type="button"
+                onClick={() => navigate('/campaigns')}
+                className="w-full rounded-lg border border-slate-200 px-4 py-3 text-left hover:bg-slate-50"
+              >
+                <p className="font-medium text-slate-900">Import Candidate Batch</p>
+                <p className="text-xs text-slate-500">Upload candidate list and trigger invitations.</p>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => navigate('/notifications')}
-              className="w-full rounded-lg border border-slate-200 px-4 py-3 text-left hover:bg-slate-50"
-            >
-              <p className="font-medium text-slate-900">Review Alerts</p>
-              <p className="text-xs text-slate-500">Monitor delivery and vetting notifications.</p>
-            </button>
+              <button
+                type="button"
+                onClick={() => navigate('/notifications')}
+                className="w-full rounded-lg border border-slate-200 px-4 py-3 text-left hover:bg-slate-50"
+              >
+                <p className="font-medium text-slate-900">Review Alerts</p>
+                <p className="text-xs text-slate-500">Monitor delivery and vetting notifications.</p>
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -1351,3 +1390,6 @@ const HrDashboardPage: React.FC = () => {
 };
 
 export default HrDashboardPage;
+
+
+
