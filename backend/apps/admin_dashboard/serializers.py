@@ -112,3 +112,5 @@ class AdminCasesResponseSerializer(serializers.Serializer):
     page = serializers.IntegerField()
     page_size = serializers.IntegerField()
     total_pages = serializers.IntegerField()
+    ordering = serializers.CharField(required=False)
+

@@ -8,11 +8,14 @@ import { setError } from '@/store/errorSlice';
 const API_URL = ((import.meta as any).env?.VITE_API_URL) || 'http://localhost:8000/api';
 const AUTH_ENDPOINTS = [
   '/auth/login/',
+  '/auth/login/verify/',
+  '/auth/admin/login/',
+  '/auth/admin/login/verify/',
   '/auth/register/',
   '/auth/logout/',
   '/auth/token/refresh/',
   '/auth/password-reset/',
-  '/auth/password-reset/confirm/',
+  '/auth/password-reset-confirm/',
 ];
 
 const isAuthEndpoint = (url?: string) => {
@@ -105,3 +108,4 @@ export const handleApiError = (error: unknown): string => {
   }
   return 'An unexpected error occurred';
 };
+

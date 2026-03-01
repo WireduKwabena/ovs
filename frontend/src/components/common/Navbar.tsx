@@ -1,7 +1,7 @@
 // src/components/common/Navbar.tsx (Fixed - Type-Safe User Display)
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, LogOut, Menu, X, ChevronDown, KeyRound, Shield } from 'lucide-react';
+import { Bell, LogOut, Menu, X, ChevronDown, KeyRound, Shield, ShieldCheck } from 'lucide-react';
 import { Button } from '../ui/button';
 import type { AppDispatch, RootState } from '@/app/store';
 import { useDispatch, useSelector } from 'react-redux';
@@ -69,19 +69,25 @@ export const Navbar: React.FC = () => {
     ? (user as AdminUser)?.username 
     : (user as User)?.full_name;
 
-  const roleLabel =
-    userType === 'admin' ? 'Admin' : userType === 'hr_manager' ? 'HR Manager' : 'Applicant';
+  const roleLabel = userType === 'admin' ? 'Admin' : userType === 'hr_manager' ? 'HR Manager' : userType === 'applicant' ? 'Applicant' : 'User';
   const navLinks =
-    userType === 'applicant'
+    userType === 'admin'
       ? [
-          { to: '/dashboard', label: 'Dashboard' },
-          { to: '/applications', label: 'Applications' },
+          { to: '/admin/dashboard', label: 'Dashboard' },
+          { to: '/admin/cases', label: 'Cases' },
+          { to: '/admin/rubrics', label: 'Rubrics' },
+          { to: '/admin/analytics', label: 'Analytics' },
         ]
-      : [
-          { to: '/dashboard', label: 'Dashboard' },
-          { to: '/campaigns', label: 'Campaigns' },
-          { to: '/applications', label: 'Cases' },
-        ];
+      : userType === 'applicant'
+        ? [
+            { to: '/dashboard', label: 'Dashboard' },
+            { to: '/applications', label: 'Applications' },
+          ]
+        : [
+            { to: '/dashboard', label: 'Dashboard' },
+            { to: '/campaigns', label: 'Campaigns' },
+            { to: '/applications', label: 'Cases' },
+          ];
   
   const initial = displayName?.charAt(0).toUpperCase() || '?';
 
@@ -142,6 +148,14 @@ export const Navbar: React.FC = () => {
               </button>
               {profileMenuOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-20 border">
+                  <Link
+                    to="/security"
+                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setProfileMenuOpen(false)}
+                  >
+                    <ShieldCheck className="w-4 h-4 mr-2" />
+                    Security
+                  </Link>
                   <Link
                     to="/change-password"
                     className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -217,6 +231,14 @@ export const Navbar: React.FC = () => {
               )}
             </Link>
             <Link
+              to="/security"
+              className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <ShieldCheck className="w-5 h-5 mr-2 text-gray-600" />
+              <span className="text-gray-700">Security</span>
+            </Link>
+            <Link
               to="/change-password"
               className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100"
               onClick={() => setMobileMenuOpen(false)}
@@ -240,3 +262,4 @@ export const Navbar: React.FC = () => {
     </nav>
   );
 };
+

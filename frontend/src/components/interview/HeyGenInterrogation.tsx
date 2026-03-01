@@ -299,7 +299,7 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
       }
 
       // Extract audio for transcription
-      const audioBase64 = await blobToBase64(await extractAudio());
+      const audioBase64 = await blobToBase64(await extractAudio(videoBlob));
 
       // Send completion message via WebSocket
       const wasSent = sendMessage({
@@ -319,13 +319,83 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
     }
   };
 
-  const extractAudio = async (): Promise<Blob> => {
-    // TODO: Implement proper audio extraction from the video blob.
-    // The current implementation is a placeholder and returns an empty audio blob.
-    console.warn(
-      'Audio extraction is not fully implemented. Using a placeholder.'
-    );
-    return new Blob([], { type: 'audio/wav' });
+  const extractAudio = async (videoBlob: Blob): Promise<Blob> => {
+    const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext) as
+      | typeof AudioContext
+      | undefined;
+
+    if (!AudioContextClass) {
+      console.warn('Web Audio API is unavailable. Sending video blob as transcription fallback.');
+      return videoBlob;
+    }
+
+    let audioContext: AudioContext | null = null;
+
+    try {
+      const arrayBuffer = await videoBlob.arrayBuffer();
+      audioContext = new AudioContextClass();
+      const decodedBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+
+      const channels = decodedBuffer.numberOfChannels;
+      const sampleRate = decodedBuffer.sampleRate;
+      const samples = decodedBuffer.length;
+      const channelData = Array.from({ length: channels }, (_, index) => decodedBuffer.getChannelData(index));
+
+      const interleaved = new Float32Array(samples * channels);
+      for (let sampleIndex = 0; sampleIndex < samples; sampleIndex += 1) {
+        for (let channelIndex = 0; channelIndex < channels; channelIndex += 1) {
+          interleaved[sampleIndex * channels + channelIndex] = channelData[channelIndex][sampleIndex] || 0;
+        }
+      }
+
+      const bytesPerSample = 2;
+      const blockAlign = channels * bytesPerSample;
+      const byteRate = sampleRate * blockAlign;
+      const dataSize = interleaved.length * bytesPerSample;
+      const buffer = new ArrayBuffer(44 + dataSize);
+      const view = new DataView(buffer);
+
+      const writeString = (offset: number, value: string) => {
+        for (let i = 0; i < value.length; i += 1) {
+          view.setUint8(offset + i, value.charCodeAt(i));
+        }
+      };
+
+      writeString(0, 'RIFF');
+      view.setUint32(4, 36 + dataSize, true);
+      writeString(8, 'WAVE');
+      writeString(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, channels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, byteRate, true);
+      view.setUint16(32, blockAlign, true);
+      view.setUint16(34, 16, true);
+      writeString(36, 'data');
+      view.setUint32(40, dataSize, true);
+
+      let offset = 44;
+      for (let i = 0; i < interleaved.length; i += 1) {
+        const sample = Math.max(-1, Math.min(1, interleaved[i]));
+        const pcm = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
+        view.setInt16(offset, pcm, true);
+        offset += 2;
+      }
+
+      return new Blob([buffer], { type: 'audio/wav' });
+    } catch (extractError) {
+      console.warn('Audio extraction failed. Sending original video blob as fallback.', extractError);
+      return videoBlob;
+    } finally {
+      if (audioContext) {
+        try {
+          await audioContext.close();
+        } catch {
+          // Ignore close failures.
+        }
+      }
+    }
   };
 
   const blobToBase64 = (blob: Blob): Promise<string> => {
@@ -701,3 +771,5 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
     </div>
   );
 };
+
+

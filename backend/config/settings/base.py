@@ -112,6 +112,7 @@ INSTALLED_APPS = [
     "apps.notifications.apps.NotificationsConfig",
     "apps.audit",
     "apps.fraud",
+    "apps.billing",
     "apps.background_checks",
     "apps.ml_monitoring",
     "ai_ml_services.apps.AiMlServicesConfig",
@@ -185,6 +186,22 @@ except ImportError:  # pragma: no cover - optional in local/dev
 
 # Custom User Model
 AUTH_USER_MODEL = 'authentication.User'
+AUTH_PUBLIC_REGISTRATION_ENABLED = env_bool('AUTH_PUBLIC_REGISTRATION_ENABLED', default=False)
+AUTH_TWO_FACTOR_CHALLENGE_TTL_SECONDS = config(
+    'AUTH_TWO_FACTOR_CHALLENGE_TTL_SECONDS',
+    default=300,
+    cast=int,
+)
+AUTH_TWO_FACTOR_BACKUP_CODE_COUNT = config(
+    'AUTH_TWO_FACTOR_BACKUP_CODE_COUNT',
+    default=8,
+    cast=int,
+)
+AUTH_TWO_FACTOR_BACKUP_CODE_LENGTH = config(
+    'AUTH_TWO_FACTOR_BACKUP_CODE_LENGTH',
+    default=8,
+    cast=int,
+)
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -581,7 +598,24 @@ BACKGROUND_CHECK_HTTP_REFRESH_PATH_TEMPLATE = config(
 )
 BACKGROUND_CHECK_HTTP_AUTH_HEADER = config("BACKGROUND_CHECK_HTTP_AUTH_HEADER", default="Authorization")
 BACKGROUND_CHECK_HTTP_AUTH_SCHEME = config("BACKGROUND_CHECK_HTTP_AUTH_SCHEME", default="Bearer")
-
+BILLING_SUBSCRIPTION_TICKET_TTL_HOURS = config("BILLING_SUBSCRIPTION_TICKET_TTL_HOURS", default=24, cast=int)
+BILLING_SUBSCRIPTION_VERIFY_RATE_LIMIT_ENABLED = config(
+    "BILLING_SUBSCRIPTION_VERIFY_RATE_LIMIT_ENABLED",
+    default=True,
+    cast=bool,
+)
+BILLING_SUBSCRIPTION_VERIFY_RATE_LIMIT_PER_MINUTE = config(
+    "BILLING_SUBSCRIPTION_VERIFY_RATE_LIMIT_PER_MINUTE",
+    default=30,
+    cast=int,
+)
+BILLING_HEALTH_REQUIRE_STAFF = config(
+    "BILLING_HEALTH_REQUIRE_STAFF",
+    default=False,
+    cast=bool,
+)
+STRIPE_SECRET_KEY = config("STRIPE_SECRET_KEY", default="")
+STRIPE_WEBHOOK_SECRET = config("STRIPE_WEBHOOK_SECRET", default="")
 # Security Settings (will be overridden in production)
 SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = False
@@ -645,6 +679,11 @@ HEYGEN_AVATAR_ACTIVITY_IDLE_TIMEOUT = config(
 HEYGEN_AVATAR_LANGUAGE = config("HEYGEN_AVATAR_LANGUAGE", default="en")
 DJANGO_API_URL = config("DJANGO_API_URL", default="http://localhost:8000")
 SERVICE_TOKEN = config("SERVICE_TOKEN", default="")
+
+
+
+
+
 
 
 

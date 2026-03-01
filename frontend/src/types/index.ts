@@ -255,6 +255,30 @@ export interface DashboardStats {
   fraud_detection_rate?: number;
 }
 
+
+export interface AdminCase {
+  id: number;
+  case_id: string;
+  applicant_name: string;
+  applicant_email: string;
+  status: ApplicationStatus;
+  application_type: string;
+  priority: Priority | string;
+  consistency_score?: number | null;
+  fraud_risk_score?: number | null;
+  created_at: string;
+  updated_at: string;
+  admin?: string | null;
+}
+
+export interface AdminCasesResponse {
+  results: AdminCase[];
+  count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  ordering?: string;
+}
 export type CampaignStatus = 'draft' | 'active' | 'closed' | 'archived';
 
 export interface VettingCampaign {
@@ -413,6 +437,7 @@ export interface RegisterData {
   phone_number: string;
   organization: string;
   department: string;
+  subscription_reference?: string;
 }
 
 export interface CreateApplicationData {
@@ -445,9 +470,41 @@ export interface LoginResponse {
   user: User | AdminUser;
   tokens: AuthTokens;
   user_type?: 'applicant' | 'hr_manager' | 'admin';
+  backup_codes?: string[];
 }
 
-export interface RegisterResponse extends LoginResponse {
+export interface TwoFactorStatusResponse {
+  user_type: "admin" | "hr_manager" | "applicant";
+  two_factor_required: boolean;
+  applicant_exempt: boolean;
+  is_two_factor_enabled: boolean;
+  has_totp_secret: boolean;
+  backup_codes_remaining: number;
+}
+
+export interface TwoFactorSetupResponse {
+  provisioning_uri: string;
+}
+
+export interface TwoFactorBackupCodesResponse {
+  message: string;
+  backup_codes: string[];
+}
+
+export interface TwoFactorChallengeResponse {
+  message: string;
+  token: string;
+  user_type?: 'applicant' | 'hr_manager' | 'admin';
+  setup_required?: boolean;
+  expires_in_seconds?: number;
+  provisioning_uri?: string | null;
+}
+
+export type LoginAttemptResponse = LoginResponse | TwoFactorChallengeResponse;
+
+export interface RegisterResponse {
+  user: User | AdminUser;
+  user_type?: 'applicant' | 'hr_manager' | 'admin';
   message?: string;
 }
 
@@ -465,7 +522,7 @@ export interface UploadDocumentResponse {
 
 export interface ProfileResponse {
   user: User | AdminUser;
-  user_type: string;
+  user_type: 'applicant' | 'hr_manager' | 'admin';
 }
 
 // Analytics/Chart Interfaces
@@ -528,3 +585,9 @@ export interface UploadProgress {
   status: 'uploading' | 'completed' | 'failed';
   error?: string;
 }
+
+
+
+
+
+

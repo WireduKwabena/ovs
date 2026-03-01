@@ -8,6 +8,7 @@ from tempfile import TemporaryDirectory
 import cv2
 import joblib
 import numpy as np
+import torch
 from django.test import SimpleTestCase
 from sklearn.linear_model import SGDClassifier
 from sklearn.pipeline import Pipeline
@@ -83,3 +84,47 @@ class DocumentTypeClassifierTests(SimpleTestCase):
         classifier = DocumentTypeClassifier(model_path="C:/missing/classifier.pkl")
         prediction = classifier.predict_file("C:/missing/image.png")
         self.assertFalse(prediction["available"])
+
+    def test_classifier_loads_torch_artifact(self):
+        with TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            invoice = root / "invoice.png"
+            resume = root / "resume.png"
+            self._write_image(invoice, "horizontal")
+            self._write_image(resume, "vertical")
+
+            try:
+                from torchvision import models as tv_models
+            except ModuleNotFoundError:
+                self.skipTest("torchvision not installed")
+
+            try:
+                model = tv_models.resnet18(weights=None)
+            except TypeError:
+                model = tv_models.resnet18(pretrained=False)
+            model.fc = torch.nn.Linear(model.fc.in_features, 2)
+
+            checkpoint_path = root / "rvl_classifier.pth"
+            torch.save({"model_state_dict": model.state_dict()}, checkpoint_path)
+
+            artifact_path = root / "rvl_classifier.pkl"
+            joblib.dump(
+                {
+                    "model_type": "torch_resnet18_classifier",
+                    "checkpoint_path": str(checkpoint_path),
+                    "classes": ["invoice", "resume"],
+                    "input_size": 224,
+                    "normalization": {
+                        "mean": [0.485, 0.456, 0.406],
+                        "std": [0.229, 0.224, 0.225],
+                    },
+                },
+                artifact_path,
+            )
+
+            classifier = DocumentTypeClassifier(model_path=artifact_path)
+            prediction = classifier.predict_file(invoice)
+
+            self.assertTrue(prediction["available"])
+            self.assertEqual(prediction.get("model_kind"), "torch")
+            self.assertIn(prediction["predicted_label"], {"invoice", "resume"})

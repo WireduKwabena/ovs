@@ -1,16 +1,16 @@
-// src/components/passwords/ForgotPasswordForm.tsx
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { toast } from "react-toastify";
+import { Mail, ShieldCheck } from "lucide-react";
+import { useDispatch, useSelector } from "react-redux";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader } from "@/components/common/Loader";
-import { Mail, Shield } from "lucide-react";
-import { Link } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
 import { type AppDispatch, type RootState } from "@/app/store";
 import {
   clearError,
@@ -18,11 +18,8 @@ import {
   resetPasswordStatus,
 } from "@/store/authSlice";
 
-const schema = yup.object().shape({
-  email: yup
-    .string()
-    .email("Invalid email format")
-    .required("Email is required"),
+const schema = yup.object({
+  email: yup.string().email("Enter a valid email address").required("Email is required"),
 });
 
 type ForgotPasswordFormData = { email: string };
@@ -50,12 +47,15 @@ export const ForgotPasswordForm: React.FC = () => {
   }, [dispatch]);
 
   useEffect(() => {
-    if (error) toast.error(error, { toastId: `forgot-password-${error}` });
+    if (error) {
+      toast.error(error, { toastId: `forgot-password-${error}` });
+    }
   }, [error]);
 
   useEffect(() => {
     return () => {
       dispatch(resetPasswordStatus());
+      dispatch(clearError());
     };
   }, [dispatch]);
 
@@ -75,152 +75,130 @@ export const ForgotPasswordForm: React.FC = () => {
   const maskedRequestedEmail = useMemo(() => {
     const email = requestedEmail.trim();
     if (!email.includes("@")) return "";
+
     const [localPart, domain] = email.split("@");
     if (!localPart || !domain) return "";
-    const safeLocalPart =
+
+    const maskedLocal =
       localPart.length <= 2
         ? `${localPart[0] || ""}*`
         : `${localPart.slice(0, 2)}${"*".repeat(Math.max(localPart.length - 2, 2))}`;
-    return `${safeLocalPart}@${domain}`;
+
+    return `${maskedLocal}@${domain}`;
   }, [requestedEmail]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse delay-1000 pointer-events-none" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-100 px-4 py-8">
+      <div className="pointer-events-none absolute -left-20 top-4 h-72 w-72 rounded-full bg-cyan-200/50 blur-3xl" />
+      <div className="pointer-events-none absolute -right-24 bottom-0 h-80 w-80 rounded-full bg-amber-200/50 blur-3xl" />
 
-      <div className="relative w-full max-w-4xl mx-auto lg:grid lg:grid-cols-2 rounded-3xl shadow-2xl overflow-hidden bg-white border border-gray-100">
-        {/* Left decorative panel */}
-        <div className="relative hidden lg:flex flex-col bg-indigo-600 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600" />
-          <div className="absolute top-0 left-0 w-64 h-64 bg-white/10 rounded-full -translate-x-1/2 -translate-y-1/2" />
-          <div className="absolute bottom-0 right-0 w-80 h-80 bg-white/10 rounded-full translate-x-1/2 translate-y-1/2" />
-          <div className="relative z-10 flex flex-col justify-between h-full p-12">
-            <div className="flex items-center gap-3">
-              <div className="bg-white/20 rounded-lg p-2">
-                <Shield className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-xl font-bold text-white">
-                VettingSystem
-              </span>
+      <div className="relative w-full max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_30px_80px_-45px_rgba(15,23,42,0.7)] lg:grid lg:grid-cols-5">
+        <aside className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-cyan-900 to-slate-800 p-8 text-slate-100 lg:col-span-2 lg:p-10">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.32),transparent_42%),radial-gradient(circle_at_bottom_left,rgba(251,191,36,0.2),transparent_35%)]" />
+          <div className="relative flex h-full flex-col justify-between gap-6">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide">
+              <ShieldCheck className="h-4 w-4" />
+              Account Recovery
             </div>
+
             <div>
-              <h2 className="text-4xl font-extrabold tracking-tight text-white leading-tight">
-                Secure password recovery
-              </h2>
-              <p className="mt-4 text-lg text-indigo-100">
-                We'll send a secure reset link directly to your email address.
+              <h1 className="text-3xl font-black leading-tight">Reset Access Credentials</h1>
+              <p className="mt-4 text-sm text-slate-200/90">
+                We will send a secure password reset link to your registered organization email.
               </p>
             </div>
-            <div className="text-sm text-indigo-200">
-              © {new Date().getFullYear()} OVS Inc. All Rights Reserved.
+
+            <div className="rounded-2xl border border-white/20 bg-white/10 p-4 text-xs text-slate-200">
+              Reset links are short-lived and single-use for security.
             </div>
           </div>
-        </div>
+        </aside>
 
-        {/* Right form panel */}
-        <div className="p-8 md:p-12 bg-white">
-          <div className="flex justify-center mb-6">
-            <div className="bg-indigo-50 rounded-2xl p-4">
-              <Mail className="w-8 h-8 text-indigo-600" />
+        <section className="p-6 sm:p-8 lg:col-span-3 lg:p-10">
+          <div className="mx-auto w-full max-w-md">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-cyan-50 p-2 text-cyan-700">
+                <Mail className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">Password actions</p>
+                <h2 className="text-2xl font-black tracking-tight text-slate-900">Forgot password</h2>
+              </div>
             </div>
-          </div>
-          <h1 className="text-3xl font-extrabold text-center text-gray-900 tracking-tight">
-            Forgot Password?
-          </h1>
 
-          {passwordResetEmailSent ? (
-            <div className="text-center py-8">
-              <div className="bg-green-50 border border-green-100 rounded-2xl p-6 mt-4">
-                <h3 className="text-xl font-bold text-gray-900">
-                  Check your inbox
-                </h3>
-                <p className="text-gray-500 mt-2 text-sm">
-                  A password reset link has been sent to your email. Please
-                  follow the link to reset your password.
+            {passwordResetEmailSent ? (
+              <div className="mt-7 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+                <h3 className="text-lg font-bold text-emerald-900">Reset link sent</h3>
+                <p className="mt-2 text-sm text-emerald-800">
+                  Check your inbox for the password reset email.
                 </p>
                 {maskedRequestedEmail && (
-                  <p className="text-sm font-semibold text-indigo-600 mt-3">
-                    Sent to: {maskedRequestedEmail}
-                  </p>
+                  <p className="mt-2 text-sm font-semibold text-emerald-900">Sent to: {maskedRequestedEmail}</p>
                 )}
-              </div>
-              <div className="flex flex-col gap-3 mt-6">
-                <button
-                  type="button"
-                  onClick={handleSendAnotherLink}
-                  className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  Send another link
-                </button>
-                <Link
-                  to="/login"
-                  className="inline-flex items-center justify-center px-6 py-3 rounded-xl text-base font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-all hover:scale-[1.02] active:scale-95 shadow-md"
-                >
-                  Back to Sign In
-                </Link>
-              </div>
-            </div>
-          ) : (
-            <>
-              <p className="text-center text-gray-500 mt-2 mb-8">
-                Enter your email and we&apos;ll send you a reset link.
-              </p>
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="email"
-                    className="text-gray-700 font-medium text-sm"
+                <div className="mt-5 flex flex-col gap-3">
+                  <button
+                    type="button"
+                    onClick={handleSendAnotherLink}
+                    className="h-11 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                   >
-                    Email Address
+                    Send another link
+                  </button>
+                  <Link
+                    to="/login"
+                    className="inline-flex h-11 items-center justify-center rounded-xl bg-cyan-700 px-4 text-sm font-semibold text-white transition hover:bg-cyan-800"
+                  >
+                    Back to sign in
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit(onSubmit)} className="mt-7 space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                    Work Email
                   </Label>
                   <Input
                     {...register("email")}
                     id="email"
                     type="email"
-                    placeholder="you@example.com"
+                    placeholder="name@company.com"
                     disabled={loading}
                     aria-invalid={Boolean(errors.email)}
-                    className={`w-full bg-gray-50 border text-gray-900 placeholder:text-gray-400 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 ${
+                    className={`h-12 rounded-xl border px-4 text-sm transition focus-visible:ring-cyan-500 ${
                       errors.email
                         ? "border-red-400 bg-red-50"
-                        : "border-gray-200"
+                        : "border-slate-300 bg-slate-50 focus-visible:border-cyan-600"
                     }`}
                   />
-                  {errors.email && (
-                    <p className="text-sm text-red-500 mt-1">
-                      {errors.email.message}
-                    </p>
-                  )}
+                  {errors.email && <p className="text-xs font-medium text-red-600">{errors.email.message}</p>}
                 </div>
+
                 <Button
                   type="submit"
                   size="lg"
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-base rounded-xl py-3 transition-all duration-200 hover:scale-[1.02] active:scale-95 shadow-md hover:shadow-indigo-200"
+                  className="h-12 w-full rounded-xl bg-cyan-700 text-sm font-bold text-white shadow-md transition hover:bg-cyan-800"
                   disabled={loading}
                 >
                   {loading ? (
                     <span className="inline-flex items-center gap-2">
                       <Loader size="sm" color="white" />
-                      Sending...
+                      Sending link...
                     </span>
                   ) : (
-                    "Send Reset Link"
+                    "Send reset link"
                   )}
                 </Button>
+
+                <p className="text-center text-xs text-slate-600">
+                  Remembered your password?
+                  <Link to="/login" className="ml-1 font-semibold text-cyan-700 hover:underline">
+                    Back to sign in
+                  </Link>
+                </p>
               </form>
-              <div className="text-center text-sm text-gray-500 mt-8">
-                Remember your password?{" "}
-                <Link
-                  to="/login"
-                  className="font-semibold text-indigo-600 hover:underline"
-                >
-                  Back to Sign In
-                </Link>
-              </div>
-            </>
-          )}
-        </div>
+            )}
+          </div>
+        </section>
       </div>
     </div>
   );

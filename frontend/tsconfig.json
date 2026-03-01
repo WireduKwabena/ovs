@@ -1,14 +1,13 @@
 {
-// frontend/tsconfig.json
   "compilerOptions": {
-
     "target": "ES2020",
     "useDefineForClassFields": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
     "types": ["vite/client"],
-    "ignoreDeprecations": "5.0",
+    /* Update this to 6.0 if you keep baseUrl, but better to just remove baseUrl */
+    "ignoreDeprecations": "5.0", 
 
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -25,16 +24,15 @@
     "noFallthroughCasesInSwitch": true,
     
     /* Path mapping */
-    
-    "baseUrl": ".",
+    /* Removed "baseUrl": "." */
     "paths": {
-      "@/*": ["src/*"],
-      "@/components/*": ["src/components/*"],
-      "@/services/*": ["src/services/*"],
-      "@/store/*": ["src/store/*"],
-      "@/types/*": ["src/types/*"],
-      "@/utils/*": ["src/utils/*"],
-      "@/hooks/*": ["src/hooks/*"]
+      "@/*": ["./src/*"],
+      "@/components/*": ["./src/components/*"],
+      "@/services/*": ["./src/services/*"],
+      "@/store/*": ["./src/store/*"],
+      "@/types/*": ["./src/types/*"],
+      "@/utils/*": ["./src/utils/*"],
+      "@/hooks/*": ["./src/hooks/*"]
     }
   },
   "include": ["src"],

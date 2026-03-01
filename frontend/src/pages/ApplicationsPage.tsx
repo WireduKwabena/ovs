@@ -1,6 +1,6 @@
 // src/pages/ApplicationsPage.tsx
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { Plus, Search, Filter } from "lucide-react";
 import { useApplications } from "@/hooks/useApplications";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -17,13 +17,33 @@ import {
 import { formatDate } from "@/utils/helper";
 
 export const ApplicationsPage: React.FC = () => {
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { applications, loading, refetch } = useApplications();
+
+  const isAdminView = location.pathname.startsWith("/admin");
+  const isValidStatusParam = (value: string | null): value is "pending" | "under_review" | "approved" | "rejected" =>
+    value === "pending" || value === "under_review" || value === "approved" || value === "rejected";
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const statusFromQuery = searchParams.get("status");
+  const statusFilter = isValidStatusParam(statusFromQuery) ? statusFromQuery : "all";
 
   useEffect(() => {
     refetch();
   }, [refetch]);
+
+  const handleStatusChange = (value: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (value === "all") {
+      nextParams.delete("status");
+    } else {
+      nextParams.set("status", value);
+    }
+    setSearchParams(nextParams, { replace: true });
+  };
+
+  const detailPathPrefix = isAdminView ? "/admin/cases" : "/applications";
 
   const filteredApplications = applications.filter((app) => {
     const matchesSearch =
@@ -40,21 +60,25 @@ export const ApplicationsPage: React.FC = () => {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
-              My Applications
+              {isAdminView ? "Application Cases" : "My Applications"}
             </h1>
             <p className="text-gray-600 mt-1">
-              Track and manage your vetting applications
+              {isAdminView
+                ? "Review and manage submitted vetting cases"
+                : "Track and manage your vetting applications"}
             </p>
           </div>
-          <Button asChild>
-            <Link
-              to="/applications/new"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-            >
-              <Plus className="w-5 h-5" />
-              New Application
-            </Link>
-          </Button>
+          {!isAdminView && (
+            <Button asChild>
+              <Link
+                to="/applications/new"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                <Plus className="w-5 h-5" />
+                New Application
+              </Link>
+            </Button>
+          )}
         </div>
 
         {/* Filters */}
@@ -73,7 +97,7 @@ export const ApplicationsPage: React.FC = () => {
 
             <div className="relative">
               <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 z-10" />
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={handleStatusChange}>
                 <SelectTrigger className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
@@ -105,7 +129,7 @@ export const ApplicationsPage: React.FC = () => {
                 ? "Try adjusting your filters"
                 : "Get started by creating your first application"}
             </p>
-            {!searchTerm && statusFilter === "all" && (
+            {!isAdminView && !searchTerm && statusFilter === "all" && (
               <Button asChild>
                 <Link
                   to="/applications/new"
@@ -122,7 +146,7 @@ export const ApplicationsPage: React.FC = () => {
             {filteredApplications.map((application) => (
               <Link
                 key={application.id}
-                to={`/applications/${application.case_id}`}
+                to={`${detailPathPrefix}/${application.case_id}`}
                 className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
               >
                 <div className="flex justify-between items-start mb-4">
@@ -171,3 +195,4 @@ export const ApplicationsPage: React.FC = () => {
     </div>
   );
 };
+

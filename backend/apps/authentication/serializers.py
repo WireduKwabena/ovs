@@ -11,8 +11,8 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'email', 'full_name', 'phone_number', 
-            'is_active', 'created_at'
+            'id', 'email', 'full_name', 'phone_number',
+            'user_type', 'is_active', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
 
@@ -25,12 +25,13 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         validators=[validate_password]
     )
     password_confirm = serializers.CharField(write_only=True, required=True)
+    subscription_reference = serializers.CharField(write_only=True, required=False, allow_blank=True)
     
     class Meta:
         model = User
         fields = [
             'email', 'password', 'password_confirm', 
-            'first_name', 'last_name', 'phone_number', 'organization', 'department'
+            'first_name', 'last_name', 'phone_number', 'organization', 'department', 'subscription_reference'
         ]
     
     def validate(self, attrs):
@@ -42,6 +43,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         validated_data.pop('password_confirm')
+        validated_data.pop('subscription_reference', None)
         validated_data.setdefault("user_type", "hr_manager")
         user = User.objects.create_user(**validated_data)
         return user
@@ -130,7 +132,21 @@ class AdminLoginSerializer(serializers.Serializer):
 
 class TwoFactorVerificationSerializer(serializers.Serializer):
     token = serializers.CharField(required=True)
-    otp = serializers.CharField(required=True)
+    otp = serializers.CharField(required=False, allow_blank=True)
+    backup_code = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        otp = str(attrs.get("otp", "")).strip()
+        backup_code = str(attrs.get("backup_code", "")).strip()
+
+        if bool(otp) == bool(backup_code):
+            raise serializers.ValidationError(
+                "Provide exactly one verification factor: otp or backup_code."
+            )
+
+        attrs["otp"] = otp
+        attrs["backup_code"] = backup_code
+        return attrs
 
 
 class TwoFactorEnableRequestSerializer(serializers.Serializer):
@@ -149,22 +165,38 @@ class TokenPairSerializer(serializers.Serializer):
 class UserAuthResponseSerializer(serializers.Serializer):
     user = UserSerializer()
     tokens = TokenPairSerializer()
+    user_type = serializers.ChoiceField(choices=['admin', 'hr_manager', 'applicant'])
+    backup_codes = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        allow_empty=True,
+    )
 
 
 class AdminAuthResponseSerializer(serializers.Serializer):
     user = AdminUserSerializer()
     tokens = TokenPairSerializer()
+    user_type = serializers.ChoiceField(choices=['admin', 'hr_manager', 'applicant'])
+    backup_codes = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        allow_empty=True,
+    )
 
 
 class RegisterResponseSerializer(serializers.Serializer):
     user = UserSerializer()
-    tokens = TokenPairSerializer()
+    user_type = serializers.ChoiceField(choices=['admin', 'hr_manager', 'applicant'])
     message = serializers.CharField()
 
 
 class TwoFactorChallengeSerializer(serializers.Serializer):
     message = serializers.CharField()
     token = serializers.CharField()
+    user_type = serializers.ChoiceField(choices=['admin', 'hr_manager', 'applicant'], required=False)
+    setup_required = serializers.BooleanField(required=False)
+    expires_in_seconds = serializers.IntegerField(required=False)
+    provisioning_uri = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
 
 class MessageResponseSerializer(serializers.Serializer):
@@ -179,6 +211,46 @@ class TwoFactorSetupResponseSerializer(serializers.Serializer):
     provisioning_uri = serializers.CharField()
 
 
+class TwoFactorBackupCodesRegenerateSerializer(serializers.Serializer):
+    otp = serializers.CharField(required=False, allow_blank=True)
+    backup_code = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        otp = str(attrs.get("otp", "")).strip()
+        backup_code = str(attrs.get("backup_code", "")).strip()
+
+        if bool(otp) == bool(backup_code):
+            raise serializers.ValidationError(
+                "Provide exactly one verification factor: otp or backup_code."
+            )
+
+        attrs["otp"] = otp
+        attrs["backup_code"] = backup_code
+        return attrs
+
+
+class TwoFactorBackupCodesResponseSerializer(serializers.Serializer):
+    message = serializers.CharField()
+    backup_codes = serializers.ListField(child=serializers.CharField())
+
+
+class TwoFactorStatusResponseSerializer(serializers.Serializer):
+    user_type = serializers.ChoiceField(choices=["admin", "hr_manager", "applicant"])
+    two_factor_required = serializers.BooleanField()
+    applicant_exempt = serializers.BooleanField()
+    is_two_factor_enabled = serializers.BooleanField()
+    has_totp_secret = serializers.BooleanField()
+    backup_codes_remaining = serializers.IntegerField(min_value=0)
+
+
 class ProfileResponseSerializer(serializers.Serializer):
     user = serializers.DictField()
     user_type = serializers.ChoiceField(choices=["admin", "hr_manager", "applicant"])
+
+
+
+
+
+
+
+

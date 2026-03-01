@@ -15,6 +15,7 @@ urlpatterns = [
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
     path('admin/login/', views.admin_login_view, name='admin_login'),
+    path('login/verify/', views.two_factor_verification_view, name='login_verify'),
     path('admin/login/verify/', views.two_factor_verification_view, name='admin_login_verify'),
     
     # Profile Management
@@ -29,6 +30,12 @@ urlpatterns = [
     # 2FA Management
     path('admin/2fa/setup/', views.two_factor_setup_view, name='admin_2fa_setup'),
     path('admin/2fa/enable/', views.two_factor_enable_view, name='admin_2fa_enable'),
+    path('2fa/status/', views.two_factor_status_view, name='two_factor_status'),
+    path(
+        '2fa/backup-codes/regenerate/',
+        views.two_factor_backup_codes_regenerate_view,
+        name='two_factor_backup_codes_regenerate',
+    ),
 ]
 
 if TokenRefreshView:

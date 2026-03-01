@@ -10,6 +10,7 @@ djangorestframework
 djangorestframework-simplejwt
 daphne
 channels
+stripe
 channels-redis
 django-filter
 
@@ -101,12 +102,9 @@ python-magic
 drf-yasg
 drf-spectacular
 
-# requirements.txt additions
+# Project-specific utilities
 piexif
 imagehash
 spacy
 
-wandb           # For train.py (optional)
-python-magic    # For validators.py
-seaborn
-moviepy
+wandb  # For train.py (optional)

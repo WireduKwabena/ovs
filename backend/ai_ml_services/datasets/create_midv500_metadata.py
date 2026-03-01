@@ -35,6 +35,21 @@ def normalize_midv_label(raw_label: str) -> str:
     return label
 
 
+def infer_midv_doc_family(label: str) -> str:
+    normalized = str(label).lower().strip()
+    if "drvlic" in normalized:
+        return "driver_license"
+    if "passport" in normalized:
+        return "passport"
+    if "ssn" in normalized:
+        return "social_security_card"
+    if "bordercrossing" in normalized:
+        return "border_crossing_card"
+    if "_id" in normalized or normalized.endswith("id") or "homereturn" in normalized:
+        return "national_id"
+    return "other"
+
+
 def _parse_frame_index(frame_stem: str) -> Optional[int]:
     match = re.search(r"_(\d+)$", frame_stem)
     if not match:
@@ -148,6 +163,7 @@ def build_midv500_metadata(
                         "filepath": str(template_path.resolve()),
                         "label_raw": label_raw,
                         "label": label,
+                        "doc_family": infer_midv_doc_family(label),
                         "source_type": "template",
                         "sequence_id": "",
                         "frame_index": None,
@@ -179,6 +195,7 @@ def build_midv500_metadata(
                             "filepath": str(frame_path.resolve()),
                             "label_raw": label_raw,
                             "label": label,
+                            "doc_family": infer_midv_doc_family(label),
                             "source_type": "frame",
                             "sequence_id": sequence_id,
                             "frame_index": _parse_frame_index(frame_path.stem),
@@ -203,6 +220,7 @@ def build_midv500_metadata(
                 "filepath",
                 "label_raw",
                 "label",
+                "doc_family",
                 "label_id",
                 "source_type",
                 "sequence_id",
@@ -235,6 +253,7 @@ def build_midv500_metadata(
                 "filepath",
                 "label_raw",
                 "label",
+                "doc_family",
                 "label_id",
                 "source_type",
                 "sequence_id",

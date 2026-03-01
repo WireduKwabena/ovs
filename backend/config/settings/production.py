@@ -11,6 +11,11 @@ from django.core.exceptions import ImproperlyConfigured
 from .base import *
 
 DEBUG = False
+BILLING_HEALTH_REQUIRE_STAFF = config(
+    "BILLING_HEALTH_REQUIRE_STAFF",
+    default=True,
+    cast=bool,
+)
 
 # Security settings
 SECURE_SSL_REDIRECT = True
@@ -60,6 +65,58 @@ AI_ML_METRIC_GATES_ENABLED = config(
     "AI_ML_METRIC_GATES_ENABLED",
     default=True,
     cast=bool,
+)
+if not AI_ML_METRIC_GATES_ENABLED:
+    raise ImproperlyConfigured(
+        "AI_ML_METRIC_GATES_ENABLED cannot be disabled in production."
+    )
+
+
+def _require_min_metric(setting_name: str, value: float, minimum: float) -> float:
+    try:
+        numeric_value = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ImproperlyConfigured(
+            f"{setting_name} must be numeric in production."
+        ) from exc
+
+    if numeric_value < minimum:
+        raise ImproperlyConfigured(
+            f"{setting_name} must be >= {minimum:.2f} in production "
+            f"(got {numeric_value:.4f})."
+        )
+    return numeric_value
+
+
+AI_ML_METRIC_MIN_AUTHENTICITY_F1 = _require_min_metric(
+    "AI_ML_METRIC_MIN_AUTHENTICITY_F1",
+    AI_ML_METRIC_MIN_AUTHENTICITY_F1,
+    0.70,
+)
+AI_ML_METRIC_MIN_AUTHENTICITY_ACCURACY = _require_min_metric(
+    "AI_ML_METRIC_MIN_AUTHENTICITY_ACCURACY",
+    AI_ML_METRIC_MIN_AUTHENTICITY_ACCURACY,
+    0.70,
+)
+AI_ML_METRIC_MIN_SIGNATURE_F1 = _require_min_metric(
+    "AI_ML_METRIC_MIN_SIGNATURE_F1",
+    AI_ML_METRIC_MIN_SIGNATURE_F1,
+    0.90,
+)
+AI_ML_METRIC_MIN_SIGNATURE_ACCURACY = _require_min_metric(
+    "AI_ML_METRIC_MIN_SIGNATURE_ACCURACY",
+    AI_ML_METRIC_MIN_SIGNATURE_ACCURACY,
+    0.90,
+)
+AI_ML_METRIC_MIN_RVL_CDIP_MACRO_F1 = _require_min_metric(
+    "AI_ML_METRIC_MIN_RVL_CDIP_MACRO_F1",
+    AI_ML_METRIC_MIN_RVL_CDIP_MACRO_F1,
+    0.60,
+)
+AI_ML_METRIC_MIN_MIDV500_MACRO_F1 = _require_min_metric(
+    "AI_ML_METRIC_MIN_MIDV500_MACRO_F1",
+    AI_ML_METRIC_MIN_MIDV500_MACRO_F1,
+    0.40,
 )
 
 # Background checks must not run against mock providers in production.

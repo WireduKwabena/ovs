@@ -36,6 +36,25 @@ RVL_LABEL_ALIASES: Dict[str, str] = {
     "specification": "specification",
 }
 
+RVL_DOC_FAMILY_MAP: Dict[str, str] = {
+    "advertisement": "media_marketing",
+    "presentation": "media_marketing",
+    "news_article": "media_marketing",
+    "budget": "financial_operational",
+    "invoice": "financial_operational",
+    "specification": "financial_operational",
+    "email": "correspondence",
+    "letter": "correspondence",
+    "memo": "correspondence",
+    "form": "administrative",
+    "questionnaire": "administrative",
+    "file_folder": "administrative",
+    "resume": "candidate_profile",
+    "scientific_publication": "scientific",
+    "scientific_report": "scientific",
+    "handwritten": "misc_notes",
+}
+
 
 def _compact_key(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", text.lower())
@@ -47,6 +66,11 @@ def normalize_rvl_label(raw_label: str) -> str:
     label = re.sub(r"_+", "_", label).strip("_")
     compact = _compact_key(label)
     return RVL_LABEL_ALIASES.get(compact, label)
+
+
+def infer_rvl_doc_family(label: str) -> str:
+    normalized = normalize_rvl_label(label)
+    return RVL_DOC_FAMILY_MAP.get(normalized, "other")
 
 
 def iter_rvl_files(root_dir: Path, extensions: Sequence[str]) -> Iterable[Tuple[Path, str]]:
@@ -75,12 +99,14 @@ def build_rvl_cdip_metadata(
 
     rows: List[Dict[str, str]] = []
     for file_path, raw_label in iter_rvl_files(source_dir, extensions):
+        normalized_label = normalize_rvl_label(raw_label)
         rows.append(
             {
                 "filename": file_path.name,
                 "filepath": str(file_path.resolve()),
                 "label_raw": raw_label,
-                "label": normalize_rvl_label(raw_label),
+                "label": normalized_label,
+                "doc_family": infer_rvl_doc_family(normalized_label),
             }
         )
 
@@ -91,7 +117,7 @@ def build_rvl_cdip_metadata(
 
     df = pd.DataFrame(rows)
     if df.empty:
-        pd.DataFrame(columns=["filename", "filepath", "label_raw", "label", "label_id", "split"]).to_csv(
+        pd.DataFrame(columns=["filename", "filepath", "label_raw", "label", "doc_family", "label_id", "split"]).to_csv(
             metadata_path, index=False
         )
         pd.DataFrame(columns=["label_id", "label"]).to_csv(labels_path, index=False)
@@ -108,7 +134,7 @@ def build_rvl_cdip_metadata(
             logger.info("Removed %d samples from labels below min_samples_per_label.", removed)
 
     if df.empty:
-        pd.DataFrame(columns=["filename", "filepath", "label_raw", "label", "label_id", "split"]).to_csv(
+        pd.DataFrame(columns=["filename", "filepath", "label_raw", "label", "doc_family", "label_id", "split"]).to_csv(
             metadata_path, index=False
         )
         pd.DataFrame(columns=["label_id", "label"]).to_csv(labels_path, index=False)

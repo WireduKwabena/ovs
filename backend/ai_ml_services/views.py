@@ -2,8 +2,15 @@
 
 from __future__ import annotations
 
-import cv2
-import numpy as np
+try:
+    import cv2
+except ModuleNotFoundError:  # pragma: no cover - optional at runtime
+    cv2 = None
+
+try:
+    import numpy as np
+except ModuleNotFoundError:  # pragma: no cover - optional at runtime
+    np = None
 from django.utils import timezone
 from rest_framework import serializers, status
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -142,6 +149,8 @@ class DocumentClassificationAPIView(APIView):
 
     @staticmethod
     def _decode_uploaded_image(uploaded_file):
+        if cv2 is None or np is None:
+            raise RuntimeError("OpenCV and NumPy are required for document classification uploads.")
         filename = str(getattr(uploaded_file, "name", "") or "").lower()
         content_type = str(getattr(uploaded_file, "content_type", "") or "").lower()
         payload = uploaded_file.read()
@@ -296,3 +305,4 @@ class SocialProfileCheckAPIView(APIView):
 monitor_health_view = MonitorHealthAPIView.as_view()
 document_classification_view = DocumentClassificationAPIView.as_view()
 social_profile_check_view = SocialProfileCheckAPIView.as_view()
+
