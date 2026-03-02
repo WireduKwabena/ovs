@@ -148,7 +148,7 @@ const AppShell: React.FC = () => {
           <Route
             path="/security"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
                 <SecurityPage />
               </ProtectedRoute>
             }

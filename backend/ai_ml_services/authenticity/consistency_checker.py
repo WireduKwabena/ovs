@@ -4,12 +4,12 @@
 import spacy
 from difflib import SequenceMatcher
 from datetime import datetime
-import re
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Optional
 import logging
 from collections import Counter
 import dateutil.parser
 from django.conf import settings
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -29,22 +29,57 @@ class ConsistencyChecker:
     def __init__(self):
         """
         Initializes the ConsistencyChecker.
-        
-        Raises:
-            IOError: If the required 'en_core_web_sm' spaCy model is not installed.
-                     The user must run 'python -m spacy download en_core_web_sm'.
         """
-        try:
-            self.nlp = spacy.load('en_core_web_sm')
-        except OSError:
-            logger.error(
-                "spaCy 'en_core_web_sm' model not found. Please run "
-                "'python -m spacy download en_core_web_sm' to install it."
-            )
-            raise
+        self.nlp, self.spacy_model_name = self._load_nlp_model()
+        self.entity_extraction_available = "ner" in getattr(self.nlp, "pipe_names", [])
         self.weights = self._load_weights()
         self.thresholds = self._load_thresholds()
-        logger.info("Consistency Checker initialized")
+        logger.info(
+            "Consistency Checker initialized (model=%s, ner_available=%s)",
+            self.spacy_model_name,
+            self.entity_extraction_available,
+        )
+
+    @staticmethod
+    def _load_nlp_model():
+        configured_model = str(
+            getattr(
+                settings,
+                "AI_ML_CONSISTENCY_SPACY_MODEL",
+                getattr(settings, "AI_ML_SPACY_MODEL", ""),
+            )
+            or ""
+        ).strip()
+        candidates = [configured_model] if configured_model else []
+        for model_name in ("en_core_web_lg", "en_core_web_sm"):
+            if model_name not in candidates:
+                candidates.append(model_name)
+
+        for model_name in candidates:
+            try:
+                return spacy.load(model_name), model_name
+            except OSError:
+                logger.warning(
+                    "spaCy model '%s' is unavailable for consistency checks.",
+                    model_name,
+                )
+
+        language = str(
+            getattr(settings, "AI_ML_CONSISTENCY_SPACY_LANGUAGE", "en") or "en"
+        ).strip()
+        try:
+            logger.warning(
+                "Falling back to blank spaCy model '%s'; NER extraction will be limited.",
+                language,
+            )
+            return spacy.blank(language), f"blank:{language}"
+        except Exception:
+            logger.warning(
+                "Could not initialize blank spaCy model '%s'; using blank:en fallback.",
+                language,
+                exc_info=True,
+            )
+            return spacy.blank("en"), "blank:en"
 
     @staticmethod
     def _load_weights() -> Dict[str, float]:
@@ -85,7 +120,7 @@ class ConsistencyChecker:
 
     def extract_entities(self, text: str) -> Dict[str, List[str]]:
         """Extract named entities from text using spaCy."""
-        doc = self.nlp(text)
+        doc = self.nlp(text or "")
         entities = {
             'persons': [ent.text for ent in doc.ents if ent.label_ == 'PERSON'],
             'organizations': [ent.text for ent in doc.ents if ent.label_ == 'ORG'],
@@ -167,14 +202,14 @@ class ConsistencyChecker:
 
         # Example check: Date of birth should be the earliest date
         dob = next((d for d in sorted_dates if 'birth' in d['source']), None)
-        if dob and dob != sorted_dates[0]:
+        if dob and dob['date'] > sorted_dates[0]['date']:
             inconsistencies.append({
                 'type': 'logical_error',
                 'message': f"Date of birth '{dob['raw']}' is not the earliest date found.",
             })
 
         # Example check: No dates should be in the future
-        now = datetime.now()
+        now = timezone.now()
         for d in sorted_dates:
             if d['date'] > now:
                 inconsistencies.append({
@@ -197,7 +232,10 @@ class ConsistencyChecker:
             return None
         try:
             # The fuzzy parameter can handle surrounding text
-            return dateutil.parser.parse(date_str.strip(), fuzzy=False)
+            parsed = dateutil.parser.parse(date_str.strip(), fuzzy=False)
+            if timezone.is_naive(parsed):
+                return timezone.make_aware(parsed, timezone.get_current_timezone())
+            return parsed.astimezone(timezone.get_current_timezone())
         except (ValueError, OverflowError):
             return None
 

@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useBeforeUnload, useBlocker, useLocation, useNavigate } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { KeyRound, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "react-toastify";
 import { useDispatch, useSelector } from "react-redux";
@@ -7,10 +7,12 @@ import { useDispatch, useSelector } from "react-redux";
 import type { AppDispatch, RootState } from "@/app/store";
 import { clearError, clearTwoFactorChallenge, verifyTwoFactor } from "@/store/authSlice";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ProvisioningQrCard } from "@/components/security/ProvisioningQrCard";
 import { EmergencyBackupCodesCard } from "@/components/security/EmergencyBackupCodesCard";
+import { BackupCodesAttentionBadge } from "@/components/security/BackupCodesAttentionBadge";
+import { VerificationFactorField } from "@/components/security/VerificationFactorField";
+import { useBackupCodesProtection } from "@/hooks/useBackupCodesProtection";
+import { useVerificationFactorInput } from "@/hooks/useVerificationFactorInput";
 
 export const TwoFactorPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -28,34 +30,20 @@ export const TwoFactorPage: React.FC = () => {
     error,
   } = useSelector((state: RootState) => state.auth);
 
-  const [factorMode, setFactorMode] = useState<"otp" | "backup">("otp");
-  const [factorValue, setFactorValue] = useState("");
-  const [issuedBackupCodes, setIssuedBackupCodes] = useState<string[] | null>(null);
-  const [backupCodesAcknowledged, setBackupCodesAcknowledged] = useState(false);
   const [redirectAfterBackupCodes, setRedirectAfterBackupCodes] = useState<string | null>(null);
-  const isPromptingNavigationRef = useRef(false);
+  const factorInput = useVerificationFactorInput();
+  const {
+    issuedBackupCodes,
+    backupCodesAcknowledged,
+    backupCodesAttentionState,
+    revealBackupCodes,
+    setBackupCodesAcknowledged,
+    confirmLeaveIfNeeded,
+  } = useBackupCodesProtection();
 
   const requestedPath = useMemo(
     () => (location.state as { from?: { pathname?: string } } | null)?.from?.pathname,
     [location.state],
-  );
-  const shouldGuardNavigation = Boolean(issuedBackupCodes?.length) && !backupCodesAcknowledged;
-  const navigationWarningMessage =
-    "Backup codes are still unacknowledged. Leave this page anyway? You may lose this one-time view.";
-  const blocker = useBlocker(shouldGuardNavigation);
-
-  useBeforeUnload(
-    useMemo(
-      () => (event: BeforeUnloadEvent) => {
-        if (!shouldGuardNavigation) {
-          return;
-        }
-
-        event.preventDefault();
-        event.returnValue = "";
-      },
-      [shouldGuardNavigation],
-    ),
   );
 
   useEffect(() => {
@@ -83,35 +71,15 @@ export const TwoFactorPage: React.FC = () => {
     };
   }, [dispatch]);
 
-  useEffect(() => {
-    if (blocker.state !== "blocked" || isPromptingNavigationRef.current) {
-      return;
-    }
-
-    isPromptingNavigationRef.current = true;
-    const shouldLeave = window.confirm(navigationWarningMessage);
-    if (shouldLeave) {
-      blocker.proceed();
-    } else {
-      blocker.reset();
-    }
-    isPromptingNavigationRef.current = false;
-  }, [blocker, navigationWarningMessage]);
-
   const handleVerify = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    const rawValue = factorValue.trim();
-    const normalizedOtp = rawValue.replace(/\D/g, "").slice(0, 6);
-    const normalizedBackupCode = rawValue.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
-
-    if (factorMode === "otp" && !/^\d{6}$/.test(normalizedOtp)) {
-      toast.error("Enter the 6-digit authenticator code.");
-      return;
-    }
-
-    if (factorMode === "backup" && normalizedBackupCode.length < 6) {
-      toast.error("Enter a valid backup code.");
+    const validationError = factorInput.getValidationError({
+      otp: "Enter the 6-digit authenticator code.",
+      backup: "Enter a valid backup code.",
+    });
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 
@@ -120,16 +88,7 @@ export const TwoFactorPage: React.FC = () => {
     }
 
     try {
-      const payload =
-        factorMode === "otp"
-          ? { token: twoFactorToken, otp: normalizedOtp }
-          : {
-              token: twoFactorToken,
-              backup_code:
-                normalizedBackupCode.length > 4
-                  ? `${normalizedBackupCode.slice(0, 4)}-${normalizedBackupCode.slice(4)}`
-                  : normalizedBackupCode,
-            };
+      const payload = { token: twoFactorToken, ...factorInput.getPayload() };
 
       const response = await dispatch(verifyTwoFactor(payload)).unwrap();
 
@@ -139,8 +98,7 @@ export const TwoFactorPage: React.FC = () => {
       const redirectPath = requestedPath && requestedPath !== "/" ? requestedPath : defaultPath;
 
       if (response.backup_codes?.length) {
-        setIssuedBackupCodes(response.backup_codes);
-        setBackupCodesAcknowledged(false);
+        revealBackupCodes(response.backup_codes);
         setRedirectAfterBackupCodes(redirectPath);
         return;
       }
@@ -152,7 +110,7 @@ export const TwoFactorPage: React.FC = () => {
   };
 
   const handleBackToLogin = () => {
-    if (shouldGuardNavigation && !window.confirm(navigationWarningMessage)) {
+    if (!confirmLeaveIfNeeded()) {
       return;
     }
     dispatch(clearTwoFactorChallenge());
@@ -174,6 +132,7 @@ export const TwoFactorPage: React.FC = () => {
         <p className="mt-2 text-sm text-slate-600">
           {twoFactorMessage || "Enter the 6-digit code from your authenticator app."}
         </p>
+        <BackupCodesAttentionBadge state={backupCodesAttentionState} />
         {twoFactorExpiresInSeconds ? (
           <p className="mt-1 text-xs text-slate-500">
             This challenge expires in about {Math.max(1, Math.floor(twoFactorExpiresInSeconds / 60))} minute(s).
@@ -203,46 +162,21 @@ export const TwoFactorPage: React.FC = () => {
         )}
 
         <form onSubmit={handleVerify} className="mt-6 space-y-4">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="factor" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
-                {factorMode === "otp" ? "One-Time Password (OTP)" : "Backup Code"}
-              </Label>
-              <button
-                type="button"
-                onClick={() => {
-                  setFactorMode((mode) => (mode === "otp" ? "backup" : "otp"));
-                  setFactorValue("");
-                }}
-                className="text-xs font-semibold text-cyan-700 hover:text-cyan-800"
-              >
-                {factorMode === "otp" ? "Use backup code instead" : "Use authenticator code"}
-              </button>
-            </div>
-            <Input
-              id="factor"
-              value={factorValue}
-              onChange={(event) => {
-                const incoming = event.target.value;
-                if (factorMode === "otp") {
-                  setFactorValue(incoming.replace(/\D/g, "").slice(0, 6));
-                  return;
-                }
-
-                const normalized = incoming.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 12);
-                if (normalized.length <= 4) {
-                  setFactorValue(normalized);
-                  return;
-                }
-                setFactorValue(`${normalized.slice(0, 4)}-${normalized.slice(4)}`);
-              }}
-              inputMode={factorMode === "otp" ? "numeric" : "text"}
-              autoComplete={factorMode === "otp" ? "one-time-code" : "off"}
-              placeholder={factorMode === "otp" ? "123456" : "ABCD-EFGH"}
-              className="h-12 rounded-xl border border-slate-300 bg-slate-50 px-4 text-center text-lg tracking-[0.3em]"
-              disabled={loading}
-            />
-          </div>
+          <VerificationFactorField
+            id="factor"
+            mode={factorInput.mode}
+            value={factorInput.displayValue}
+            onValueChange={factorInput.setFromInput}
+            onToggleMode={factorInput.toggleModeReset}
+            disabled={loading}
+            labelOtp="One-Time Password (OTP)"
+            labelBackup="Backup Code"
+            toggleToBackupText="Use backup code instead"
+            toggleToOtpText="Use authenticator code"
+            otpPlaceholder="123456"
+            backupPlaceholder="ABCD-EFGH"
+            inputClassName="h-12 rounded-xl border border-slate-300 bg-slate-50 px-4 text-center text-lg tracking-[0.3em]"
+          />
 
           {issuedBackupCodes?.length ? (
             <div className="space-y-3">

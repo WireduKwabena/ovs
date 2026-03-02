@@ -8,11 +8,13 @@ import { Loader } from '../common/Loader';
 interface ProtectedRouteProps {
   children: React.ReactNode;
   adminOnly?: boolean;
+  disallowUserTypes?: Array<"applicant" | "hr_manager" | "admin">;
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children, 
-  adminOnly = false 
+  adminOnly = false,
+  disallowUserTypes = [],
 }) => {
   const { isAuthenticated, userType } = useSelector((state: RootState) => state.auth);
   const location = useLocation();
@@ -32,6 +34,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (adminOnly && userType !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  if (userType && disallowUserTypes.includes(userType)) {
     return <Navigate to="/dashboard" replace />;
   }
 

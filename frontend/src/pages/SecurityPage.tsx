@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { AlertTriangle, KeyRound, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -9,6 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ProvisioningQrCard } from "@/components/security/ProvisioningQrCard";
 import { EmergencyBackupCodesCard } from "@/components/security/EmergencyBackupCodesCard";
+import { BackupCodesAttentionBadge } from "@/components/security/BackupCodesAttentionBadge";
+import { VerificationFactorField } from "@/components/security/VerificationFactorField";
+import { useBackupCodesProtection } from "@/hooks/useBackupCodesProtection";
+import { useVerificationFactorInput } from "@/hooks/useVerificationFactorInput";
 
 const SecurityPage: React.FC = () => {
   const [status, setStatus] = useState<TwoFactorStatusResponse | null>(null);
@@ -18,9 +22,15 @@ const SecurityPage: React.FC = () => {
   const [provisioningUri, setProvisioningUri] = useState<string | null>(null);
   const [enableOtp, setEnableOtp] = useState("");
 
-  const [regenerateMode, setRegenerateMode] = useState<"otp" | "backup">("otp");
-  const [regenerateFactor, setRegenerateFactor] = useState("");
-  const [issuedBackupCodes, setIssuedBackupCodes] = useState<string[] | null>(null);
+  const regenerateInput = useVerificationFactorInput();
+  const {
+    issuedBackupCodes,
+    backupCodesAcknowledged,
+    backupCodesAttentionState,
+    revealBackupCodes,
+    clearBackupCodes,
+    setBackupCodesAcknowledged,
+  } = useBackupCodesProtection();
 
   const [busyAction, setBusyAction] = useState<"setup" | "enable" | "regenerate" | null>(null);
 
@@ -42,20 +52,12 @@ const SecurityPage: React.FC = () => {
     void refreshStatus();
   }, []);
 
-  const formattedRegenerateBackupCode = useMemo(() => {
-    const normalized = regenerateFactor.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
-    if (normalized.length <= 4) {
-      return normalized;
-    }
-    return `${normalized.slice(0, 4)}-${normalized.slice(4)}`;
-  }, [regenerateFactor]);
-
   const handleSetup = async () => {
     setBusyAction("setup");
     try {
       const response = await authService.setupTwoFactor();
       setProvisioningUri(response.provisioning_uri);
-      setIssuedBackupCodes(null);
+      clearBackupCodes();
       toast.success("Authenticator setup created. Scan the URI and verify with OTP.");
       await refreshStatus();
     } catch (error) {
@@ -89,29 +91,20 @@ const SecurityPage: React.FC = () => {
 
   const handleRegenerate = async (event: React.FormEvent) => {
     event.preventDefault();
-
-    const normalizedOtp = regenerateFactor.trim().replace(/\D/g, "").slice(0, 6);
-    const normalizedBackupCode = regenerateFactor.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
-
-    if (regenerateMode === "otp" && !/^\d{6}$/.test(normalizedOtp)) {
-      toast.error("Enter a valid 6-digit OTP.");
-      return;
-    }
-
-    if (regenerateMode === "backup" && normalizedBackupCode.length < 6) {
-      toast.error("Enter a valid backup code.");
+    const validationError = regenerateInput.getValidationError({
+      otp: "Enter a valid 6-digit OTP.",
+      backup: "Enter a valid backup code.",
+    });
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 
     setBusyAction("regenerate");
     try {
-      const response = await authService.regenerateBackupCodes(
-        regenerateMode === "otp"
-          ? { otp: normalizedOtp }
-          : { backup_code: normalizedBackupCode.length > 4 ? `${normalizedBackupCode.slice(0, 4)}-${normalizedBackupCode.slice(4)}` : normalizedBackupCode },
-      );
-      setIssuedBackupCodes(response.backup_codes);
-      setRegenerateFactor("");
+      const response = await authService.regenerateBackupCodes(regenerateInput.getPayload());
+      revealBackupCodes(response.backup_codes);
+      regenerateInput.clear();
       toast.success("Backup codes regenerated. Save them now.");
       await refreshStatus();
     } catch (error) {
@@ -157,6 +150,7 @@ const SecurityPage: React.FC = () => {
         <p className="mt-1 text-sm text-slate-600">
           Manage authenticator setup, 2FA state, and backup recovery codes.
         </p>
+        <BackupCodesAttentionBadge state={backupCodesAttentionState} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -260,35 +254,20 @@ const SecurityPage: React.FC = () => {
               </div>
             ) : (
               <form onSubmit={handleRegenerate} className="mt-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="regenerate-factor" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
-                    {regenerateMode === "otp" ? "Authenticator OTP" : "Backup Code"}
-                  </Label>
-                  <button
-                    type="button"
-                    className="text-xs font-semibold text-cyan-700 hover:text-cyan-800"
-                    onClick={() => {
-                      setRegenerateMode((mode) => (mode === "otp" ? "backup" : "otp"));
-                      setRegenerateFactor("");
-                    }}
-                    disabled={busyAction !== null}
-                  >
-                    {regenerateMode === "otp" ? "Use backup code instead" : "Use OTP instead"}
-                  </button>
-                </div>
-                <Input
+                <VerificationFactorField
                   id="regenerate-factor"
-                  value={regenerateMode === "otp" ? regenerateFactor : formattedRegenerateBackupCode}
-                  onChange={(event) => {
-                    if (regenerateMode === "otp") {
-                      setRegenerateFactor(event.target.value.replace(/\D/g, "").slice(0, 6));
-                    } else {
-                      setRegenerateFactor(event.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 12));
-                    }
-                  }}
-                  placeholder={regenerateMode === "otp" ? "123456" : "ABCD-EFGH"}
-                  className="max-w-xs"
+                  mode={regenerateInput.mode}
+                  value={regenerateInput.displayValue}
+                  onValueChange={regenerateInput.setFromInput}
+                  onToggleMode={regenerateInput.toggleModeReset}
                   disabled={busyAction !== null}
+                  labelOtp="Authenticator OTP"
+                  labelBackup="Backup Code"
+                  toggleToBackupText="Use backup code instead"
+                  toggleToOtpText="Use OTP instead"
+                  otpPlaceholder="123456"
+                  backupPlaceholder="ABCD-EFGH"
+                  inputClassName="max-w-xs"
                 />
                 <Button type="submit" disabled={busyAction !== null} className="bg-cyan-700 text-white hover:bg-cyan-800">
                   {busyAction === "regenerate" ? (
@@ -308,7 +287,12 @@ const SecurityPage: React.FC = () => {
 
             {issuedBackupCodes?.length ? (
               <div className="mt-4">
-                <EmergencyBackupCodesCard codes={issuedBackupCodes} />
+                <EmergencyBackupCodesCard
+                  codes={issuedBackupCodes}
+                  requireConfirmation
+                  acknowledged={backupCodesAcknowledged}
+                  onAcknowledgedChange={setBackupCodesAcknowledged}
+                />
               </div>
             ) : null}
           </div>
