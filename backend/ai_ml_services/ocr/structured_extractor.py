@@ -82,9 +82,9 @@ class StructuredExtractor:
         """Lazy load spaCy model."""
         if self._nlp is None:
             try:
-                self._nlp = spacy.load(f'{self.language}_core_web_sm')
+                self._nlp = spacy.load(f'{self.language}_core_web_lg')
             except OSError:
-                logger.warning(f"spaCy model '{self.language}_core_web_sm' not found. Install with: python -m spacy download {self.language}_core_web_sm")
+                logger.warning(f"spaCy model '{self.language}_core_web_lg' not found. Install with: python -m spacy download {self.language}_core_web_lg")
                 # Fallback to blank model
                 self._nlp = spacy.blank(self.language)
         return self._nlp

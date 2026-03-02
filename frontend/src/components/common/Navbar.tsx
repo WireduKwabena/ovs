@@ -70,6 +70,7 @@ export const Navbar: React.FC = () => {
     : (user as User)?.full_name;
 
   const roleLabel = userType === 'admin' ? 'Admin' : userType === 'hr_manager' ? 'HR Manager' : userType === 'applicant' ? 'Applicant' : 'User';
+  const canManageTwoFactor = userType !== 'applicant';
   const navLinks =
     userType === 'admin'
       ? [
@@ -148,14 +149,16 @@ export const Navbar: React.FC = () => {
               </button>
               {profileMenuOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-20 border">
-                  <Link
-                    to="/security"
-                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setProfileMenuOpen(false)}
-                  >
-                    <ShieldCheck className="w-4 h-4 mr-2" />
-                    Security
-                  </Link>
+                  {canManageTwoFactor && (
+                    <Link
+                      to="/security"
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setProfileMenuOpen(false)}
+                    >
+                      <ShieldCheck className="w-4 h-4 mr-2" />
+                      Security
+                    </Link>
+                  )}
                   <Link
                     to="/change-password"
                     className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -230,14 +233,16 @@ export const Navbar: React.FC = () => {
                 </span>
               )}
             </Link>
-            <Link
-              to="/security"
-              className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              <ShieldCheck className="w-5 h-5 mr-2 text-gray-600" />
-              <span className="text-gray-700">Security</span>
-            </Link>
+            {canManageTwoFactor && (
+              <Link
+                to="/security"
+                className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <ShieldCheck className="w-5 h-5 mr-2 text-gray-600" />
+                <span className="text-gray-700">Security</span>
+              </Link>
+            )}
             <Link
               to="/change-password"
               className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100"

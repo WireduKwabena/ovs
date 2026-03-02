@@ -9,6 +9,7 @@ export default defineConfig({
 
 // frontend/vite.config.ts
   resolve: {
+    preserveSymlinks: true,
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@/components': path.resolve(__dirname, './src/components'),
@@ -30,6 +31,7 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
+      input: 'index.html',
       output: {
         manualChunks(id) {
           const normalizedId = id.replace(/\\/g, '/')
@@ -91,3 +93,5 @@ export default defineConfig({
     },
   },
 })
+
+
