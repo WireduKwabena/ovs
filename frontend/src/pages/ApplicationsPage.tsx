@@ -62,7 +62,7 @@ export const ApplicationsPage: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900">
               {isAdminView ? "Application Cases" : "My Applications"}
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="mt-1 text-slate-700">
               {isAdminView
                 ? "Review and manage submitted vetting cases"
                 : "Track and manage your vetting applications"}
@@ -85,20 +85,20 @@ export const ApplicationsPage: React.FC = () => {
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-700 w-5 h-5" />
               <Input
                 type="text"
                 placeholder="Search by case ID or name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-700 py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
             <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 z-10" />
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-700 w-5 h-5 z-10" />
               <Select value={statusFilter} onValueChange={handleStatusChange}>
-                <SelectTrigger className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <SelectTrigger className="w-full rounded-lg border border-slate-700 py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -124,7 +124,7 @@ export const ApplicationsPage: React.FC = () => {
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
               No applications found
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="mb-6 text-slate-700">
               {searchTerm || statusFilter !== "all"
                 ? "Try adjusting your filters"
                 : "Get started by creating your first application"}
@@ -154,7 +154,7 @@ export const ApplicationsPage: React.FC = () => {
                     <h3 className="text-xl font-semibold text-gray-900 mb-1">
                       {application.case_id}
                     </h3>
-                    <p className="text-gray-600">
+                    <p className="text-slate-700">
                       {application.application_type}
                     </p>
                   </div>
@@ -163,19 +163,19 @@ export const ApplicationsPage: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div>
-                    <span className="text-gray-500">Priority:</span>
+                    <span className="text-slate-700">Priority:</span>
                     <span className="ml-2 font-medium capitalize">
                       {application.priority}
                     </span>
                   </div>
                   <div>
-                    <span className="text-gray-500">Submitted:</span>
+                    <span className="text-slate-700">Submitted:</span>
                     <span className="ml-2 font-medium">
                       {formatDate(application.created_at)}
                     </span>
                   </div>
                   <div>
-                    <span className="text-gray-500">Updated:</span>
+                    <span className="text-slate-700">Updated:</span>
                     <span className="ml-2 font-medium">
                       {formatDate(application.updated_at)}
                     </span>
@@ -183,7 +183,7 @@ export const ApplicationsPage: React.FC = () => {
                 </div>
 
                 {application.notes && (
-                  <p className="mt-4 text-gray-700 text-sm line-clamp-2">
+                  <p className="mt-4 line-clamp-2 text-sm text-slate-800">
                     {application.notes}
                   </p>
                 )}
@@ -195,4 +195,5 @@ export const ApplicationsPage: React.FC = () => {
     </div>
   );
 };
+
 

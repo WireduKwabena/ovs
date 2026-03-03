@@ -12,7 +12,7 @@ const AdminRegisterForm: React.FC = () => {
         </div>
 
         <h1 className="text-2xl font-black text-slate-900">Admin account creation is controlled</h1>
-        <p className="mt-3 text-sm text-slate-600">
+        <p className="mt-3 text-sm text-slate-700">
           Self-service admin signup is disabled. Create admin users through secure internal provisioning
           (Django admin or approved management commands).
         </p>
@@ -34,7 +34,7 @@ const AdminRegisterForm: React.FC = () => {
           </Link>
           <Link
             to="/dashboard"
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100"
           >
             Return to Workspace
           </Link>
@@ -45,3 +45,4 @@ const AdminRegisterForm: React.FC = () => {
 };
 
 export default AdminRegisterForm;
+

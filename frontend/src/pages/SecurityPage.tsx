@@ -117,7 +117,7 @@ const SecurityPage: React.FC = () => {
   if (loadingStatus) {
     return (
       <div className="mx-auto flex min-h-[60vh] max-w-5xl items-center justify-center px-4">
-        <div className="inline-flex items-center gap-2 text-sm text-slate-600">
+        <div className="inline-flex items-center gap-2 text-sm text-slate-700">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading security status...
         </div>
@@ -147,7 +147,7 @@ const SecurityPage: React.FC = () => {
           Security
         </div>
         <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-900">Account Security</h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-slate-700">
           Manage authenticator setup, 2FA state, and backup recovery codes.
         </p>
         <BackupCodesAttentionBadge state={backupCodesAttentionState} />
@@ -155,15 +155,15 @@ const SecurityPage: React.FC = () => {
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">2FA Required</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">2FA Required</p>
           <p className="mt-2 text-sm font-bold text-slate-900">{status.two_factor_required ? "Yes" : "No"}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">2FA Enabled</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">2FA Enabled</p>
           <p className="mt-2 text-sm font-bold text-slate-900">{status.is_two_factor_enabled ? "Enabled" : "Not enabled"}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Backup Codes</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Backup Codes</p>
           <p className="mt-2 text-sm font-bold text-slate-900">{status.backup_codes_remaining} remaining</p>
         </div>
       </div>
@@ -176,7 +176,7 @@ const SecurityPage: React.FC = () => {
         <>
           <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-bold text-slate-900">Authenticator Setup</h2>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-slate-700">
               Start setup to generate a provisioning URI for your authenticator app.
             </p>
 
@@ -243,7 +243,7 @@ const SecurityPage: React.FC = () => {
 
           <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-bold text-slate-900">Backup Recovery Codes</h2>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-slate-700">
               Regenerate backup codes using either your OTP or one existing backup code.
             </p>
 

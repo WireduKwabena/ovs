@@ -29,7 +29,7 @@ export function DocumentUpload() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Upload Documents
           </h1>
-          <p className="text-gray-600">
+          <p className="text-slate-700">
             Application ID: <span className="font-semibold">{caseId}</span>
           </p>
         </div>
@@ -79,3 +79,4 @@ export function DocumentUpload() {
     </div>
   );
 }
+

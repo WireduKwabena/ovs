@@ -37,7 +37,7 @@ const PasswordToggle: React.FC<PasswordToggleProps> = ({ visible, onToggle, disa
     type="button"
     onClick={onToggle}
     disabled={disabled}
-    className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 transition hover:text-slate-700 disabled:cursor-not-allowed"
+    className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-700 transition hover:text-slate-900 disabled:cursor-not-allowed"
     aria-label={visible ? "Hide password" : "Show password"}
   >
     {visible ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -94,7 +94,7 @@ export const ChangePasswordForm: React.FC = () => {
     `h-12 rounded-xl border px-4 pr-11 text-sm transition focus-visible:ring-cyan-500 ${
       hasError
         ? "border-red-400 bg-red-50"
-        : "border-slate-300 bg-slate-50 focus-visible:border-cyan-600"
+        : "border-slate-700 bg-slate-50 focus-visible:border-cyan-600"
     }`;
 
 
@@ -129,7 +129,7 @@ export const ChangePasswordForm: React.FC = () => {
           <div className="mx-auto w-full max-w-md">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">Password actions</p>
             <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Change password</h2>
-            <p className="mt-2 text-sm text-slate-600">Enter your current password and choose a new one.</p>
+            <p className="mt-2 text-sm text-slate-700">Enter your current password and choose a new one.</p>
 
             <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5">
               <div className="space-y-2">
@@ -234,3 +234,4 @@ export const ChangePasswordForm: React.FC = () => {
     </div>
   );
 };
+

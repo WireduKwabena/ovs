@@ -483,7 +483,7 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
       <div className="min-h-screen flex items-center justify-center bg-red-50">
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md">
           <h2 className="text-2xl font-bold text-red-600 mb-4">Error</h2>
-          <p className="text-gray-700 mb-6">{effectiveError}</p>
+          <p className="text-slate-800 mb-6">{effectiveError}</p>
           <button
             onClick={() => navigate(-1)}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -517,10 +517,10 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
             Interview Complete
           </h1>
-          <p className="text-xl text-gray-600 mb-4">
+          <p className="text-xl text-slate-700 mb-4">
             You answered {questionNumber} questions
           </p>
-          <p className="text-gray-700 mb-8">
+          <p className="text-slate-700 mb-8">
             All inconsistencies have been addressed. Your responses are being
             analyzed.
           </p>
@@ -540,7 +540,7 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-xl text-gray-700">Initializing interview...</p>
+          <p className="text-xl text-slate-700">Initializing interview...</p>
         </div>
       </div>
     );
@@ -582,26 +582,26 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
             </div>
 
             <div className="bg-gray-900 text-gray-100 rounded-xl p-4 border border-gray-700">
-              <div className="text-xs uppercase tracking-wide text-gray-400 mb-3">Runtime Diagnostics</div>
+              <div className="text-xs uppercase tracking-wide text-slate-700 mb-3">Runtime Diagnostics</div>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="rounded-md bg-gray-800 px-3 py-2">
-                  <div className="text-gray-400 text-xs mb-1">Avatar Transport</div>
+                  <div className="text-slate-700 text-xs mb-1">Avatar Transport</div>
                   <div className="font-mono font-semibold">{transportModeLabel}</div>
                 </div>
                 <div className="rounded-md bg-gray-800 px-3 py-2">
-                  <div className="text-gray-400 text-xs mb-1">WebSocket</div>
+                  <div className="text-slate-700 text-xs mb-1">WebSocket</div>
                   <div className="font-mono font-semibold">{websocketStatus}</div>
                 </div>
                 <div className="rounded-md bg-gray-800 px-3 py-2 col-span-2">
-                  <div className="text-gray-400 text-xs mb-1">Last Event</div>
+                  <div className="text-slate-700 text-xs mb-1">Last Event</div>
                   <div className="font-mono break-all">{lastWsEvent}</div>
                 </div>
                 <div className="rounded-md bg-gray-800 px-3 py-2 col-span-2">
-                  <div className="text-gray-400 text-xs mb-1">Updated</div>
+                  <div className="text-slate-700 text-xs mb-1">Updated</div>
                   <div className="font-mono">{lastWsEventAt}</div>
                 </div>
                 <div className="rounded-md bg-gray-800 px-3 py-2 col-span-2">
-                  <div className="text-gray-400 text-xs mb-1">Reconnect State</div>
+                  <div className="text-slate-700 text-xs mb-1">Reconnect State</div>
                   <div className="font-mono">
                     {reconnectState
                       ? `${reconnectState.attempt}/${reconnectState.maxAttempts} in ${reconnectState.delayMs}ms`
@@ -635,7 +635,7 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
                   {questionNumber}
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm text-gray-600 mb-2 uppercase font-semibold">
+                  <div className="text-sm text-slate-700 mb-2 uppercase font-semibold">
                     Current Question
                   </div>
                   <p className="text-xl font-bold text-gray-900">

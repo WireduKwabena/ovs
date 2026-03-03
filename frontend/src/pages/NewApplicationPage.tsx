@@ -84,7 +84,7 @@ export const NewApplicationPage: React.FC = () => {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <button
           onClick={() => navigate("/applications")}
-          className="flex items-center gap-2 text-gray-300 mb-6 transition-colors"
+          className="flex items-center gap-2 text-slate-700 mb-6 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
           Back to Applications
@@ -94,7 +94,7 @@ export const NewApplicationPage: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             New Application
           </h1>
-          <p className="text-gray-600 mb-8">
+          <p className="text-slate-700 mb-8">
             Fill in the details and upload required documents
           </p>
 
@@ -103,14 +103,14 @@ export const NewApplicationPage: React.FC = () => {
             <div>
               <label
                 htmlFor="new-app-type"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className="block text-sm font-medium text-slate-800 mb-2"
               >
                 Application Type *
               </label>
               <select
                 id="new-app-type"
                 {...register("application_type")}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-slate-700 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               >
                 <option value="">Select type...</option>
                 {APPLICATION_TYPES.map((type) => (
@@ -130,14 +130,14 @@ export const NewApplicationPage: React.FC = () => {
             <div>
               <label
                 htmlFor="new-app-priority"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className="block text-sm font-medium text-slate-800 mb-2"
               >
                 Priority *
               </label>
               <select
                 id="new-app-priority"
                 {...register("priority")}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-slate-700 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               >
                 <option value="">Select priority...</option>
                 {PRIORITIES.map((priority) => (
@@ -157,7 +157,7 @@ export const NewApplicationPage: React.FC = () => {
             <div>
               <label
                 htmlFor="new-app-notes"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className="block text-sm font-medium text-slate-800 mb-2"
               >
                 Additional Notes
               </label>
@@ -165,7 +165,7 @@ export const NewApplicationPage: React.FC = () => {
                 id="new-app-notes"
                 {...register("notes")}
                 rows={4}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                className="w-full px-4 py-2 border border-slate-700 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
                 placeholder="Any additional information you'd like to provide..."
               />
             </div>
@@ -174,7 +174,7 @@ export const NewApplicationPage: React.FC = () => {
             <div>
               <label
                 htmlFor="upload-doc-type"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className="block text-sm font-medium text-slate-800 mb-2"
               >
                 Document Type for Uploads
               </label>
@@ -185,7 +185,7 @@ export const NewApplicationPage: React.FC = () => {
                 onChange={(e) =>
                   setDocumentType(e.target.value as DocumentType)
                 }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-4"
+                className="w-full px-4 py-2 border border-slate-700 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-4"
               >
                 {DOCUMENT_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>
@@ -193,7 +193,7 @@ export const NewApplicationPage: React.FC = () => {
                   </option>
                 ))}
               </select>
-              <p className="block text-sm font-medium text-gray-700 mb-2">
+              <p className="block text-sm font-medium text-slate-800 mb-2">
                 Documents * (PDF, JPG, PNG - Max 10MB each)
               </p>
               <FileUpload
@@ -217,7 +217,7 @@ export const NewApplicationPage: React.FC = () => {
                           <p className="font-medium text-gray-900">
                             {file.name}
                           </p>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-slate-700">
                             {(file.size / 1024).toFixed(2)} KB
                           </p>
                         </div>
@@ -241,7 +241,7 @@ export const NewApplicationPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => navigate("/applications")}
-                className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-300 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+                className="flex-1 px-6 py-3 border-2 border-slate-700 text-slate-800 rounded-lg hover:bg-slate-100 font-medium transition-colors"
               >
                 Cancel
               </button>
@@ -259,3 +259,4 @@ export const NewApplicationPage: React.FC = () => {
     </div>
   );
 };
+

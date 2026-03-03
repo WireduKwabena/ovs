@@ -75,7 +75,7 @@ const BillingCheckoutResultPage: React.FC = () => {
             <XCircle className="h-6 w-6" />
           </div>
           <h1 className="text-center text-2xl font-black text-slate-900">Checkout Cancelled</h1>
-          <p className="mt-3 text-center text-sm text-slate-600">
+          <p className="mt-3 text-center text-sm text-slate-700">
             No charge was completed. You can return to plans and try again.
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
@@ -88,7 +88,7 @@ const BillingCheckoutResultPage: React.FC = () => {
             </button>
             <Link
               to="/login"
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
             >
               Go to Login
             </Link>
@@ -108,7 +108,7 @@ const BillingCheckoutResultPage: React.FC = () => {
             <AlertTriangle className="h-6 w-6" />
           </div>
           <h1 className="text-center text-2xl font-black text-slate-900">Verification Failed</h1>
-          <p className="mt-3 text-center text-sm text-slate-600">
+          <p className="mt-3 text-center text-sm text-slate-700">
             {hasMissingSession
               ? "Missing Stripe session ID in callback URL."
               : errorMessage || "Unable to confirm payment at the moment."}
@@ -145,7 +145,7 @@ const BillingCheckoutResultPage: React.FC = () => {
             <CheckCircle2 className="h-6 w-6" />
           </div>
           <h1 className="text-center text-2xl font-black text-slate-900">Payment Confirmed</h1>
-          <p className="mt-3 text-center text-sm text-slate-600">
+          <p className="mt-3 text-center text-sm text-slate-700">
             Your subscription access has been activated. Continue to organization registration.
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
@@ -158,7 +158,7 @@ const BillingCheckoutResultPage: React.FC = () => {
             </button>
             <Link
               to="/login"
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
             >
               Go to Login
             </Link>
@@ -175,7 +175,7 @@ const BillingCheckoutResultPage: React.FC = () => {
           <Loader2 className="h-6 w-6 animate-spin" />
         </div>
         <h1 className="text-2xl font-black text-slate-900">Confirming Payment</h1>
-        <p className="mt-3 text-sm text-slate-600">
+        <p className="mt-3 text-sm text-slate-700">
           We are validating your checkout session with Stripe.
         </p>
       </section>
@@ -184,4 +184,5 @@ const BillingCheckoutResultPage: React.FC = () => {
 };
 
 export default BillingCheckoutResultPage;
+
 

@@ -37,7 +37,7 @@ const StatCard: React.FC<StatCardProps> = ({ icon: Icon, title, value, color, su
         <p className="text-sm font-medium text-slate-700">{title}</p>
         <p className={`text-3xl font-bold ${color} mt-2`}>{value.toLocaleString()}</p>
         {subtitle && (
-          <p className="text-xs text-slate-600 mt-1">{subtitle}</p>
+          <p className="text-xs text-slate-700 mt-1">{subtitle}</p>
         )}
       </div>
       <div className={`p-3 rounded-full ${ICON_BG_BY_TEXT_COLOR[color] ?? 'bg-slate-100'}`}>
@@ -121,7 +121,7 @@ export const AdminDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
@@ -201,11 +201,11 @@ export const AdminDashboard: React.FC = () => {
 
         {/* Recent Applications */}
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 p-6">
             <h2 className="text-xl font-bold text-gray-900">Recent Applications</h2>
             <button
               onClick={() => navigate('/admin/cases')}
-              className="inline-flex items-center rounded-md border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100"
+              className="inline-flex w-full items-center justify-center rounded-md border border-indigo-300 bg-indigo-100 px-3 py-1.5 text-sm font-semibold text-indigo-900 hover:bg-indigo-200 sm:w-auto"
             >
               View All →
             </button>
@@ -216,9 +216,9 @@ export const AdminDashboard: React.FC = () => {
               stats.recent_applications.map((app: RecentApplication) => (
                 <div
                   key={app.id}
-                  className="p-6 hover:bg-gray-50 transition-colors"
+                  className="p-6 transition-colors hover:bg-slate-50"
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="font-semibold text-lg text-gray-900">{app.case_id}</h3>
@@ -228,12 +228,12 @@ export const AdminDashboard: React.FC = () => {
                         {app.applicant_name || 'Unknown'} • {' '}
                         <span className="capitalize">{app.application_type.replace('_', ' ')}</span>
                       </p>
-                      <p className="text-xs text-slate-600 mt-1">
+                      <p className="text-xs text-slate-700 mt-1">
                         Submitted: {formatDate(app.created_at)}
                       </p>
                     </div>
 
-                    <div className="text-right ml-6">
+                    <div className="w-full text-left lg:ml-6 lg:w-auto lg:text-right">
                       {typeof app.rubric_score === 'number' && (
                         <div className="mb-3">
                           <div className="text-sm text-slate-700">
@@ -247,7 +247,7 @@ export const AdminDashboard: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => navigate(`/admin/cases/${app.case_id}`)}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors"
+                        className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 sm:w-auto"
                       >
                         Review Case
                       </button>
@@ -257,16 +257,16 @@ export const AdminDashboard: React.FC = () => {
               ))
             ) : (
               <div className="p-12 text-center">
-                <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <FileText className="w-16 h-16 text-slate-700 mx-auto mb-4" />
                 <p className="text-slate-700 text-lg">No recent applications</p>
-                <p className="text-slate-600 text-sm mt-1">New applications will appear here</p>
+                <p className="text-slate-700 text-sm mt-1">New applications will appear here</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           <button
             onClick={() => navigate('/admin/cases?status=pending')}
             className="group p-6 bg-linear-to-br from-amber-100 to-amber-200 rounded-lg border-2 border-amber-300 hover:border-amber-400 hover:shadow-md transition-all text-left"
@@ -308,7 +308,7 @@ export const AdminDashboard: React.FC = () => {
 
           <button
             onClick={() => navigate('/admin/control-center')}
-            className="group p-6 bg-linear-to-br from-slate-200 to-slate-300 rounded-lg border-2 border-slate-400 hover:border-slate-500 hover:shadow-md transition-all text-left"
+            className="group p-6 bg-linear-to-br from-slate-100 to-slate-200 rounded-lg border-2 border-slate-500 hover:border-slate-700 hover:shadow-md transition-all text-left"
           >
             <Users className="w-10 h-10 text-slate-900 mb-3 group-hover:scale-110 transition-transform" />
             <h3 className="font-bold text-lg text-gray-900">Admin Control</h3>

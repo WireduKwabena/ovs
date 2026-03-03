@@ -93,7 +93,7 @@ const UserSettingsPage: React.FC = () => {
   if (!user) {
     return (
       <div className="mx-auto flex min-h-[55vh] max-w-5xl items-center justify-center px-4">
-        <div className="inline-flex items-center gap-2 text-sm text-slate-600">
+        <div className="inline-flex items-center gap-2 text-sm text-slate-700">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading account settings...
         </div>
@@ -109,22 +109,22 @@ const UserSettingsPage: React.FC = () => {
           Profile & Settings
         </div>
         <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-900">Account Settings</h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-slate-700">
           Manage your identity details and security controls.
         </p>
       </header>
 
       <section className="mt-5 grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Display Name</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Display Name</p>
           <p className="mt-2 text-sm font-bold text-slate-900">{accountName}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Account Type</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Account Type</p>
           <p className="mt-2 text-sm font-bold capitalize text-slate-900">{userType || "unknown"}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Member Since</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Member Since</p>
           <p className="mt-2 text-sm font-bold text-slate-900">{memberSince}</p>
         </div>
       </section>
@@ -132,7 +132,7 @@ const UserSettingsPage: React.FC = () => {
       <section className="mt-6 grid gap-6 lg:grid-cols-5">
         <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-3">
           <h2 className="text-lg font-bold text-slate-900">Profile Details</h2>
-          <p className="mt-1 text-sm text-slate-600">Update the information used by your organization account.</p>
+          <p className="mt-1 text-sm text-slate-700">Update the information used by your organization account.</p>
 
           <form className="mt-5 space-y-4" onSubmit={handleSave}>
             <div className="space-y-2">
@@ -195,7 +195,7 @@ const UserSettingsPage: React.FC = () => {
 
         <aside className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
           <h2 className="text-lg font-bold text-slate-900">Security Controls</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-slate-700">
             Access account protection actions and credential updates.
           </p>
 
@@ -208,7 +208,7 @@ const UserSettingsPage: React.FC = () => {
                 <ShieldCheck className="mt-0.5 h-5 w-5 text-cyan-700" />
                 <span>
                   <span className="block text-sm font-semibold text-slate-900">Two-Factor Security</span>
-                  <span className="block text-xs text-slate-600">Manage authenticator and backup codes.</span>
+                  <span className="block text-xs text-slate-700">Manage authenticator and backup codes.</span>
                 </span>
               </Link>
             ) : null}
@@ -220,7 +220,7 @@ const UserSettingsPage: React.FC = () => {
               <CheckCircle2 className="mt-0.5 h-5 w-5 text-cyan-700" />
               <span>
                 <span className="block text-sm font-semibold text-slate-900">Change Password</span>
-                <span className="block text-xs text-slate-600">Rotate your account password securely.</span>
+                <span className="block text-xs text-slate-700">Rotate your account password securely.</span>
               </span>
             </Link>
           </div>
@@ -231,3 +231,4 @@ const UserSettingsPage: React.FC = () => {
 };
 
 export default UserSettingsPage;
+

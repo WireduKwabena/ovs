@@ -499,6 +499,11 @@ AI_ML_MIDV500_MODEL_PATH = config(
     "AI_ML_MIDV500_MODEL_PATH",
     default=str(MODEL_PATH / "midv500_classifier.pkl"),
 )
+AI_ML_PREFLIGHT_IMPORT_TIMEOUT_SECONDS = config(
+    "AI_ML_PREFLIGHT_IMPORT_TIMEOUT_SECONDS",
+    default=20,
+    cast=int,
+)
 AI_ML_TRAINING_REPORT_PATH = config(
     "AI_ML_TRAINING_REPORT_PATH",
     default=str(MODEL_PATH / "training_report.json"),
@@ -506,6 +511,15 @@ AI_ML_TRAINING_REPORT_PATH = config(
 AI_ML_DOC_CLASSIFIER_REPORT_PATH = config(
     "AI_ML_DOC_CLASSIFIER_REPORT_PATH",
     default=str(MODEL_PATH / "document_classifier_training_report.json"),
+)
+AI_ML_MODEL_MANIFEST_PATH = config(
+    "AI_ML_MODEL_MANIFEST_PATH",
+    default=str(MODEL_PATH / "model_manifest.json"),
+)
+AI_ML_MODEL_MANIFEST_REQUIRED = config(
+    "AI_ML_MODEL_MANIFEST_REQUIRED",
+    default=False,
+    cast=bool,
 )
 AI_ML_METRIC_GATES_ENABLED = config(
     "AI_ML_METRIC_GATES_ENABLED",
@@ -652,6 +666,12 @@ CANDIDATE_ACCESS_FRONTEND_PATH = config("CANDIDATE_ACCESS_FRONTEND_PATH", defaul
 CANDIDATE_ACCESS_PASS_TTL_HOURS = config("CANDIDATE_ACCESS_PASS_TTL_HOURS", default=72, cast=int)
 CANDIDATE_ACCESS_SESSION_TTL_HOURS = config("CANDIDATE_ACCESS_SESSION_TTL_HOURS", default=12, cast=int)
 CANDIDATE_ACCESS_MAX_USES = config("CANDIDATE_ACCESS_MAX_USES", default=50, cast=int)
+
+# Data retention policy (days)
+PII_RETENTION_DAYS = config("PII_RETENTION_DAYS", default=365, cast=int)
+BIOMETRIC_RETENTION_DAYS = config("BIOMETRIC_RETENTION_DAYS", default=180, cast=int)
+BACKGROUND_CHECK_RETENTION_DAYS = config("BACKGROUND_CHECK_RETENTION_DAYS", default=365, cast=int)
+AUDIT_LOG_RETENTION_DAYS = config("AUDIT_LOG_RETENTION_DAYS", default=730, cast=int)
 
 
 

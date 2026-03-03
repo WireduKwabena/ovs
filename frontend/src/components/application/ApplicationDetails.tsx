@@ -67,23 +67,23 @@ export function ApplicationDetails() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">{currentCase.case_id}</h1>
-            <p className="text-gray-600 mt-2">{currentCase.application_type.replace('_', ' ')}</p>
+            <p className="text-slate-700 mt-2">{currentCase.application_type.replace('_', ' ')}</p>
           </div>
           <StatusBadge status={currentCase.status} />
         </div>
         
         <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
           <div className="flex items-center">
-            <Shield className="w-4 h-4 mr-2 text-gray-400" />
-            <span className="text-gray-600">Priority: <span className="font-medium capitalize">{currentCase.priority}</span></span>
+            <Shield className="w-4 h-4 mr-2 text-slate-700" />
+            <span className="text-slate-700">Priority: <span className="font-medium capitalize">{currentCase.priority}</span></span>
           </div>
           <div className="flex items-center">
-            <FileText className="w-4 h-4 mr-2 text-gray-400" />
-            <span className="text-gray-600">Submitted: {new Date(currentCase.created_at).toLocaleDateString()}</span>
+            <FileText className="w-4 h-4 mr-2 text-slate-700" />
+            <span className="text-slate-700">Submitted: {new Date(currentCase.created_at).toLocaleDateString()}</span>
           </div>
           <div className="flex items-center">
-            <TrendingUp className="w-4 h-4 mr-2 text-gray-400" />
-            <span className="text-gray-600">Documents: {currentCase.documents?.length || 0}</span>
+            <TrendingUp className="w-4 h-4 mr-2 text-slate-700" />
+            <span className="text-slate-700">Documents: {currentCase.documents?.length || 0}</span>
           </div>
         </div>
       </div>
@@ -121,7 +121,7 @@ export function ApplicationDetails() {
                   value={verificationStatus.consistency_check.overall_score} 
                   color={getProgressBarColor(verificationStatus.consistency_check.overall_score)} 
                 />
-                <p className="text-sm mt-2 text-gray-600">
+                <p className="text-sm mt-2 text-slate-700">
                   {verificationStatus.consistency_check.recommendation}
                 </p>
               </div>
@@ -139,7 +139,7 @@ export function ApplicationDetails() {
                   value={(1 - verificationStatus.fraud_detection.fraud_probability) * 100} 
                   color={getProgressBarColor((1 - verificationStatus.fraud_detection.fraud_probability) * 100)} 
                 />
-                <p className="text-sm mt-2 text-gray-600">
+                <p className="text-sm mt-2 text-slate-700">
                   {verificationStatus.fraud_detection.recommendation}
                 </p>
               </div>
@@ -155,9 +155,9 @@ export function ApplicationDetails() {
           
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Consistency Score</p>
+              <p className="text-sm text-slate-700 mb-1">Consistency Score</p>
               <div className="flex items-center gap-2">
-                <div className="flex-1 bg-gray-200 rounded-full h-3">
+                <div className="flex-1 bg-slate-200 rounded-full h-3">
                   <div 
                     className="bg-blue-600 h-3 rounded-full"
                     style={{ width: `${verificationStatus.overall_scores.consistency || 0}%` }}
@@ -170,9 +170,9 @@ export function ApplicationDetails() {
             </div>
             
             <div>
-              <p className="text-sm text-gray-600 mb-1">Fraud Risk Score</p>
+              <p className="text-sm text-slate-700 mb-1">Fraud Risk Score</p>
               <div className="flex items-center gap-2">
-                <div className="flex-1 bg-gray-200 rounded-full h-3">
+                <div className="flex-1 bg-slate-200 rounded-full h-3">
                   <div 
                     className="bg-purple-600 h-3 rounded-full"
                     style={{ width: `${(1 - (verificationStatus.overall_scores.fraud_risk || 0)) * 100}%` }}
@@ -189,3 +189,4 @@ export function ApplicationDetails() {
     </div>
   );
 }
+

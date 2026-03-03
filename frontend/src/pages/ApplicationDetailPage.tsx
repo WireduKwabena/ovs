@@ -87,7 +87,7 @@ export const ApplicationDetailPage: React.FC = () => {
         {/* Header */}
         <button
           onClick={() => navigate("/applications")}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
+          className="mb-6 flex items-center gap-2 text-slate-700 hover:text-slate-900"
         >
           <ArrowLeft className="w-5 h-5" />
           Back to Applications
@@ -98,7 +98,7 @@ export const ApplicationDetailPage: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               {currentCase.case_id}
             </h1>
-            <p className="text-gray-600">{currentCase.application_type}</p>
+            <p className="text-slate-700">{currentCase.application_type}</p>
           </div>
           <StatusBadge status={currentCase.status} />
         </div>
@@ -113,25 +113,25 @@ export const ApplicationDetailPage: React.FC = () => {
               </h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <span className="text-gray-500 text-sm">Priority</span>
+                  <span className="text-sm text-slate-700">Priority</span>
                   <p className="font-medium capitalize">
                     {currentCase.priority}
                   </p>
                 </div>
                 <div>
-                  <span className="text-gray-500 text-sm">Submitted</span>
+                  <span className="text-sm text-slate-700">Submitted</span>
                   <p className="font-medium">
                     {formatDate(currentCase.created_at)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-gray-500 text-sm">Last Updated</span>
+                  <span className="text-sm text-slate-700">Last Updated</span>
                   <p className="font-medium">
                     {formatDate(currentCase.updated_at)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-gray-500 text-sm">Documents</span>
+                  <span className="text-sm text-slate-700">Documents</span>
                   <p className="font-medium">
                     {currentCase.documents?.length || 0} uploaded
                   </p>
@@ -139,7 +139,7 @@ export const ApplicationDetailPage: React.FC = () => {
               </div>
               {currentCase.notes && (
                 <div className="mt-4 pt-4 border-t">
-                  <span className="text-gray-500 text-sm">Notes</span>
+                  <span className="text-sm text-slate-700">Notes</span>
                   <p className="mt-1">{currentCase.notes}</p>
                 </div>
               )}
@@ -187,7 +187,7 @@ export const ApplicationDetailPage: React.FC = () => {
                   <div>
                     <label
                       htmlFor="detail-upload-file"
-                      className="block text-sm text-gray-700 mb-1"
+                      className="mb-1 block text-sm text-slate-700"
                     >
                       Select file
                     </label>
@@ -205,7 +205,7 @@ export const ApplicationDetailPage: React.FC = () => {
                       className="w-full"
                     />
                     {pickedFile && (
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="mt-1 text-xs text-slate-700">
                         Selected: {pickedFile.name}
                       </p>
                     )}
@@ -213,7 +213,7 @@ export const ApplicationDetailPage: React.FC = () => {
                   <div>
                     <label
                       htmlFor="detail-upload-type"
-                      className="block text-sm text-gray-700 mb-1"
+                      className="mb-1 block text-sm text-slate-700"
                     >
                       Document type
                     </label>
@@ -239,13 +239,13 @@ export const ApplicationDetailPage: React.FC = () => {
                   {currentCase.documents.map((doc) => (
                     <div
                       key={doc.id}
-                      className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
+                      className="flex items-center justify-between rounded-lg border border-slate-200 p-4"
                     >
                       <div className="flex items-center gap-3">
-                        <FileText className="w-8 h-8 text-gray-400" />
+                        <FileText className="w-8 h-8 text-slate-700" />
                         <div>
                           <p className="font-medium">{doc.file_name}</p>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-slate-700">
                             {doc.document_type} •{" "}
                             {formatFileSize(doc.file_size)}
                           </p>
@@ -254,7 +254,7 @@ export const ApplicationDetailPage: React.FC = () => {
                       <div className="flex items-center gap-3">
                         <StatusBadge status={doc.verification_status} />
                         {doc.ai_confidence_score && (
-                          <span className="text-sm text-gray-600">
+                          <span className="text-sm text-slate-700">
                             {doc.ai_confidence_score.toFixed(1)}% confidence
                           </span>
                         )}
@@ -264,8 +264,8 @@ export const ApplicationDetailPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500">No documents uploaded yet</p>
+                  <FileText className="w-12 h-12 text-slate-700 mx-auto mb-3" />
+                  <p className="text-slate-700">No documents uploaded yet</p>
                 </div>
               )}
             </div>
@@ -284,7 +284,7 @@ export const ApplicationDetailPage: React.FC = () => {
                       <StatusBadge status={doc.verification_status} />
                     </div>
                     {typeof doc.ai_confidence_score === "number" && (
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-slate-700">
                         AI Confidence: {doc.ai_confidence_score.toFixed(1)}%
                       </div>
                     )}
@@ -298,7 +298,7 @@ export const ApplicationDetailPage: React.FC = () => {
                     <div className="grid grid-cols-2 gap-4">
                       {currentCase.consistency_result && (
                         <div>
-                          <span className="text-sm text-gray-500">
+                          <span className="text-sm text-slate-700">
                             Consistency
                           </span>
                           <p className="text-2xl font-bold text-indigo-600">
@@ -311,7 +311,7 @@ export const ApplicationDetailPage: React.FC = () => {
                       )}
                       {currentCase.fraud_result && (
                         <div>
-                          <span className="text-sm text-gray-500">
+                          <span className="text-sm text-slate-700">
                             Fraud Risk
                           </span>
                           <p className="text-2xl font-bold text-red-600">
@@ -342,7 +342,7 @@ export const ApplicationDetailPage: React.FC = () => {
                   </div>
                   <div>
                     <p className="font-medium">Submitted</p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-slate-700">
                       {formatDate(currentCase.created_at)}
                     </p>
                   </div>
@@ -358,7 +358,7 @@ export const ApplicationDetailPage: React.FC = () => {
                     </div>
                     <div>
                       <p className="font-medium">Under Review</p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-slate-700">
                         {formatDate(currentCase.updated_at)}
                       </p>
                     </div>
@@ -379,7 +379,7 @@ export const ApplicationDetailPage: React.FC = () => {
                       <p className="font-medium capitalize">
                         {currentCase.status}
                       </p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-slate-700">
                         {formatDate(currentCase.updated_at)}
                       </p>
                     </div>
@@ -392,10 +392,10 @@ export const ApplicationDetailPage: React.FC = () => {
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h3 className="font-semibold mb-4">Quick Actions</h3>
               <div className="space-y-2">
-                <button className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 rounded-lg transition-colors">
+                <button className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 rounded-lg transition-colors">
                   Download All Documents
                 </button>
-                <button className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 rounded-lg transition-colors">
+                <button className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 rounded-lg transition-colors">
                   Request Status Update
                 </button>
                 <button className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors">
@@ -409,3 +409,4 @@ export const ApplicationDetailPage: React.FC = () => {
     </div>
   );
 };
+

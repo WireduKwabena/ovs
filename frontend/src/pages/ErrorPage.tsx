@@ -23,7 +23,7 @@ const ErrorPage: React.FC = () => {
       <div className="bg-white rounded-lg p-8 max-w-md w-full text-center">
         <h2 className="text-2xl font-bold text-red-600 mb-4">An Error Occurred</h2>
         {status && <p className="text-lg mb-2">Status: {status}</p>}
-        <p className="text-gray-700 mb-6">{message}</p>
+        <p className="text-slate-800 mb-6">{message}</p>
         <Button onClick={handleClearError} className="bg-red-600 hover:bg-red-700">
           Go Back
         </Button>

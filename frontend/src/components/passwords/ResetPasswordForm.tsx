@@ -76,7 +76,7 @@ export const ResetPasswordForm: React.FC = () => {
     `h-12 rounded-xl border px-4 pr-11 text-sm transition focus-visible:ring-cyan-500 ${
       hasError
         ? "border-red-400 bg-red-50"
-        : "border-slate-300 bg-slate-50 focus-visible:border-cyan-600"
+        : "border-slate-700 bg-slate-50 focus-visible:border-cyan-600"
     }`;
 
   if (!hasToken) {
@@ -87,7 +87,7 @@ export const ResetPasswordForm: React.FC = () => {
             <KeyRound className="h-8 w-8" />
           </div>
           <h1 className="text-2xl font-black text-slate-900">Invalid reset link</h1>
-          <p className="mt-3 text-sm text-slate-600">This link is malformed or missing a reset token.</p>
+          <p className="mt-3 text-sm text-slate-700">This link is malformed or missing a reset token.</p>
           <div className="mt-6 space-y-3">
             <Link
               to="/forgot-password"
@@ -97,7 +97,7 @@ export const ResetPasswordForm: React.FC = () => {
             </Link>
             <Link
               to="/login"
-              className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-slate-700 px-4 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
             >
               Back to sign in
             </Link>
@@ -138,7 +138,7 @@ export const ResetPasswordForm: React.FC = () => {
           <div className="mx-auto w-full max-w-md">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">Password actions</p>
             <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Reset password</h2>
-            <p className="mt-2 text-sm text-slate-600">Enter and confirm your new password below.</p>
+            <p className="mt-2 text-sm text-slate-700">Enter and confirm your new password below.</p>
 
             <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5">
               <div className="space-y-2">
@@ -160,7 +160,7 @@ export const ResetPasswordForm: React.FC = () => {
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
                     disabled={loading}
-                    className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 transition hover:text-slate-700 disabled:cursor-not-allowed"
+                    className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-700 transition hover:text-slate-900 disabled:cursor-not-allowed"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -188,7 +188,7 @@ export const ResetPasswordForm: React.FC = () => {
                     type="button"
                     onClick={() => setShowConfirmPassword((prev) => !prev)}
                     disabled={loading}
-                    className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 transition hover:text-slate-700 disabled:cursor-not-allowed"
+                    className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-700 transition hover:text-slate-900 disabled:cursor-not-allowed"
                     aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                   >
                     {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -213,7 +213,7 @@ export const ResetPasswordForm: React.FC = () => {
                 )}
               </Button>
 
-              <p className="text-center text-xs text-slate-600">
+              <p className="text-center text-xs text-slate-700">
                 Remember your password?
                 <Link to="/login" className="ml-1 font-semibold text-cyan-700 hover:underline">
                   Back to sign in
@@ -226,3 +226,4 @@ export const ResetPasswordForm: React.FC = () => {
     </div>
   );
 };
+

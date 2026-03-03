@@ -100,7 +100,7 @@ export const RegisterForm: React.FC = () => {
     `h-11 rounded-xl border px-3 text-sm transition focus-visible:ring-cyan-500 ${
       hasError
         ? "border-red-400 bg-red-50"
-        : "border-slate-300 bg-slate-50 focus-visible:border-cyan-600"
+        : "border-slate-700 bg-slate-50 focus-visible:border-cyan-600"
     }`;
 
   return (
@@ -223,7 +223,7 @@ export const RegisterForm: React.FC = () => {
                       disabled={loading}
                       className={`${inputClass(false)} pl-10`}
                     />
-                    <Building2 className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                    <Building2 className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-700" />
                   </div>
                 </div>
 
@@ -259,7 +259,7 @@ export const RegisterForm: React.FC = () => {
                       type="button"
                       onClick={() => setShowPassword((prev) => !prev)}
                       disabled={loading}
-                      className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 transition hover:text-slate-700 disabled:cursor-not-allowed"
+                      className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-700 transition hover:text-slate-900 disabled:cursor-not-allowed"
                       aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -287,7 +287,7 @@ export const RegisterForm: React.FC = () => {
                       type="button"
                       onClick={() => setShowConfirmPassword((prev) => !prev)}
                       disabled={loading}
-                      className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 transition hover:text-slate-700 disabled:cursor-not-allowed"
+                      className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-700 transition hover:text-slate-900 disabled:cursor-not-allowed"
                       aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                     >
                       {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -317,7 +317,7 @@ export const RegisterForm: React.FC = () => {
               </Button>
             </form>
 
-            <p className="mt-4 text-center text-xs text-slate-600">
+            <p className="mt-4 text-center text-xs text-slate-700">
               Already provisioned?
               <Link to="/login" className="ml-1 font-semibold text-cyan-700 hover:underline">
                 Sign in
@@ -329,4 +329,5 @@ export const RegisterForm: React.FC = () => {
     </div>
   );
 };
+
 

@@ -57,7 +57,7 @@ export const EmailSentScreen: React.FC = () => {
             <MailCheck className="h-8 w-8" />
           </div>
           <h1 className="text-2xl font-black text-slate-900">Email context missing</h1>
-          <p className="mt-3 text-sm text-slate-600">
+          <p className="mt-3 text-sm text-slate-700">
             This page needs an email context. Request another password reset link.
           </p>
           <div className="mt-6 space-y-3">
@@ -69,7 +69,7 @@ export const EmailSentScreen: React.FC = () => {
             </Link>
             <Link
               to="/login"
-              className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-slate-700 px-4 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
             >
               Back to sign in
             </Link>
@@ -91,7 +91,7 @@ export const EmailSentScreen: React.FC = () => {
 
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">Password actions</p>
         <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Check your inbox</h1>
-        <p className="mt-4 text-sm text-slate-600">
+        <p className="mt-4 text-sm text-slate-700">
           We sent a reset link to <span className="font-bold text-slate-900">{maskedEmail}</span>. If you do not see it,
           check spam.
         </p>
@@ -115,7 +115,7 @@ export const EmailSentScreen: React.FC = () => {
 
           <Link
             to="/login"
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-700 px-4 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to sign in
@@ -125,3 +125,4 @@ export const EmailSentScreen: React.FC = () => {
     </div>
   );
 };
+

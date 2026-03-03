@@ -62,7 +62,7 @@ const CAMPAIGN_PULSE_SORT_OPTIONS: Array<{ value: CampaignPulseSort; label: stri
 ];
 
 const statusPillClass: Record<string, string> = {
-  draft: 'bg-slate-100 text-slate-700',
+  draft: 'bg-slate-200 text-slate-800',
   active: 'bg-teal-100 text-teal-700',
   closed: 'bg-amber-100 text-amber-700',
   archived: 'bg-zinc-100 text-zinc-700',
@@ -959,7 +959,7 @@ const HrDashboardPage: React.FC = () => {
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-10">
-        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-500">
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-700">
           Loading HR dashboard...
         </div>
       </div>
@@ -980,7 +980,7 @@ const HrDashboardPage: React.FC = () => {
             <button
               type="button"
               onClick={() => void loadDashboard()}
-              className="inline-flex items-center gap-2 rounded-lg bg-slate-800/80 px-4 py-2 text-sm hover:bg-slate-700/80"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-800/80 px-4 py-2 text-sm hover:bg-slate-700/80 sm:w-auto"
             >
               <RefreshCw className="w-4 h-4" />
               Refresh
@@ -989,7 +989,7 @@ const HrDashboardPage: React.FC = () => {
               type="button"
               onClick={exportCampaignCsv}
               disabled={filteredCampaignStats.length === 0}
-              className="inline-flex items-center gap-2 rounded-lg bg-slate-800/80 px-4 py-2 text-sm hover:bg-slate-700/80 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-800/80 px-4 py-2 text-sm hover:bg-slate-700/80 disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
             >
               <Download className="w-4 h-4" />
               Export CSV
@@ -998,7 +998,7 @@ const HrDashboardPage: React.FC = () => {
               type="button"
               onClick={exportCampaignJson}
               disabled={filteredCampaignStats.length === 0}
-              className="inline-flex items-center gap-2 rounded-lg bg-slate-800/80 px-4 py-2 text-sm hover:bg-slate-700/80 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-800/80 px-4 py-2 text-sm hover:bg-slate-700/80 disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
             >
               <Download className="w-4 h-4" />
               Export JSON
@@ -1007,7 +1007,7 @@ const HrDashboardPage: React.FC = () => {
               type="button"
               onClick={() => void copyShareLink()}
               disabled={isCopyingLink}
-              className="inline-flex items-center gap-2 rounded-lg bg-slate-800/80 px-4 py-2 text-sm hover:bg-slate-700/80 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-800/80 px-4 py-2 text-sm hover:bg-slate-700/80 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             >
               <Link2 className="w-4 h-4" />
               {isCopyingLink ? 'Copying...' : linkCopied ? 'Link Copied' : 'Copy Link'}
@@ -1059,7 +1059,7 @@ const HrDashboardPage: React.FC = () => {
                 className={`px-3 py-1.5 rounded-full text-xs border transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                   isActive
                     ? 'border-teal-300 bg-teal-50 text-teal-700'
-                    : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+                    : 'border-slate-700 bg-white text-slate-700 hover:bg-slate-100'
                 }`}
               >
                 {isApplyingThisPreset ? 'Applying...' : preset.label}
@@ -1070,13 +1070,13 @@ const HrDashboardPage: React.FC = () => {
         <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-sm font-semibold text-slate-700">Saved Views</h3>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-700">
               {savedViews.length}/{MAX_SAVED_VIEWS} saved
             </p>
           </div>
           <div className="mt-2 flex flex-wrap gap-2">
             {savedViews.length === 0 ? (
-              <p className="text-xs text-slate-500">No saved views yet. Save current filters to reuse later.</p>
+              <p className="text-xs text-slate-700">No saved views yet. Save current filters to reuse later.</p>
             ) : (
               savedViews.map((view) => {
                 const isActive = activeSavedViewId === view.id;
@@ -1084,7 +1084,7 @@ const HrDashboardPage: React.FC = () => {
                 const isRemovingThisView = removingViewId === view.id;
                 const isSharingThisView = sharingViewId === view.id;
                 return (
-                  <div key={view.id} className="inline-flex items-center overflow-hidden rounded-full border border-slate-300 bg-white">
+                  <div key={view.id} className="inline-flex items-center overflow-hidden rounded-full border border-slate-700 bg-white">
                     <button
                       type="button"
                       onClick={() => applySavedView(view)}
@@ -1097,7 +1097,7 @@ const HrDashboardPage: React.FC = () => {
                       type="button"
                       onClick={() => removeSavedView(view.id)}
                       disabled={isSavedViewActionBusy}
-                      className="border-l border-slate-200 px-2 py-1.5 text-[11px] text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="border-l border-slate-200 px-2 py-1.5 text-[11px] text-slate-700 hover:bg-slate-100 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                       aria-label={`Remove saved view ${view.name}`}
                     >
                       {isRemovingThisView ? 'Removing...' : 'Remove'}
@@ -1106,7 +1106,7 @@ const HrDashboardPage: React.FC = () => {
                       type="button"
                       onClick={() => void copySavedViewLink(view)}
                       disabled={isSavedViewActionBusy}
-                      className="border-l border-slate-200 px-2 py-1.5 text-[11px] text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="border-l border-slate-200 px-2 py-1.5 text-[11px] text-slate-700 hover:bg-slate-100 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                       aria-label={`Share saved view ${view.name}`}
                     >
                       {isSharingThisView ? 'Sharing...' : 'Share'}
@@ -1129,13 +1129,13 @@ const HrDashboardPage: React.FC = () => {
               }}
               placeholder="e.g. Active campaigns this quarter"
               maxLength={40}
-              className="min-w-[220px] flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[220px] sm:flex-1"
             />
             <button
               type="button"
               onClick={saveCurrentView}
               disabled={isSavingView || isSavedViewActionBusy || !savedViewName.trim()}
-              className="rounded-lg bg-teal-600 px-3 py-2 text-sm font-medium text-white hover:bg-teal-500 disabled:cursor-not-allowed disabled:border disabled:border-slate-300 disabled:bg-slate-200 disabled:text-slate-600"
+              className="w-full rounded-lg bg-teal-600 px-3 py-2 text-sm font-medium text-white hover:bg-teal-500 disabled:cursor-not-allowed disabled:border disabled:border-slate-500 disabled:bg-slate-100 disabled:text-slate-700 sm:w-auto"
             >
               {isSavingView ? 'Saving...' : 'Save current view'}
             </button>
@@ -1151,7 +1151,7 @@ const HrDashboardPage: React.FC = () => {
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Campaign name, description, manager email"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none"
+              className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none"
             />
           </div>
           <div>
@@ -1162,7 +1162,7 @@ const HrDashboardPage: React.FC = () => {
               id="hr-status-filter"
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as DashboardStatusFilter)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none"
+              className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none"
             >
               <option value="all">All statuses</option>
               <option value="draft">Draft</option>
@@ -1179,7 +1179,7 @@ const HrDashboardPage: React.FC = () => {
               id="hr-window-filter"
               value={windowFilter}
               onChange={(event) => setWindowFilter(event.target.value as DashboardWindowFilter)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none"
+              className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none"
             >
               <option value="all">All time</option>
               <option value="30">Last 30 days</option>
@@ -1188,7 +1188,7 @@ const HrDashboardPage: React.FC = () => {
             </select>
           </div>
         </div>
-        <p className="text-xs text-slate-500 mt-3">
+        <p className="text-xs text-slate-700 mt-3">
           Showing {filteredCampaignStats.length} campaign(s) out of {campaignStats.length} loaded.
         </p>
       </section>
@@ -1196,47 +1196,47 @@ const HrDashboardPage: React.FC = () => {
       <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">Total Campaigns</p>
-            <FolderKanban className="w-5 h-5 text-slate-500" />
+            <p className="text-sm text-slate-700">Total Campaigns</p>
+            <FolderKanban className="w-5 h-5 text-slate-700" />
           </div>
           <p className="mt-2 text-3xl font-semibold text-slate-900">{filteredCampaignStats.length}</p>
-          <p className="text-xs text-slate-500 mt-1">{activeCampaigns} active</p>
+          <p className="text-xs text-slate-700 mt-1">{activeCampaigns} active</p>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">Total Candidates</p>
-            <Users2 className="w-5 h-5 text-slate-500" />
+            <p className="text-sm text-slate-700">Total Candidates</p>
+            <Users2 className="w-5 h-5 text-slate-700" />
           </div>
           <p className="mt-2 text-3xl font-semibold text-slate-900">{aggregate.totalCandidates}</p>
-          <p className="text-xs text-slate-500 mt-1">Across filtered campaigns</p>
+          <p className="text-xs text-slate-700 mt-1">Across filtered campaigns</p>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">In Progress</p>
+            <p className="text-sm text-slate-700">In Progress</p>
             <FileClock className="w-5 h-5 text-amber-500" />
           </div>
           <p className="mt-2 text-3xl font-semibold text-amber-600">{aggregate.inProgress}</p>
-          <p className="text-xs text-slate-500 mt-1">Candidates currently vetting</p>
+          <p className="text-xs text-slate-700 mt-1">Candidates currently vetting</p>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">Approved</p>
+            <p className="text-sm text-slate-700">Approved</p>
             <UserCheck2 className="w-5 h-5 text-emerald-500" />
           </div>
           <p className="mt-2 text-3xl font-semibold text-emerald-600">{aggregate.approved}</p>
-          <p className="text-xs text-slate-500 mt-1">{pipelineRate.approval}% approval</p>
+          <p className="text-xs text-slate-700 mt-1">{pipelineRate.approval}% approval</p>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">Rejected</p>
+            <p className="text-sm text-slate-700">Rejected</p>
             <UserX2 className="w-5 h-5 text-rose-500" />
           </div>
           <p className="mt-2 text-3xl font-semibold text-rose-600">{aggregate.rejected}</p>
-          <p className="text-xs text-slate-500 mt-1">{pipelineRate.completion}% completion</p>
+          <p className="text-xs text-slate-700 mt-1">{pipelineRate.completion}% completion</p>
         </div>
       </section>
 
@@ -1268,10 +1268,10 @@ const HrDashboardPage: React.FC = () => {
         </React.Suspense>
       ) : (
         <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <div className="xl:col-span-2 rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500">
+          <div className="xl:col-span-2 rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-700">
             Charts will load as this section enters view.
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-700">
             Deferred chart loading improves initial dashboard responsiveness.
           </div>
         </section>
@@ -1279,17 +1279,17 @@ const HrDashboardPage: React.FC = () => {
 
       <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2 rounded-xl border border-slate-200 bg-white p-5">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-semibold">Campaign Pulse</h2>
-            <div className="flex items-center gap-2">
-              <label htmlFor="campaign-pulse-sort" className="text-xs text-slate-500">
+            <div className="flex flex-wrap items-center gap-2">
+              <label htmlFor="campaign-pulse-sort" className="text-xs text-slate-700">
                 Sort by
               </label>
               <select
                 id="campaign-pulse-sort"
                 value={campaignPulseSort}
                 onChange={(event) => setCampaignPulseSort(event.target.value as CampaignPulseSort)}
-                className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700"
+                className="rounded-md border border-slate-700 bg-white px-2 py-1 text-xs text-slate-700"
               >
                 {CAMPAIGN_PULSE_SORT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -1303,7 +1303,7 @@ const HrDashboardPage: React.FC = () => {
             </div>
           </div>
           {campaignPulseRows.length === 0 ? (
-            <div className="py-10 text-center text-slate-500">No campaigns match current filters.</div>
+            <div className="py-10 text-center text-slate-700">No campaigns match current filters.</div>
           ) : (
             <div className="mt-4 space-y-3">
               {campaignPulseRows.map((row) => (
@@ -1314,11 +1314,11 @@ const HrDashboardPage: React.FC = () => {
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="font-medium text-slate-900">{row.campaign.name}</p>
-                      <p className="text-xs text-slate-500">Created {formatDate(row.campaign.created_at)}</p>
+                      <p className="text-xs text-slate-700">Created {formatDate(row.campaign.created_at)}</p>
                     </div>
                     <span
                       className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
-                        statusPillClass[row.campaign.status] || 'bg-slate-100 text-slate-700'
+                        statusPillClass[row.campaign.status] || 'bg-slate-200 text-slate-800'
                       }`}
                     >
                       {row.campaign.status}
@@ -1327,19 +1327,19 @@ const HrDashboardPage: React.FC = () => {
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 text-xs">
                     <div className="rounded bg-slate-50 px-2 py-1.5">
-                      <p className="text-slate-500">Total</p>
+                      <p className="text-slate-700">Total</p>
                       <p className="font-semibold">{row.metrics.total_candidates}</p>
                     </div>
                     <div className="rounded bg-slate-50 px-2 py-1.5">
-                      <p className="text-slate-500">In Progress</p>
+                      <p className="text-slate-700">In Progress</p>
                       <p className="font-semibold">{row.metrics.in_progress}</p>
                     </div>
                     <div className="rounded bg-slate-50 px-2 py-1.5">
-                      <p className="text-slate-500">Completed</p>
+                      <p className="text-slate-700">Completed</p>
                       <p className="font-semibold">{row.metrics.completed}</p>
                     </div>
                     <div className="rounded bg-slate-50 px-2 py-1.5">
-                      <p className="text-slate-500">Approved</p>
+                      <p className="text-slate-700">Approved</p>
                       <p className="font-semibold">{row.metrics.approved}</p>
                     </div>
                   </div>
@@ -1383,37 +1383,37 @@ const HrDashboardPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => navigate('/campaigns')}
-                className="w-full rounded-lg border border-slate-200 px-4 py-3 text-left hover:bg-slate-50"
+                className="w-full rounded-lg border border-slate-700 px-4 py-3 text-left hover:bg-slate-100"
               >
                 <p className="font-medium text-slate-900">Create / Edit Campaign</p>
-                <p className="text-xs text-slate-500">Configure campaign window and rules.</p>
+                <p className="text-xs text-slate-700">Configure campaign window and rules.</p>
               </button>
 
               <button
                 type="button"
                 onClick={() => navigate('/campaigns')}
-                className="w-full rounded-lg border border-slate-200 px-4 py-3 text-left hover:bg-slate-50"
+                className="w-full rounded-lg border border-slate-700 px-4 py-3 text-left hover:bg-slate-100"
               >
                 <p className="font-medium text-slate-900">Import Candidate Batch</p>
-                <p className="text-xs text-slate-500">Upload candidate list and trigger invitations.</p>
+                <p className="text-xs text-slate-700">Upload candidate list and trigger invitations.</p>
               </button>
 
               <button
                 type="button"
                 onClick={() => navigate('/notifications')}
-                className="w-full rounded-lg border border-slate-200 px-4 py-3 text-left hover:bg-slate-50"
+                className="w-full rounded-lg border border-slate-700 px-4 py-3 text-left hover:bg-slate-100"
               >
                 <p className="font-medium text-slate-900">Review Alerts</p>
-                <p className="text-xs text-slate-500">Monitor delivery and vetting notifications.</p>
+                <p className="text-xs text-slate-700">Monitor delivery and vetting notifications.</p>
               </button>
 
               <button
                 type="button"
                 onClick={() => navigate('/video-calls')}
-                className="w-full rounded-lg border border-slate-200 px-4 py-3 text-left hover:bg-slate-50"
+                className="w-full rounded-lg border border-slate-700 px-4 py-3 text-left hover:bg-slate-100"
               >
                 <p className="font-medium text-slate-900">Schedule Video Meeting</p>
-                <p className="text-xs text-slate-500">Create 1v1 or 1vMany live interview sessions.</p>
+                <p className="text-xs text-slate-700">Create 1v1 or 1vMany live interview sessions.</p>
               </button>
             </div>
           </div>
@@ -1424,6 +1424,7 @@ const HrDashboardPage: React.FC = () => {
 };
 
 export default HrDashboardPage;
+
 
 
 

@@ -7,7 +7,7 @@ import { formatDate } from '@/utils/helper';
 import { useAuth } from '@/hooks/useAuth';
 
 const statusBadgeClass: Record<string, string> = {
-  draft: 'bg-slate-100 text-slate-700',
+  draft: 'bg-slate-200 text-slate-800',
   active: 'bg-emerald-100 text-emerald-700',
   closed: 'bg-amber-100 text-amber-700',
   archived: 'bg-zinc-100 text-zinc-700',
@@ -104,7 +104,7 @@ const CampaignsPage: React.FC = () => {
         <div className="flex flex-wrap gap-4 items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold">Vetting Campaigns</h1>
-            <p className="text-slate-300 mt-1">
+            <p className="text-slate-700 mt-1">
               Create campaigns, onboard candidates, and monitor vetting progress.
             </p>
           </div>
@@ -127,19 +127,19 @@ const CampaignsPage: React.FC = () => {
 
       <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-sm text-slate-500">Total</p>
+          <p className="text-sm text-slate-700">Total</p>
           <p className="text-2xl font-semibold">{campaigns.length}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-sm text-slate-500">Active</p>
+          <p className="text-sm text-slate-700">Active</p>
           <p className="text-2xl font-semibold">{totalByStatus.active || 0}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-sm text-slate-500">Draft</p>
+          <p className="text-sm text-slate-700">Draft</p>
           <p className="text-2xl font-semibold">{totalByStatus.draft || 0}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-sm text-slate-500">Closed</p>
+          <p className="text-sm text-slate-700">Closed</p>
           <p className="text-2xl font-semibold">{totalByStatus.closed || 0}</p>
         </div>
       </section>
@@ -160,7 +160,7 @@ const CampaignsPage: React.FC = () => {
                 required
                 value={form.name}
                 onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
+                className="w-full rounded-lg border border-slate-700 px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
                 placeholder="2026 Graduate Vetting"
               />
             </div>
@@ -173,7 +173,7 @@ const CampaignsPage: React.FC = () => {
                 rows={3}
                 value={form.description}
                 onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
+                className="w-full rounded-lg border border-slate-700 px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
                 placeholder="Describe this campaign's scope and rules."
               />
             </div>
@@ -187,7 +187,7 @@ const CampaignsPage: React.FC = () => {
                   type="datetime-local"
                   value={form.starts_at}
                   onChange={(event) => setForm((prev) => ({ ...prev, starts_at: event.target.value }))}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
+                  className="w-full rounded-lg border border-slate-700 px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
                 />
               </div>
               <div>
@@ -199,7 +199,7 @@ const CampaignsPage: React.FC = () => {
                   type="datetime-local"
                   value={form.ends_at}
                   onChange={(event) => setForm((prev) => ({ ...prev, ends_at: event.target.value }))}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
+                  className="w-full rounded-lg border border-slate-700 px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
                 />
               </div>
             </div>
@@ -213,7 +213,7 @@ const CampaignsPage: React.FC = () => {
                 onChange={(event) =>
                   setForm((prev) => ({ ...prev, status: event.target.value as VettingCampaign['status'] }))
                 }
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
+                className="w-full rounded-lg border border-slate-700 px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
               >
                 <option value="draft">Draft</option>
                 <option value="active">Active</option>
@@ -238,9 +238,9 @@ const CampaignsPage: React.FC = () => {
           </h2>
 
           {loading ? (
-            <div className="py-12 text-center text-slate-500">Loading campaigns...</div>
+            <div className="py-12 text-center text-slate-700">Loading campaigns...</div>
           ) : campaigns.length === 0 ? (
-            <div className="py-12 text-center text-slate-500">No campaigns yet. Create your first one.</div>
+            <div className="py-12 text-center text-slate-700">No campaigns yet. Create your first one.</div>
           ) : (
             <div className="space-y-3">
               {campaigns.map((campaign) => (
@@ -251,24 +251,24 @@ const CampaignsPage: React.FC = () => {
                   <div className="flex flex-wrap gap-3 items-center justify-between">
                     <div>
                       <h3 className="font-semibold text-slate-900">{campaign.name}</h3>
-                      <p className="text-sm text-slate-500">
+                      <p className="text-sm text-slate-700">
                         Created {formatDate(campaign.created_at)}
                         {campaign.initiated_by_email ? ` by ${campaign.initiated_by_email}` : ''}
                       </p>
                     </div>
                     <span
                       className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
-                        statusBadgeClass[campaign.status] || 'bg-slate-100 text-slate-700'
+                        statusBadgeClass[campaign.status] || 'bg-slate-200 text-slate-800'
                       }`}
                     >
                       {campaign.status}
                     </span>
                   </div>
                   {campaign.description && (
-                    <p className="text-sm text-slate-600 mt-2 line-clamp-2">{campaign.description}</p>
+                    <p className="text-sm text-slate-700 mt-2 line-clamp-2">{campaign.description}</p>
                   )}
                   <div className="mt-3 flex items-center justify-between">
-                    <div className="text-xs text-slate-500 inline-flex items-center gap-1">
+                    <div className="text-xs text-slate-700 inline-flex items-center gap-1">
                       <CalendarDays className="w-3.5 h-3.5" />
                       {campaign.starts_at ? formatDate(campaign.starts_at) : 'No start date'}
                     </div>

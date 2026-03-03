@@ -72,7 +72,7 @@ export const HomePage: React.FC = () => {
               AI-First Vetting for
               <span className="block text-cyan-700">HR and Risk Teams</span>
             </h1>
-            <p className="mt-6 max-w-xl text-base text-slate-600 sm:text-lg">
+            <p className="mt-6 max-w-xl text-base text-slate-700 sm:text-lg">
               Run document verification and live interview intelligence in one workflow,
               then finalize outcomes with human approval and complete auditability.
             </p>
@@ -90,7 +90,7 @@ export const HomePage: React.FC = () => {
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700">
               Operating Model
             </h2>
             <ul className="mt-5 space-y-4">
@@ -109,7 +109,7 @@ export const HomePage: React.FC = () => {
         <div className="mb-8 flex items-end justify-between">
           <div>
             <h2 className="text-2xl font-bold sm:text-3xl">Core Capabilities</h2>
-            <p className="mt-2 text-sm text-slate-600">
+            <p className="mt-2 text-sm text-slate-700">
               Built for high-volume firm vetting workflows with AI + human review.
             </p>
           </div>
@@ -125,14 +125,14 @@ export const HomePage: React.FC = () => {
                 <card.icon className="h-5 w-5" />
               </div>
               <h3 className="text-base font-semibold text-slate-900">{card.title}</h3>
-              <p className="mt-2 text-sm text-slate-600">{card.description}</p>
+              <p className="mt-2 text-sm text-slate-700">{card.description}</p>
             </article>
           ))}
         </div>
       </section>
 
       <footer className="border-t border-slate-200 bg-white py-8">
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 text-sm text-slate-700 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
           <p>© {new Date().getFullYear()} Online Vetting System</p>
           <a
             href="mailto:support@ovs.local"
@@ -147,4 +147,5 @@ export const HomePage: React.FC = () => {
 };
 
 export default HomePage;
+
 

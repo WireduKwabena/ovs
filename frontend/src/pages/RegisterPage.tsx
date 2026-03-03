@@ -147,7 +147,7 @@ export const RegisterPage: React.FC = () => {
             <Loader2 className="h-6 w-6 animate-spin" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900">Verifying Access</h1>
-          <p className="mt-3 text-sm text-slate-600">
+          <p className="mt-3 text-sm text-slate-700">
             Validating your subscription ticket before registration.
           </p>
         </div>
@@ -163,7 +163,7 @@ export const RegisterPage: React.FC = () => {
             {verificationError ? <AlertTriangle className="h-6 w-6" /> : <Lock className="h-6 w-6" />}
           </div>
           <h1 className="text-2xl font-bold text-slate-900">Subscription Required</h1>
-          <p className="mt-3 text-sm text-slate-600">
+          <p className="mt-3 text-sm text-slate-700">
             {verificationError || "Organization registration unlocks only after subscription confirmation."}
           </p>
           <div className="mt-6 flex items-center justify-center gap-3">
@@ -172,7 +172,7 @@ export const RegisterPage: React.FC = () => {
                 type="button"
                 onClick={handleRetryVerification}
                 disabled={retryCooldownSeconds > 0 || isVerifying}
-                className="rounded-lg border border-cyan-600 px-4 py-2 text-sm font-semibold text-cyan-700 hover:bg-cyan-50 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400 disabled:hover:bg-transparent"
+                className="rounded-lg border border-cyan-600 px-4 py-2 text-sm font-semibold text-cyan-700 hover:bg-cyan-50 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-700 disabled:hover:bg-transparent"
               >
                 {retryCooldownSeconds > 0
                   ? `Retry in ${retryCooldownSeconds}s`
@@ -188,7 +188,7 @@ export const RegisterPage: React.FC = () => {
             </button>
             <Link
               to="/"
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+              className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100"
             >
               Back Home
             </Link>
@@ -219,3 +219,4 @@ export const RegisterPage: React.FC = () => {
 };
 
 export default RegisterPage;
+

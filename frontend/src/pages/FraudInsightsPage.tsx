@@ -139,7 +139,7 @@ const FraudInsightsPage: React.FC = () => {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black tracking-tight text-slate-900">Fraud & Consistency Insights</h1>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-slate-700">
               Monitor fraud detection, cross-document consistency, and social profile risk signals.
             </p>
           </div>
@@ -154,7 +154,7 @@ const FraudInsightsPage: React.FC = () => {
         <h2 className="text-lg font-bold text-slate-900">Filters</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <div>
-            <label htmlFor="fraud-case-filter" className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+            <label htmlFor="fraud-case-filter" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
               Case ID
             </label>
             <Input
@@ -165,7 +165,7 @@ const FraudInsightsPage: React.FC = () => {
             />
           </div>
           <div>
-            <label htmlFor="fraud-risk-filter" className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+            <label htmlFor="fraud-risk-filter" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
               Risk Level
             </label>
             <Select value={riskFilter} onValueChange={(value) => setRiskFilter(value as RiskFilter)}>
@@ -181,7 +181,7 @@ const FraudInsightsPage: React.FC = () => {
             </Select>
           </div>
           <div>
-            <label htmlFor="fraud-consistency-filter" className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+            <label htmlFor="fraud-consistency-filter" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
               Consistency
             </label>
             <Select value={consistencyFilter} onValueChange={(value) => setConsistencyFilter(value as ConsistencyFilter)}>
@@ -201,40 +201,40 @@ const FraudInsightsPage: React.FC = () => {
       <section className="grid gap-4 md:grid-cols-3">
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">Fraud Detection</p>
+            <p className="text-sm text-slate-700">Fraud Detection</p>
             <AlertTriangle className="h-5 w-5 text-rose-500" />
           </div>
           <p className="mt-2 text-3xl font-black text-slate-900">{fraudStats.total_scans}</p>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-700">
             {fraudStats.fraud_detected} flagged ({fraudStats.fraud_rate.toFixed(1)}%)
           </p>
         </article>
 
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">Consistency Checks</p>
+            <p className="text-sm text-slate-700">Consistency Checks</p>
             <ShieldCheck className="h-5 w-5 text-emerald-500" />
           </div>
           <p className="mt-2 text-3xl font-black text-slate-900">{consistencyStats.total_checks}</p>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-700">
             {consistencyStats.consistent_count} consistent ({consistencyStats.consistency_rate.toFixed(1)}%)
           </p>
         </article>
 
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">Social Profile Checks</p>
+            <p className="text-sm text-slate-700">Social Profile Checks</p>
             <Users className="h-5 w-5 text-indigo-500" />
           </div>
           <p className="mt-2 text-3xl font-black text-slate-900">{socialStats.total_checks}</p>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-700">
             Manual review: {socialStats.manual_review_count} ({socialStats.manual_review_rate.toFixed(1)}%)
           </p>
         </article>
       </section>
 
       {loading ? (
-        <section className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center text-slate-500 shadow-sm">
+        <section className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center text-slate-700 shadow-sm">
           Loading insights...
         </section>
       ) : errorMessage ? (
@@ -246,11 +246,11 @@ const FraudInsightsPage: React.FC = () => {
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-bold text-slate-900">Fraud Results</h2>
             {fraudRows.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-500">No fraud results available for current filters.</p>
+              <p className="mt-3 text-sm text-slate-700">No fraud results available for current filters.</p>
             ) : (
               <div className="mt-3 overflow-x-auto">
                 <table className="min-w-full text-sm">
-                  <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+                  <thead className="bg-slate-50 text-left text-xs uppercase text-slate-700">
                     <tr>
                       <th className="px-3 py-2">Case</th>
                       <th className="px-3 py-2">Risk</th>
@@ -270,7 +270,7 @@ const FraudInsightsPage: React.FC = () => {
                         </td>
                         <td className="px-3 py-2 text-slate-700">{(row.fraud_probability * 100).toFixed(1)}%</td>
                         <td className="px-3 py-2 text-slate-700">{row.recommendation}</td>
-                        <td className="px-3 py-2 text-slate-500">{formatDate(row.detected_at)}</td>
+                        <td className="px-3 py-2 text-slate-700">{formatDate(row.detected_at)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -282,11 +282,11 @@ const FraudInsightsPage: React.FC = () => {
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-bold text-slate-900">Consistency Results</h2>
             {consistencyRows.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-500">No consistency results available for current filters.</p>
+              <p className="mt-3 text-sm text-slate-700">No consistency results available for current filters.</p>
             ) : (
               <div className="mt-3 overflow-x-auto">
                 <table className="min-w-full text-sm">
-                  <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+                  <thead className="bg-slate-50 text-left text-xs uppercase text-slate-700">
                     <tr>
                       <th className="px-3 py-2">Case</th>
                       <th className="px-3 py-2">Consistent</th>
@@ -312,7 +312,7 @@ const FraudInsightsPage: React.FC = () => {
                         </td>
                         <td className="px-3 py-2 text-slate-700">{row.overall_score.toFixed(1)}</td>
                         <td className="px-3 py-2 text-slate-700">{row.recommendation}</td>
-                        <td className="px-3 py-2 text-slate-500">{formatDate(row.checked_at)}</td>
+                        <td className="px-3 py-2 text-slate-700">{formatDate(row.checked_at)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -324,11 +324,11 @@ const FraudInsightsPage: React.FC = () => {
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-bold text-slate-900">Social Profile Results</h2>
             {socialRows.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-500">No social profile results available for current filters.</p>
+              <p className="mt-3 text-sm text-slate-700">No social profile results available for current filters.</p>
             ) : (
               <div className="mt-3 overflow-x-auto">
                 <table className="min-w-full text-sm">
-                  <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+                  <thead className="bg-slate-50 text-left text-xs uppercase text-slate-700">
                     <tr>
                       <th className="px-3 py-2">Case</th>
                       <th className="px-3 py-2">Risk</th>
@@ -348,7 +348,7 @@ const FraudInsightsPage: React.FC = () => {
                         </td>
                         <td className="px-3 py-2 text-slate-700">{row.profiles_checked}</td>
                         <td className="px-3 py-2 text-slate-700">{row.recommendation}</td>
-                        <td className="px-3 py-2 text-slate-500">{formatDate(row.checked_at)}</td>
+                        <td className="px-3 py-2 text-slate-700">{formatDate(row.checked_at)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -361,27 +361,27 @@ const FraudInsightsPage: React.FC = () => {
             <h2 className="text-lg font-bold text-slate-900">Distribution Snapshot</h2>
             <div className="mt-3 grid gap-4 md:grid-cols-3">
               <div className="rounded-lg border border-slate-200 p-3">
-                <p className="text-xs uppercase text-slate-500">Fraud Risk Distribution</p>
+                <p className="text-xs uppercase text-slate-700">Fraud Risk Distribution</p>
                 <p className="mt-2 text-sm text-slate-700">
                   High: {fraudStats.risk_distribution.HIGH} | Medium: {fraudStats.risk_distribution.MEDIUM} | Low:{" "}
                   {fraudStats.risk_distribution.LOW}
                 </p>
               </div>
               <div className="rounded-lg border border-slate-200 p-3">
-                <p className="text-xs uppercase text-slate-500">Consistency Scores</p>
+                <p className="text-xs uppercase text-slate-700">Consistency Scores</p>
                 <p className="mt-2 text-sm text-slate-700">
                   Avg: {consistencyStats.average_score.toFixed(1)} | Median: {consistencyStats.median_score.toFixed(1)}
                 </p>
               </div>
               <div className="rounded-lg border border-slate-200 p-3">
-                <p className="text-xs uppercase text-slate-500">Social Risk Distribution</p>
+                <p className="text-xs uppercase text-slate-700">Social Risk Distribution</p>
                 <p className="mt-2 text-sm text-slate-700">
                   High: {socialStats.risk_distribution.HIGH} | Medium: {socialStats.risk_distribution.MEDIUM} | Low:{" "}
                   {socialStats.risk_distribution.LOW}
                 </p>
               </div>
             </div>
-            <p className="mt-4 inline-flex items-center gap-2 text-xs text-slate-500">
+            <p className="mt-4 inline-flex items-center gap-2 text-xs text-slate-700">
               <ShieldAlert className="h-4 w-4" />
               Social profile checks are advisory and should not be used for automated final decisions.
             </p>

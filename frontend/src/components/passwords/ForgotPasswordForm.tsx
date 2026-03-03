@@ -139,7 +139,7 @@ export const ForgotPasswordForm: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleSendAnotherLink}
-                    className="h-11 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    className="h-11 rounded-xl border border-slate-700 bg-white px-4 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
                   >
                     Send another link
                   </button>
@@ -167,7 +167,7 @@ export const ForgotPasswordForm: React.FC = () => {
                     className={`h-12 rounded-xl border px-4 text-sm transition focus-visible:ring-cyan-500 ${
                       errors.email
                         ? "border-red-400 bg-red-50"
-                        : "border-slate-300 bg-slate-50 focus-visible:border-cyan-600"
+                        : "border-slate-700 bg-slate-50 focus-visible:border-cyan-600"
                     }`}
                   />
                   {errors.email && <p className="text-xs font-medium text-red-600">{errors.email.message}</p>}
@@ -189,7 +189,7 @@ export const ForgotPasswordForm: React.FC = () => {
                   )}
                 </Button>
 
-                <p className="text-center text-xs text-slate-600">
+                <p className="text-center text-xs text-slate-700">
                   Remembered your password?
                   <Link to="/login" className="ml-1 font-semibold text-cyan-700 hover:underline">
                     Back to sign in
@@ -203,3 +203,4 @@ export const ForgotPasswordForm: React.FC = () => {
     </div>
   );
 };
+

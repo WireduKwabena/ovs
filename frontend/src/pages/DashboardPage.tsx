@@ -24,9 +24,9 @@ const StatCard: React.FC<StatCardProps> = ({ icon: Icon, title, value, color, hi
   <div className="rounded-xl border border-slate-200 bg-white p-5">
     <div className="flex items-center justify-between">
       <Icon className={`w-6 h-6 ${color}`} />
-      {hint ? <span className="text-xs text-slate-500">{hint}</span> : null}
+      {hint ? <span className="text-xs text-slate-700">{hint}</span> : null}
     </div>
-    <p className="mt-2 text-sm text-slate-500">{title}</p>
+    <p className="mt-2 text-sm text-slate-700">{title}</p>
     <p className={`text-3xl font-semibold ${color}`}>{value}</p>
   </div>
 );
@@ -127,7 +127,7 @@ const ApplicantDashboardPage: React.FC = () => {
             <Loader size="lg" />
           </div>
         ) : recentApplications.length === 0 ? (
-          <div className="px-5 py-10 text-center text-slate-500">No applications yet.</div>
+          <div className="px-5 py-10 text-center text-slate-700">No applications yet.</div>
         ) : (
           <ul className="divide-y divide-slate-100">
             {recentApplications.map((application) => (
@@ -138,10 +138,10 @@ const ApplicantDashboardPage: React.FC = () => {
                       <p className="font-medium text-slate-900">{application.case_id}</p>
                       <StatusBadge status={application.status} />
                     </div>
-                    <p className="text-sm text-slate-600 mt-1">
+                    <p className="text-sm text-slate-700 mt-1">
                       {application.application_type.replace('_', ' ')} | Priority: {application.priority}
                     </p>
-                    <p className="text-xs text-slate-500 mt-1">Submitted: {formatDate(application.created_at)}</p>
+                    <p className="text-xs text-slate-700 mt-1">Submitted: {formatDate(application.created_at)}</p>
                   </div>
                   <Link
                     to={`/applications/${application.case_id}`}
@@ -165,16 +165,16 @@ const ApplicantDashboardPage: React.FC = () => {
           </Link>
         </div>
         {meetingsLoading ? (
-          <div className="px-5 py-6 text-sm text-slate-500">Loading upcoming meetings...</div>
+          <div className="px-5 py-6 text-sm text-slate-700">Loading upcoming meetings...</div>
         ) : upcomingMeetings.length === 0 ? (
-          <div className="px-5 py-6 text-sm text-slate-500">No upcoming meetings right now.</div>
+          <div className="px-5 py-6 text-sm text-slate-700">No upcoming meetings right now.</div>
         ) : (
           <ul className="divide-y divide-slate-100">
             {upcomingMeetings.slice(0, 5).map((meeting) => (
               <li key={meeting.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
                 <div>
                   <p className="font-medium text-slate-900">{meeting.title}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-700">
                     {new Date(meeting.scheduled_start).toLocaleString()} -{" "}
                     {new Date(meeting.scheduled_end).toLocaleString()}
                   </p>
@@ -201,7 +201,7 @@ const ApplicantDashboardPage: React.FC = () => {
         >
           <Plus className="w-7 h-7 text-blue-600" />
           <p className="font-semibold mt-2">Create Application</p>
-          <p className="text-sm text-slate-600">Start a new vetting request.</p>
+          <p className="text-sm text-slate-700">Start a new vetting request.</p>
         </button>
 
         <button
@@ -211,7 +211,7 @@ const ApplicantDashboardPage: React.FC = () => {
         >
           <FileText className="w-7 h-7 text-indigo-600" />
           <p className="font-semibold mt-2">My Applications</p>
-          <p className="text-sm text-slate-600">Review all submitted cases.</p>
+          <p className="text-sm text-slate-700">Review all submitted cases.</p>
         </button>
 
         <button
@@ -221,7 +221,7 @@ const ApplicantDashboardPage: React.FC = () => {
         >
           <AlertCircle className="w-7 h-7 text-emerald-600" />
           <p className="font-semibold mt-2">Notifications</p>
-          <p className="text-sm text-slate-600">Check updates from reviewers.</p>
+          <p className="text-sm text-slate-700">Check updates from reviewers.</p>
         </button>
 
         <button
@@ -231,7 +231,7 @@ const ApplicantDashboardPage: React.FC = () => {
         >
           <Video className="w-7 h-7 text-indigo-600" />
           <p className="font-semibold mt-2">Video Calls</p>
-          <p className="text-sm text-slate-600">Join scheduled interviews and follow-ups.</p>
+          <p className="text-sm text-slate-700">Join scheduled interviews and follow-ups.</p>
         </button>
       </section>
     </main>
@@ -265,3 +265,4 @@ export const DashboardPage: React.FC = () => {
 };
 
 export default DashboardPage;
+

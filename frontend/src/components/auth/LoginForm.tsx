@@ -14,24 +14,7 @@ import { Loader } from "@/components/common/Loader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-const getErrorMessage = (error: unknown, fallback: string): string => {
-  if (!error) return fallback;
-  if (typeof error === "string") return error;
-  if (error instanceof Error && error.message) return error.message;
-
-  const normalizedError = error as {
-    message?: string;
-    response?: { data?: { message?: string; detail?: string } };
-  };
-
-  return (
-    normalizedError.response?.data?.message ||
-    normalizedError.response?.data?.detail ||
-    normalizedError.message ||
-    fallback
-  );
-};
+import { getApiErrorMessage } from "@/utils/apiError";
 
 export const LoginForm: React.FC = () => {
   const navigate = useNavigate();
@@ -84,7 +67,7 @@ export const LoginForm: React.FC = () => {
 
       navigate(redirectPath, { replace: true });
     } catch (error: unknown) {
-      toast.error(getErrorMessage(error, "Login failed. Please try again."), {
+      toast.error(getApiErrorMessage(error, "Login failed. Please try again."), {
         toastId: "login-form-error",
       });
     } finally {
@@ -123,7 +106,7 @@ export const LoginForm: React.FC = () => {
           <div className="mx-auto w-full max-w-md">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">Welcome back</p>
             <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Sign in to continue</h2>
-            <p className="mt-2 text-sm text-slate-600">Use your organization account credentials.</p>
+            <p className="mt-2 text-sm text-slate-700">Use your organization account credentials.</p>
 
             <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5">
               <div className="space-y-2">
@@ -142,7 +125,7 @@ export const LoginForm: React.FC = () => {
                   className={`h-12 rounded-xl border px-4 text-sm transition focus-visible:ring-cyan-500 ${
                     errors.email
                       ? "border-red-400 bg-red-50"
-                      : "border-slate-300 bg-slate-50 focus-visible:border-cyan-600"
+                      : "border-slate-700 bg-slate-50 focus-visible:border-cyan-600"
                   }`}
                 />
                 {errors.email && (
@@ -169,14 +152,14 @@ export const LoginForm: React.FC = () => {
                     className={`h-12 rounded-xl border px-4 pr-11 text-sm transition focus-visible:ring-cyan-500 ${
                       errors.password
                         ? "border-red-400 bg-red-50"
-                        : "border-slate-300 bg-slate-50 focus-visible:border-cyan-600"
+                        : "border-slate-700 bg-slate-50 focus-visible:border-cyan-600"
                     }`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
                     disabled={loading}
-                    className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 transition hover:text-slate-700 disabled:cursor-not-allowed"
+                    className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-700 transition hover:text-slate-900 disabled:cursor-not-allowed"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -217,7 +200,7 @@ export const LoginForm: React.FC = () => {
               </Button>
             </form>
 
-            <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+            <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-700">
               Need a new organization account? Review plans and subscription setup first.
               <Link to="/subscribe" className="ml-1 font-semibold text-cyan-700 hover:underline">
                 View plans
@@ -229,5 +212,6 @@ export const LoginForm: React.FC = () => {
     </div>
   );
 };
+
 
 

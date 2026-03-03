@@ -381,6 +381,18 @@ Useful options:
 - `--jpeg-quality-min`/`--jpeg-quality-max`: bound JPEG attack intensity
 - `--verify-forgery-determinism`: assert reproducible forgery generation for the seed
 
+After training, generate (or refresh) the model manifest used by strict preflight checks:
+
+```bash
+python manage.py generate_model_manifest --strict
+```
+
+Useful options:
+
+- `--output`: custom manifest output path
+- `--model-version`: fixed version string for every entry
+- `--include-missing`: include missing configured artifacts as placeholder entries
+
 ## Using Raw Datasets
 
 If your raw datasets are under `ai_ml_services/datasets/raw_dataset/`, build a normalized
@@ -494,7 +506,7 @@ ai_ml_services/
 ├── ocr/                # OCR services
 │   ├── ocr_service.py
 │   └── structured_extractor.py
-├── video/              # Video analysis (placeholder)
+├── video/              # Video analysis and identity matching
 ├── interview/          # Interview engine
 ├── training/           # Model training utilities
 ├── datasets/           # Data utilities
