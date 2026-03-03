@@ -68,3 +68,9 @@ textarea {
   font: inherit;
   color: inherit;
 }
+
+input::placeholder,
+textarea::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
