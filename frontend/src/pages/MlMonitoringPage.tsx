@@ -13,6 +13,7 @@ import {
 import { mlMonitoringService } from "@/services/mlMonitoring.service";
 import type { MLModelMetrics, MLPerformanceSummary } from "@/types";
 import { downloadCsvFile, isoDateStamp } from "@/utils/csv";
+import { downloadJsonFile } from "@/utils/json";
 import { formatDate } from "@/utils/helper";
 
 const defaultSummary: MLPerformanceSummary = {
@@ -139,6 +140,24 @@ const MlMonitoringPage: React.FC = () => {
     toast.success(`Exported ${displayedLatest.length} latest metric row(s).`);
   };
 
+  const exportLatestJson = () => {
+    if (displayedLatest.length === 0) {
+      toast.info("No latest metrics rows to export.");
+      return;
+    }
+
+    downloadJsonFile(
+      {
+        exported_at: new Date().toISOString(),
+        selected_model: selectedModel,
+        total_rows: displayedLatest.length,
+        latest_metrics: displayedLatest,
+      },
+      `ml-latest-metrics-${isoDateStamp()}.json`,
+    );
+    toast.success(`Exported ${displayedLatest.length} latest metric row(s) as JSON.`);
+  };
+
   const exportHistoryCsv = () => {
     if (history.length === 0) {
       toast.info("No history rows to export.");
@@ -168,6 +187,24 @@ const MlMonitoringPage: React.FC = () => {
     toast.success(`Exported ${history.length} history row(s).`);
   };
 
+  const exportHistoryJson = () => {
+    if (history.length === 0) {
+      toast.info("No history rows to export.");
+      return;
+    }
+
+    downloadJsonFile(
+      {
+        exported_at: new Date().toISOString(),
+        selected_model: activeModel || null,
+        total_rows: history.length,
+        history,
+      },
+      `ml-history-${activeModel || "model"}-${isoDateStamp()}.json`,
+    );
+    toast.success(`Exported ${history.length} history row(s) as JSON.`);
+  };
+
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 space-y-6">
       <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -182,6 +219,10 @@ const MlMonitoringPage: React.FC = () => {
             <Button type="button" variant="outline" onClick={exportLatestCsv} disabled={loading || displayedLatest.length === 0}>
               <Download className="mr-2 h-4 w-4" />
               Export Latest CSV
+            </Button>
+            <Button type="button" variant="outline" onClick={exportLatestJson} disabled={loading || displayedLatest.length === 0}>
+              <Download className="mr-2 h-4 w-4" />
+              Export Latest JSON
             </Button>
             <Button type="button" variant="outline" onClick={() => void handleRefresh()} disabled={refreshing}>
               <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
@@ -307,10 +348,16 @@ const MlMonitoringPage: React.FC = () => {
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-bold text-slate-900">Model History</h2>
-              <Button type="button" variant="outline" onClick={exportHistoryCsv} disabled={history.length === 0}>
-                <Download className="mr-2 h-4 w-4" />
-                Export History CSV
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" variant="outline" onClick={exportHistoryCsv} disabled={history.length === 0}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export History CSV
+                </Button>
+                <Button type="button" variant="outline" onClick={exportHistoryJson} disabled={history.length === 0}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export History JSON
+                </Button>
+              </div>
             </div>
             {history.length === 0 ? (
               <p className="mt-3 text-sm text-slate-500">No history available for selected model.</p>

@@ -17,6 +17,7 @@ import { toast } from 'react-toastify';
 import { campaignService } from '@/services/campaign.service';
 import type { CampaignDashboard, VettingCampaign } from '@/types';
 import { downloadCsvFile, isoDateStamp } from '@/utils/csv';
+import { downloadJsonFile } from '@/utils/json';
 import { formatDate } from '@/utils/helper';
 import { useAuth } from '@/hooks/useAuth';
 import { getUserDisplayName } from '@/utils/userDisplay';
@@ -801,6 +802,41 @@ const HrDashboardPage: React.FC = () => {
     downloadCsvFile(headers, rows, `campaign-dashboard-${isoDateStamp()}.csv`);
   }, [filteredCampaignStats]);
 
+  const exportCampaignJson = useCallback(() => {
+    if (filteredCampaignStats.length === 0) {
+      return;
+    }
+
+    downloadJsonFile(
+      {
+        exported_at: new Date().toISOString(),
+        filters: {
+          status: statusFilter,
+          window: windowFilter,
+          mode: chartMode,
+          pulse: campaignPulseSort,
+          query: searchQuery,
+        },
+        aggregate,
+        pipeline_mix: pipelineMixDisplayData,
+        decision_mix: decisionMixDisplayData,
+        total_rows: filteredCampaignStats.length,
+        campaigns: filteredCampaignStats,
+      },
+      `campaign-dashboard-${isoDateStamp()}.json`,
+    );
+  }, [
+    aggregate,
+    campaignPulseSort,
+    chartMode,
+    decisionMixDisplayData,
+    filteredCampaignStats,
+    pipelineMixDisplayData,
+    searchQuery,
+    statusFilter,
+    windowFilter,
+  ]);
+
   const copyTextToClipboard = useCallback(async (text: string) => {
     try {
       if (navigator.clipboard?.writeText) {
@@ -957,6 +993,15 @@ const HrDashboardPage: React.FC = () => {
             >
               <Download className="w-4 h-4" />
               Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={exportCampaignJson}
+              disabled={filteredCampaignStats.length === 0}
+              className="inline-flex items-center gap-2 rounded-lg bg-slate-800/80 px-4 py-2 text-sm hover:bg-slate-700/80 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download className="w-4 h-4" />
+              Export JSON
             </button>
             <button
               type="button"

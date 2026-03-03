@@ -14,6 +14,7 @@ import {
 import { auditService } from "@/services/audit.service";
 import type { AuditLog, AuditStatistics } from "@/types";
 import { downloadCsvFile, isoDateStamp } from "@/utils/csv";
+import { downloadJsonFile } from "@/utils/json";
 import { formatDate } from "@/utils/helper";
 
 type AuditActionFilter = "all" | "create" | "update" | "delete" | "login" | "logout" | "other";
@@ -145,6 +146,30 @@ const AuditLogsPage: React.FC = () => {
     toast.success(`Exported ${logs.length} audit row(s).`);
   };
 
+  const exportAuditJson = () => {
+    if (logs.length === 0) {
+      toast.info("No audit rows to export.");
+      return;
+    }
+
+    downloadJsonFile(
+      {
+        exported_at: new Date().toISOString(),
+        filters: {
+          action: actionFilter,
+          entity_type: entityTypeFilter,
+          entity_id: entityIdFilter,
+          search: searchFilter,
+        },
+        statistics: stats,
+        total_rows: logs.length,
+        logs,
+      },
+      `audit-logs-${isoDateStamp()}.json`,
+    );
+    toast.success(`Exported ${logs.length} audit row(s) as JSON.`);
+  };
+
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 space-y-6">
       <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -159,6 +184,10 @@ const AuditLogsPage: React.FC = () => {
             <Button type="button" variant="outline" onClick={exportAuditCsv} disabled={loading || logs.length === 0}>
               <Download className="mr-2 h-4 w-4" />
               Export CSV
+            </Button>
+            <Button type="button" variant="outline" onClick={exportAuditJson} disabled={loading || logs.length === 0}>
+              <Download className="mr-2 h-4 w-4" />
+              Export JSON
             </Button>
             <Button type="button" variant="outline" onClick={() => void handleRefresh()} disabled={refreshing}>
               <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
