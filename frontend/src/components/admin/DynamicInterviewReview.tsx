@@ -84,7 +84,7 @@ export function DynamicInterviewReview({ sessionId }: DynamicInterviewReviewProp
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:p-8">
       {/* Header */}
-      <div className="mb-8 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white shadow-2xl sm:p-8">
+      <div className="mb-8 rounded-2xl bg-linear-to-r from-blue-600 to-purple-600 p-6 text-white shadow-2xl sm:p-8">
         <h1 className="mb-2 text-3xl font-bold sm:text-4xl">AI Interview Analysis</h1>
         <p className="text-base text-blue-100 sm:text-lg">
           Session: {session.session_id} • {session.exchanges.length} Questions Asked
@@ -138,7 +138,7 @@ export function DynamicInterviewReview({ sessionId }: DynamicInterviewReviewProp
           </p>
         </div>
         
-        <div className="mt-6 p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl">
+        <div className="mt-6 p-6 bg-linear-to-r from-blue-50 to-purple-50 rounded-xl">
           <div className="text-lg font-bold text-gray-900 mb-2">
             Recommendation: <span className={session.recommendations === 'Strongly Recommend' || session.recommendations === 'Recommend' ? 'text-green-600' : 'text-red-600'}>
               {session.recommendations}

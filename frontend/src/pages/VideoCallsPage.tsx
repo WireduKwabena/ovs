@@ -1209,7 +1209,7 @@ const VideoCallsPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end max-[420px]:grid max-[420px]:grid-cols-1 [&>*]:w-full sm:[&>*]:w-auto">
+                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end max-[420px]:grid max-[420px]:grid-cols-1 *:w-full sm:*:w-auto">
                       <span
                         className={`rounded-full px-2 py-1 text-xs font-medium ${statusClass[meeting.status] || "bg-slate-200 text-slate-800"}`}
                       >
@@ -1428,7 +1428,7 @@ const VideoCallsPage: React.FC = () => {
                         <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-700">
                           Meeting History
                         </h4>
-                        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end max-[420px]:grid max-[420px]:grid-cols-1 [&>*]:w-full sm:[&>*]:w-auto">
+                        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end max-[420px]:grid max-[420px]:grid-cols-1 *:w-full sm:*:w-auto">
                           <label className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-white px-2 py-1 text-xs text-slate-700">
                             <span>View</span>
                             <select
