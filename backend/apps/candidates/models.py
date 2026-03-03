@@ -1,3 +1,5 @@
+import uuid
+
 from django.conf import settings
 from django.db import models
 
@@ -10,7 +12,7 @@ class Candidate(models.Model):
         ("sms", "SMS"),
     ]
 
-    id = models.BigAutoField(primary_key=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     email = models.EmailField(unique=True)
@@ -39,7 +41,7 @@ class CandidateSocialProfile(models.Model):
         ("other", "Other"),
     ]
 
-    id = models.BigAutoField(primary_key=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     candidate = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name="social_profiles")
     platform = models.CharField(max_length=20, choices=PLATFORM_CHOICES, db_index=True)
     url = models.URLField(blank=True)
@@ -79,7 +81,7 @@ class CandidateEnrollment(models.Model):
         ("escalated", "Escalated"),
     ]
 
-    id = models.BigAutoField(primary_key=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     campaign = models.ForeignKey(VettingCampaign, on_delete=models.CASCADE, related_name="enrollments")
     candidate = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name="enrollments")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="invited", db_index=True)

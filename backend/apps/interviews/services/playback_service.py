@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Dict, List
 
 from django.db.models import Prefetch
@@ -68,9 +69,11 @@ class InterviewPlaybackService:
             "case__interrogation_flags",
         )
         identifier = str(session_identifier).strip()
-        if identifier.isdigit():
-            return queryset.get(id=int(identifier))
-        return queryset.get(session_id=identifier)
+        try:
+            uuid.UUID(identifier)
+            return queryset.get(id=identifier)
+        except (ValueError, InterviewSession.DoesNotExist):
+            return queryset.get(session_id=identifier)
 
     @classmethod
     def _build_timeline(cls, session: InterviewSession) -> List[Dict]:

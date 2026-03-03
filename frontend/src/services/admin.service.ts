@@ -1,6 +1,13 @@
 // src/services/admin.service.ts
 import api from './api';
-import type { AdminCasesResponse, ApiError, DashboardStats } from '@/types';
+import type {
+  AdminCasesResponse,
+  AdminManagedUser,
+  AdminUsersResponse,
+  AdminUserUpdatePayload,
+  ApiError,
+  DashboardStats,
+} from '@/types';
 
 export const adminService = {
   async getDashboard(): Promise<DashboardStats> {
@@ -46,11 +53,36 @@ export const adminService = {
     }
   },
 
-  async updateCaseStatus(casePk: number, status: 'approved' | 'rejected' | 'under_review'): Promise<void> {
+  async updateCaseStatus(caseIdentifier: string, status: 'approved' | 'rejected' | 'under_review'): Promise<void> {
     try {
-      await api.patch(`/applications/cases/${casePk}/`, { status });
+      await api.patch(`/applications/cases/${caseIdentifier}/`, { status });
     } catch (error: any) {
       throw new Error((error.response?.data as ApiError)?.message || 'Case status update failed');
+    }
+  },
+
+  async getUsers(params?: {
+    q?: string;
+    user_type?: 'admin' | 'hr_manager' | 'applicant';
+    is_active?: boolean;
+    page?: number;
+    page_size?: number;
+    ordering?: string;
+  }): Promise<AdminUsersResponse> {
+    try {
+      const response = await api.get<AdminUsersResponse>('/admin/users/', { params });
+      return response.data;
+    } catch (error: any) {
+      throw new Error((error.response?.data as ApiError)?.message || 'Users fetch failed');
+    }
+  },
+
+  async updateUser(userId: string, payload: AdminUserUpdatePayload): Promise<AdminManagedUser> {
+    try {
+      const response = await api.patch<AdminManagedUser>(`/admin/users/${userId}/`, payload);
+      return response.data;
+    } catch (error: any) {
+      throw new Error((error.response?.data as ApiError)?.message || 'User update failed');
     }
   },
 };

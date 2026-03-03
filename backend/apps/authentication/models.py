@@ -30,18 +30,26 @@ except ImportError:  # pragma: no cover - dependency may be optional in some set
 
 class CustomUserManager(BaseUserManager):
     """Custom user manager for email-based authentication."""
-    
+
+    def get_by_natural_key(self, username):
+        """
+        Use case-insensitive lookup for USERNAME_FIELD (email).
+
+        This keeps admin portal and API authentication resilient to email casing.
+        """
+        return self.get(**{f"{self.model.USERNAME_FIELD}__iexact": username})
+
     def create_user(self, email, password=None, **extra_fields):
         """Create and save a regular user."""
         if not email:
             raise ValueError(_('Email address is required'))
-        
-        email = self.normalize_email(email)
+
+        email = self.normalize_email(email).lower()
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
-    
+
     def create_superuser(self, email, password=None, **extra_fields):
         """Create and save a superuser."""
         extra_fields.setdefault('is_staff', True)
@@ -64,6 +72,8 @@ class User(AbstractUser):
     and add role-based access control.
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     USER_TYPE_CHOICES = [
         ('admin', 'System Administrator'),
         ('hr_manager', 'HR Manager'),
@@ -233,6 +243,8 @@ class UserProfile(models.Model):
     but useful for the vetting process.
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     user = models.OneToOneField(
         User,
         on_delete=models.CASCADE,
@@ -296,6 +308,8 @@ class LoginHistory(models.Model):
     in user behavior patterns.
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,

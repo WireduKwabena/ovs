@@ -75,6 +75,10 @@ export async function copyTextToClipboard(content: string): Promise<void> {
   await navigator.clipboard.writeText(content);
 }
 
+export function printCurrentPage(targetWindow: Window = window): void {
+  targetWindow.print();
+}
+
 const escapeHtml = (value: string): string =>
   value
     .replace(/&/g, "&amp;")

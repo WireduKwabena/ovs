@@ -4,6 +4,8 @@ from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from apps.authentication.models import User
 
+USER_TYPE_CHOICES = User.USER_TYPE_CHOICES
+
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for regular users (applicants)"""
     full_name = serializers.CharField(source='get_full_name', read_only=True)
@@ -165,7 +167,7 @@ class TokenPairSerializer(serializers.Serializer):
 class UserAuthResponseSerializer(serializers.Serializer):
     user = UserSerializer()
     tokens = TokenPairSerializer()
-    user_type = serializers.ChoiceField(choices=['admin', 'hr_manager', 'applicant'])
+    user_type = serializers.ChoiceField(choices=USER_TYPE_CHOICES)
     backup_codes = serializers.ListField(
         child=serializers.CharField(),
         required=False,
@@ -176,7 +178,7 @@ class UserAuthResponseSerializer(serializers.Serializer):
 class AdminAuthResponseSerializer(serializers.Serializer):
     user = AdminUserSerializer()
     tokens = TokenPairSerializer()
-    user_type = serializers.ChoiceField(choices=['admin', 'hr_manager', 'applicant'])
+    user_type = serializers.ChoiceField(choices=USER_TYPE_CHOICES)
     backup_codes = serializers.ListField(
         child=serializers.CharField(),
         required=False,
@@ -186,14 +188,14 @@ class AdminAuthResponseSerializer(serializers.Serializer):
 
 class RegisterResponseSerializer(serializers.Serializer):
     user = UserSerializer()
-    user_type = serializers.ChoiceField(choices=['admin', 'hr_manager', 'applicant'])
+    user_type = serializers.ChoiceField(choices=USER_TYPE_CHOICES)
     message = serializers.CharField()
 
 
 class TwoFactorChallengeSerializer(serializers.Serializer):
     message = serializers.CharField()
     token = serializers.CharField()
-    user_type = serializers.ChoiceField(choices=['admin', 'hr_manager', 'applicant'], required=False)
+    user_type = serializers.ChoiceField(choices=USER_TYPE_CHOICES, required=False)
     setup_required = serializers.BooleanField(required=False)
     expires_in_seconds = serializers.IntegerField(required=False)
     provisioning_uri = serializers.CharField(required=False, allow_null=True, allow_blank=True)
@@ -235,7 +237,7 @@ class TwoFactorBackupCodesResponseSerializer(serializers.Serializer):
 
 
 class TwoFactorStatusResponseSerializer(serializers.Serializer):
-    user_type = serializers.ChoiceField(choices=["admin", "hr_manager", "applicant"])
+    user_type = serializers.ChoiceField(choices=USER_TYPE_CHOICES)
     two_factor_required = serializers.BooleanField()
     applicant_exempt = serializers.BooleanField()
     is_two_factor_enabled = serializers.BooleanField()
@@ -245,7 +247,7 @@ class TwoFactorStatusResponseSerializer(serializers.Serializer):
 
 class ProfileResponseSerializer(serializers.Serializer):
     user = serializers.DictField()
-    user_type = serializers.ChoiceField(choices=["admin", "hr_manager", "applicant"])
+    user_type = serializers.ChoiceField(choices=USER_TYPE_CHOICES)
 
 
 

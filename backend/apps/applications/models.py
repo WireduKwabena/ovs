@@ -42,6 +42,8 @@ class VettingCase(models.Model):
     Tracks entire vetting lifecycle with timestamps for performance analysis.
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('document_upload', 'Document Upload'),
@@ -283,6 +285,8 @@ class Document(models.Model):
     Tracks processing pipeline stages for performance metrics.
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     DOCUMENT_TYPE_CHOICES = [
         ('id_card', 'National ID Card'),
         ('passport', 'Passport'),
@@ -407,6 +411,8 @@ class VerificationResult(models.Model):
     Used for model performance evaluation and result auditing.
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     # Relationship
     document = models.OneToOneField(
         Document,
@@ -508,6 +514,8 @@ class ConsistencyCheck(models.Model):
     Key for detecting forged documents with conflicting information.
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     SEVERITY_CHOICES = [
         ('low', 'Low'),
         ('medium', 'Medium'),
@@ -588,6 +596,8 @@ class InterrogationFlag(models.Model):
     Enables adaptive questioning based on detected issues.
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     FLAG_TYPE_CHOICES = [
         ('consistency_mismatch', 'Consistency Mismatch'),
         ('missing_information', 'Missing Information'),

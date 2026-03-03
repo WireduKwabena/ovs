@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Invitation',
             fields=[
-                ('id', models.BigAutoField(primary_key=True, serialize=False)),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('token', models.UUIDField(default=uuid.uuid4, editable=False, unique=True)),
                 ('channel', models.CharField(choices=[('email', 'Email'), ('sms', 'SMS')], default='email', max_length=10)),
                 ('status', models.CharField(choices=[('pending', 'Pending'), ('sent', 'Sent'), ('failed', 'Failed'), ('accepted', 'Accepted'), ('expired', 'Expired')], db_index=True, default='pending', max_length=20)),

@@ -30,6 +30,13 @@ class AdminDashboardAPITests(APITestCase):
             last_name="User",
             user_type="applicant",
         )
+        self.hr_user = User.objects.create_user(
+            email="hr@example.com",
+            password="strongpassword123",
+            first_name="HR",
+            last_name="Manager",
+            user_type="hr_manager",
+        )
         VettingCase.objects.create(
             applicant=self.regular_user,
             position_applied="Employment",
@@ -53,6 +60,11 @@ class AdminDashboardAPITests(APITestCase):
 
     def test_dashboard_as_regular_user(self):
         self.client.force_authenticate(user=self.regular_user)
+        response = self.client.get("/api/admin/dashboard/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_dashboard_as_hr_manager_is_forbidden(self):
+        self.client.force_authenticate(user=self.hr_user)
         response = self.client.get("/api/admin/dashboard/")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -104,3 +116,41 @@ class AdminDashboardAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["ordering"], "-created_at")
+
+    def test_users_list_as_admin(self):
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.get("/api/admin/users/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertGreaterEqual(response.data["count"], 3)
+        self.assertEqual(response.data["page"], 1)
+
+    def test_users_filter_by_type(self):
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.get("/api/admin/users/?user_type=hr_manager")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["email"], "hr@example.com")
+
+    def test_admin_can_disable_non_self_user(self):
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.patch(
+            f"/api/admin/users/{self.hr_user.id}/",
+            {"is_active": False},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.hr_user.refresh_from_db()
+        self.assertFalse(self.hr_user.is_active)
+
+    def test_admin_cannot_disable_self(self):
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.patch(
+            f"/api/admin/users/{self.admin_user.id}/",
+            {"is_active": False},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

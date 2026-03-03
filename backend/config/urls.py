@@ -36,6 +36,7 @@ urlpatterns = [
     path("api/campaigns/", include("apps.campaigns.urls")),
     path("api/applications/", include("apps.applications.urls")),
     path("api/interviews/", include("apps.interviews.urls")),
+    path("api/video-calls/", include("apps.video_calls.urls")),
     path("api/rubrics/", include("apps.rubrics.urls")),
     path("api/notifications/", include("apps.notifications.urls")),
     path("api/audit/", include("apps.audit.urls")),

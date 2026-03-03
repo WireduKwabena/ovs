@@ -1,28 +1,131 @@
-// src/pages/NotificationsPage.tsx (Safe version)
-import React, { useMemo } from "react";
-import { useNotifications } from "@/hooks/useNotifications";
+import React, { useMemo, useState } from "react";
+import { Archive, Eye, RefreshCw } from "lucide-react";
+import { toast } from "react-toastify";
+import { useNavigate } from "react-router-dom";
+
 import { Loader } from "@/components/common/Loader";
+import { useNotifications } from "@/hooks/useNotifications";
+import { notificationService } from "@/services/notification.service";
+import type { Notification } from "@/types";
+
+type StatusFilter = "all" | "unread" | "read";
 
 export const NotificationsPage: React.FC = () => {
-  const { notifications, isLoading, markAsRead, markAllAsRead } =
-    useNotifications();
+  const navigate = useNavigate();
+  const { notifications, isLoading, markAsRead, markAllAsRead, archiveAsync, refresh } = useNotifications();
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
+  const [loadingDetailId, setLoadingDetailId] = useState<number | null>(null);
+  const [archivingId, setArchivingId] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Safety check - ensure we have an array
   const notificationsArray = useMemo(() => {
     if (!notifications) return [];
     return Array.isArray(notifications) ? notifications : [];
   }, [notifications]);
 
-  // Filter with safe array
-  const unreadNotifications = useMemo(() => {
-    return notificationsArray.filter(
-      (n) => n.status === "unread" || !n.is_read,
-    );
-  }, [notificationsArray]);
+  const filteredNotifications = useMemo(() => {
+    if (statusFilter === "all") {
+      return notificationsArray;
+    }
+    if (statusFilter === "unread") {
+      return notificationsArray.filter((item) => item.status === "unread" || !item.is_read);
+    }
+    return notificationsArray.filter((item) => item.status === "read" && item.is_read);
+  }, [notificationsArray, statusFilter]);
 
-  const readNotifications = useMemo(() => {
-    return notificationsArray.filter((n) => n.status === "read" && n.is_read);
-  }, [notificationsArray]);
+  const unreadCount = useMemo(
+    () => notificationsArray.filter((item) => item.status === "unread" || !item.is_read).length,
+    [notificationsArray],
+  );
+
+  const extractMeetingId = (notification: Notification): string | null => {
+    const meetingId = notification?.metadata?.meeting_id;
+    if (!meetingId) {
+      return null;
+    }
+    return String(meetingId);
+  };
+
+  const getMeetingLinkFromMetadata = (
+    notification: Notification,
+    autojoin = true,
+  ): string | null => {
+    const metadata = notification?.metadata as Record<string, unknown> | undefined;
+    if (!metadata) {
+      return null;
+    }
+    const primary = autojoin ? metadata.meeting_autojoin_url : metadata.meeting_url;
+    const fallback = autojoin ? metadata.meeting_url : metadata.meeting_autojoin_url;
+    if (typeof primary === "string" && primary.trim()) {
+      return primary;
+    }
+    if (typeof fallback === "string" && fallback.trim()) {
+      return fallback;
+    }
+    return null;
+  };
+
+  const openMeeting = (notification: Notification, autojoin = true) => {
+    const metadataUrl = getMeetingLinkFromMetadata(notification, autojoin);
+    if (metadataUrl) {
+      try {
+        const parsed = new URL(metadataUrl, window.location.origin);
+        if (parsed.origin === window.location.origin) {
+          navigate(`${parsed.pathname}${parsed.search}`);
+          return;
+        }
+        window.open(parsed.toString(), "_blank", "noopener,noreferrer");
+        return;
+      } catch {
+        // fallback to query-based route
+      }
+    }
+    const meetingId = extractMeetingId(notification);
+    if (!meetingId) {
+      return;
+    }
+    const params = new URLSearchParams({ meeting: meetingId, autojoin: autojoin ? "1" : "0" });
+    navigate(`/video-calls?${params.toString()}`);
+  };
+
+  const handleViewDetail = async (notificationId: number) => {
+    setLoadingDetailId(notificationId);
+    try {
+      const detail = await notificationService.getById(notificationId);
+      setSelectedNotification(detail);
+      if (detail.status === "unread" || !detail.is_read) {
+        markAsRead([notificationId]);
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to load notification detail.";
+      toast.error(message);
+    } finally {
+      setLoadingDetailId(null);
+    }
+  };
+
+  const handleArchive = async (notificationId: number) => {
+    setArchivingId(notificationId);
+    try {
+      await archiveAsync(notificationId);
+      if (selectedNotification?.id === notificationId) {
+        setSelectedNotification(null);
+      }
+      toast.success("Notification archived.");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to archive notification.";
+      toast.error(message);
+    } finally {
+      setArchivingId(null);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refresh();
+    setRefreshing(false);
+  };
 
   if (isLoading && notificationsArray.length === 0) {
     return (
@@ -34,87 +137,180 @@ export const NotificationsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <div className="flex flex-wrap justify-between items-center gap-3">
           <h1 className="text-3xl font-bold text-gray-900">Notifications</h1>
-          {unreadNotifications.length > 0 && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => markAllAsRead()}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              type="button"
+              onClick={() => void handleRefresh()}
+              disabled={refreshing}
+              className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-60"
             >
-              Mark All as Read
+              <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+              Refresh
             </button>
-          )}
+            {unreadCount > 0 && (
+              <button
+                onClick={() => markAllAsRead()}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              >
+                Mark All as Read
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Unread Notifications */}
-        {unreadNotifications.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Unread ({unreadNotifications.length})
-            </h2>
-            <div className="space-y-4">
-              {unreadNotifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">
-                        {notification.title}
-                      </h3>
-                      <p className="text-gray-700 mt-1">
-                        {notification.message}
-                      </p>
-                      <p className="text-sm text-gray-500 mt-2">
-                        {new Date(notification.created_at).toLocaleString()}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => markAsRead([notification.id])}
-                      className="ml-4 px-3 py-1 text-sm bg-white text-blue-600 rounded hover:bg-blue-100"
+        <section className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setStatusFilter("all")}
+              className={`px-3 py-1.5 rounded-full text-sm border ${
+                statusFilter === "all"
+                  ? "bg-indigo-100 border-indigo-300 text-indigo-700"
+                  : "bg-white border-gray-300 text-gray-600"
+              }`}
+            >
+              All ({notificationsArray.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("unread")}
+              className={`px-3 py-1.5 rounded-full text-sm border ${
+                statusFilter === "unread"
+                  ? "bg-indigo-100 border-indigo-300 text-indigo-700"
+                  : "bg-white border-gray-300 text-gray-600"
+              }`}
+            >
+              Unread ({unreadCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("read")}
+              className={`px-3 py-1.5 rounded-full text-sm border ${
+                statusFilter === "read"
+                  ? "bg-indigo-100 border-indigo-300 text-indigo-700"
+                  : "bg-white border-gray-300 text-gray-600"
+              }`}
+            >
+              Read ({notificationsArray.length - unreadCount})
+            </button>
+          </div>
+        </section>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <section className="lg:col-span-2 rounded-xl border border-gray-200 bg-white p-4">
+            {filteredNotifications.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg">No notifications for this filter.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredNotifications.map((notification) => {
+                  const isUnread = notification.status === "unread" || !notification.is_read;
+                  const meetingId = extractMeetingId(notification);
+                  return (
+                    <article
+                      key={notification.id}
+                      className={`rounded-lg border p-4 ${
+                        isUnread ? "border-blue-300 bg-blue-50" : "border-gray-200 bg-white"
+                      }`}
                     >
-                      Mark as Read
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900">{notification.title}</h3>
+                          <p className="text-gray-700 mt-1">{notification.message}</p>
+                          <p className="text-sm text-gray-500 mt-2">
+                            {new Date(notification.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isUnread && (
+                            <button
+                              onClick={() => markAsRead([notification.id])}
+                              className="px-3 py-1 text-sm bg-white text-blue-600 border border-blue-300 rounded hover:bg-blue-100"
+                            >
+                              Mark as Read
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => void handleViewDetail(notification.id)}
+                            disabled={loadingDetailId === notification.id}
+                            className="inline-flex items-center gap-1 px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-60"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            {loadingDetailId === notification.id ? "Loading..." : "View"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleArchive(notification.id)}
+                            disabled={archivingId === notification.id}
+                            className="inline-flex items-center gap-1 px-3 py-1 text-sm border border-rose-300 text-rose-700 rounded hover:bg-rose-50 disabled:opacity-60"
+                          >
+                            <Archive className="w-3.5 h-3.5" />
+                            {archivingId === notification.id ? "Archiving..." : "Archive"}
+                          </button>
+                          {meetingId && (
+                            <button
+                              type="button"
+                              onClick={() => openMeeting(notification, true)}
+                              className="inline-flex items-center gap-1 px-3 py-1 text-sm border border-indigo-300 text-indigo-700 rounded hover:bg-indigo-50"
+                            >
+                              Open Meeting
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
 
-        {/* Read Notifications */}
-        {readNotifications.length > 0 && (
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Read ({readNotifications.length})
-            </h2>
-            <div className="space-y-4">
-              {readNotifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className="bg-white border border-gray-200 rounded-lg p-4 opacity-75"
-                >
-                  <h3 className="font-semibold text-gray-900">
-                    {notification.title}
-                  </h3>
-                  <p className="text-gray-700 mt-1">{notification.message}</p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    {new Date(notification.created_at).toLocaleString()}
-                  </p>
+          <section className="rounded-xl border border-gray-200 bg-white p-4">
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">Notification Detail</h2>
+            {!selectedNotification ? (
+              <p className="text-sm text-gray-500">Select a notification to inspect full details.</p>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs uppercase text-gray-500">Title</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedNotification.title}</p>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Empty State */}
-        {notificationsArray.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">No notifications yet</p>
-          </div>
-        )}
+                <div>
+                  <p className="text-xs uppercase text-gray-500">Message</p>
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap">{selectedNotification.message}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase text-gray-500">Type</p>
+                  <p className="text-sm text-gray-800">{selectedNotification.notification_type}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase text-gray-500">Status</p>
+                  <p className="text-sm text-gray-800">{selectedNotification.status}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase text-gray-500">Metadata</p>
+                  <pre className="text-xs bg-gray-50 border border-gray-200 rounded p-2 overflow-auto text-gray-700">
+                    {JSON.stringify(selectedNotification.metadata || {}, null, 2)}
+                  </pre>
+                </div>
+                {extractMeetingId(selectedNotification) && (
+                  <button
+                    type="button"
+                    onClick={() => openMeeting(selectedNotification, true)}
+                    className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                  >
+                    Open related meeting
+                  </button>
+                )}
+              </div>
+            )}
+          </section>
+        </div>
       </div>
     </div>
   );

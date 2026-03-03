@@ -59,6 +59,61 @@ paths:
               schema:
                 $ref: '#/components/schemas/AdminDashboardResponse'
           description: ''
+  /api/admin/users/:
+    get:
+      operationId: admin_users_retrieve
+      description: |-
+        List users for admin management.
+        GET /api/admin/users/
+        Supports filtering: ?q=email_or_name&user_type=admin|hr_manager|applicant&is_active=true|false
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUsersResponse'
+          description: ''
+  /api/admin/users/{user_id}/:
+    patch:
+      operationId: admin_users_partial_update
+      description: |-
+        Partially update an admin-managed user.
+        PATCH /api/admin/users/<uuid:user_id>/
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAdminUserUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAdminUserUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAdminUserUpdateRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminManagedUser'
+          description: ''
   /api/ai-monitor/check-social-profiles/:
     post:
       operationId: ai_monitor_check_social_profiles_create
@@ -253,8 +308,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Vetting Case.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Vetting Case.
         required: true
       tags:
       - applications
@@ -274,8 +330,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Vetting Case.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Vetting Case.
         required: true
       tags:
       - applications
@@ -307,8 +364,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Vetting Case.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Vetting Case.
         required: true
       tags:
       - applications
@@ -339,8 +397,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Vetting Case.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Vetting Case.
         required: true
       tags:
       - applications
@@ -357,8 +416,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Vetting Case.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Vetting Case.
         required: true
       tags:
       - applications
@@ -391,8 +451,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Vetting Case.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Vetting Case.
         required: true
       tags:
       - applications
@@ -425,8 +486,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Vetting Case.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Vetting Case.
         required: true
       tags:
       - applications
@@ -481,8 +543,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Document.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Document.
         required: true
       tags:
       - applications
@@ -647,6 +710,72 @@ paths:
               schema:
                 $ref: '#/components/schemas/AuditLog'
           description: ''
+  /api/auth/2fa/backup-codes/regenerate/:
+    post:
+      operationId: auth_2fa_backup_codes_regenerate_create
+      description: |-
+        Regenerate account backup codes.
+        POST /api/auth/2fa/backup-codes/regenerate/
+        Body: {"otp": "123456"} or {"backup_code": "ABCD-EFGH"}
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TwoFactorBackupCodesRegenerate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TwoFactorBackupCodesRegenerate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TwoFactorBackupCodesRegenerate'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TwoFactorBackupCodesResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/auth/2fa/status/:
+    get:
+      operationId: auth_2fa_status_retrieve
+      description: |-
+        Fetch account 2FA status for authenticated user.
+        GET /api/auth/2fa/status/
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TwoFactorStatusResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
   /api/auth/admin/2fa/enable/:
     post:
       operationId: auth_admin_2fa_enable_create
@@ -727,6 +856,8 @@ paths:
         Admin login endpoint
         POST /api/auth/admin/login/
         Body: {"email": "admin@example.com", "password": "password123"}
+
+        Always returns a 2FA challenge for successful admin credential checks.
       tags:
       - auth
       requestBody:
@@ -763,8 +894,8 @@ paths:
       operationId: auth_admin_login_verify_create
       description: |-
         2FA verification endpoint
-        POST /api/auth/admin/login/verify/
-        Body: {"token": "temp_token", "otp": "123456"}
+        POST /api/auth/login/verify/ (alias: /api/auth/admin/login/verify/)
+        Body: {"token": "challenge_token", "otp": "123456"} or {"token": "challenge_token", "backup_code": "ABCD-EFGH"}
       tags:
       - auth
       requestBody:
@@ -788,7 +919,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AdminAuthResponse'
+                $ref: '#/components/schemas/TwoFactorVerifyResponse'
           description: ''
         '400':
           content:
@@ -844,6 +975,9 @@ paths:
         User login endpoint
         POST /api/auth/login/
         Body: {"email": "user@example.com", "password": "password123"}
+
+        Applicants receive direct JWT tokens.
+        Non-applicant accounts must complete 2FA challenge before tokens are issued.
       tags:
       - auth
       requestBody:
@@ -867,7 +1001,51 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserAuthResponse'
+                $ref: '#/components/schemas/LoginResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+  /api/auth/login/verify/:
+    post:
+      operationId: auth_login_verify_create
+      description: |-
+        2FA verification endpoint
+        POST /api/auth/login/verify/ (alias: /api/auth/admin/login/verify/)
+        Body: {"token": "challenge_token", "otp": "123456"} or {"token": "challenge_token", "backup_code": "ABCD-EFGH"}
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TwoFactorVerification'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TwoFactorVerification'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TwoFactorVerification'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TwoFactorVerifyResponse'
           description: ''
         '400':
           content:
@@ -1396,6 +1574,164 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProviderWebhook'
           description: ''
+  /api/billing/health/:
+    get:
+      operationId: billing_health_retrieve
+      tags:
+      - billing
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingHealthResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingActionError'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingActionError'
+          description: ''
+  /api/billing/subscriptions/access/verify/:
+    post:
+      operationId: billing_subscriptions_access_verify_create
+      tags:
+      - billing
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscriptionAccessVerify'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SubscriptionAccessVerify'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SubscriptionAccessVerify'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionAccessVerify'
+          description: ''
+  /api/billing/subscriptions/confirm/:
+    post:
+      operationId: billing_subscriptions_confirm_create
+      tags:
+      - billing
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscriptionConfirm'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SubscriptionConfirm'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SubscriptionConfirm'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionConfirm'
+          description: ''
+  /api/billing/subscriptions/stripe/checkout-session/:
+    post:
+      operationId: billing_subscriptions_stripe_checkout_session_create
+      tags:
+      - billing
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StripeCheckoutSessionCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StripeCheckoutSessionCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StripeCheckoutSessionCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StripeCheckoutSessionCreate'
+          description: ''
+  /api/billing/subscriptions/stripe/confirm/:
+    post:
+      operationId: billing_subscriptions_stripe_confirm_create
+      tags:
+      - billing
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StripeCheckoutSessionConfirm'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StripeCheckoutSessionConfirm'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StripeCheckoutSessionConfirm'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StripeCheckoutSessionConfirm'
+          description: ''
+  /api/billing/subscriptions/stripe/webhook/:
+    post:
+      operationId: billing_subscriptions_stripe_webhook_create
+      tags:
+      - billing
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingWebhookResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingActionError'
+          description: ''
   /api/campaigns/:
     get:
       operationId: campaigns_list
@@ -1463,8 +1799,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this vetting campaign.
+          type: string
+          format: uuid
+        description: A UUID string identifying this vetting campaign.
         required: true
       tags:
       - campaigns
@@ -1484,8 +1821,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this vetting campaign.
+          type: string
+          format: uuid
+        description: A UUID string identifying this vetting campaign.
         required: true
       tags:
       - campaigns
@@ -1517,8 +1855,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this vetting campaign.
+          type: string
+          format: uuid
+        description: A UUID string identifying this vetting campaign.
         required: true
       tags:
       - campaigns
@@ -1549,8 +1888,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this vetting campaign.
+          type: string
+          format: uuid
+        description: A UUID string identifying this vetting campaign.
         required: true
       tags:
       - campaigns
@@ -1567,8 +1907,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this vetting campaign.
+          type: string
+          format: uuid
+        description: A UUID string identifying this vetting campaign.
         required: true
       tags:
       - campaigns
@@ -1601,8 +1942,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this vetting campaign.
+          type: string
+          format: uuid
+        description: A UUID string identifying this vetting campaign.
         required: true
       tags:
       - campaigns
@@ -1623,8 +1965,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this vetting campaign.
+          type: string
+          format: uuid
+        description: A UUID string identifying this vetting campaign.
         required: true
       tags:
       - campaigns
@@ -1717,8 +2060,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this candidate.
+          type: string
+          format: uuid
+        description: A UUID string identifying this candidate.
         required: true
       tags:
       - candidates
@@ -1738,8 +2082,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this candidate.
+          type: string
+          format: uuid
+        description: A UUID string identifying this candidate.
         required: true
       tags:
       - candidates
@@ -1771,8 +2116,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this candidate.
+          type: string
+          format: uuid
+        description: A UUID string identifying this candidate.
         required: true
       tags:
       - candidates
@@ -1803,8 +2149,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this candidate.
+          type: string
+          format: uuid
+        description: A UUID string identifying this candidate.
         required: true
       tags:
       - candidates
@@ -1881,8 +2228,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this candidate enrollment.
+          type: string
+          format: uuid
+        description: A UUID string identifying this candidate enrollment.
         required: true
       tags:
       - enrollments
@@ -1902,8 +2250,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this candidate enrollment.
+          type: string
+          format: uuid
+        description: A UUID string identifying this candidate enrollment.
         required: true
       tags:
       - enrollments
@@ -1935,8 +2284,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this candidate enrollment.
+          type: string
+          format: uuid
+        description: A UUID string identifying this candidate enrollment.
         required: true
       tags:
       - enrollments
@@ -1967,8 +2317,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this candidate enrollment.
+          type: string
+          format: uuid
+        description: A UUID string identifying this candidate enrollment.
         required: true
       tags:
       - enrollments
@@ -1985,8 +2336,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this candidate enrollment.
+          type: string
+          format: uuid
+        description: A UUID string identifying this candidate enrollment.
         required: true
       tags:
       - enrollments
@@ -2350,8 +2702,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Feedback.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Feedback.
         required: true
       tags:
       - interviews
@@ -2371,8 +2724,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Feedback.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Feedback.
         required: true
       tags:
       - interviews
@@ -2404,8 +2758,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Feedback.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Feedback.
         required: true
       tags:
       - interviews
@@ -2436,8 +2791,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Feedback.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Feedback.
         required: true
       tags:
       - interviews
@@ -2447,6 +2803,50 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/interviews/interrogation/start/:
+    post:
+      operationId: interviews_interrogation_start_create
+      description: |-
+        Backward-compatible bootstrap endpoint used by older frontend integrations.
+
+        POST /api/interviews/interrogation/start/
+        Body: {"application_id": "<case_id or pk>"}
+      tags:
+      - interviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LegacyInterviewStartRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LegacyInterviewStartRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LegacyInterviewStartRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyInterviewStartResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewActionError'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewActionError'
+          description: ''
   /api/interviews/questions/:
     get:
       operationId: interviews_questions_list
@@ -2514,8 +2914,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Question.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Question.
         required: true
       tags:
       - interviews
@@ -2535,8 +2936,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Question.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Question.
         required: true
       tags:
       - interviews
@@ -2568,8 +2970,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Question.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Question.
         required: true
       tags:
       - interviews
@@ -2600,8 +3003,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Question.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Question.
         required: true
       tags:
       - interviews
@@ -2678,8 +3082,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Response.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Response.
         required: true
       tags:
       - interviews
@@ -2699,8 +3104,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Response.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Response.
         required: true
       tags:
       - interviews
@@ -2732,8 +3138,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Response.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Response.
         required: true
       tags:
       - interviews
@@ -2764,8 +3171,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Response.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Response.
         required: true
       tags:
       - interviews
@@ -2782,8 +3190,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Response.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Response.
         required: true
       tags:
       - interviews
@@ -2876,8 +3285,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Session.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Session.
         required: true
       tags:
       - interviews
@@ -2897,8 +3307,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Session.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Session.
         required: true
       tags:
       - interviews
@@ -2930,8 +3341,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Session.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Session.
         required: true
       tags:
       - interviews
@@ -2962,8 +3374,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Session.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Session.
         required: true
       tags:
       - interviews
@@ -2980,8 +3393,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Session.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Session.
         required: true
       tags:
       - interviews
@@ -3014,8 +3428,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Session.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Session.
         required: true
       tags:
       - interviews
@@ -3048,8 +3463,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Session.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Session.
         required: true
       tags:
       - interviews
@@ -3070,8 +3486,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Session.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Session.
         required: true
       tags:
       - interviews
@@ -3104,8 +3521,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Session.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Session.
         required: true
       tags:
       - interviews
@@ -3138,8 +3556,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Interview Session.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Interview Session.
         required: true
       tags:
       - interviews
@@ -3234,6 +3653,50 @@ paths:
               schema:
                 $ref: '#/components/schemas/InterviewSession'
           description: ''
+  /api/interviews/upload-response/:
+    post:
+      operationId: interviews_upload_response_create
+      description: |-
+        Backward-compatible media upload endpoint used before websocket-only flow.
+
+        POST /api/interviews/upload-response/
+        multipart: video, session_id
+      tags:
+      - interviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterviewResponseUploadRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InterviewResponseUploadRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InterviewResponseUploadRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewResponseUploadResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewActionError'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewActionError'
+          description: ''
   /api/invitations/:
     get:
       operationId: invitations_list
@@ -3301,8 +3764,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this invitation.
+          type: string
+          format: uuid
+        description: A UUID string identifying this invitation.
         required: true
       tags:
       - invitations
@@ -3322,8 +3786,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this invitation.
+          type: string
+          format: uuid
+        description: A UUID string identifying this invitation.
         required: true
       tags:
       - invitations
@@ -3355,8 +3820,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this invitation.
+          type: string
+          format: uuid
+        description: A UUID string identifying this invitation.
         required: true
       tags:
       - invitations
@@ -3387,8 +3853,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this invitation.
+          type: string
+          format: uuid
+        description: A UUID string identifying this invitation.
         required: true
       tags:
       - invitations
@@ -3405,8 +3872,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this invitation.
+          type: string
+          format: uuid
+        description: A UUID string identifying this invitation.
         required: true
       tags:
       - invitations
@@ -3919,7 +4387,8 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
+          type: string
+          format: uuid
         required: true
       tags:
       - notifications
@@ -3944,7 +4413,8 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
+          type: string
+          format: uuid
         required: true
       tags:
       - notifications
@@ -3964,7 +4434,8 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
+          type: string
+          format: uuid
         required: true
       tags:
       - notifications
@@ -4133,8 +4604,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Rubric Criterion.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Rubric Criterion.
         required: true
       tags:
       - rubrics
@@ -4154,8 +4626,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Rubric Criterion.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Rubric Criterion.
         required: true
       tags:
       - rubrics
@@ -4187,8 +4660,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Rubric Criterion.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Rubric Criterion.
         required: true
       tags:
       - rubrics
@@ -4219,8 +4693,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Rubric Criterion.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Rubric Criterion.
         required: true
       tags:
       - rubrics
@@ -4271,8 +4746,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Rubric Evaluation.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Rubric Evaluation.
         required: true
       tags:
       - rubrics
@@ -4293,8 +4769,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Rubric Evaluation.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Rubric Evaluation.
         required: true
       tags:
       - rubrics
@@ -4327,8 +4804,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Rubric Evaluation.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Rubric Evaluation.
         required: true
       tags:
       - rubrics
@@ -4421,8 +4899,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Vetting Rubric.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Vetting Rubric.
         required: true
       tags:
       - rubrics
@@ -4442,8 +4921,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Vetting Rubric.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Vetting Rubric.
         required: true
       tags:
       - rubrics
@@ -4475,8 +4955,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Vetting Rubric.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Vetting Rubric.
         required: true
       tags:
       - rubrics
@@ -4507,8 +4988,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Vetting Rubric.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Vetting Rubric.
         required: true
       tags:
       - rubrics
@@ -4518,6 +5000,41 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/rubrics/vetting-rubrics/{id}/activate/:
+    post:
+      operationId: rubrics_vetting_rubrics_activate_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Vetting Rubric.
+        required: true
+      tags:
+      - rubrics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingRubric'
+          description: ''
   /api/rubrics/vetting-rubrics/{id}/criteria/:
     post:
       operationId: rubrics_vetting_rubrics_criteria_create
@@ -4525,8 +5042,44 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Vetting Rubric.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Vetting Rubric.
+        required: true
+      tags:
+      - rubrics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingRubric'
+          description: ''
+  /api/rubrics/vetting-rubrics/{id}/duplicate/:
+    post:
+      operationId: rubrics_vetting_rubrics_duplicate_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Vetting Rubric.
         required: true
       tags:
       - rubrics
@@ -4559,8 +5112,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Vetting Rubric.
+          type: string
+          format: uuid
+        description: A UUID string identifying this Vetting Rubric.
         required: true
       tags:
       - rubrics
@@ -4576,6 +5130,89 @@ paths:
             schema:
               $ref: '#/components/schemas/VettingRubric'
         required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingRubric'
+          description: ''
+  /api/rubrics/vetting-rubrics/{id}/evaluate_application/:
+    post:
+      operationId: rubrics_vetting_rubrics_evaluate_application_create
+      description: |-
+        Backward-compatible alias used by frontend service.
+
+        Accepts either:
+        - application_id (preferred from frontend)
+        - case_id
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Vetting Rubric.
+        required: true
+      tags:
+      - rubrics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingRubric'
+          description: ''
+  /api/rubrics/vetting-rubrics/create_from_template/:
+    post:
+      operationId: rubrics_vetting_rubrics_create_from_template_create
+      tags:
+      - rubrics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VettingRubric'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingRubric'
+          description: ''
+  /api/rubrics/vetting-rubrics/templates/:
+    get:
+      operationId: rubrics_vetting_rubrics_templates_retrieve
+      tags:
+      - rubrics
       security:
       - jwtAuth: []
       - cookieAuth: []
@@ -4653,8 +5290,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this candidate social profile.
+          type: string
+          format: uuid
+        description: A UUID string identifying this candidate social profile.
         required: true
       tags:
       - social-profiles
@@ -4674,8 +5312,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this candidate social profile.
+          type: string
+          format: uuid
+        description: A UUID string identifying this candidate social profile.
         required: true
       tags:
       - social-profiles
@@ -4707,8 +5346,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this candidate social profile.
+          type: string
+          format: uuid
+        description: A UUID string identifying this candidate social profile.
         required: true
       tags:
       - social-profiles
@@ -4739,8 +5379,9 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this candidate social profile.
+          type: string
+          format: uuid
+        description: A UUID string identifying this candidate social profile.
         required: true
       tags:
       - social-profiles
@@ -4750,6 +5391,582 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/video-calls/meetings/:
+    get:
+      operationId: video_calls_meetings_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - video-calls
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedVideoMeetingList'
+          description: ''
+    post:
+      operationId: video_calls_meetings_create
+      tags:
+      - video-calls
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoMeeting'
+          description: ''
+  /api/video-calls/meetings/{id}/:
+    get:
+      operationId: video_calls_meetings_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Video Meeting.
+        required: true
+      tags:
+      - video-calls
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoMeeting'
+          description: ''
+    put:
+      operationId: video_calls_meetings_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Video Meeting.
+        required: true
+      tags:
+      - video-calls
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoMeeting'
+          description: ''
+    patch:
+      operationId: video_calls_meetings_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Video Meeting.
+        required: true
+      tags:
+      - video-calls
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedVideoMeeting'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedVideoMeeting'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedVideoMeeting'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoMeeting'
+          description: ''
+    delete:
+      operationId: video_calls_meetings_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Video Meeting.
+        required: true
+      tags:
+      - video-calls
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/video-calls/meetings/{id}/calendar-ics/:
+    get:
+      operationId: video_calls_meetings_calendar_ics_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Video Meeting.
+        required: true
+      tags:
+      - video-calls
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoMeeting'
+          description: ''
+  /api/video-calls/meetings/{id}/cancel/:
+    post:
+      operationId: video_calls_meetings_cancel_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Video Meeting.
+        required: true
+      tags:
+      - video-calls
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoMeeting'
+          description: ''
+  /api/video-calls/meetings/{id}/cancel-series/:
+    post:
+      operationId: video_calls_meetings_cancel_series_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Video Meeting.
+        required: true
+      tags:
+      - video-calls
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VideoMeetingSeriesCancel'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VideoMeetingSeriesCancel'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VideoMeetingSeriesCancel'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoMeetingSeriesResponse'
+          description: ''
+  /api/video-calls/meetings/{id}/complete/:
+    post:
+      operationId: video_calls_meetings_complete_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Video Meeting.
+        required: true
+      tags:
+      - video-calls
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoMeeting'
+          description: ''
+  /api/video-calls/meetings/{id}/events/:
+    get:
+      operationId: video_calls_meetings_events_list
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Video Meeting.
+        required: true
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - video-calls
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedVideoMeetingEventList'
+          description: ''
+  /api/video-calls/meetings/{id}/extend/:
+    post:
+      operationId: video_calls_meetings_extend_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Video Meeting.
+        required: true
+      tags:
+      - video-calls
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoMeeting'
+          description: ''
+  /api/video-calls/meetings/{id}/join-token/:
+    get:
+      operationId: video_calls_meetings_join_token_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Video Meeting.
+        required: true
+      tags:
+      - video-calls
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoMeeting'
+          description: ''
+  /api/video-calls/meetings/{id}/leave/:
+    post:
+      operationId: video_calls_meetings_leave_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Video Meeting.
+        required: true
+      tags:
+      - video-calls
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoMeeting'
+          description: ''
+  /api/video-calls/meetings/{id}/reschedule/:
+    post:
+      operationId: video_calls_meetings_reschedule_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Video Meeting.
+        required: true
+      tags:
+      - video-calls
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoMeeting'
+          description: ''
+  /api/video-calls/meetings/{id}/reschedule-series/:
+    post:
+      operationId: video_calls_meetings_reschedule_series_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Video Meeting.
+        required: true
+      tags:
+      - video-calls
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VideoMeetingSeriesReschedule'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VideoMeetingSeriesReschedule'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VideoMeetingSeriesReschedule'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoMeetingSeriesResponse'
+          description: ''
+  /api/video-calls/meetings/{id}/start/:
+    post:
+      operationId: video_calls_meetings_start_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this Video Meeting.
+        required: true
+      tags:
+      - video-calls
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VideoMeeting'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoMeeting'
+          description: ''
+  /api/video-calls/meetings/schedule-series/:
+    post:
+      operationId: video_calls_meetings_schedule_series_create
+      tags:
+      - video-calls
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VideoMeetingSeriesRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VideoMeetingSeriesRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VideoMeetingSeriesRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoMeetingSeriesResponse'
+          description: ''
+  /api/video-calls/meetings/upcoming/:
+    get:
+      operationId: video_calls_meetings_upcoming_retrieve
+      tags:
+      - video-calls
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoMeeting'
+          description: ''
 components:
   schemas:
     AcceptInvitation:
@@ -4760,22 +5977,6 @@ components:
           format: uuid
       required:
       - token
-    ActionEnum:
-      enum:
-      - create
-      - update
-      - delete
-      - login
-      - logout
-      - other
-      type: string
-      description: |-
-        * `create` - Create
-        * `update` - Update
-        * `delete` - Delete
-        * `login` - Login
-        * `logout` - Logout
-        * `other` - Other
     AdminAnalyticsResponse:
       type: object
       properties:
@@ -4816,9 +6017,16 @@ components:
           $ref: '#/components/schemas/AdminUser'
         tokens:
           $ref: '#/components/schemas/TokenPair'
+        user_type:
+          $ref: '#/components/schemas/UserTypeEnum'
+        backup_codes:
+          type: array
+          items:
+            type: string
       required:
       - tokens
       - user
+      - user_type
     AdminCasesResponse:
       type: object
       properties:
@@ -4834,6 +6042,8 @@ components:
           type: integer
         total_pages:
           type: integer
+        ordering:
+          type: string
       required:
       - count
       - page
@@ -4889,12 +6099,70 @@ components:
       oneOf:
       - $ref: '#/components/schemas/AdminAuthResponse'
       - $ref: '#/components/schemas/TwoFactorChallenge'
+    AdminManagedUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        full_name:
+          type: string
+          readOnly: true
+        user_type:
+          $ref: '#/components/schemas/UserTypeEnum'
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        is_staff:
+          type: boolean
+          title: Staff status
+          description: Designates whether the user can log into this admin site.
+        is_superuser:
+          type: boolean
+          title: Superuser status
+          description: Designates that this user has all permissions without explicitly
+            assigning them.
+        is_two_factor_enabled:
+          type: boolean
+        last_login:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - email
+      - full_name
+      - id
+      - updated_at
     AdminUser:
       type: object
       description: Serializer for admin users
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         email:
           type: string
@@ -4902,7 +6170,7 @@ components:
           title: Email address
           maxLength: 254
         user_type:
-          $ref: '#/components/schemas/AdminUserUserTypeEnum'
+          $ref: '#/components/schemas/UserTypeEnum'
         role_display:
           type: string
           readOnly: true
@@ -4920,16 +6188,29 @@ components:
       - email
       - id
       - role_display
-    AdminUserUserTypeEnum:
-      enum:
-      - admin
-      - hr_manager
-      - applicant
-      type: string
-      description: |-
-        * `admin` - System Administrator
-        * `hr_manager` - HR Manager
-        * `applicant` - Applicant
+    AdminUsersResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminManagedUser'
+        count:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total_pages:
+          type: integer
+        ordering:
+          type: string
+      required:
+      - count
+      - page
+      - page_size
+      - results
+      - total_pages
     AuditLog:
       type: object
       description: Serializer for audit logs
@@ -4939,21 +6220,23 @@ components:
           format: uuid
           readOnly: true
         user:
-          type: integer
+          type: string
+          format: uuid
           nullable: true
         user_name:
           type: string
           nullable: true
           readOnly: true
         admin_user:
-          type: integer
+          type: string
+          format: uuid
           nullable: true
         admin_user_name:
           type: string
           nullable: true
           readOnly: true
         action:
-          $ref: '#/components/schemas/ActionEnum'
+          $ref: '#/components/schemas/AuditLogActionEnum'
         action_display:
           type: string
           readOnly: true
@@ -4979,6 +6262,22 @@ components:
       - created_at
       - id
       - user_name
+    AuditLogActionEnum:
+      enum:
+      - create
+      - update
+      - delete
+      - login
+      - logout
+      - other
+      type: string
+      description: |-
+        * `create` - Create
+        * `update` - Update
+        * `delete` - Delete
+        * `login` - Login
+        * `logout` - Logout
+        * `other` - Other
     BackgroundCheck:
       type: object
       properties:
@@ -4987,7 +6286,8 @@ components:
           format: uuid
           readOnly: true
         case:
-          type: integer
+          type: string
+          format: uuid
         case_id:
           type: string
           readOnly: true
@@ -5027,7 +6327,8 @@ components:
           readOnly: true
         consent_evidence: {}
         submitted_by:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
           nullable: true
         submitted_by_email:
@@ -5094,7 +6395,8 @@ components:
       type: object
       properties:
         case:
-          type: integer
+          type: string
+          format: uuid
         check_type:
           $ref: '#/components/schemas/CheckTypeEnum'
         provider_key:
@@ -5151,11 +6453,102 @@ components:
         * `manual_review` - Manual Review
         * `failed` - Failed
         * `cancelled` - Cancelled
+    BillingActionError:
+      type: object
+      properties:
+        detail:
+          type: string
+        error:
+          type: string
+    BillingCycleEnum:
+      enum:
+      - monthly
+      - annual
+      type: string
+      description: |-
+        * `monthly` - monthly
+        * `annual` - annual
+    BillingHealthAccess:
+      type: object
+      properties:
+        staff_required:
+          type: boolean
+        requester_is_staff:
+          type: boolean
+      required:
+      - requester_is_staff
+      - staff_required
+    BillingHealthRateLimit:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        per_minute:
+          type: integer
+      required:
+      - enabled
+      - per_minute
+    BillingHealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        access:
+          $ref: '#/components/schemas/BillingHealthAccess'
+        stripe:
+          $ref: '#/components/schemas/BillingHealthStripe'
+        subscription_verify_rate_limit:
+          $ref: '#/components/schemas/BillingHealthRateLimit'
+      required:
+      - access
+      - status
+      - stripe
+      - subscription_verify_rate_limit
+    BillingHealthStripe:
+      type: object
+      properties:
+        sdk_installed:
+          type: boolean
+        secret_key_configured:
+          type: boolean
+        webhook_secret_configured:
+          type: boolean
+      required:
+      - sdk_installed
+      - secret_key_configured
+      - webhook_secret_configured
+    BillingWebhookResponse:
+      type: object
+      properties:
+        received:
+          type: boolean
+        event_type:
+          type: string
+        session_id:
+          type: string
+        payment_status:
+          type: string
+      required:
+      - event_type
+      - received
+    CampaignStatusEnum:
+      enum:
+      - draft
+      - active
+      - closed
+      - archived
+      type: string
+      description: |-
+        * `draft` - Draft
+        * `active` - Active
+        * `closed` - Closed
+        * `archived` - Archived
     Candidate:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         first_name:
           type: string
@@ -5216,20 +6609,23 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         campaign:
-          type: integer
+          type: string
+          format: uuid
         campaign_name:
           type: string
           readOnly: true
         candidate:
-          type: integer
+          type: string
+          format: uuid
         candidate_email:
           type: string
           readOnly: true
         status:
-          $ref: '#/components/schemas/CandidateEnrollmentStatusEnum'
+          $ref: '#/components/schemas/EnrollmentStatusEnum'
         invited_at:
           type: string
           format: date-time
@@ -5253,7 +6649,8 @@ components:
         review_notes:
           type: string
         decision_by:
-          type: integer
+          type: string
+          format: uuid
           nullable: true
         metadata: {}
         created_at:
@@ -5276,34 +6673,16 @@ components:
       - registered_at
       - reviewed_at
       - updated_at
-    CandidateEnrollmentStatusEnum:
-      enum:
-      - invited
-      - registered
-      - in_progress
-      - completed
-      - reviewed
-      - approved
-      - rejected
-      - escalated
-      type: string
-      description: |-
-        * `invited` - Invited
-        * `registered` - Registered
-        * `in_progress` - In Progress
-        * `completed` - Completed
-        * `reviewed` - Reviewed
-        * `approved` - Approved
-        * `rejected` - Rejected
-        * `escalated` - Escalated
     CandidateSocialProfile:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         candidate:
-          type: integer
+          type: string
+          format: uuid
         platform:
           $ref: '#/components/schemas/PlatformEnum'
         platform_display:
@@ -5384,7 +6763,8 @@ components:
           format: uuid
           readOnly: true
         application:
-          type: integer
+          type: string
+          format: uuid
         application_case_id:
           type: string
           readOnly: true
@@ -5415,12 +6795,15 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         evaluation:
-          type: integer
+          type: string
+          format: uuid
         criteria:
-          type: integer
+          type: string
+          format: uuid
         criteria_name:
           type: string
           readOnly: true
@@ -5438,7 +6821,8 @@ components:
           type: string
           description: Explanation for the override
         overridden_by:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
           nullable: true
         overridden_by_email:
@@ -5508,7 +6892,8 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
         case_id:
           type: string
         applicant_name:
@@ -5570,10 +6955,12 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         case:
-          type: integer
+          type: string
+          format: uuid
         document_type:
           $ref: '#/components/schemas/DocumentTypeEnum'
         document_type_display:
@@ -5715,6 +7102,26 @@ components:
         * `bank_statement` - Bank Statement
         * `utility_bill` - Utility Bill
         * `other` - Other
+    EnrollmentStatusEnum:
+      enum:
+      - invited
+      - registered
+      - in_progress
+      - completed
+      - reviewed
+      - approved
+      - rejected
+      - escalated
+      type: string
+      description: |-
+        * `invited` - Invited
+        * `registered` - Registered
+        * `in_progress` - In Progress
+        * `completed` - Completed
+        * `reviewed` - Reviewed
+        * `approved` - Approved
+        * `rejected` - Rejected
+        * `escalated` - Escalated
     ErrorResponse:
       type: object
       properties:
@@ -5731,7 +7138,8 @@ components:
           format: uuid
           readOnly: true
         application:
-          type: integer
+          type: string
+          format: uuid
         application_case_id:
           type: string
           readOnly: true
@@ -5744,7 +7152,7 @@ components:
           type: number
           format: double
         risk_level:
-          $ref: '#/components/schemas/RiskLevelBbcEnum'
+          $ref: '#/components/schemas/FraudRiskLevelEnum'
         risk_level_display:
           type: string
           readOnly: true
@@ -5790,16 +7198,36 @@ components:
         * `legitimate` - Legitimate
         * `suspicious` - Suspicious
         * `fraudulent` - Fraudulent
+    FraudRiskLevelEnum:
+      enum:
+      - LOW
+      - MEDIUM
+      - HIGH
+      type: string
+      description: |-
+        * `LOW` - Low Risk
+        * `MEDIUM` - Medium Risk
+        * `HIGH` - High Risk
+    InterviewActionError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+      - error
     InterviewFeedback:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         session:
-          type: integer
+          type: string
+          format: uuid
         reviewer:
-          type: integer
+          type: string
+          format: uuid
           nullable: true
         rating:
           type: integer
@@ -5868,7 +7296,8 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         question_text:
           type: string
@@ -5902,7 +7331,8 @@ components:
         is_active:
           type: boolean
         created_by:
-          type: integer
+          type: string
+          format: uuid
           nullable: true
         created_at:
           type: string
@@ -5927,17 +7357,21 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         session:
-          type: integer
+          type: string
+          format: uuid
         question:
-          type: integer
+          type: string
+          format: uuid
         question_text:
           type: string
           readOnly: true
         target_flag:
-          type: integer
+          type: string
+          format: uuid
           nullable: true
         sequence_number:
           type: integer
@@ -6033,17 +7467,39 @@ components:
       - session
       - transcript_confidence
       - video_analysis
+    InterviewResponseUploadRequest:
+      type: object
+      properties:
+        session_id:
+          type: string
+        video:
+          type: string
+          format: uri
+      required:
+      - session_id
+      - video
+    InterviewResponseUploadResponse:
+      type: object
+      properties:
+        video_path:
+          type: string
+        video_url:
+          type: string
+      required:
+      - video_path
     InterviewSession:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         session_id:
           type: string
           readOnly: true
         case:
-          type: integer
+          type: string
+          format: uuid
         case_id:
           type: string
           readOnly: true
@@ -6089,7 +7545,8 @@ components:
         flags_addressed:
           type: array
           items:
-            type: integer
+            type: string
+            format: uuid
         flags_resolved_count:
           type: integer
           readOnly: true
@@ -6163,10 +7620,12 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         enrollment:
-          type: integer
+          type: string
+          format: uuid
         token:
           type: string
           format: uuid
@@ -6200,7 +7659,8 @@ components:
           type: string
           readOnly: true
         created_by:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
           nullable: true
         created_at:
@@ -6233,10 +7693,12 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         enrollment:
-          type: integer
+          type: string
+          format: uuid
         channel:
           $ref: '#/components/schemas/CommunicationChannelEnum'
         expires_in_hours:
@@ -6262,6 +7724,29 @@ components:
         * `failed` - Failed
         * `accepted` - Accepted
         * `expired` - Expired
+    LegacyInterviewStartRequest:
+      type: object
+      properties:
+        application_id:
+          type: string
+      required:
+      - application_id
+    LegacyInterviewStartResponse:
+      type: object
+      properties:
+        session_id:
+          type: string
+        interrogation_flags:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+        websocket_url:
+          type: string
+      required:
+      - interrogation_flags
+      - session_id
+      - websocket_url
     Login:
       type: object
       properties:
@@ -6274,6 +7759,10 @@ components:
       required:
       - email
       - password
+    LoginResponse:
+      oneOf:
+      - $ref: '#/components/schemas/UserAuthResponse'
+      - $ref: '#/components/schemas/TwoFactorChallenge'
     LogoutRequest:
       type: object
       properties:
@@ -6347,25 +7836,30 @@ components:
       description: Serializer for user notification records.
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         recipient:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         recipient_email:
           type: string
           format: email
           readOnly: true
         template:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
           nullable: true
         related_case:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
           nullable: true
         related_interview:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
           nullable: true
         subject:
@@ -6974,6 +8468,52 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/VettingRubric'
+    PaginatedVideoMeetingEventList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/VideoMeetingEvent'
+    PaginatedVideoMeetingList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/VideoMeeting'
     PasswordResetConfirm:
       type: object
       description: Serializer for password reset confirmation
@@ -7002,7 +8542,8 @@ components:
       description: Serializer for admin users
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         email:
           type: string
@@ -7010,7 +8551,7 @@ components:
           title: Email address
           maxLength: 254
         user_type:
-          $ref: '#/components/schemas/AdminUserUserTypeEnum'
+          $ref: '#/components/schemas/UserTypeEnum'
         role_display:
           type: string
           readOnly: true
@@ -7023,6 +8564,18 @@ components:
           type: string
           format: date-time
           readOnly: true
+    PatchedAdminUserUpdateRequest:
+      type: object
+      properties:
+        user_type:
+          $ref: '#/components/schemas/UserTypeEnum'
+        is_active:
+          type: boolean
+        is_staff:
+          type: boolean
+        reset_two_factor:
+          type: boolean
+          default: false
     PatchedBackgroundCheck:
       type: object
       properties:
@@ -7031,7 +8584,8 @@ components:
           format: uuid
           readOnly: true
         case:
-          type: integer
+          type: string
+          format: uuid
         case_id:
           type: string
           readOnly: true
@@ -7071,7 +8625,8 @@ components:
           readOnly: true
         consent_evidence: {}
         submitted_by:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
           nullable: true
         submitted_by_email:
@@ -7115,7 +8670,8 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         first_name:
           type: string
@@ -7156,20 +8712,23 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         campaign:
-          type: integer
+          type: string
+          format: uuid
         campaign_name:
           type: string
           readOnly: true
         candidate:
-          type: integer
+          type: string
+          format: uuid
         candidate_email:
           type: string
           readOnly: true
         status:
-          $ref: '#/components/schemas/CandidateEnrollmentStatusEnum'
+          $ref: '#/components/schemas/EnrollmentStatusEnum'
         invited_at:
           type: string
           format: date-time
@@ -7193,7 +8752,8 @@ components:
         review_notes:
           type: string
         decision_by:
-          type: integer
+          type: string
+          format: uuid
           nullable: true
         metadata: {}
         created_at:
@@ -7208,10 +8768,12 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         candidate:
-          type: integer
+          type: string
+          format: uuid
         platform:
           $ref: '#/components/schemas/PlatformEnum'
         platform_display:
@@ -7242,12 +8804,15 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         session:
-          type: integer
+          type: string
+          format: uuid
         reviewer:
-          type: integer
+          type: string
+          format: uuid
           nullable: true
         rating:
           type: integer
@@ -7290,7 +8855,8 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         question_text:
           type: string
@@ -7324,7 +8890,8 @@ components:
         is_active:
           type: boolean
         created_by:
-          type: integer
+          type: string
+          format: uuid
           nullable: true
         created_at:
           type: string
@@ -7338,17 +8905,21 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         session:
-          type: integer
+          type: string
+          format: uuid
         question:
-          type: integer
+          type: string
+          format: uuid
         question_text:
           type: string
           readOnly: true
         target_flag:
-          type: integer
+          type: string
+          format: uuid
           nullable: true
         sequence_number:
           type: integer
@@ -7434,13 +9005,15 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         session_id:
           type: string
           readOnly: true
         case:
-          type: integer
+          type: string
+          format: uuid
         case_id:
           type: string
           readOnly: true
@@ -7486,7 +9059,8 @@ components:
         flags_addressed:
           type: array
           items:
-            type: integer
+            type: string
+            format: uuid
         flags_resolved_count:
           type: integer
           readOnly: true
@@ -7527,10 +9101,12 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         enrollment:
-          type: integer
+          type: string
+          format: uuid
         token:
           type: string
           format: uuid
@@ -7564,7 +9140,8 @@ components:
           type: string
           readOnly: true
         created_by:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
           nullable: true
         created_at:
@@ -7586,10 +9163,12 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         rubric:
-          type: integer
+          type: string
+          format: uuid
         name:
           type: string
           maxLength: 200
@@ -7631,7 +9210,8 @@ components:
       description: Serializer for regular users (applicants)
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         email:
           type: string
@@ -7645,6 +9225,8 @@ components:
           type: string
           pattern: ^\+?1?\d{9,15}$
           maxLength: 20
+        user_type:
+          $ref: '#/components/schemas/UserTypeEnum'
         is_active:
           type: boolean
           title: Active
@@ -7658,7 +9240,8 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         name:
           type: string
@@ -7666,7 +9249,7 @@ components:
         description:
           type: string
         status:
-          $ref: '#/components/schemas/VettingCampaignStatusEnum'
+          $ref: '#/components/schemas/CampaignStatusEnum'
         starts_at:
           type: string
           format: date-time
@@ -7677,7 +9260,8 @@ components:
           nullable: true
         settings_json: {}
         initiated_by:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         initiated_by_email:
           type: string
@@ -7694,26 +9278,30 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         case_id:
           type: string
           readOnly: true
         applicant:
-          type: integer
+          type: string
+          format: uuid
         applicant_email:
           type: string
           format: email
           readOnly: true
         candidate_enrollment:
-          type: integer
+          type: string
+          format: uuid
           nullable: true
         candidate_email:
           type: string
           format: email
           readOnly: true
         assigned_to:
-          type: integer
+          type: string
+          format: uuid
           nullable: true
         assigned_to_email:
           type: string
@@ -7728,12 +9316,12 @@ components:
         job_description:
           type: string
         status:
-          $ref: '#/components/schemas/StatusDebEnum'
+          $ref: '#/components/schemas/VettingCaseStatusEnum'
         status_display:
           type: string
           readOnly: true
         priority:
-          $ref: '#/components/schemas/PriorityD67Enum'
+          $ref: '#/components/schemas/VettingCasePriorityEnum'
         priority_display:
           type: string
           readOnly: true
@@ -7784,7 +9372,8 @@ components:
         decision_rationale:
           type: string
         decided_by:
-          type: integer
+          type: string
+          format: uuid
           nullable: true
         decided_at:
           type: string
@@ -7826,7 +9415,8 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         name:
           type: string
@@ -7901,10 +9491,14 @@ components:
           description: Maximum unresolved flags before manual review required
         is_active:
           type: boolean
+        status:
+          type: string
+          readOnly: true
         is_default:
           type: boolean
         created_by:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
           nullable: true
         created_at:
@@ -7923,6 +9517,109 @@ components:
         total_weight:
           type: integer
           readOnly: true
+    PatchedVideoMeeting:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        series_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        organizer:
+          type: string
+          format: uuid
+          readOnly: true
+        organizer_email:
+          type: string
+          format: email
+          readOnly: true
+        organizer_name:
+          type: string
+          readOnly: true
+        case:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        status:
+          allOf:
+          - $ref: '#/components/schemas/VideoMeetingStatusEnum'
+          readOnly: true
+        scheduled_start:
+          type: string
+          format: date-time
+        scheduled_end:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+          maxLength: 64
+        livekit_room_name:
+          type: string
+          readOnly: true
+        allow_join_before_seconds:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        reminder_before_minutes:
+          type: integer
+          maximum: 120
+          minimum: 1
+        cancellation_reason:
+          type: string
+        reminder_before_sent_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reminder_start_sent_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/VideoMeetingParticipant'
+          readOnly: true
+        participant_user_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          writeOnly: true
+        participant_emails:
+          type: array
+          items:
+            type: string
+            format: email
+          writeOnly: true
+    PaymentMethodEnum:
+      enum:
+      - card
+      - bank_transfer
+      - mobile_money
+      type: string
+      description: |-
+        * `card` - card
+        * `bank_transfer` - bank_transfer
+        * `mobile_money` - mobile_money
     PlatformEnum:
       enum:
       - linkedin
@@ -7941,18 +9638,6 @@ components:
         * `instagram` - Instagram
         * `tiktok` - TikTok
         * `other` - Other
-    PriorityD67Enum:
-      enum:
-      - low
-      - medium
-      - high
-      - urgent
-      type: string
-      description: |-
-        * `low` - Low
-        * `medium` - Medium
-        * `high` - High
-        * `urgent` - Urgent
     ProfileResponse:
       type: object
       properties:
@@ -7960,20 +9645,10 @@ components:
           type: object
           additionalProperties: {}
         user_type:
-          $ref: '#/components/schemas/ProfileResponseUserTypeEnum'
+          $ref: '#/components/schemas/UserTypeEnum'
       required:
       - user
       - user_type
-    ProfileResponseUserTypeEnum:
-      enum:
-      - admin
-      - hr_manager
-      - applicant
-      type: string
-      description: |-
-        * `admin` - admin
-        * `hr_manager` - hr_manager
-        * `applicant` - applicant
     ProfileUpdateRequest:
       oneOf:
       - $ref: '#/components/schemas/User'
@@ -8019,24 +9694,36 @@ components:
         * `flag_specific` - Flag-Specific Clarification
         * `behavioral` - Behavioral Assessment
         * `situational` - Situational Question
-    RiskLevelBbcEnum:
+    RecurrenceEnum:
       enum:
-      - LOW
-      - MEDIUM
-      - HIGH
+      - none
+      - daily
+      - weekly
       type: string
       description: |-
-        * `LOW` - Low Risk
-        * `MEDIUM` - Medium Risk
-        * `HIGH` - High Risk
+        * `none` - None
+        * `daily` - Daily
+        * `weekly` - Weekly
+    RoleEnum:
+      enum:
+      - host
+      - candidate
+      - observer
+      type: string
+      description: |-
+        * `host` - Host
+        * `candidate` - Candidate
+        * `observer` - Observer
     RubricCriteria:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         rubric:
-          type: integer
+          type: string
+          format: uuid
         name:
           type: string
           maxLength: 200
@@ -8086,15 +9773,18 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         case:
-          type: integer
+          type: string
+          format: uuid
         case_id:
           type: string
           readOnly: true
         rubric:
-          type: integer
+          type: string
+          format: uuid
         rubric_name:
           type: string
           readOnly: true
@@ -8192,7 +9882,8 @@ components:
           readOnly: true
           nullable: true
         evaluated_by:
-          type: integer
+          type: string
+          format: uuid
           nullable: true
         created_at:
           type: string
@@ -8282,6 +9973,14 @@ components:
         * `executive` - Executive Level
         * `sensitive` - High-Security Position
         * `custom` - Custom
+    Scope482Enum:
+      enum:
+      - future
+      - all
+      type: string
+      description: |-
+        * `future` - Future
+        * `all` - All
     ScoringMethodEnum:
       enum:
       - ai_score
@@ -8318,7 +10017,8 @@ components:
           format: uuid
           readOnly: true
         application:
-          type: integer
+          type: string
+          format: uuid
         application_case_id:
           type: string
           readOnly: true
@@ -8332,7 +10032,7 @@ components:
           type: number
           format: double
         risk_level:
-          $ref: '#/components/schemas/RiskLevelBbcEnum'
+          $ref: '#/components/schemas/FraudRiskLevelEnum'
         risk_level_display:
           type: string
           readOnly: true
@@ -8373,28 +10073,71 @@ components:
         display_name:
           type: string
           default: ''
-    StatusDebEnum:
-      enum:
-      - pending
-      - document_upload
-      - document_analysis
-      - interview_scheduled
-      - interview_in_progress
-      - under_review
-      - approved
-      - rejected
-      - on_hold
-      type: string
-      description: |-
-        * `pending` - Pending
-        * `document_upload` - Document Upload
-        * `document_analysis` - Document Analysis
-        * `interview_scheduled` - Interview Scheduled
-        * `interview_in_progress` - Interview In Progress
-        * `under_review` - Under Review
-        * `approved` - Approved
-        * `rejected` - Rejected
-        * `on_hold` - On Hold
+    StripeCheckoutSessionConfirm:
+      type: object
+      properties:
+        session_id:
+          type: string
+          maxLength: 255
+      required:
+      - session_id
+    StripeCheckoutSessionCreate:
+      type: object
+      properties:
+        plan_id:
+          type: string
+          maxLength: 64
+        plan_name:
+          type: string
+          maxLength: 128
+        billing_cycle:
+          $ref: '#/components/schemas/BillingCycleEnum'
+        amount_usd:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        success_url:
+          type: string
+          format: uri
+        cancel_url:
+          type: string
+          format: uri
+      required:
+      - amount_usd
+      - billing_cycle
+      - plan_id
+      - plan_name
+    SubscriptionAccessVerify:
+      type: object
+      properties:
+        reference:
+          type: string
+          maxLength: 255
+      required:
+      - reference
+    SubscriptionConfirm:
+      type: object
+      properties:
+        plan_id:
+          type: string
+          maxLength: 64
+        plan_name:
+          type: string
+          maxLength: 128
+        billing_cycle:
+          $ref: '#/components/schemas/BillingCycleEnum'
+        payment_method:
+          $ref: '#/components/schemas/PaymentMethodEnum'
+        amount_usd:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+      required:
+      - amount_usd
+      - billing_cycle
+      - payment_method
+      - plan_id
+      - plan_name
     TokenPair:
       type: object
       properties:
@@ -8416,6 +10159,25 @@ components:
       required:
       - access
       - refresh
+    TwoFactorBackupCodesRegenerate:
+      type: object
+      properties:
+        otp:
+          type: string
+        backup_code:
+          type: string
+    TwoFactorBackupCodesResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        backup_codes:
+          type: array
+          items:
+            type: string
+      required:
+      - backup_codes
+      - message
     TwoFactorChallenge:
       type: object
       properties:
@@ -8423,6 +10185,15 @@ components:
           type: string
         token:
           type: string
+        user_type:
+          $ref: '#/components/schemas/UserTypeEnum'
+        setup_required:
+          type: boolean
+        expires_in_seconds:
+          type: integer
+        provisioning_uri:
+          type: string
+          nullable: true
       required:
       - message
       - token
@@ -8440,6 +10211,29 @@ components:
           type: string
       required:
       - provisioning_uri
+    TwoFactorStatusResponse:
+      type: object
+      properties:
+        user_type:
+          $ref: '#/components/schemas/UserTypeEnum'
+        two_factor_required:
+          type: boolean
+        applicant_exempt:
+          type: boolean
+        is_two_factor_enabled:
+          type: boolean
+        has_totp_secret:
+          type: boolean
+        backup_codes_remaining:
+          type: integer
+          minimum: 0
+      required:
+      - applicant_exempt
+      - backup_codes_remaining
+      - has_totp_secret
+      - is_two_factor_enabled
+      - two_factor_required
+      - user_type
     TwoFactorVerification:
       type: object
       properties:
@@ -8447,15 +10241,21 @@ components:
           type: string
         otp:
           type: string
+        backup_code:
+          type: string
       required:
-      - otp
       - token
+    TwoFactorVerifyResponse:
+      oneOf:
+      - $ref: '#/components/schemas/UserAuthResponse'
+      - $ref: '#/components/schemas/AdminAuthResponse'
     User:
       type: object
       description: Serializer for regular users (applicants)
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         email:
           type: string
@@ -8469,6 +10269,8 @@ components:
           type: string
           pattern: ^\+?1?\d{9,15}$
           maxLength: 20
+        user_type:
+          $ref: '#/components/schemas/UserTypeEnum'
         is_active:
           type: boolean
           title: Active
@@ -8490,9 +10292,16 @@ components:
           $ref: '#/components/schemas/User'
         tokens:
           $ref: '#/components/schemas/TokenPair'
+        user_type:
+          $ref: '#/components/schemas/UserTypeEnum'
+        backup_codes:
+          type: array
+          items:
+            type: string
       required:
       - tokens
       - user
+      - user_type
     UserRegistration:
       type: object
       description: Serializer for firm registration
@@ -8524,18 +10333,33 @@ components:
         department:
           type: string
           maxLength: 100
+        subscription_reference:
+          type: string
+          writeOnly: true
       required:
       - email
       - password
       - password_confirm
+    UserTypeEnum:
+      enum:
+      - admin
+      - hr_manager
+      - applicant
+      type: string
+      description: |-
+        * `admin` - System Administrator
+        * `hr_manager` - HR Manager
+        * `applicant` - Applicant
     VerificationResult:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         document:
-          type: integer
+          type: string
+          format: uuid
         ocr_text:
           type: string
         ocr_confidence:
@@ -8611,7 +10435,8 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         name:
           type: string
@@ -8619,7 +10444,7 @@ components:
         description:
           type: string
         status:
-          $ref: '#/components/schemas/VettingCampaignStatusEnum'
+          $ref: '#/components/schemas/CampaignStatusEnum'
         starts_at:
           type: string
           format: date-time
@@ -8630,7 +10455,8 @@ components:
           nullable: true
         settings_json: {}
         initiated_by:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         initiated_by_email:
           type: string
@@ -8650,42 +10476,34 @@ components:
       - initiated_by_email
       - name
       - updated_at
-    VettingCampaignStatusEnum:
-      enum:
-      - draft
-      - active
-      - closed
-      - archived
-      type: string
-      description: |-
-        * `draft` - Draft
-        * `active` - Active
-        * `closed` - Closed
-        * `archived` - Archived
     VettingCase:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         case_id:
           type: string
           readOnly: true
         applicant:
-          type: integer
+          type: string
+          format: uuid
         applicant_email:
           type: string
           format: email
           readOnly: true
         candidate_enrollment:
-          type: integer
+          type: string
+          format: uuid
           nullable: true
         candidate_email:
           type: string
           format: email
           readOnly: true
         assigned_to:
-          type: integer
+          type: string
+          format: uuid
           nullable: true
         assigned_to_email:
           type: string
@@ -8700,12 +10518,12 @@ components:
         job_description:
           type: string
         status:
-          $ref: '#/components/schemas/StatusDebEnum'
+          $ref: '#/components/schemas/VettingCaseStatusEnum'
         status_display:
           type: string
           readOnly: true
         priority:
-          $ref: '#/components/schemas/PriorityD67Enum'
+          $ref: '#/components/schemas/VettingCasePriorityEnum'
         priority_display:
           type: string
           readOnly: true
@@ -8756,7 +10574,8 @@ components:
         decision_rationale:
           type: string
         decided_by:
-          type: integer
+          type: string
+          format: uuid
           nullable: true
         decided_at:
           type: string
@@ -8819,7 +10638,8 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         case_id:
           type: string
@@ -8830,11 +10650,11 @@ components:
         applicant_email:
           type: string
         status:
-          $ref: '#/components/schemas/StatusDebEnum'
+          $ref: '#/components/schemas/VettingCaseStatusEnum'
         application_type:
           type: string
         priority:
-          $ref: '#/components/schemas/PriorityD67Enum'
+          $ref: '#/components/schemas/VettingCasePriorityEnum'
         consistency_score:
           type: number
           format: double
@@ -8879,11 +10699,46 @@ components:
         * `approved` - Approved
         * `rejected` - Rejected
         * `pending` - Pending
+    VettingCasePriorityEnum:
+      enum:
+      - low
+      - medium
+      - high
+      - urgent
+      type: string
+      description: |-
+        * `low` - Low
+        * `medium` - Medium
+        * `high` - High
+        * `urgent` - Urgent
+    VettingCaseStatusEnum:
+      enum:
+      - pending
+      - document_upload
+      - document_analysis
+      - interview_scheduled
+      - interview_in_progress
+      - under_review
+      - approved
+      - rejected
+      - on_hold
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `document_upload` - Document Upload
+        * `document_analysis` - Document Analysis
+        * `interview_scheduled` - Interview Scheduled
+        * `interview_in_progress` - Interview In Progress
+        * `under_review` - Under Review
+        * `approved` - Approved
+        * `rejected` - Rejected
+        * `on_hold` - On Hold
     VettingRubric:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         name:
           type: string
@@ -8958,10 +10813,14 @@ components:
           description: Maximum unresolved flags before manual review required
         is_active:
           type: boolean
+        status:
+          type: string
+          readOnly: true
         is_default:
           type: boolean
         created_by:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
           nullable: true
         created_at:
@@ -8987,16 +10846,19 @@ components:
       - id
       - name
       - rubric_type_display
+      - status
       - total_weight
       - updated_at
     VideoAnalysis:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         response:
-          type: integer
+          type: string
+          format: uuid
         face_detected:
           type: boolean
         face_detection_confidence:
@@ -9064,6 +10926,369 @@ components:
       - created_at
       - id
       - response
+    VideoMeeting:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        series_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        organizer:
+          type: string
+          format: uuid
+          readOnly: true
+        organizer_email:
+          type: string
+          format: email
+          readOnly: true
+        organizer_name:
+          type: string
+          readOnly: true
+        case:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        status:
+          allOf:
+          - $ref: '#/components/schemas/VideoMeetingStatusEnum'
+          readOnly: true
+        scheduled_start:
+          type: string
+          format: date-time
+        scheduled_end:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+          maxLength: 64
+        livekit_room_name:
+          type: string
+          readOnly: true
+        allow_join_before_seconds:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        reminder_before_minutes:
+          type: integer
+          maximum: 120
+          minimum: 1
+        cancellation_reason:
+          type: string
+        reminder_before_sent_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reminder_start_sent_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/VideoMeetingParticipant'
+          readOnly: true
+        participant_user_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          writeOnly: true
+        participant_emails:
+          type: array
+          items:
+            type: string
+            format: email
+          writeOnly: true
+      required:
+      - created_at
+      - id
+      - livekit_room_name
+      - organizer
+      - organizer_email
+      - organizer_name
+      - participants
+      - reminder_before_sent_at
+      - reminder_start_sent_at
+      - scheduled_end
+      - scheduled_start
+      - series_id
+      - status
+      - title
+      - updated_at
+    VideoMeetingEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        meeting:
+          type: string
+          format: uuid
+          readOnly: true
+        actor:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        actor_email:
+          type: string
+          format: email
+          readOnly: true
+        actor_name:
+          type: string
+          readOnly: true
+        actor_user_type:
+          type: string
+          readOnly: true
+        action:
+          allOf:
+          - $ref: '#/components/schemas/VideoMeetingEventActionEnum'
+          readOnly: true
+        scope:
+          allOf:
+          - $ref: '#/components/schemas/VideoMeetingEventScopeEnum'
+          readOnly: true
+        detail:
+          type: string
+          readOnly: true
+        metadata:
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - action
+      - actor
+      - actor_email
+      - actor_name
+      - actor_user_type
+      - created_at
+      - detail
+      - id
+      - meeting
+      - metadata
+      - scope
+    VideoMeetingEventActionEnum:
+      enum:
+      - created
+      - rescheduled
+      - extended
+      - cancelled
+      - started
+      - completed
+      - left
+      type: string
+      description: |-
+        * `created` - Created
+        * `rescheduled` - Rescheduled
+        * `extended` - Extended
+        * `cancelled` - Cancelled
+        * `started` - Started
+        * `completed` - Completed
+        * `left` - Left
+    VideoMeetingEventScopeEnum:
+      enum:
+      - single
+      - future
+      - all
+      type: string
+      description: |-
+        * `single` - Single
+        * `future` - Future
+        * `all` - All
+    VideoMeetingParticipant:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        user:
+          type: string
+          format: uuid
+        user_email:
+          type: string
+          format: email
+          readOnly: true
+        user_full_name:
+          type: string
+          readOnly: true
+        user_type:
+          type: string
+          readOnly: true
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        status:
+          allOf:
+          - $ref: '#/components/schemas/VideoMeetingParticipantStatusEnum'
+          readOnly: true
+        invited_at:
+          type: string
+          format: date-time
+          readOnly: true
+        joined_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        left_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - id
+      - invited_at
+      - joined_at
+      - left_at
+      - status
+      - user
+      - user_email
+      - user_full_name
+      - user_type
+    VideoMeetingParticipantStatusEnum:
+      enum:
+      - invited
+      - joined
+      - left
+      - declined
+      type: string
+      description: |-
+        * `invited` - Invited
+        * `joined` - Joined
+        * `left` - Left
+        * `declined` - Declined
+    VideoMeetingSeriesCancel:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 2000
+        scope:
+          allOf:
+          - $ref: '#/components/schemas/Scope482Enum'
+          default: future
+    VideoMeetingSeriesRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        case:
+          type: string
+          format: uuid
+          nullable: true
+        scheduled_start:
+          type: string
+          format: date-time
+        scheduled_end:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+          default: UTC
+          maxLength: 64
+        allow_join_before_seconds:
+          type: integer
+          minimum: 0
+          default: 300
+        reminder_before_minutes:
+          type: integer
+          maximum: 120
+          minimum: 1
+          default: 15
+        participant_user_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          writeOnly: true
+        participant_emails:
+          type: array
+          items:
+            type: string
+            format: email
+          writeOnly: true
+        recurrence:
+          allOf:
+          - $ref: '#/components/schemas/RecurrenceEnum'
+          default: weekly
+        occurrences:
+          type: integer
+          maximum: 12
+          minimum: 1
+          default: 2
+      required:
+      - scheduled_end
+      - scheduled_start
+      - title
+    VideoMeetingSeriesReschedule:
+      type: object
+      properties:
+        scheduled_start:
+          type: string
+          format: date-time
+        scheduled_end:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+          maxLength: 64
+        scope:
+          allOf:
+          - $ref: '#/components/schemas/Scope482Enum'
+          default: future
+      required:
+      - scheduled_end
+      - scheduled_start
+    VideoMeetingSeriesResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/VideoMeeting'
+      required:
+      - count
+      - results
+    VideoMeetingStatusEnum:
+      enum:
+      - scheduled
+      - ongoing
+      - completed
+      - cancelled
+      type: string
+      description: |-
+        * `scheduled` - Scheduled
+        * `ongoing` - Ongoing
+        * `completed` - Completed
+        * `cancelled` - Cancelled
   securitySchemes:
     cookieAuth:
       type: apiKey

@@ -32,7 +32,7 @@ services:
   backend_init:
     image: ovs-redo-backend
     container_name: ovs_backend_init
-    command: python manage.py migrate --noinput
+    command: sh /app/scripts/docker-init.sh
     env_file:
       - backend/.env
     environment:
@@ -48,6 +48,11 @@ services:
       CELERY_EAGER: "false"
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+      DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:-}
+      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:-}
+      DJANGO_SUPERUSER_FIRST_NAME: ${DJANGO_SUPERUSER_FIRST_NAME:-System}
+      DJANGO_SUPERUSER_LAST_NAME: ${DJANGO_SUPERUSER_LAST_NAME:-Admin}
+      DJANGO_SUPERUSER_RESET_PASSWORD: ${DJANGO_SUPERUSER_RESET_PASSWORD:-false}
     volumes:
       - ./backend:/app
       - logs_data:/app/logs

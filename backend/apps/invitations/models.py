@@ -21,7 +21,7 @@ class Invitation(models.Model):
         ("expired", "Expired"),
     ]
 
-    id = models.BigAutoField(primary_key=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     enrollment = models.ForeignKey(CandidateEnrollment, on_delete=models.CASCADE, related_name="invitations")
 
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
@@ -74,7 +74,7 @@ class CandidateAccessPass(models.Model):
         ("expired", "Expired"),
     ]
 
-    id = models.BigAutoField(primary_key=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     enrollment = models.ForeignKey(CandidateEnrollment, on_delete=models.CASCADE, related_name="access_passes")
     invitation = models.ForeignKey(
         Invitation,
@@ -141,7 +141,7 @@ class CandidateAccessSession(models.Model):
         ("closed", "Closed"),
     ]
 
-    id = models.BigAutoField(primary_key=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     session_key = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, db_index=True)
     access_pass = models.ForeignKey(CandidateAccessPass, on_delete=models.CASCADE, related_name="sessions")
     enrollment = models.ForeignKey(CandidateEnrollment, on_delete=models.CASCADE, related_name="access_sessions")

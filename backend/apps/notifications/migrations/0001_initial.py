@@ -3,6 +3,7 @@
 import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
+import uuid
 
 
 class Migration(migrations.Migration):
@@ -19,7 +20,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='NotificationTemplate',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('name', models.CharField(max_length=200, unique=True)),
                 ('template_type', models.CharField(choices=[('email', 'Email'), ('sms', 'SMS'), ('in_app', 'In-App Notification')], max_length=20)),
                 ('category', models.CharField(choices=[('alert', 'Alert/Warning'), ('status_update', 'Status Update'), ('task_assignment', 'Task Assignment'), ('completion', 'Completion Notice'), ('reminder', 'Reminder')], max_length=30)),
@@ -41,7 +42,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='AlertRule',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('name', models.CharField(max_length=200)),
                 ('description', models.TextField()),
                 ('trigger_type', models.CharField(choices=[('fraud_score_threshold', 'Fraud Score Above Threshold'), ('authenticity_score_threshold', 'Authenticity Score Below Threshold'), ('critical_flag_detected', 'Critical Flag Detected'), ('interview_red_flag', 'Interview Red Flag'), ('processing_error', 'Processing Error'), ('sla_breach', 'SLA Breach'), ('manual_review_required', 'Manual Review Required')], max_length=50)),
@@ -66,7 +67,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Notification',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('subject', models.CharField(max_length=200)),
                 ('message', models.TextField()),
                 ('notification_type', models.CharField(choices=[('email', 'Email'), ('sms', 'SMS'), ('in_app', 'In-App Notification')], max_length=20)),

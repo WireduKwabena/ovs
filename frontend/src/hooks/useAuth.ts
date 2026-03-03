@@ -9,7 +9,8 @@ export const useAuth = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { user, tokens, isAuthenticated, userType, loading, error } = useSelector((state: RootState) => state.auth);
 
-  const isAdmin = userType === 'admin' || userType === 'hr_manager';
+  const isAdmin = userType === 'admin';
+  const isHrOrAdmin = userType === 'admin' || userType === 'hr_manager';
   const isApplicant = userType === 'applicant';
 
   const authLogin = useCallback(
@@ -52,6 +53,7 @@ export const useAuth = () => {
     isAuthenticated,
     userType,
     isAdmin,
+    isHrOrAdmin,
     isApplicant,
     loading,
     error,

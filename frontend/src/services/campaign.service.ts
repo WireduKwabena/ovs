@@ -9,6 +9,35 @@ import type {
   Invitation,
 } from '@/types';
 
+export interface CampaignRubricVersionPayload {
+  name: string;
+  description?: string;
+  weight_document: number;
+  weight_interview: number;
+  passing_score: number;
+  auto_approve_threshold: number;
+  auto_reject_threshold: number;
+  rubric_payload?: Record<string, unknown>;
+  is_active?: boolean;
+}
+
+export interface CampaignRubricVersion {
+  id: number;
+  campaign: number;
+  version: number;
+  name: string;
+  description: string;
+  weight_document: number;
+  weight_interview: number;
+  passing_score: number;
+  auto_approve_threshold: number;
+  auto_reject_threshold: number;
+  rubric_payload: Record<string, unknown>;
+  is_active: boolean;
+  created_by: number;
+  created_at: string;
+}
+
 export interface CreateCampaignData {
   name: string;
   description?: string;
@@ -75,5 +104,15 @@ export const campaignService = {
     );
     return extractResults(response.data);
   },
-};
 
+  async addRubricVersion(
+    campaignId: number | string,
+    payload: CampaignRubricVersionPayload,
+  ): Promise<CampaignRubricVersion> {
+    const response = await api.post<CampaignRubricVersion>(
+      `/campaigns/${campaignId}/rubrics/versions/`,
+      payload,
+    );
+    return response.data;
+  },
+};

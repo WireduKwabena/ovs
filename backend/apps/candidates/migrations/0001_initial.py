@@ -3,6 +3,7 @@
 import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
+import uuid
 
 
 class Migration(migrations.Migration):
@@ -18,7 +19,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Candidate',
             fields=[
-                ('id', models.BigAutoField(primary_key=True, serialize=False)),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('first_name', models.CharField(max_length=100)),
                 ('last_name', models.CharField(max_length=100)),
                 ('email', models.EmailField(max_length=254, unique=True)),
@@ -36,7 +37,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='CandidateEnrollment',
             fields=[
-                ('id', models.BigAutoField(primary_key=True, serialize=False)),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('status', models.CharField(choices=[('invited', 'Invited'), ('registered', 'Registered'), ('in_progress', 'In Progress'), ('completed', 'Completed'), ('reviewed', 'Reviewed'), ('approved', 'Approved'), ('rejected', 'Rejected'), ('escalated', 'Escalated')], db_index=True, default='invited', max_length=20)),
                 ('invited_at', models.DateTimeField(blank=True, null=True)),
                 ('registered_at', models.DateTimeField(blank=True, null=True)),

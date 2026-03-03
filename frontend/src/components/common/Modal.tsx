@@ -8,6 +8,7 @@ interface ModalProps {
   onConfirm?: () => void;
   confirmLabel?: string;
   cancelLabel?: string;
+  confirmDisabled?: boolean;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -18,6 +19,7 @@ export const Modal: React.FC<ModalProps> = ({
   onConfirm,
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
+  confirmDisabled = false,
 }) => {
   if (!open) return null;
 
@@ -36,7 +38,8 @@ export const Modal: React.FC<ModalProps> = ({
           </button>
           <button
             onClick={onConfirm}
-            className="px-4 py-2 rounded bg-red-600 text-white"
+            disabled={confirmDisabled}
+            className="px-4 py-2 rounded bg-red-600 text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
             {confirmLabel}
           </button>

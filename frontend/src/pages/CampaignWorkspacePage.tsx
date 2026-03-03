@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Upload, Users, Mail, Activity, RefreshCw, Copy, Send } from 'lucide-react';
+import { ArrowLeft, Upload, Users, Mail, Activity, RefreshCw, Copy, Send, CheckCircle2 } from 'lucide-react';
 import type {
   CandidateEnrollment,
   CandidateImportResult,
@@ -11,6 +11,7 @@ import type {
 } from '@/types';
 import { campaignService } from '@/services/campaign.service';
 import { invitationService } from '@/services/invitation.service';
+import { candidateService } from '@/services/candidate.service';
 import { formatDate, formatDateTime } from '@/utils/helper';
 import { toast } from 'react-toastify';
 
@@ -71,6 +72,7 @@ const CampaignWorkspacePage: React.FC = () => {
   const [importing, setImporting] = useState(false);
   const [importSummary, setImportSummary] = useState<CandidateImportResult | null>(null);
   const [resendingInvitationId, setResendingInvitationId] = useState<number | null>(null);
+  const [completingEnrollmentId, setCompletingEnrollmentId] = useState<number | null>(null);
 
   const loadWorkspace = useCallback(async () => {
     if (!campaignId) {
@@ -161,6 +163,20 @@ const CampaignWorkspacePage: React.FC = () => {
       toast.success('Invitation link copied.');
     } catch {
       setError('Unable to copy invitation link from this browser.');
+    }
+  };
+
+  const handleMarkEnrollmentComplete = async (enrollmentId: number) => {
+    setCompletingEnrollmentId(enrollmentId);
+    setError(null);
+    try {
+      await candidateService.markEnrollmentComplete(enrollmentId);
+      toast.success('Enrollment marked as completed.');
+      await loadWorkspace();
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to mark enrollment as completed.'));
+    } finally {
+      setCompletingEnrollmentId(null);
     }
   };
 
@@ -320,6 +336,17 @@ const CampaignWorkspacePage: React.FC = () => {
                   <span className="text-xs rounded-full px-2.5 py-1 bg-slate-100 text-slate-700">
                     {enrollment.status}
                   </span>
+                  {!['completed', 'reviewed', 'approved', 'rejected', 'escalated'].includes(enrollment.status) && (
+                    <button
+                      type="button"
+                      onClick={() => void handleMarkEnrollmentComplete(enrollment.id)}
+                      disabled={completingEnrollmentId === enrollment.id}
+                      className="inline-flex items-center gap-1 rounded border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50 disabled:opacity-60"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      {completingEnrollmentId === enrollment.id ? 'Updating...' : 'Mark Complete'}
+                    </button>
+                  )}
                 </article>
               ))}
             </div>

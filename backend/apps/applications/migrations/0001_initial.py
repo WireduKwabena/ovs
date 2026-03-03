@@ -5,6 +5,7 @@ import django.core.validators
 import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
+import uuid
 
 
 class Migration(migrations.Migration):
@@ -19,7 +20,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Document',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('document_type', models.CharField(choices=[('id_card', 'National ID Card'), ('passport', 'Passport'), ('drivers_license', "Driver's License"), ('birth_certificate', 'Birth Certificate'), ('degree', 'Educational Degree/Certificate'), ('transcript', 'Academic Transcript'), ('employment_letter', 'Employment Letter'), ('reference_letter', 'Reference Letter'), ('pay_slip', 'Pay Slip'), ('bank_statement', 'Bank Statement'), ('utility_bill', 'Utility Bill'), ('other', 'Other')], db_index=True, max_length=50)),
                 ('file', models.FileField(upload_to=apps.applications.models.document_upload_path, validators=[django.core.validators.FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png', 'tiff'])])),
                 ('original_filename', models.CharField(max_length=255)),
@@ -45,7 +46,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='ConsistencyCheck',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('field_name', models.CharField(help_text="Field being checked (e.g., 'name', 'date_of_birth')", max_length=100)),
                 ('is_consistent', models.BooleanField()),
                 ('severity', models.CharField(choices=[('low', 'Low'), ('medium', 'Medium'), ('high', 'High'), ('critical', 'Critical')], max_length=20)),
@@ -67,7 +68,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='VerificationResult',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('ocr_text', models.TextField(blank=True)),
                 ('ocr_confidence', models.FloatField(blank=True, null=True, validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(100)])),
                 ('ocr_language', models.CharField(default='en', max_length=10)),
@@ -96,7 +97,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='VettingCase',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('case_id', models.CharField(db_index=True, editable=False, max_length=50, unique=True)),
                 ('position_applied', models.CharField(max_length=200)),
                 ('department', models.CharField(blank=True, max_length=100)),
@@ -136,7 +137,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='InterrogationFlag',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('flag_type', models.CharField(choices=[('consistency_mismatch', 'Consistency Mismatch'), ('missing_information', 'Missing Information'), ('suspicious_document', 'Suspicious Document'), ('timeline_conflict', 'Timeline Conflict'), ('credential_issue', 'Credential Issue'), ('employment_gap', 'Employment Gap'), ('reference_discrepancy', 'Reference Discrepancy'), ('authenticity_concern', 'Authenticity Concern'), ('fraud_indicator', 'Fraud Indicator'), ('other', 'Other')], db_index=True, max_length=50)),
                 ('severity', models.CharField(choices=[('low', 'Low'), ('medium', 'Medium'), ('high', 'High'), ('critical', 'Critical')], db_index=True, max_length=20)),
                 ('status', models.CharField(choices=[('pending', 'Pending'), ('addressed', 'Addressed in Interview'), ('resolved', 'Resolved'), ('unresolved', 'Unresolved'), ('dismissed', 'Dismissed')], default='pending', max_length=20)),

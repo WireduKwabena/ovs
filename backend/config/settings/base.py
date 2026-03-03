@@ -108,6 +108,7 @@ INSTALLED_APPS = [
     "apps.invitations",
     "apps.applications",
     "apps.interviews",
+    "apps.video_calls",
     "apps.rubrics",
     "apps.notifications.apps.NotificationsConfig",
     "apps.audit",
@@ -308,6 +309,10 @@ SIMPLE_JWT = {
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS', default='http://localhost:3000')
 CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = env_list(
+    "CSRF_TRUSTED_ORIGINS",
+    default="http://localhost:3000,http://127.0.0.1:3000",
+)
 
 # Celery Configuration
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
@@ -614,6 +619,11 @@ BILLING_HEALTH_REQUIRE_STAFF = config(
     default=False,
     cast=bool,
 )
+INTERVIEWS_TASK_INLINE_FALLBACK_ENABLED = config(
+    "INTERVIEWS_TASK_INLINE_FALLBACK_ENABLED",
+    default=True,
+    cast=bool,
+)
 STRIPE_SECRET_KEY = config("STRIPE_SECRET_KEY", default="")
 STRIPE_WEBHOOK_SECRET = config("STRIPE_WEBHOOK_SECRET", default="")
 # Security Settings (will be overridden in production)
@@ -677,6 +687,15 @@ HEYGEN_AVATAR_ACTIVITY_IDLE_TIMEOUT = config(
     cast=int,
 )
 HEYGEN_AVATAR_LANGUAGE = config("HEYGEN_AVATAR_LANGUAGE", default="en")
+LIVEKIT_URL = config("LIVEKIT_URL", default="")
+LIVEKIT_API_KEY = config("LIVEKIT_API_KEY", default="")
+LIVEKIT_API_SECRET = config("LIVEKIT_API_SECRET", default="")
+LIVEKIT_TOKEN_TTL_SECONDS = config("LIVEKIT_TOKEN_TTL_SECONDS", default=3600, cast=int)
+VIDEO_CALLS_MAX_REMINDER_BEFORE_MINUTES = config(
+    "VIDEO_CALLS_MAX_REMINDER_BEFORE_MINUTES",
+    default=120,
+    cast=int,
+)
 DJANGO_API_URL = config("DJANGO_API_URL", default="http://localhost:8000")
 SERVICE_TOKEN = config("SERVICE_TOKEN", default="")
 

@@ -4,6 +4,7 @@ import django.core.validators
 import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
+import uuid
 
 
 class Migration(migrations.Migration):
@@ -19,7 +20,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='InterviewQuestion',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('question_text', models.TextField()),
                 ('question_type', models.CharField(choices=[('general', 'General Background'), ('education', 'Educational Background'), ('employment', 'Employment History'), ('verification', 'Document Verification'), ('flag_specific', 'Flag-Specific Clarification'), ('behavioral', 'Behavioral Assessment'), ('situational', 'Situational Question')], db_index=True, max_length=30)),
                 ('difficulty', models.CharField(choices=[('easy', 'Easy'), ('medium', 'Medium'), ('hard', 'Hard')], default='medium', max_length=20)),
@@ -42,7 +43,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='InterviewSession',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('session_id', models.CharField(db_index=True, editable=False, max_length=50, unique=True)),
                 ('status', models.CharField(choices=[('created', 'Created'), ('in_progress', 'In Progress'), ('completed', 'Completed'), ('failed', 'Failed'), ('cancelled', 'Cancelled')], db_index=True, default='created', max_length=20)),
                 ('use_dynamic_questions', models.BooleanField(default=True, help_text='Generate questions based on flags vs. use predefined set')),
@@ -75,7 +76,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='InterviewResponse',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('sequence_number', models.IntegerField(help_text='Order in the interview')),
                 ('video_file', models.FileField(blank=True, null=True, upload_to='interview_videos/')),
                 ('video_url', models.URLField(blank=True, help_text='URL if stored externally (S3)')),
@@ -107,7 +108,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='InterviewFeedback',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('rating', models.IntegerField(help_text='Overall rating (1-5 stars)', validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(5)])),
                 ('communication_rating', models.IntegerField(validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(5)])),
                 ('clarity_rating', models.IntegerField(validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(5)])),
@@ -132,7 +133,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='VideoAnalysis',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('face_detected', models.BooleanField(default=False)),
                 ('face_detection_confidence', models.FloatField(blank=True, null=True, validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(100)])),
                 ('eye_contact_percentage', models.FloatField(blank=True, help_text='Approximate percentage of time looking at camera', null=True, validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(100)])),

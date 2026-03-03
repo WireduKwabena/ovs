@@ -44,6 +44,35 @@ interface AvatarSessionResponse {
   activity_idle_timeout?: number;
 }
 
+interface InterviewQuestionRecord {
+  id: number;
+  question_text: string;
+  question_type: string;
+  difficulty: string;
+  is_active: boolean;
+}
+
+interface InterviewResponseRecord {
+  id: number;
+  session: number;
+  sequence_number: number;
+  transcript: string;
+  sentiment: string;
+}
+
+interface InterviewFeedbackRecord {
+  id: number;
+  session: number;
+  reviewer: number;
+  overall_rating: number;
+  recommendation: string;
+  notes: string;
+}
+
+interface InterviewPlaybackPayload {
+  [key: string]: unknown;
+}
+
 export interface HeyGenAvatarSdkConfig {
   token: string;
   avatarName: string;
@@ -123,7 +152,7 @@ const getLatestSessionForCase = async (caseIdentifier: string | number): Promise
 };
 
 const resolveCasePrimaryKey = async (caseIdentifier: string): Promise<number> => {
-  const response = await api.get<{ id: number }>(`/applications/${caseIdentifier}/`);
+  const response = await api.get<{ id: number }>(`/applications/cases/${caseIdentifier}/`);
   return response.data.id;
 };
 
@@ -224,6 +253,113 @@ export const interviewService = {
       console.warn('Unable to initialize HeyGen SDK session. Falling back to binary transport.', error);
       return null;
     }
+  },
+
+  async completeSession(sessionId: string): Promise<Record<string, unknown>> {
+    const response = await api.post<Record<string, unknown>>(`/interviews/sessions/${sessionId}/complete/`, {});
+    return response.data;
+  },
+
+  async saveExchange(
+    sessionId: string,
+    payload: {
+      question_text: string;
+      sequence_number?: number;
+      question_intent?: string;
+      target_flag_id?: string | number;
+    },
+  ): Promise<Record<string, unknown>> {
+    const response = await api.post<Record<string, unknown>>(
+      `/interviews/sessions/${sessionId}/save-exchange/`,
+      payload,
+    );
+    return response.data;
+  },
+
+  async updateExchange(
+    sessionId: string,
+    payload: {
+      sequence_number?: number;
+      transcript?: string;
+      video_url?: string;
+      sentiment?: string;
+      nonverbal_data?: Record<string, unknown>;
+    },
+  ): Promise<Record<string, unknown>> {
+    const response = await api.post<Record<string, unknown>>(
+      `/interviews/sessions/${sessionId}/update-exchange/`,
+      payload,
+    );
+    return response.data;
+  },
+
+  async getPlayback(sessionId: string): Promise<InterviewPlaybackPayload> {
+    const response = await api.get<InterviewPlaybackPayload>(`/interviews/sessions/${sessionId}/playback/`);
+    return response.data;
+  },
+
+  async compareSessions(sessionIds: Array<number | string>): Promise<Record<string, unknown>> {
+    const response = await api.post<Record<string, unknown>>("/interviews/sessions/compare/", {
+      session_ids: sessionIds,
+    });
+    return response.data;
+  },
+
+  async generateFlags(caseId: number | string, persist = true, replacePending = false): Promise<Record<string, unknown>> {
+    const response = await api.post<Record<string, unknown>>("/interviews/sessions/generate-flags/", {
+      case: caseId,
+      persist,
+      replace_pending: replacePending,
+    });
+    return response.data;
+  },
+
+  async listQuestions(params?: {
+    question_type?: string;
+    difficulty?: string;
+    active?: boolean;
+  }): Promise<InterviewQuestionRecord[]> {
+    const response = await api.get<PaginatedResponse<InterviewQuestionRecord> | InterviewQuestionRecord[]>(
+      "/interviews/questions/",
+      { params },
+    );
+    return Array.isArray(response.data) ? response.data : response.data.results || [];
+  },
+
+  async getQuestionById(questionId: number | string): Promise<InterviewQuestionRecord> {
+    const response = await api.get<InterviewQuestionRecord>(`/interviews/questions/${questionId}/`);
+    return response.data;
+  },
+
+  async listResponses(params?: { session?: number | string }): Promise<InterviewResponseRecord[]> {
+    const response = await api.get<PaginatedResponse<InterviewResponseRecord> | InterviewResponseRecord[]>(
+      "/interviews/responses/",
+      { params },
+    );
+    return Array.isArray(response.data) ? response.data : response.data.results || [];
+  },
+
+  async getResponseById(responseId: number | string): Promise<InterviewResponseRecord> {
+    const response = await api.get<InterviewResponseRecord>(`/interviews/responses/${responseId}/`);
+    return response.data;
+  },
+
+  async analyzeResponse(responseId: number | string): Promise<{ message: string }> {
+    const response = await api.post<{ message: string }>(`/interviews/responses/${responseId}/analyze/`, {});
+    return response.data;
+  },
+
+  async listFeedback(params?: { session?: number | string }): Promise<InterviewFeedbackRecord[]> {
+    const response = await api.get<PaginatedResponse<InterviewFeedbackRecord> | InterviewFeedbackRecord[]>(
+      "/interviews/feedback/",
+      { params },
+    );
+    return Array.isArray(response.data) ? response.data : response.data.results || [];
+  },
+
+  async getFeedbackById(feedbackId: number | string): Promise<InterviewFeedbackRecord> {
+    const response = await api.get<InterviewFeedbackRecord>(`/interviews/feedback/${feedbackId}/`);
+    return response.data;
   },
 };
 

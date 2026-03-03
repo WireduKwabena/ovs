@@ -1,5 +1,10 @@
 import api from './api';
-import type { CandidateAccessConsumeResponse, CandidateAccessContext, CandidateAccessResults } from '@/types';
+import type {
+  CandidateAccessConsumeResponse,
+  CandidateAccessContext,
+  CandidateAccessResults,
+  Invitation,
+} from '@/types';
 
 export const invitationService = {
   async acceptInvitation(token: string): Promise<{
@@ -37,6 +42,11 @@ export const invitationService = {
 
   async sendNow(invitationId: number | string): Promise<{ message: string }> {
     const response = await api.post<{ message: string }>(`/invitations/${invitationId}/send/`, {});
+    return response.data;
+  },
+
+  async getById(invitationId: number | string): Promise<Invitation> {
+    const response = await api.get<Invitation>(`/invitations/${invitationId}/`);
     return response.data;
   },
 };

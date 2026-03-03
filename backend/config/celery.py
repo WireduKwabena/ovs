@@ -16,6 +16,7 @@ This prevents blocking the main web server for long-running tasks.
 import os
 
 from celery import Celery
+from celery.schedules import crontab
 
 # Set default Django settings
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.development")
@@ -29,7 +30,12 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()
 
 # Periodic Tasks Configuration
-app.conf.beat_schedule = {}
+app.conf.beat_schedule = {
+    "video-calls-reminder-loop": {
+        "task": "apps.video_calls.tasks.process_video_meeting_reminders",
+        "schedule": crontab(minute="*"),
+    },
+}
 
 # Task routing (optional - for multiple workers)
 app.conf.task_routes = {

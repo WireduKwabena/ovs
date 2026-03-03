@@ -68,6 +68,24 @@ export const authService = {
     }
   },
 
+  async adminLogin(credentials: LoginCredentials): Promise<LoginAttemptResponse> {
+    try {
+      const response = await api.post<LoginAttemptResponse>("/auth/admin/login/", credentials);
+      return response.data;
+    } catch (error: any) {
+      throw toApiError(error, "Admin login failed");
+    }
+  },
+
+  async adminVerifyTwoFactor(data: TwoFactorVerifyPayload): Promise<LoginResponse> {
+    try {
+      const response = await api.post<LoginResponse>("/auth/admin/login/verify/", data);
+      return response.data;
+    } catch (error: any) {
+      throw toApiError(error, "Admin two-factor verification failed");
+    }
+  },
+
   async register(data: RegisterData): Promise<RegisterResponse> {
     try {
       const response = await api.post<RegisterResponse>("/auth/register/", data);

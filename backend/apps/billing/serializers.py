@@ -31,3 +31,38 @@ class StripeCheckoutSessionConfirmSerializer(serializers.Serializer):
 
 class SubscriptionAccessVerifySerializer(serializers.Serializer):
     reference = serializers.CharField(max_length=255)
+
+
+class BillingActionErrorSerializer(serializers.Serializer):
+    detail = serializers.CharField(required=False)
+    error = serializers.CharField(required=False)
+
+
+class BillingHealthAccessSerializer(serializers.Serializer):
+    staff_required = serializers.BooleanField()
+    requester_is_staff = serializers.BooleanField()
+
+
+class BillingHealthStripeSerializer(serializers.Serializer):
+    sdk_installed = serializers.BooleanField()
+    secret_key_configured = serializers.BooleanField()
+    webhook_secret_configured = serializers.BooleanField()
+
+
+class BillingHealthRateLimitSerializer(serializers.Serializer):
+    enabled = serializers.BooleanField()
+    per_minute = serializers.IntegerField()
+
+
+class BillingHealthResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    access = BillingHealthAccessSerializer()
+    stripe = BillingHealthStripeSerializer()
+    subscription_verify_rate_limit = BillingHealthRateLimitSerializer()
+
+
+class BillingWebhookResponseSerializer(serializers.Serializer):
+    received = serializers.BooleanField()
+    event_type = serializers.CharField()
+    session_id = serializers.CharField(required=False)
+    payment_status = serializers.CharField(required=False)

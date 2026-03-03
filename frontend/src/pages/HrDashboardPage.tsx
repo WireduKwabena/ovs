@@ -11,13 +11,15 @@ import {
   Activity,
   Download,
   Link2,
+  Video,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { campaignService } from '@/services/campaign.service';
 import type { CampaignDashboard, VettingCampaign } from '@/types';
+import { downloadCsvFile, isoDateStamp } from '@/utils/csv';
 import { formatDate } from '@/utils/helper';
 import { useAuth } from '@/hooks/useAuth';
-import BillingHealthCard, { type BillingHealthStatus } from '@/components/admin/BillingHealthCard';
+import { getUserDisplayName } from '@/utils/userDisplay';
 
 interface CampaignWithMetrics {
   campaign: VettingCampaign;
@@ -38,6 +40,11 @@ interface SavedDashboardView {
   sort: CampaignPulseSort;
   query: string;
   created_at: string;
+}
+
+interface PendingQuerySync {
+  from: string;
+  to: string;
 }
 
 const STATUS_FILTER_OPTIONS: DashboardStatusFilter[] = ['all', 'draft', 'active', 'closed', 'archived'];
@@ -84,32 +91,6 @@ const FILTER_PRESETS: Array<{
   { id: 'draft_only', label: 'Drafts Only', status: 'draft', window: 'all' },
   { id: 'archived_365', label: 'Archived 1y', status: 'archived', window: '365' },
 ];
-
-const BILLING_HEALTH_STATUS_META: Record<
-  BillingHealthStatus,
-  { label: string; containerClass: string; dotClass: string }
-> = {
-  checking: {
-    label: 'Checking',
-    containerClass: 'bg-white/10 text-slate-100 border border-white/20',
-    dotClass: 'bg-slate-300',
-  },
-  healthy: {
-    label: 'Healthy',
-    containerClass: 'bg-emerald-500/20 text-emerald-100 border border-emerald-300/40',
-    dotClass: 'bg-emerald-300',
-  },
-  attention: {
-    label: 'Needs Attention',
-    containerClass: 'bg-amber-500/20 text-amber-100 border border-amber-300/40',
-    dotClass: 'bg-amber-300',
-  },
-  unavailable: {
-    label: 'Unavailable',
-    containerClass: 'bg-rose-500/20 text-rose-100 border border-rose-300/40',
-    dotClass: 'bg-rose-300',
-  },
-};
 
 const isDashboardStatusFilter = (value: string): value is DashboardStatusFilter =>
   STATUS_FILTER_OPTIONS.includes(value as DashboardStatusFilter);
@@ -215,6 +196,7 @@ const HrDashboardPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const chartsSectionTriggerRef = useRef<HTMLDivElement | null>(null);
+  const pendingQuerySyncRef = useRef<PendingQuerySync | null>(null);
 
   const statusFromQuery = (searchParams.get('status') || 'all') as DashboardStatusFilter;
   const windowFromQuery = (searchParams.get('window') || 'all') as DashboardWindowFilter;
@@ -250,7 +232,6 @@ const HrDashboardPage: React.FC = () => {
     isCampaignPulseSort(pulseFromQuery) ? pulseFromQuery : 'recent'
   );
   const [shouldLoadCharts, setShouldLoadCharts] = useState(false);
-  const [billingHealthStatus, setBillingHealthStatus] = useState<BillingHealthStatus>('checking');
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
@@ -353,6 +334,15 @@ const HrDashboardPage: React.FC = () => {
 
     const nextQueryString = nextParams.toString();
     if (nextQueryString !== currentQueryString) {
+      const pendingSync = pendingQuerySyncRef.current;
+      if (
+        pendingSync &&
+        pendingSync.from === currentQueryString &&
+        pendingSync.to === nextQueryString
+      ) {
+        return;
+      }
+      pendingQuerySyncRef.current = { from: currentQueryString, to: nextQueryString };
       setSearchParams(nextParams, { replace: true });
     }
   }, [
@@ -366,6 +356,19 @@ const HrDashboardPage: React.FC = () => {
   ]);
 
   useEffect(() => {
+    const queryString = searchParams.toString();
+    const pendingSync = pendingQuerySyncRef.current;
+    if (pendingSync) {
+      if (queryString === pendingSync.from) {
+        return;
+      }
+      if (queryString === pendingSync.to) {
+        pendingQuerySyncRef.current = null;
+        return;
+      }
+      pendingQuerySyncRef.current = null;
+    }
+
     const nextStatus = (searchParams.get('status') || 'all') as DashboardStatusFilter;
     const nextWindow = (searchParams.get('window') || 'all') as DashboardWindowFilter;
     const nextMode = (searchParams.get('mode') || 'count') as DashboardChartMode;
@@ -778,14 +781,6 @@ const HrDashboardPage: React.FC = () => {
       'escalated',
     ];
 
-    const escapeCsv = (value: string | number | null | undefined) => {
-      const normalized = String(value ?? '');
-      if (normalized.includes(',') || normalized.includes('"') || normalized.includes('\n')) {
-        return `"${normalized.replace(/"/g, '""')}"`;
-      }
-      return normalized;
-    };
-
     const rows = filteredCampaignStats.map((row) => [
       row.campaign.id,
       row.campaign.name,
@@ -803,16 +798,7 @@ const HrDashboardPage: React.FC = () => {
       row.metrics.escalated,
     ]);
 
-    const csv = [headers.join(','), ...rows.map((row) => row.map((value) => escapeCsv(value)).join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `campaign-dashboard-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadCsvFile(headers, rows, `campaign-dashboard-${isoDateStamp()}.csv`);
   }, [filteredCampaignStats]);
 
   const copyTextToClipboard = useCallback(async (text: string) => {
@@ -932,11 +918,7 @@ const HrDashboardPage: React.FC = () => {
     [buildDashboardShareUrl, copyTextToClipboard, isSavedViewActionBusy]
   );
 
-  const displayName = user
-    ? 'full_name' in user
-      ? user.full_name
-      : user.username
-    : 'Team';
+  const displayName = getUserDisplayName(user, 'Team');
 
   if (loading) {
     return (
@@ -957,16 +939,8 @@ const HrDashboardPage: React.FC = () => {
             <p className="text-slate-200 mt-1">
               Welcome, {displayName}. Campaign performance and candidate pipeline are summarized here.
             </p>
-            <div
-              className={`mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${BILLING_HEALTH_STATUS_META[billingHealthStatus].containerClass}`}
-            >
-              <span
-                className={`h-2 w-2 rounded-full ${BILLING_HEALTH_STATUS_META[billingHealthStatus].dotClass}`}
-              />
-              <span>Billing Runtime Status: {BILLING_HEALTH_STATUS_META[billingHealthStatus].label}</span>
-            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:flex-nowrap">
             <button
               type="button"
               onClick={() => void loadDashboard()}
@@ -995,10 +969,17 @@ const HrDashboardPage: React.FC = () => {
             </button>
             <Link
               to="/campaigns"
-              className="inline-flex items-center gap-2 rounded-lg bg-teal-500 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-teal-400"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-teal-500 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-teal-400 sm:w-auto"
             >
               Manage Campaigns
               <ArrowUpRight className="w-4 h-4" />
+            </Link>
+            <Link
+              to="/video-calls"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400 sm:w-auto"
+            >
+              Video Calls
+              <Video className="w-4 h-4" />
             </Link>
           </div>
         </div>
@@ -1109,7 +1090,7 @@ const HrDashboardPage: React.FC = () => {
               type="button"
               onClick={saveCurrentView}
               disabled={isSavingView || isSavedViewActionBusy || !savedViewName.trim()}
-              className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-lg bg-teal-600 px-3 py-2 text-sm font-medium text-white hover:bg-teal-500 disabled:cursor-not-allowed disabled:border disabled:border-slate-300 disabled:bg-slate-200 disabled:text-slate-600"
             >
               {isSavingView ? 'Saving...' : 'Save current view'}
             </button>
@@ -1348,7 +1329,6 @@ const HrDashboardPage: React.FC = () => {
         </div>
 
         <div className="space-y-4">
-          <BillingHealthCard onStatusChange={setBillingHealthStatus} />
           <div className="rounded-xl border border-slate-200 bg-white p-5">
             <h2 className="text-lg font-semibold inline-flex items-center gap-2">
               <Activity className="w-5 h-5 text-teal-600" />
@@ -1380,6 +1360,15 @@ const HrDashboardPage: React.FC = () => {
               >
                 <p className="font-medium text-slate-900">Review Alerts</p>
                 <p className="text-xs text-slate-500">Monitor delivery and vetting notifications.</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/video-calls')}
+                className="w-full rounded-lg border border-slate-200 px-4 py-3 text-left hover:bg-slate-50"
+              >
+                <p className="font-medium text-slate-900">Schedule Video Meeting</p>
+                <p className="text-xs text-slate-500">Create 1v1 or 1vMany live interview sessions.</p>
               </button>
             </div>
           </div>

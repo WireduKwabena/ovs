@@ -12,6 +12,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { Navbar } from "./components/common/Navbar";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { UnauthenticatedRoute } from "./components/auth/UnauthenticatedRoute";
 import { fetchProfile } from "./store/authSlice";
 import { type AppDispatch, type RootState } from "./app/store";
 
@@ -28,10 +29,17 @@ const CandidateAccessPage = React.lazy(() => import("./pages/CandidateAccessPage
 const InvitationAcceptPage = React.lazy(() => import("./pages/InvitationAcceptPage"));
 const DashboardPage = React.lazy(() => import("./pages/DashboardPage"));
 const ChangePasswordPage = React.lazy(() => import("./pages/ChangePasswordPage"));
+const UserSettingsPage = React.lazy(() => import("./pages/UserSettingsPage"));
 const SecurityPage = React.lazy(() => import("./pages/SecurityPage"));
+const FraudInsightsPage = React.lazy(() => import("./pages/FraudInsightsPage"));
+const BackgroundChecksPage = React.lazy(() => import("./pages/BackgroundChecksPage"));
+const AuditLogsPage = React.lazy(() => import("./pages/AuditLogsPage"));
+const MlMonitoringPage = React.lazy(() => import("./pages/MlMonitoringPage"));
+const AiMonitorPage = React.lazy(() => import("./pages/AiMonitorPage"));
 const UploadDocumentsPage = React.lazy(() => import("./pages/UploadDocumentPage"));
 const CampaignsPage = React.lazy(() => import("./pages/CampaignsPage"));
 const CampaignWorkspacePage = React.lazy(() => import("./pages/CampaignWorkspacePage"));
+const VideoCallsPage = React.lazy(() => import("./pages/VideoCallsPage"));
 const RubricBuilderPage = React.lazy(() => import("./pages/RubricBuilderPage"));
 const ErrorPage = React.lazy(() => import("./pages/ErrorPage"));
 const NotFoundPage = React.lazy(() => import("./pages/NotFoundPage"));
@@ -39,6 +47,8 @@ const AdminDashboardPage = React.lazy(() => import("./pages/admin/AdminDashboard
 const AdminAnalyticsPage = React.lazy(() => import("./pages/admin/AdminAnalyticsPage"));
 const AdminRegisterPage = React.lazy(() => import("./pages/admin/AdminRegisterPage"));
 const AdminCasesPage = React.lazy(() => import("./pages/admin/AdminCasesPage"));
+const AdminControlCenterPage = React.lazy(() => import("./pages/admin/AdminControlCenterPage"));
+const AdminUsersPage = React.lazy(() => import("./pages/admin/AdminUsersPage"));
 const AdminCaseReview = React.lazy(() =>
   import("./components/admin/CaseReview").then((module) => ({ default: module.CaseReview })),
 );
@@ -107,13 +117,55 @@ const AppShell: React.FC = () => {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/subscribe" element={<SubscriptionPlansPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/login/2fa" element={<TwoFactorPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+          <Route
+            path="/login"
+            element={
+              <UnauthenticatedRoute>
+                <LoginPage />
+              </UnauthenticatedRoute>
+            }
+          />
+          <Route
+            path="/login/2fa"
+            element={
+              <UnauthenticatedRoute allowTwoFactorChallenge>
+                <TwoFactorPage />
+              </UnauthenticatedRoute>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <UnauthenticatedRoute>
+                <RegisterPage />
+              </UnauthenticatedRoute>
+            }
+          />
 
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/forgot-password/email-sent" element={<EmailSentPage />} />
-          <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+          <Route
+            path="/forgot-password"
+            element={
+              <UnauthenticatedRoute>
+                <ForgotPasswordPage />
+              </UnauthenticatedRoute>
+            }
+          />
+          <Route
+            path="/forgot-password/email-sent"
+            element={
+              <UnauthenticatedRoute>
+                <EmailSentPage />
+              </UnauthenticatedRoute>
+            }
+          />
+          <Route
+            path="/reset-password/:token"
+            element={
+              <UnauthenticatedRoute>
+                <ResetPasswordPage />
+              </UnauthenticatedRoute>
+            }
+          />
 
           <Route path="/billing/success" element={<BillingCheckoutResultPage />} />
           <Route path="/billing/cancel" element={<BillingCheckoutResultPage />} />
@@ -146,10 +198,58 @@ const AppShell: React.FC = () => {
             }
           />
           <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <UserSettingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/security"
             element={
               <ProtectedRoute disallowUserTypes={["applicant"]}>
                 <SecurityPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/fraud-insights"
+            element={
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
+                <FraudInsightsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/background-checks"
+            element={
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
+                <BackgroundChecksPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/audit-logs"
+            element={
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
+                <AuditLogsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ml-monitoring"
+            element={
+              <ProtectedRoute adminOnly>
+                <MlMonitoringPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ai-monitor"
+            element={
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
+                <AiMonitorPage />
               </ProtectedRoute>
             }
           />
@@ -210,6 +310,14 @@ const AppShell: React.FC = () => {
             }
           />
           <Route
+            path="/video-calls"
+            element={
+              <ProtectedRoute>
+                <VideoCallsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/rubrics"
             element={
               <ProtectedRoute>
@@ -220,6 +328,14 @@ const AppShell: React.FC = () => {
 
           <Route
             path="/rubrics/new"
+            element={
+              <ProtectedRoute adminOnly>
+                <RubricBuilderPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/rubrics/:rubricId/edit"
             element={
               <ProtectedRoute adminOnly>
                 <RubricBuilderPage />
@@ -247,6 +363,22 @@ const AppShell: React.FC = () => {
             element={
               <ProtectedRoute adminOnly>
                 <AdminRegisterPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/control-center"
+            element={
+              <ProtectedRoute adminOnly>
+                <AdminControlCenterPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute adminOnly>
+                <AdminUsersPage />
               </ProtectedRoute>
             }
           />
@@ -293,7 +425,9 @@ const AppShell: React.FC = () => {
 
 const App: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const isRehydrated = useSelector((state: RootState) => state._persist?.rehydrated);
+  const isRehydrated = useSelector((state: RootState) =>
+    state._persist ? state._persist.rehydrated : true,
+  );
   const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
   const accessToken = useSelector((state: RootState) => state.auth.tokens?.access);
 

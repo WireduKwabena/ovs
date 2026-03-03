@@ -80,7 +80,7 @@ class NotificationMarkReadSerializer(serializers.Serializer):
     """Payload for bulk mark-as-read action."""
 
     notification_ids = serializers.ListField(
-        child=serializers.IntegerField(min_value=1),
+        child=serializers.UUIDField(),
         required=False,
         allow_empty=True,
     )

@@ -4,6 +4,7 @@ import django.core.validators
 import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
+import uuid
 
 
 class Migration(migrations.Migration):
@@ -18,7 +19,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='VettingCampaign',
             fields=[
-                ('id', models.BigAutoField(primary_key=True, serialize=False)),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('name', models.CharField(max_length=255)),
                 ('description', models.TextField(blank=True)),
                 ('status', models.CharField(choices=[('draft', 'Draft'), ('active', 'Active'), ('closed', 'Closed'), ('archived', 'Archived')], db_index=True, default='draft', max_length=20)),
@@ -36,7 +37,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='CampaignRubricVersion',
             fields=[
-                ('id', models.BigAutoField(primary_key=True, serialize=False)),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('version', models.PositiveIntegerField()),
                 ('name', models.CharField(max_length=255)),
                 ('description', models.TextField(blank=True)),

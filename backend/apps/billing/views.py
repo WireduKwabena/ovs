@@ -12,8 +12,20 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+try:
+    from drf_spectacular.utils import extend_schema
+except ModuleNotFoundError:  # pragma: no cover - optional in lightweight setups
+    def extend_schema(*args, **kwargs):  # type: ignore
+        def decorator(func):
+            return func
+
+        return decorator
+
 from .models import BillingSubscription, BillingWebhookEvent
 from .serializers import (
+    BillingActionErrorSerializer,
+    BillingHealthResponseSerializer,
+    BillingWebhookResponseSerializer,
     StripeCheckoutSessionConfirmSerializer,
     StripeCheckoutSessionCreateSerializer,
     SubscriptionAccessVerifySerializer,
@@ -131,6 +143,18 @@ def _to_decimal(value, fallback: str = "0.00") -> Decimal:
         return Decimal(str(value))
     except Exception:
         return Decimal(fallback)
+
+
+def _fit_model_field_value(model_cls, field_name: str, value: str | None) -> str:
+    text = str(value or "")
+    try:
+        field = model_cls._meta.get_field(field_name)
+    except Exception:
+        return text
+    max_length = getattr(field, "max_length", None)
+    if isinstance(max_length, int) and max_length > 0 and len(text) > max_length:
+        return text[:max_length]
+    return text
 
 
 def _extract_amount_usd(session_data: dict) -> Decimal:
@@ -306,16 +330,24 @@ def _persist_stripe_session(session_data: dict, *, checkout_url: str | None = No
 
     defaults = {
         "provider": "stripe",
-        "payment_intent_id": session_data.get("payment_intent") or "",
-        "status": status_value,
-        "payment_status": payment_status,
-        "plan_id": plan_id,
-        "plan_name": plan_name,
-        "billing_cycle": billing_cycle,
-        "payment_method": payment_method,
+        "payment_intent_id": _fit_model_field_value(
+            BillingSubscription,
+            "payment_intent_id",
+            session_data.get("payment_intent"),
+        ),
+        "status": _fit_model_field_value(BillingSubscription, "status", status_value),
+        "payment_status": _fit_model_field_value(BillingSubscription, "payment_status", payment_status),
+        "plan_id": _fit_model_field_value(BillingSubscription, "plan_id", plan_id),
+        "plan_name": _fit_model_field_value(BillingSubscription, "plan_name", plan_name),
+        "billing_cycle": _fit_model_field_value(BillingSubscription, "billing_cycle", billing_cycle),
+        "payment_method": _fit_model_field_value(BillingSubscription, "payment_method", payment_method),
         "amount_usd": amount_usd,
-        "checkout_url": checkout_url or session_data.get("url") or "",
-        "reference": reference,
+        "checkout_url": _fit_model_field_value(
+            BillingSubscription,
+            "checkout_url",
+            checkout_url or session_data.get("url"),
+        ),
+        "reference": _fit_model_field_value(BillingSubscription, "reference", reference),
         "ticket_confirmed_at": ticket_confirmed_at,
         "ticket_expires_at": ticket_expires_at,
         "metadata": metadata,
@@ -362,6 +394,14 @@ class BillingHealthAPIView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
 
+    @extend_schema(
+        request=None,
+        responses={
+            200: BillingHealthResponseSerializer,
+            401: BillingActionErrorSerializer,
+            403: BillingActionErrorSerializer,
+        },
+    )
     def get(self, request):
         if _billing_health_require_staff():
             if not bool(getattr(request.user, "is_authenticated", False)):
@@ -578,6 +618,13 @@ class StripeWebhookAPIView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
 
+    @extend_schema(
+        request=None,
+        responses={
+            200: BillingWebhookResponseSerializer,
+            400: BillingActionErrorSerializer,
+        },
+    )
     @transaction.atomic
     def post(self, request):
         _ensure_stripe_webhook_ready()

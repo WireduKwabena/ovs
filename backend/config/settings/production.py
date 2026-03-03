@@ -16,6 +16,11 @@ BILLING_HEALTH_REQUIRE_STAFF = config(
     default=True,
     cast=bool,
 )
+INTERVIEWS_TASK_INLINE_FALLBACK_ENABLED = config(
+    "INTERVIEWS_TASK_INLINE_FALLBACK_ENABLED",
+    default=False,
+    cast=bool,
+)
 
 # Security settings
 SECURE_SSL_REDIRECT = True

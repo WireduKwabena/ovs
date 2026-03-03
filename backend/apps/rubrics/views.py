@@ -1,13 +1,13 @@
 from django.db import transaction
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.applications.models import VettingCase
 
 from .engine import RubricEvaluationEngine
 from .models import CriteriaOverride, RubricCriteria, RubricEvaluation, VettingRubric
+from .permissions import IsHRManager
 from .serializers import (
     CriteriaOverrideSerializer,
     RubricCriteriaSerializer,
@@ -15,6 +15,7 @@ from .serializers import (
     VettingRubricSerializer,
 )
 from .tasks import evaluate_case_with_rubric
+from .templates import RUBRIC_TEMPLATES, create_rubric_from_template
 
 
 def _parse_boolean(value) -> bool:
@@ -35,7 +36,7 @@ def _parse_boolean(value) -> bool:
 
 class VettingRubricViewSet(viewsets.ModelViewSet):
     serializer_class = VettingRubricSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsHRManager]
 
     def get_queryset(self):
         queryset = VettingRubric.objects.prefetch_related("criteria").all()
@@ -49,6 +50,96 @@ class VettingRubricViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+
+    @action(detail=True, methods=["post"], url_path="activate")
+    def activate(self, request, pk=None):
+        rubric = self.get_object()
+        rubric.is_active = True
+        rubric.save(update_fields=["is_active", "updated_at"])
+        data = self.get_serializer(rubric).data
+        return Response({"message": "Rubric activated successfully.", "rubric": data}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="duplicate")
+    def duplicate(self, request, pk=None):
+        source = self.get_object()
+        copy_name = f"{source.name} (Copy)"
+        copy_index = 2
+        while VettingRubric.objects.filter(name=copy_name).exists():
+            copy_name = f"{source.name} (Copy {copy_index})"
+            copy_index += 1
+
+        with transaction.atomic():
+            cloned = VettingRubric.objects.create(
+                name=copy_name,
+                description=source.description,
+                rubric_type=source.rubric_type,
+                document_authenticity_weight=source.document_authenticity_weight,
+                consistency_weight=source.consistency_weight,
+                fraud_detection_weight=source.fraud_detection_weight,
+                interview_weight=source.interview_weight,
+                manual_review_weight=source.manual_review_weight,
+                passing_score=source.passing_score,
+                auto_approve_threshold=source.auto_approve_threshold,
+                auto_reject_threshold=source.auto_reject_threshold,
+                minimum_document_score=source.minimum_document_score,
+                maximum_fraud_score=source.maximum_fraud_score,
+                require_interview=source.require_interview,
+                critical_flags_auto_fail=source.critical_flags_auto_fail,
+                max_unresolved_flags=source.max_unresolved_flags,
+                is_active=False,
+                is_default=False,
+                created_by=request.user,
+            )
+
+            for criterion in source.criteria.all().order_by("display_order", "id"):
+                RubricCriteria.objects.create(
+                    rubric=cloned,
+                    name=criterion.name,
+                    description=criterion.description,
+                    criteria_type=criterion.criteria_type,
+                    scoring_method=criterion.scoring_method,
+                    weight=criterion.weight,
+                    minimum_score=criterion.minimum_score,
+                    is_mandatory=criterion.is_mandatory,
+                    evaluation_guidelines=criterion.evaluation_guidelines,
+                    display_order=criterion.display_order,
+                )
+
+        return Response(self.get_serializer(cloned).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["get"], url_path="templates")
+    def templates(self, request):
+        payload = []
+        for key, template in RUBRIC_TEMPLATES.items():
+            payload.append(
+                {
+                    "template_key": key,
+                    "name": template.get("name"),
+                    "description": template.get("description", ""),
+                    "rubric_type": template.get("rubric_type", "general"),
+                    "criteria_count": len(template.get("criteria", [])),
+                }
+            )
+        return Response(payload, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=["post"], url_path="create_from_template")
+    def create_from_template(self, request):
+        template_key = str(request.data.get("template_key", "")).strip()
+        if not template_key:
+            return Response({"error": "template_key is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        overrides = request.data.get("overrides", {})
+        if overrides is None:
+            overrides = {}
+        if not isinstance(overrides, dict):
+            return Response({"error": "overrides must be an object"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            rubric = create_rubric_from_template(template_key, created_by=request.user, **overrides)
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(self.get_serializer(rubric).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], url_path="criteria")
     def add_criteria(self, request, pk=None):
@@ -81,10 +172,41 @@ class VettingRubricViewSet(viewsets.ModelViewSet):
         data = RubricEvaluationSerializer(evaluation, context=self.get_serializer_context()).data
         return Response(data, status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=["post"], url_path="evaluate_application")
+    def evaluate_application(self, request, pk=None):
+        """
+        Backward-compatible alias used by frontend service.
+
+        Accepts either:
+        - application_id (preferred from frontend)
+        - case_id
+        """
+        rubric = self.get_object()
+        case_ref = request.data.get("application_id") or request.data.get("case_id")
+        run_async = _parse_boolean(request.data.get("async", False))
+
+        if not case_ref:
+            return Response({"error": "application_id (or case_id) is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        case = VettingCase.objects.filter(case_id=str(case_ref)).first()
+        if case is None:
+            try:
+                case = VettingCase.objects.get(id=case_ref)
+            except (VettingCase.DoesNotExist, ValueError, TypeError):
+                return Response({"error": "Case not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if run_async:
+            evaluate_case_with_rubric.delay(case.id, rubric.id, request.user.id)
+            return Response({"message": "Evaluation queued."}, status=status.HTTP_202_ACCEPTED)
+
+        evaluation = RubricEvaluationEngine(case=case, rubric=rubric).evaluate(evaluated_by=request.user)
+        data = RubricEvaluationSerializer(evaluation, context=self.get_serializer_context()).data
+        return Response(data, status=status.HTTP_200_OK)
+
 
 class RubricCriteriaViewSet(viewsets.ModelViewSet):
     serializer_class = RubricCriteriaSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsHRManager]
 
     def get_queryset(self):
         queryset = RubricCriteria.objects.select_related("rubric").all()
@@ -96,7 +218,7 @@ class RubricCriteriaViewSet(viewsets.ModelViewSet):
 
 class RubricEvaluationViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = RubricEvaluationSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsHRManager]
 
     def get_queryset(self):
         queryset = RubricEvaluation.objects.select_related("case", "rubric", "evaluated_by").prefetch_related("overrides")
