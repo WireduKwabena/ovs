@@ -68,9 +68,12 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
             return queryset.filter(candidate_enrollment_id=enrollment_id).order_by("-created_at")
 
         user = self.request.user
+        scope = str(self.request.query_params.get("scope", "") or "").strip().lower()
         if not getattr(user, "is_authenticated", False):
             return VettingCase.objects.none()
         if getattr(user, "is_staff", False) or getattr(user, "user_type", None) in {"admin", "hr_manager"}:
+            if getattr(user, "user_type", None) == "hr_manager" and scope in {"assigned", "mine", "my"}:
+                return queryset.filter(assigned_to=user).order_by("-created_at")
             return queryset.order_by("-created_at")
         return queryset.filter(applicant=user).order_by("-created_at")
 

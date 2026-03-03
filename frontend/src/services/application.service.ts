@@ -32,9 +32,11 @@ export const applicationService = {
     }
   },
 
-  async getAll(): Promise<ApplicationWithDocuments[]> {
+  async getAll(options?: { scope?: 'all' | 'assigned' | 'mine' }): Promise<ApplicationWithDocuments[]> {
     try {
-      const response = await api.get<PaginatedResponse<ApplicationWithDocuments>>('/applications/cases/');
+      const response = await api.get<PaginatedResponse<ApplicationWithDocuments>>('/applications/cases/', {
+        params: options?.scope ? { scope: options.scope } : undefined,
+      });
       console.log('API response for applications:', response.data);
 
       // ✅ Extract results array from paginated response

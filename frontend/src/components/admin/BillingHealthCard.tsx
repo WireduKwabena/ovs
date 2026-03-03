@@ -165,11 +165,16 @@ export const BillingHealthCard: React.FC<BillingHealthCardProps> = ({ onStatusCh
                 </span>
               </div>
               <div className='flex items-center justify-between'>
-                <span className='text-slate-600'>Stripe SDK</span>
+                <span className='text-slate-600'>Stripe SDK (Backend)</span>
                 <span className={badgeClass(health.stripe.sdk_installed)}>
                   {health.stripe.sdk_installed ? 'Installed' : 'Missing'}
                 </span>
               </div>
+              {!health.stripe.sdk_installed ? (
+                <p className='text-xs text-amber-700'>
+                  Backend runtime is missing the Python `stripe` package. Rebuild and restart backend services.
+                </p>
+              ) : null}
               <div className='flex items-center justify-between'>
                 <span className='text-slate-600'>Stripe Secret Key</span>
                 <span className={badgeClass(health.stripe.secret_key_configured)}>

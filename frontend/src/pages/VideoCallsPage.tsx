@@ -17,9 +17,11 @@ import { useSearchParams } from "react-router-dom";
 
 import Modal from "@/components/common/Modal";
 import { useAuth } from "@/hooks/useAuth";
+import { applicationService } from "@/services/application.service";
 import { videoCallService } from "@/services/videoCall.service";
 import type { VideoMeeting, VideoMeetingCreatePayload, VideoMeetingEvent, VideoMeetingJoinToken } from "@/types";
 import { downloadCsvFile } from "@/utils/csv";
+import { downloadJsonFile } from "@/utils/json";
 
 const statusClass: Record<string, string> = {
   scheduled: "bg-blue-100 text-blue-700",
@@ -67,6 +69,23 @@ type SeriesAction = "shift" | "cancel" | "reschedule";
 type TimelineFilterMode = "all" | "meeting" | "series";
 type TimelineTimeRange = "all" | "24h" | "7d" | "30d";
 const SERIES_CANCEL_ALL_PHRASE = "CANCEL ALL";
+
+interface CaseRecord {
+  id: string | number;
+  case_id?: string;
+  status?: string;
+  assigned_to?: string | number | null;
+  candidate_email?: string | null;
+  applicant_email?: string | null;
+  applicant?: {
+    email?: string | null;
+  } | null;
+}
+
+interface CaseOption {
+  id: string;
+  label: string;
+}
 
 const TEMPLATE_PRESETS: Record<Exclude<MeetingTemplate, "custom">, {
   title: string;
@@ -142,9 +161,11 @@ const triggerFileDownload = (blob: Blob, filename: string): void => {
 };
 
 const VideoCallsPage: React.FC = () => {
-  const { isHrOrAdmin } = useAuth();
+  const { isHrOrAdmin, isAdmin, user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [meetings, setMeetings] = useState<VideoMeeting[]>([]);
+  const [caseOptions, setCaseOptions] = useState<CaseOption[]>([]);
+  const [loadingCaseOptions, setLoadingCaseOptions] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [joiningMeetingId, setJoiningMeetingId] = useState<string | null>(null);
@@ -221,6 +242,64 @@ const VideoCallsPage: React.FC = () => {
   useEffect(() => {
     void loadMeetings();
   }, []);
+
+  useEffect(() => {
+    if (!isHrOrAdmin) {
+      setCaseOptions([]);
+      return;
+    }
+
+    let mounted = true;
+
+    const loadCaseOptions = async () => {
+      setLoadingCaseOptions(true);
+      try {
+        const cases = (await applicationService.getAll({ scope: isAdmin ? "all" : "assigned" })) as CaseRecord[];
+        const normalized = cases
+          .map((item): (CaseOption & { assignedTo: string | null }) | null => {
+            const id = String(item.id ?? "").trim();
+            if (!id) {
+              return null;
+            }
+
+            const caseCode = String(item.case_id ?? "").trim() || id;
+            const ownerEmail =
+              (typeof item.candidate_email === "string" ? item.candidate_email : "") ||
+              (typeof item.applicant_email === "string" ? item.applicant_email : "") ||
+              (typeof item.applicant?.email === "string" ? item.applicant.email : "");
+            const status = String(item.status ?? "").trim() || "unknown";
+            const assignedTo = item.assigned_to != null ? String(item.assigned_to) : null;
+
+            return {
+              id,
+              label: `${caseCode} ${ownerEmail ? `• ${ownerEmail}` : ""} • ${status}`,
+              assignedTo,
+            };
+          })
+          .filter((item): item is CaseOption & { assignedTo: string | null } => item !== null);
+
+        if (mounted) {
+          setCaseOptions(normalized.map(({ id, label }) => ({ id, label })));
+        }
+      } catch (error) {
+        if (mounted) {
+          setCaseOptions([]);
+          const message = error instanceof Error ? error.message : "Failed to load vetting cases for selection.";
+          toast.error(message);
+        }
+      } finally {
+        if (mounted) {
+          setLoadingCaseOptions(false);
+        }
+      }
+    };
+
+    void loadCaseOptions();
+
+    return () => {
+      mounted = false;
+    };
+  }, [isHrOrAdmin, isAdmin, user?.id]);
 
   const applyDurationFromStart = (durationMinutes: number) => {
     if (!form.start) {
@@ -672,6 +751,35 @@ const VideoCallsPage: React.FC = () => {
     downloadCsvFile(header, rows, filename);
   };
 
+  const exportTimelineJson = (meeting: VideoMeeting) => {
+    const visibleEvents = getVisibleTimelineEvents(meeting);
+    if (visibleEvents.length === 0) {
+      toast.info("No timeline rows to export.");
+      return;
+    }
+
+    const safeTitle = (meeting.title || "meeting").replace(/[^a-zA-Z0-9-_]/g, "_");
+    const filename = `${safeTitle}-${meeting.id}-history-${getTimelineFilterMode(meeting)}-${getTimelineTimeRange(meeting)}.json`;
+    downloadJsonFile(
+      {
+        exported_at: new Date().toISOString(),
+        meeting: {
+          id: meeting.id,
+          title: meeting.title,
+          status: meeting.status,
+          series_id: meeting.series_id,
+        },
+        filters: {
+          mode: getTimelineFilterMode(meeting),
+          range: getTimelineTimeRange(meeting),
+        },
+        total_rows: visibleEvents.length,
+        events: visibleEvents,
+      },
+      filename,
+    );
+  };
+
   const toggleEventsPanel = async (meeting: VideoMeeting) => {
     if (expandedEventsId === meeting.id) {
       setExpandedEventsId(null);
@@ -885,13 +993,25 @@ const VideoCallsPage: React.FC = () => {
               </label>
 
               <label className="space-y-1 text-sm text-slate-700">
-                <span>Case ID (optional but recommended)</span>
-                <input
+                <span>Linked Vetting Case (optional)</span>
+                <select
                   value={form.caseId}
                   onChange={(event) => setForm((prev) => ({ ...prev, caseId: event.target.value }))}
-                  placeholder="UUID case id"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                />
+                  disabled={loadingCaseOptions}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:bg-slate-100 disabled:text-slate-500"
+                >
+                  <option value="">{loadingCaseOptions ? "Loading cases..." : "No linked case"}</option>
+                  {caseOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                {!loadingCaseOptions && caseOptions.length === 0 && (
+                  <p className="text-xs text-slate-500">
+                    No vetting cases available yet. Create a case first or invite explicit participants by email.
+                  </p>
+                )}
               </label>
 
               <label className="space-y-1 text-sm text-slate-700 md:col-span-2">
@@ -1341,6 +1461,14 @@ const VideoCallsPage: React.FC = () => {
                           >
                             <Download className="h-3.5 w-3.5" />
                             CSV
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => exportTimelineJson(meeting)}
+                            className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            JSON
                           </button>
                           <button
                             type="button"

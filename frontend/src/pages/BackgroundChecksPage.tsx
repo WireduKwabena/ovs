@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ClipboardCopy, Clock3, Download, RefreshCw, Search, ShieldCheck } from "lucide-react";
+import { ClipboardCopy, Clock3, RefreshCw, Search, ShieldCheck } from "lucide-react";
 import { toast } from "react-toastify";
 
+import ExportActions from "@/components/common/ExportActions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -319,24 +320,12 @@ const BackgroundChecksPage: React.FC = () => {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={exportChecksCsv}
-              disabled={loadingChecks || checks.length === 0}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Export CSV
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={exportChecksJson}
-              disabled={loadingChecks || checks.length === 0}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Export JSON
-            </Button>
+            <ExportActions
+              onCsv={exportChecksCsv}
+              onJson={exportChecksJson}
+              csvDisabled={loadingChecks || checks.length === 0}
+              jsonDisabled={loadingChecks || checks.length === 0}
+            />
             <Button
               type="button"
               variant="outline"

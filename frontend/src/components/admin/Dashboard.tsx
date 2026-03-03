@@ -22,17 +22,25 @@ interface StatCardProps {
   subtitle?: string;
 }
 
+const ICON_BG_BY_TEXT_COLOR: Record<string, string> = {
+  'text-blue-600': 'bg-blue-100',
+  'text-amber-700': 'bg-amber-100',
+  'text-green-600': 'bg-green-100',
+  'text-red-600': 'bg-red-100',
+  'text-purple-600': 'bg-purple-100',
+};
+
 const StatCard: React.FC<StatCardProps> = ({ icon: Icon, title, value, color, subtitle }) => (
   <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
     <div className="flex items-center justify-between">
       <div>
-        <p className="text-sm font-medium text-gray-600">{title}</p>
+        <p className="text-sm font-medium text-slate-700">{title}</p>
         <p className={`text-3xl font-bold ${color} mt-2`}>{value.toLocaleString()}</p>
         {subtitle && (
-          <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
+          <p className="text-xs text-slate-600 mt-1">{subtitle}</p>
         )}
       </div>
-      <div className={`p-3 rounded-full ${color.replace('text-', 'bg-').replace('600', '100')}`}>
+      <div className={`p-3 rounded-full ${ICON_BG_BY_TEXT_COLOR[color] ?? 'bg-slate-100'}`}>
         <Icon className={`w-8 h-8 ${color}`} />
       </div>
     </div>
@@ -117,7 +125,7 @@ export const AdminDashboard: React.FC = () => {
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-slate-700 mt-2">
             Overview of vetting applications and system performance
           </p>
         </div>
@@ -137,7 +145,7 @@ export const AdminDashboard: React.FC = () => {
             icon={Clock}
             title="Pending Review"
             value={stats.pending}
-            color="text-yellow-600"
+            color="text-amber-700"
             subtitle={`${stats.under_review} under review`}
           />
 
@@ -167,7 +175,7 @@ export const AdminDashboard: React.FC = () => {
             <p className="text-2xl font-bold text-green-600">
               {stats.pending > 0 ? '~2.5 days' : 'Up to date'}
             </p>
-            <p className="text-sm text-gray-600 mt-1">Average review time</p>
+            <p className="text-sm text-slate-700 mt-1">Average review time</p>
           </div>
 
           <div className="bg-white rounded-lg shadow-sm p-6">
@@ -178,7 +186,7 @@ export const AdminDashboard: React.FC = () => {
             <p className="text-2xl font-bold text-blue-600">
               {Math.floor(stats.total_applications * 0.8)}
             </p>
-            <p className="text-sm text-gray-600 mt-1">Registered applicants</p>
+            <p className="text-sm text-slate-700 mt-1">Registered applicants</p>
           </div>
 
           <div className="bg-white rounded-lg shadow-sm p-6">
@@ -187,7 +195,7 @@ export const AdminDashboard: React.FC = () => {
               <h3 className="font-semibold text-gray-900">Success Rate</h3>
             </div>
             <p className="text-2xl font-bold text-purple-600">{approvalRate}%</p>
-            <p className="text-sm text-gray-600 mt-1">Applications approved</p>
+            <p className="text-sm text-slate-700 mt-1">Applications approved</p>
           </div>
         </div>
 
@@ -197,7 +205,7 @@ export const AdminDashboard: React.FC = () => {
             <h2 className="text-xl font-bold text-gray-900">Recent Applications</h2>
             <button
               onClick={() => navigate('/admin/cases')}
-              className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+              className="inline-flex items-center rounded-md border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100"
             >
               View All →
             </button>
@@ -216,11 +224,11 @@ export const AdminDashboard: React.FC = () => {
                         <h3 className="font-semibold text-lg text-gray-900">{app.case_id}</h3>
                         <StatusBadge status={app.status} />
                       </div>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-slate-700">
                         {app.applicant_name || 'Unknown'} • {' '}
                         <span className="capitalize">{app.application_type.replace('_', ' ')}</span>
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-slate-600 mt-1">
                         Submitted: {formatDate(app.created_at)}
                       </p>
                     </div>
@@ -228,7 +236,7 @@ export const AdminDashboard: React.FC = () => {
                     <div className="text-right ml-6">
                       {typeof app.rubric_score === 'number' && (
                         <div className="mb-3">
-                          <div className="text-sm text-gray-600">
+                          <div className="text-sm text-slate-700">
                             Rubric Score:{' '}
                             <span className="font-semibold text-indigo-600">
                               {app.rubric_score.toFixed(1)}%
@@ -250,8 +258,8 @@ export const AdminDashboard: React.FC = () => {
             ) : (
               <div className="p-12 text-center">
                 <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 text-lg">No recent applications</p>
-                <p className="text-gray-400 text-sm mt-1">New applications will appear here</p>
+                <p className="text-slate-700 text-lg">No recent applications</p>
+                <p className="text-slate-600 text-sm mt-1">New applications will appear here</p>
               </div>
             )}
           </div>
@@ -261,12 +269,12 @@ export const AdminDashboard: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <button
             onClick={() => navigate('/admin/cases?status=pending')}
-            className="group p-6 bg-linear-to-br from-yellow-50 to-yellow-100 rounded-lg border-2 border-yellow-200 hover:border-yellow-300 hover:shadow-md transition-all text-left"
+            className="group p-6 bg-linear-to-br from-amber-100 to-amber-200 rounded-lg border-2 border-amber-300 hover:border-amber-400 hover:shadow-md transition-all text-left"
           >
-            <AlertTriangle className="w-10 h-10 text-yellow-600 mb-3 group-hover:scale-110 transition-transform" />
+            <AlertTriangle className="w-10 h-10 text-amber-900 mb-3 group-hover:scale-110 transition-transform" />
             <h3 className="font-bold text-lg text-gray-900">Pending Cases</h3>
-            <p className="text-sm text-gray-600 mt-1">Review {stats.pending} waiting applications</p>
-            <div className="mt-4 flex items-center text-yellow-600 font-medium text-sm">
+            <p className="text-sm text-slate-800 mt-1">Review {stats.pending} waiting applications</p>
+            <div className="mt-4 flex items-center text-amber-900 font-semibold text-sm">
               <span>Review Now</span>
               <span className="ml-2 group-hover:ml-3 transition-all">→</span>
             </div>
@@ -274,12 +282,12 @@ export const AdminDashboard: React.FC = () => {
 
           <button
             onClick={() => navigate('/admin/rubrics')}
-            className="group p-6 bg-linear-to-br from-purple-50 to-purple-100 rounded-lg border-2 border-purple-200 hover:border-purple-300 hover:shadow-md transition-all text-left"
+            className="group p-6 bg-linear-to-br from-violet-100 to-violet-200 rounded-lg border-2 border-violet-300 hover:border-violet-400 hover:shadow-md transition-all text-left"
           >
-            <TrendingUp className="w-10 h-10 text-purple-600 mb-3 group-hover:scale-110 transition-transform" />
+            <TrendingUp className="w-10 h-10 text-violet-900 mb-3 group-hover:scale-110 transition-transform" />
             <h3 className="font-bold text-lg text-gray-900">Manage Rubrics</h3>
-            <p className="text-sm text-gray-600 mt-1">Configure evaluation criteria and rules</p>
-            <div className="mt-4 flex items-center text-purple-600 font-medium text-sm">
+            <p className="text-sm text-slate-800 mt-1">Configure evaluation criteria and rules</p>
+            <div className="mt-4 flex items-center text-violet-900 font-semibold text-sm">
               <span>Configure</span>
               <span className="ml-2 group-hover:ml-3 transition-all">→</span>
             </div>
@@ -287,12 +295,12 @@ export const AdminDashboard: React.FC = () => {
 
           <button
             onClick={() => navigate('/admin/analytics')}
-            className="group p-6 bg-linear-to-br from-blue-50 to-blue-100 rounded-lg border-2 border-blue-200 hover:border-blue-300 hover:shadow-md transition-all text-left"
+            className="group p-6 bg-linear-to-br from-blue-100 to-blue-200 rounded-lg border-2 border-blue-300 hover:border-blue-400 hover:shadow-md transition-all text-left"
           >
-            <Users className="w-10 h-10 text-blue-600 mb-3 group-hover:scale-110 transition-transform" />
+            <Users className="w-10 h-10 text-blue-900 mb-3 group-hover:scale-110 transition-transform" />
             <h3 className="font-bold text-lg text-gray-900">Analytics</h3>
-            <p className="text-sm text-gray-600 mt-1">View detailed system statistics</p>
-            <div className="mt-4 flex items-center text-blue-600 font-medium text-sm">
+            <p className="text-sm text-slate-800 mt-1">View detailed system statistics</p>
+            <div className="mt-4 flex items-center text-blue-900 font-semibold text-sm">
               <span>View Stats</span>
               <span className="ml-2 group-hover:ml-3 transition-all">→</span>
             </div>
@@ -300,12 +308,12 @@ export const AdminDashboard: React.FC = () => {
 
           <button
             onClick={() => navigate('/admin/control-center')}
-            className="group p-6 bg-linear-to-br from-slate-50 to-slate-100 rounded-lg border-2 border-slate-200 hover:border-slate-300 hover:shadow-md transition-all text-left"
+            className="group p-6 bg-linear-to-br from-slate-200 to-slate-300 rounded-lg border-2 border-slate-400 hover:border-slate-500 hover:shadow-md transition-all text-left"
           >
-            <Users className="w-10 h-10 text-slate-700 mb-3 group-hover:scale-110 transition-transform" />
+            <Users className="w-10 h-10 text-slate-900 mb-3 group-hover:scale-110 transition-transform" />
             <h3 className="font-bold text-lg text-gray-900">Admin Control</h3>
-            <p className="text-sm text-gray-600 mt-1">Open full Django admin module controls</p>
-            <div className="mt-4 flex items-center text-slate-700 font-medium text-sm">
+            <p className="text-sm text-slate-900 mt-1">Open full Django admin module controls</p>
+            <div className="mt-4 flex items-center text-slate-900 font-semibold text-sm">
               <span>Open Control Center</span>
               <span className="ml-2 group-hover:ml-3 transition-all">→</span>
             </div>
@@ -313,12 +321,12 @@ export const AdminDashboard: React.FC = () => {
 
           <button
             onClick={() => navigate('/admin/users')}
-            className="group p-6 bg-linear-to-br from-emerald-50 to-emerald-100 rounded-lg border-2 border-emerald-200 hover:border-emerald-300 hover:shadow-md transition-all text-left"
+            className="group p-6 bg-linear-to-br from-emerald-100 to-emerald-200 rounded-lg border-2 border-emerald-300 hover:border-emerald-400 hover:shadow-md transition-all text-left"
           >
-            <Users className="w-10 h-10 text-emerald-700 mb-3 group-hover:scale-110 transition-transform" />
+            <Users className="w-10 h-10 text-emerald-900 mb-3 group-hover:scale-110 transition-transform" />
             <h3 className="font-bold text-lg text-gray-900">Manage Users</h3>
-            <p className="text-sm text-gray-600 mt-1">Update roles, activity status, and account security.</p>
-            <div className="mt-4 flex items-center text-emerald-700 font-medium text-sm">
+            <p className="text-sm text-slate-800 mt-1">Update roles, activity status, and account security.</p>
+            <div className="mt-4 flex items-center text-emerald-900 font-semibold text-sm">
               <span>Open Users</span>
               <span className="ml-2 group-hover:ml-3 transition-all">→</span>
             </div>
