@@ -164,6 +164,23 @@ class EmailAuthEndpointTests(APITestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.two_factor_secret, "A" * 32)
 
+    def test_login_is_case_insensitive_for_email(self):
+        with patch(
+            "apps.authentication.views.pyotp",
+            SimpleNamespace(random_base32=lambda: "A" * 32),
+        ):
+            response = self.client.post(
+                "/api/auth/login/",
+                {
+                    "email": "FIRM_ADMIN@EXAMPLE.COM",
+                    "password": self.password,
+                },
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("token", response.data)
+
     def test_login_issues_tokens_for_applicant(self):
         applicant = User.objects.create_user(
             email="applicant@example.com",
@@ -431,6 +448,32 @@ class EmailAuthEndpointTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("token", response.data)
         self.assertNotIn("tokens", response.data)
+
+    def test_admin_login_is_case_insensitive_for_email(self):
+        admin = User.objects.create_user(
+            email="admin-ci@example.com",
+            password=self.password,
+            first_name="System",
+            last_name="Admin",
+            user_type="admin",
+            is_staff=True,
+        )
+
+        with patch(
+            "apps.authentication.views.pyotp",
+            SimpleNamespace(random_base32=lambda: "D" * 32),
+        ):
+            response = self.client.post(
+                "/api/auth/admin/login/",
+                {
+                    "email": admin.email.upper(),
+                    "password": self.password,
+                },
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("token", response.data)
 
     def test_social_login_endpoints_are_disabled(self):
         google = self.client.post("/api/auth/google/login/", {"code": "mock"}, format="json")

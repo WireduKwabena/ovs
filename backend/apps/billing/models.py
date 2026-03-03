@@ -1,7 +1,11 @@
+import uuid
+
 from django.db import models
 
 
 class BillingSubscription(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     PROVIDER_CHOICES = (
         ("stripe", "Stripe"),
         ("sandbox", "Sandbox"),
@@ -49,6 +53,8 @@ class BillingSubscription(models.Model):
 
 
 class BillingWebhookEvent(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     PROCESSING_STATUS_CHOICES = (
         ("received", "Received"),
         ("processed", "Processed"),

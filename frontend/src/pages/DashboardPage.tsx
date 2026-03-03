@@ -1,11 +1,14 @@
 import React, { Suspense, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { FileText, Clock, CheckCircle, XCircle, Plus, AlertCircle, TrendingUp } from 'lucide-react';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { FileText, Clock, CheckCircle, XCircle, Plus, AlertCircle, TrendingUp, Video } from 'lucide-react';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Loader } from '@/components/common/Loader';
 import { useApplications } from '@/hooks/useApplications';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDate } from '@/utils/helper';
+import { getUserDisplayName } from '@/utils/userDisplay';
+import { videoCallService } from '@/services/videoCall.service';
+import type { VideoMeeting } from '@/types';
 
 const HrDashboardPage = React.lazy(() => import('@/pages/HrDashboardPage'));
 
@@ -32,10 +35,27 @@ const ApplicantDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { applications, loading, refetch } = useApplications();
+  const [upcomingMeetings, setUpcomingMeetings] = React.useState<VideoMeeting[]>([]);
+  const [meetingsLoading, setMeetingsLoading] = React.useState(false);
 
   useEffect(() => {
     refetch();
   }, [refetch]);
+
+  useEffect(() => {
+    const loadUpcomingMeetings = async () => {
+      setMeetingsLoading(true);
+      try {
+        const payload = await videoCallService.listUpcoming();
+        setUpcomingMeetings(payload);
+      } catch {
+        setUpcomingMeetings([]);
+      } finally {
+        setMeetingsLoading(false);
+      }
+    };
+    void loadUpcomingMeetings();
+  }, []);
 
   const applicationsArray = useMemo(() => (Array.isArray(applications) ? applications : []), [applications]);
 
@@ -60,7 +80,7 @@ const ApplicantDashboardPage: React.FC = () => {
 
   const recentApplications = useMemo(() => applicationsArray.slice(0, 5), [applicationsArray]);
 
-  const displayName = user ? ('full_name' in user ? user.full_name : user.username) : 'User';
+  const displayName = getUserDisplayName(user, 'User');
 
   return (
     <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
@@ -137,7 +157,43 @@ const ApplicantDashboardPage: React.FC = () => {
         )}
       </section>
 
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <section className="rounded-xl border border-slate-200 bg-white">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+          <h2 className="text-lg font-semibold">Upcoming Video Calls</h2>
+          <Link to="/video-calls" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">
+            Open video calls
+          </Link>
+        </div>
+        {meetingsLoading ? (
+          <div className="px-5 py-6 text-sm text-slate-500">Loading upcoming meetings...</div>
+        ) : upcomingMeetings.length === 0 ? (
+          <div className="px-5 py-6 text-sm text-slate-500">No upcoming meetings right now.</div>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {upcomingMeetings.slice(0, 5).map((meeting) => (
+              <li key={meeting.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                <div>
+                  <p className="font-medium text-slate-900">{meeting.title}</p>
+                  <p className="text-xs text-slate-500">
+                    {new Date(meeting.scheduled_start).toLocaleString()} -{" "}
+                    {new Date(meeting.scheduled_end).toLocaleString()}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/video-calls?meeting=${meeting.id}&autojoin=1`)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+                >
+                  <Video className="w-4 h-4" />
+                  Join from Video Calls
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <button
           type="button"
           onClick={() => navigate('/applications/new')}
@@ -167,6 +223,16 @@ const ApplicantDashboardPage: React.FC = () => {
           <p className="font-semibold mt-2">Notifications</p>
           <p className="text-sm text-slate-600">Check updates from reviewers.</p>
         </button>
+
+        <button
+          type="button"
+          onClick={() => navigate('/video-calls')}
+          className="rounded-xl border border-indigo-200 bg-indigo-50 p-5 text-left hover:bg-indigo-100"
+        >
+          <Video className="w-7 h-7 text-indigo-600" />
+          <p className="font-semibold mt-2">Video Calls</p>
+          <p className="text-sm text-slate-600">Join scheduled interviews and follow-ups.</p>
+        </button>
       </section>
     </main>
   );
@@ -175,7 +241,11 @@ const ApplicantDashboardPage: React.FC = () => {
 export const DashboardPage: React.FC = () => {
   const { userType } = useAuth();
 
-  if (userType === 'hr_manager' || userType === 'admin') {
+  if (userType === 'admin') {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
+  if (userType === 'hr_manager') {
     return (
       <Suspense
         fallback={

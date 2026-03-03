@@ -137,7 +137,7 @@ class InterviewsApiTests(APITestCase):
         )
         self.assertEqual(save_exchange.status_code, 200)
         self.assertEqual(save_exchange.json()["question_number"], 1)
-        self.assertEqual(save_exchange.json()["current_flag_id"], flag.id)
+        self.assertEqual(save_exchange.json()["current_flag_id"], str(flag.id))
 
         get_by_session_code = self.client.get(f"/api/interviews/sessions/{session_code}/")
         self.assertEqual(get_by_session_code.status_code, 200)
@@ -156,7 +156,7 @@ class InterviewsApiTests(APITestCase):
         )
         self.assertEqual(update_exchange.status_code, 200)
         self.assertEqual(update_exchange.json()["question_number"], 1)
-        self.assertEqual(update_exchange.json()["current_flag_id"], flag.id)
+        self.assertEqual(update_exchange.json()["current_flag_id"], str(flag.id))
 
         get_session = self.client.get(f"/api/interviews/sessions/{session_pk}/")
         self.assertEqual(get_session.status_code, 200)

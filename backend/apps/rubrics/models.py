@@ -17,6 +17,8 @@ This flexibility is crucial for adapting to different:
 - Risk levels (high-security vs. standard positions)
 """
 
+import uuid
+
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from apps.authentication.models import User
@@ -36,6 +38,8 @@ class VettingRubric(models.Model):
     Weights must sum to 100 for proper normalization.
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     RUBRIC_TYPE_CHOICES = [
         ('general', 'General Purpose'),
         ('technical', 'Technical Position'),
@@ -194,6 +198,8 @@ class RubricCriteria(models.Model):
     Each criterion can have its own weight and scoring method.
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     CRITERIA_TYPE_CHOICES = [
         ('document', 'Document Quality'),
         ('consistency', 'Data Consistency'),
@@ -281,6 +287,8 @@ class RubricEvaluation(models.Model):
     Enables retrospective analysis of rubric effectiveness.
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('in_progress', 'In Progress'),
@@ -530,6 +538,8 @@ class CriteriaOverride(models.Model):
     3. Audit trail (accountability and transparency)
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     # Relationships
     evaluation = models.ForeignKey(
         RubricEvaluation,

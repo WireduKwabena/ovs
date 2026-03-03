@@ -113,7 +113,7 @@ const AdminCasesPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [reloadCounter, setReloadCounter] = useState(0);
 
-  const [selectedCaseIds, setSelectedCaseIds] = useState<number[]>([]);
+  const [selectedCaseIds, setSelectedCaseIds] = useState<string[]>([]);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [bulkActionSummary, setBulkActionSummary] = useState<string | null>(null);
 
@@ -177,7 +177,7 @@ const AdminCasesPage: React.FC = () => {
   const totalPages = response?.total_pages || 1;
   const cases = useMemo(() => response?.results ?? [], [response]);
 
-  const pageCaseIds = useMemo(() => cases.map((item) => item.id), [cases]);
+  const pageCaseIds = useMemo(() => cases.map((item) => item.case_id), [cases]);
   const selectedCaseIdSet = useMemo(() => new Set(selectedCaseIds), [selectedCaseIds]);
   const allVisibleSelected = pageCaseIds.length > 0 && pageCaseIds.every((id) => selectedCaseIdSet.has(id));
 
@@ -191,11 +191,11 @@ const AdminCasesPage: React.FC = () => {
     return Math.min(page * Number(pageSize), totalCount);
   }, [page, pageSize, totalCount]);
 
-  const toggleCaseSelection = (casePk: number) => {
+  const toggleCaseSelection = (caseIdentifier: string) => {
     setSelectedCaseIds((current) =>
-      current.includes(casePk)
-        ? current.filter((value) => value !== casePk)
-        : [...current, casePk],
+      current.includes(caseIdentifier)
+        ? current.filter((value) => value !== caseIdentifier)
+        : [...current, caseIdentifier],
     );
   };
 
@@ -219,7 +219,7 @@ const AdminCasesPage: React.FC = () => {
     setBulkActionSummary(null);
 
     const results = await Promise.allSettled(
-      selectedCaseIds.map((casePk) => adminService.updateCaseStatus(casePk, nextStatus)),
+      selectedCaseIds.map((caseIdentifier) => adminService.updateCaseStatus(caseIdentifier, nextStatus)),
     );
 
     const successCount = results.filter((result) => result.status === 'fulfilled').length;
@@ -488,8 +488,8 @@ const AdminCasesPage: React.FC = () => {
                         <td className="px-4 py-4 whitespace-nowrap">
                           <input
                             type="checkbox"
-                            checked={selectedCaseIdSet.has(item.id)}
-                            onChange={() => toggleCaseSelection(item.id)}
+                            checked={selectedCaseIdSet.has(item.case_id)}
+                            onChange={() => toggleCaseSelection(item.case_id)}
                             aria-label={`Select case ${item.case_id}`}
                           />
                         </td>

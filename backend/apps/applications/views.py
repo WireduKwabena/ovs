@@ -1,4 +1,5 @@
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -72,6 +73,31 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
         if getattr(user, "is_staff", False) or getattr(user, "user_type", None) in {"admin", "hr_manager"}:
             return queryset.order_by("-created_at")
         return queryset.filter(applicant=user).order_by("-created_at")
+
+    def get_object(self):
+        """
+        Support lookup by numeric PK and human-readable ``case_id``.
+
+        This keeps existing frontend routes that pass ``case_id`` compatible with
+        router-generated detail endpoints.
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        lookup_value = self.kwargs.get(self.lookup_url_kwarg or self.lookup_field)
+        if lookup_value is None:
+            return super().get_object()
+
+        obj = None
+        if str(lookup_value).isdigit():
+            obj = queryset.filter(pk=lookup_value).first()
+
+        if obj is None:
+            obj = queryset.filter(case_id=str(lookup_value)).first()
+
+        if obj is None:
+            obj = get_object_or_404(queryset, pk=lookup_value)
+
+        self.check_object_permissions(self.request, obj)
+        return obj
 
     def perform_create(self, serializer):
         if _candidate_enrollment_id(self.request):

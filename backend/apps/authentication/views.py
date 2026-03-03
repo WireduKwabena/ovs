@@ -684,8 +684,8 @@ def password_reset_confirm_view(request):
         try:
             payload = signer.unsign(signed_token)
             user_id_str, reset_token = payload.split(":", 1)
-            user = User.objects.get(pk=int(user_id_str))
-        except (BadSignature, ValueError, User.DoesNotExist):
+            user = User.objects.get(pk=user_id_str)
+        except (BadSignature, User.DoesNotExist):
             return Response(
                 {'error': 'Invalid or expired reset token.'},
                 status=status.HTTP_400_BAD_REQUEST,

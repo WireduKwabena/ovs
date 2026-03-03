@@ -4,6 +4,7 @@ export interface User {
   id: number;
   email: string;
   full_name: string;
+  user_type?: 'applicant' | 'hr_manager' | 'admin';
   phone_number: string;
   profile_picture_url:string;
   avatar_url:string;
@@ -14,11 +15,13 @@ export interface User {
 
 export interface AdminUser {
   id: number;
-  username: string;
   email: string;
-  role: 'admin' | 'reviewer' | 'hr_manager' | 'super_admin';
+  user_type?: 'applicant' | 'hr_manager' | 'admin';
+  role_display?: string;
+  username?: string;
+  role?: 'admin' | 'reviewer' | 'hr_manager' | 'super_admin';
   is_active: boolean;
-  avatar_url:string;
+  avatar_url?:string;
   created_at: string;
 }
 
@@ -120,6 +123,32 @@ export interface FraudDetectionResult {
   detected_at: string;
 }
 
+export interface FraudDetectionApiResult {
+  id: string;
+  application: number | string;
+  application_case_id: string;
+  is_fraud: boolean;
+  fraud_probability: number;
+  anomaly_score: number;
+  risk_level: "LOW" | "MEDIUM" | "HIGH";
+  risk_level_display?: string;
+  recommendation: "PROCEED" | "MANUAL_REVIEW" | "REJECT";
+  recommendation_display?: string;
+  feature_scores: Record<string, number>;
+  detected_at: string;
+}
+
+export interface FraudStatistics {
+  total_scans: number;
+  fraud_detected: number;
+  fraud_rate: number;
+  risk_distribution: {
+    HIGH: number;
+    MEDIUM: number;
+    LOW: number;
+  };
+}
+
 export interface ConsistencyCheckResult {
   id: number;
   application: VettingCase;
@@ -130,6 +159,115 @@ export interface ConsistencyCheckResult {
   entity_consistency: Record<string, { match: boolean; score: number }>;
   recommendation: string;
   checked_at: string;
+}
+
+export interface ConsistencyCheckApiResult {
+  id: string;
+  application: number | string;
+  application_case_id: string;
+  overall_consistent: boolean;
+  overall_score: number;
+  name_consistency: Record<string, { match: boolean; score: number }>;
+  date_consistency: Record<string, { match: boolean; score: number }>;
+  entity_consistency: Record<string, { match: boolean; score: number }>;
+  recommendation: string;
+  checked_at: string;
+}
+
+export interface ConsistencyStatistics {
+  total_checks: number;
+  consistent_count: number;
+  consistency_rate: number;
+  average_score: number;
+  median_score: number;
+}
+
+export interface SocialProfileCheckApiResult {
+  id: string;
+  application: number | string;
+  application_case_id: string;
+  consent_provided: boolean;
+  profiles_checked: number;
+  overall_score: number;
+  risk_level: "LOW" | "MEDIUM" | "HIGH";
+  risk_level_display?: string;
+  recommendation: string;
+  automated_decision_allowed: boolean;
+  decision_constraints: unknown[];
+  profiles: unknown[];
+  checked_at: string;
+  updated_at: string;
+}
+
+export interface SocialProfileStatistics {
+  total_checks: number;
+  manual_review_count: number;
+  manual_review_rate: number;
+  average_score: number;
+  risk_distribution: {
+    HIGH: number;
+    MEDIUM: number;
+    LOW: number;
+  };
+}
+
+export type BackgroundCheckStatus =
+  | "pending"
+  | "submitted"
+  | "in_progress"
+  | "completed"
+  | "manual_review"
+  | "failed"
+  | "cancelled";
+
+export type BackgroundCheckType =
+  | "criminal"
+  | "employment"
+  | "education"
+  | "kyc_aml"
+  | "identity";
+
+export type BackgroundCheckRiskLevel = "low" | "medium" | "high" | "unknown";
+
+export type BackgroundCheckRecommendation = "clear" | "review" | "reject" | "unavailable";
+
+export interface BackgroundCheck {
+  id: string;
+  case: number;
+  case_id: string;
+  applicant_email: string;
+  check_type: BackgroundCheckType;
+  provider_key: string;
+  status: BackgroundCheckStatus;
+  external_reference: string;
+  score: number | null;
+  risk_level: BackgroundCheckRiskLevel;
+  recommendation: BackgroundCheckRecommendation;
+  request_payload: Record<string, unknown>;
+  response_payload: Record<string, unknown>;
+  result_summary: Record<string, unknown>;
+  consent_evidence: Record<string, unknown>;
+  submitted_by: number | null;
+  submitted_by_email: string;
+  error_code: string;
+  error_message: string;
+  submitted_at: string | null;
+  last_polled_at: string | null;
+  webhook_received_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  refresh_queued?: boolean;
+}
+
+export interface BackgroundCheckEvent {
+  id: number;
+  event_type: "submitted" | "provider_update" | "webhook" | "manual" | "error";
+  status_before: string;
+  status_after: string;
+  payload: Record<string, unknown>;
+  message: string;
+  created_at: string;
 }
 
 export interface RubricEvaluation {
@@ -249,7 +387,15 @@ export interface DashboardStats {
   under_review: number;
   approved: number;
   rejected: number;
-  recent_applications: VettingCase[];
+  recent_applications: Array<{
+    id: string;
+    case_id: string;
+    applicant_name: string;
+    application_type: string;
+    status: ApplicationStatus;
+    created_at: string;
+    rubric_score?: number | null;
+  }>;
   verification_accuracy?: number;
   avg_processing_time?: number;
   fraud_detection_rate?: number;
@@ -257,7 +403,7 @@ export interface DashboardStats {
 
 
 export interface AdminCase {
-  id: number;
+  id: string;
   case_id: string;
   applicant_name: string;
   applicant_email: string;
@@ -278,6 +424,38 @@ export interface AdminCasesResponse {
   page_size: number;
   total_pages: number;
   ordering?: string;
+}
+
+export interface AdminManagedUser {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  user_type: "admin" | "hr_manager" | "applicant";
+  is_active: boolean;
+  is_staff: boolean;
+  is_superuser: boolean;
+  is_two_factor_enabled: boolean;
+  last_login: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminUsersResponse {
+  results: AdminManagedUser[];
+  count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  ordering?: string;
+}
+
+export interface AdminUserUpdatePayload {
+  user_type?: "admin" | "hr_manager" | "applicant";
+  is_active?: boolean;
+  is_staff?: boolean;
+  reset_two_factor?: boolean;
 }
 export type CampaignStatus = 'draft' | 'active' | 'closed' | 'archived';
 
@@ -317,6 +495,20 @@ export interface CandidateProfile {
   preferred_channel: 'email' | 'sms';
   consent_recording: boolean;
   consent_ai_processing: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CandidateSocialProfile {
+  id: number;
+  candidate: number;
+  platform: string;
+  platform_display?: string;
+  url: string;
+  username: string;
+  display_name: string;
+  is_primary: boolean;
+  metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -553,29 +745,131 @@ export interface CriteriaOverride {
 
 // Audit Log Interface (for admin views)
 export interface AuditLog {
-  id: number;
-  user?: string;
-  admin_user?: string;
+  id: string;
+  user?: number | null;
+  user_name?: string | null;
+  admin_user?: number | null;
+  admin_user_name?: string | null;
   action: string;
+  action_display?: string;
   entity_type: string;
-  entity_id?: number;
+  entity_id?: string;
   changes: Record<string, any>;
   ip_address?: string;
+  user_agent?: string;
   created_at: string;
+}
+
+export interface AuditStatistics {
+  total_logs: number;
+  action_distribution: Array<{ action: string; count: number }>;
+  entity_distribution: Array<{ entity_type: string; count: number }>;
 }
 
 // ML Model Metrics Interface
 export interface MLModelMetrics {
-  id: number;
+  id: string;
   model_name: string;
   model_version: string;
   accuracy: number;
   precision: number;
   recall: number;
   f1_score: number;
-  confusion_matrix: Record<string, number>;
+  confusion_matrix: Record<string, unknown>;
   trained_at: string;
   evaluated_at: string;
+}
+
+export interface MLPerformanceSummary {
+  models: Record<
+    string,
+    {
+      version: string;
+      accuracy: number;
+      precision: number;
+      recall: number;
+      f1_score: number;
+      last_evaluated: string;
+    }
+  >;
+  total_models: number;
+}
+
+export interface AiMonitorHealthResponse {
+  status: string;
+  timestamp: string;
+  model_name: string;
+  monitor: {
+    enabled: boolean;
+    backend: string;
+    use_redis: boolean;
+    redis_configured: boolean;
+  };
+  metrics: Record<string, unknown>;
+  drift: Record<string, unknown>;
+}
+
+export interface AiMonitorClassifierModelResult {
+  available: boolean;
+  model_path?: string;
+  predicted_label?: string;
+  confidence?: number;
+  top_k?: Array<{ label: string; score: number }>;
+  classes?: string[];
+  model_kind?: string;
+  error?: string;
+}
+
+export interface AiMonitorDocumentTypeAlignment {
+  enabled: boolean;
+  declared_document_type: string;
+  expected?: Record<string, unknown>;
+  confidence_threshold?: number;
+  mismatch_detected: boolean;
+  mismatch_reason?: string;
+  details?: Array<{ model?: string; reason?: string }>;
+}
+
+export interface AiMonitorDocumentClassificationResponse {
+  status: string;
+  timestamp: string;
+  filename: string;
+  document_classification: {
+    rvl_cdip: AiMonitorClassifierModelResult;
+    midv500: AiMonitorClassifierModelResult;
+  };
+  document_type_alignment: AiMonitorDocumentTypeAlignment;
+}
+
+export interface AiMonitorSocialProfileItem {
+  platform?: string;
+  url?: string;
+  username?: string;
+  display_name?: string;
+}
+
+export interface AiMonitorSocialProfileResult extends AiMonitorSocialProfileItem {
+  provided_platform?: string;
+  score: number;
+  risk_level: string;
+  findings: string[];
+  url_reachable?: boolean | null;
+  url_status_code?: number | null;
+  probe_error?: string | null;
+}
+
+export interface AiMonitorSocialProfileResponse {
+  status: string;
+  timestamp: string;
+  case_id: string;
+  consent_provided: boolean;
+  profiles_checked: number;
+  overall_score: number;
+  risk_level: string;
+  recommendation: string;
+  automated_decision_allowed: boolean;
+  decision_constraints: Array<{ code: string; reason: string }>;
+  profiles: AiMonitorSocialProfileResult[];
 }
 
 // File Upload Progress (for UI state)
@@ -584,6 +878,122 @@ export interface UploadProgress {
   file_name: string;
   status: 'uploading' | 'completed' | 'failed';
   error?: string;
+}
+
+export type VideoMeetingStatus = "scheduled" | "ongoing" | "completed" | "cancelled";
+export type VideoMeetingRole = "host" | "candidate" | "observer";
+export type VideoMeetingParticipantStatus = "invited" | "joined" | "left" | "declined";
+
+export interface VideoMeetingParticipant {
+  id: string;
+  user: string;
+  user_email: string;
+  user_full_name: string;
+  user_type?: "applicant" | "hr_manager" | "admin";
+  role: VideoMeetingRole;
+  status: VideoMeetingParticipantStatus;
+  invited_at: string;
+  joined_at: string | null;
+  left_at: string | null;
+}
+
+export interface VideoMeeting {
+  id: string;
+  series_id: string | null;
+  organizer: string;
+  organizer_email: string;
+  organizer_name: string;
+  case: string | null;
+  title: string;
+  description: string;
+  status: VideoMeetingStatus;
+  scheduled_start: string;
+  scheduled_end: string;
+  timezone: string;
+  livekit_room_name: string;
+  allow_join_before_seconds: number;
+  reminder_before_minutes: number;
+  cancellation_reason?: string;
+  reminder_before_sent_at: string | null;
+  reminder_start_sent_at: string | null;
+  created_at: string;
+  updated_at: string;
+  participants: VideoMeetingParticipant[];
+}
+
+export interface VideoMeetingCreatePayload {
+  case?: string | null;
+  title: string;
+  description?: string;
+  scheduled_start: string;
+  scheduled_end: string;
+  timezone?: string;
+  allow_join_before_seconds?: number;
+  reminder_before_minutes?: number;
+  participant_user_ids?: string[];
+  participant_emails?: string[];
+}
+
+export interface VideoMeetingReschedulePayload {
+  scheduled_start: string;
+  scheduled_end: string;
+  timezone?: string;
+}
+
+export type VideoMeetingRecurrence = "none" | "daily" | "weekly";
+
+export interface VideoMeetingSeriesPayload extends VideoMeetingCreatePayload {
+  recurrence: VideoMeetingRecurrence;
+  occurrences: number;
+}
+
+export interface VideoMeetingSeriesResponse {
+  count: number;
+  results: VideoMeeting[];
+}
+
+export interface VideoMeetingSeriesReschedulePayload {
+  scheduled_start: string;
+  scheduled_end: string;
+  timezone?: string;
+  scope?: "future" | "all";
+}
+
+export interface VideoMeetingSeriesCancelPayload {
+  reason?: string;
+  scope?: "future" | "all";
+}
+
+export interface VideoMeetingJoinToken {
+  token: string;
+  ws_url: string;
+  room_name: string;
+  expires_in: number;
+}
+
+export type VideoMeetingEventAction =
+  | "created"
+  | "rescheduled"
+  | "extended"
+  | "cancelled"
+  | "started"
+  | "completed"
+  | "left";
+
+export type VideoMeetingEventScope = "single" | "future" | "all";
+
+export interface VideoMeetingEvent {
+  id: string;
+  meeting: string;
+  actor: string | null;
+  actor_email: string | null;
+  actor_name: string;
+  actor_user_type?: "applicant" | "hr_manager" | "admin";
+  action: VideoMeetingEventAction;
+  scope: VideoMeetingEventScope;
+  detail: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
 }
 
 

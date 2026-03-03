@@ -2,14 +2,17 @@
 
 from datetime import timedelta
 
+from django.shortcuts import get_object_or_404
 from django.core.paginator import Paginator
 from django.db.models import Avg, Count, Q
 from django.utils import timezone
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from apps.applications.models import Document, VettingCase
 from apps.auth_actions import IsAdminUser
+from apps.authentication.models import User
 from apps.fraud.models import FraudDetectionResult
 from apps.rubrics.models import RubricEvaluation
 
@@ -17,6 +20,9 @@ from .serializers import (
     AdminAnalyticsResponseSerializer,
     AdminCasesResponseSerializer,
     AdminDashboardResponseSerializer,
+    AdminManagedUserSerializer,
+    AdminUserUpdateRequestSerializer,
+    AdminUsersResponseSerializer,
     VettingCaseAdminSerializer,
 )
 
@@ -62,6 +68,43 @@ def _parse_admin_case_ordering(value: str | None, *, default: str = "-created_at
     descending = raw.startswith("-")
     key = raw[1:] if descending else raw
     mapped = ADMIN_CASE_ORDERING_FIELDS.get(key)
+    if not mapped:
+        return default
+
+    return f"-{mapped}" if descending else mapped
+
+
+def _parse_bool(value: str | None, *, default: bool | None = None) -> bool | None:
+    if value is None:
+        return default
+    lowered = str(value).strip().lower()
+    if lowered in {"1", "true", "yes", "y"}:
+        return True
+    if lowered in {"0", "false", "no", "n"}:
+        return False
+    return default
+
+
+ADMIN_USER_ORDERING_FIELDS = {
+    "email": "email",
+    "user_type": "user_type",
+    "is_active": "is_active",
+    "is_staff": "is_staff",
+    "is_superuser": "is_superuser",
+    "created_at": "created_at",
+    "updated_at": "updated_at",
+    "last_login": "last_login",
+}
+
+
+def _parse_admin_user_ordering(value: str | None, *, default: str = "-created_at") -> str:
+    raw = (value or "").strip()
+    if not raw:
+        return default
+
+    descending = raw.startswith("-")
+    key = raw[1:] if descending else raw
+    mapped = ADMIN_USER_ORDERING_FIELDS.get(key)
     if not mapped:
         return default
 
@@ -249,5 +292,120 @@ def admin_cases(request):
         'total_pages': paginator.num_pages,
         'ordering': ordering,
     })
+
+
+@extend_schema(responses={200: AdminUsersResponseSerializer})
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def admin_users(request):
+    """
+    List users for admin management.
+    GET /api/admin/users/
+    Supports filtering: ?q=email_or_name&user_type=admin|hr_manager|applicant&is_active=true|false
+    """
+    users = User.objects.all()
+
+    query = (request.query_params.get('q') or "").strip()
+    if query:
+        users = users.filter(
+            Q(email__icontains=query)
+            | Q(first_name__icontains=query)
+            | Q(last_name__icontains=query)
+        )
+
+    user_type_filter = (request.query_params.get('user_type') or "").strip()
+    if user_type_filter in {choice[0] for choice in User.USER_TYPE_CHOICES}:
+        users = users.filter(user_type=user_type_filter)
+
+    is_active_filter = _parse_bool(request.query_params.get('is_active'), default=None)
+    if is_active_filter is not None:
+        users = users.filter(is_active=is_active_filter)
+
+    ordering = _parse_admin_user_ordering(
+        request.query_params.get('ordering'),
+        default='-created_at',
+    )
+    page = _parse_positive_int(request.query_params.get('page'), default=1, minimum=1)
+    page_size = _parse_positive_int(
+        request.query_params.get('page_size'),
+        default=20,
+        minimum=1,
+        maximum=200,
+    )
+
+    paginator = Paginator(users.order_by(ordering), page_size)
+    page_obj = paginator.get_page(page)
+    serializer = AdminManagedUserSerializer(page_obj, many=True)
+
+    return Response(
+        {
+            'results': serializer.data,
+            'count': paginator.count,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': paginator.num_pages,
+            'ordering': ordering,
+        }
+    )
+
+
+@extend_schema(
+    request=AdminUserUpdateRequestSerializer,
+    responses={
+        200: AdminManagedUserSerializer,
+    },
+)
+@api_view(['PATCH'])
+@permission_classes([IsAdminUser])
+def admin_user_update(request, user_id):
+    """
+    Partially update an admin-managed user.
+    PATCH /api/admin/users/<uuid:user_id>/
+    """
+    managed_user = get_object_or_404(User, pk=user_id)
+    serializer = AdminUserUpdateRequestSerializer(data=request.data, partial=True)
+    serializer.is_valid(raise_exception=True)
+
+    updates = serializer.validated_data.copy()
+    reset_two_factor = bool(updates.pop("reset_two_factor", False))
+
+    if "is_active" in updates:
+        next_active = bool(updates["is_active"])
+        if request.user.pk == managed_user.pk and not next_active:
+            return Response(
+                {"detail": "You cannot deactivate your own account."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    if "user_type" in updates:
+        next_user_type = str(updates["user_type"])
+        if next_user_type == "admin":
+            updates["is_staff"] = True
+
+    if "is_staff" in updates and not updates["is_staff"] and managed_user.is_superuser:
+        return Response(
+            {"detail": "Cannot remove staff access from a superuser."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    for field, value in updates.items():
+        setattr(managed_user, field, value)
+
+    update_fields = list(updates.keys())
+
+    if reset_two_factor:
+        managed_user.is_two_factor_enabled = False
+        managed_user.two_factor_secret = None
+        managed_user.two_factor_backup_codes = []
+        update_fields.extend([
+            "is_two_factor_enabled",
+            "two_factor_secret",
+            "two_factor_backup_codes",
+        ])
+
+    if update_fields:
+        managed_user.save(update_fields=[*set(update_fields), "updated_at"])
+
+    return Response(AdminManagedUserSerializer(managed_user).data)
 
 

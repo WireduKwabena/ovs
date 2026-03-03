@@ -18,6 +18,9 @@ import {
 import { Download, FileText, RefreshCw } from 'lucide-react';
 
 import { adminService } from '@/services/admin.service';
+import { downloadCsvFile, isoDateStamp } from '@/utils/csv';
+import { printCurrentPage } from '@/utils/helper';
+import { downloadJsonFile } from '@/utils/json';
 
 interface OverviewMetrics {
   total_interviews: number;
@@ -222,39 +225,59 @@ export function AnalyticsDashboard() {
       return;
     }
 
-    const rows: string[] = [];
-    rows.push('section,key,value');
-    rows.push(`overview,total_interviews,${metrics.overview.total_interviews}`);
-    rows.push(`overview,completion_rate,${metrics.overview.completion_rate}`);
-    rows.push(`performance,avg_duration_minutes,${metrics.performance.avg_duration_minutes}`);
-    rows.push(`performance,avg_questions_asked,${metrics.performance.avg_questions_asked}`);
-    rows.push(`performance,avg_overall_score,${metrics.performance.avg_overall_score}`);
-    rows.push(`cost,estimated_cost,${metrics.cost.estimated_cost}`);
-    rows.push(`flags,total_flags,${metrics.flags.total_flags}`);
-    rows.push(`flags,resolved_flags,${metrics.flags.resolved_flags}`);
-    rows.push(`behavioral,fidgeting_rate,${behavioral.fidgeting_rate}`);
-    rows.push(`behavioral,average_confidence_level,${behavioral.average_confidence_level}`);
+    const header = ['section', 'key', 'value'];
+    const rows: Array<Array<string | number>> = [];
+    rows.push(['overview', 'total_interviews', metrics.overview.total_interviews]);
+    rows.push(['overview', 'completion_rate', metrics.overview.completion_rate]);
+    rows.push(['performance', 'avg_duration_minutes', metrics.performance.avg_duration_minutes]);
+    rows.push(['performance', 'avg_questions_asked', metrics.performance.avg_questions_asked]);
+    rows.push(['performance', 'avg_overall_score', metrics.performance.avg_overall_score]);
+    rows.push(['cost', 'estimated_cost', metrics.cost.estimated_cost]);
+    rows.push(['flags', 'total_flags', metrics.flags.total_flags]);
+    rows.push(['flags', 'resolved_flags', metrics.flags.resolved_flags]);
+    rows.push(['behavioral', 'fidgeting_rate', behavioral.fidgeting_rate]);
+    rows.push(['behavioral', 'average_confidence_level', behavioral.average_confidence_level]);
 
     trendData.forEach((item) => {
-      rows.push(`trend,${item.date},interviews:${item.interviews}|completed:${item.completed}|avgScore:${item.avgScore}`);
+      rows.push([
+        'trend',
+        item.date,
+        `interviews:${item.interviews}|completed:${item.completed}|avgScore:${item.avgScore}`,
+      ]);
     });
 
     flags.forEach((flag) => {
-      rows.push(`flag,${flag.flag_type},count:${flag.count}|resolved:${flag.resolved}|critical:${flag.critical}`);
+      rows.push([
+        'flag',
+        flag.flag_type,
+        `count:${flag.count}|resolved:${flag.resolved}|critical:${flag.critical}`,
+      ]);
     });
 
-    const csv = rows.join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `interview_analytics_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+    downloadCsvFile(header, rows, `interview_analytics_${isoDateStamp()}.csv`);
   };
 
   const downloadPDFReport = () => {
-    window.print();
+    printCurrentPage();
+  };
+
+  const downloadJSONReport = () => {
+    if (!metrics || !trends || !behavioral) {
+      return;
+    }
+
+    downloadJsonFile(
+      {
+        exported_at: new Date().toISOString(),
+        time_range_days: timeRange,
+        metrics,
+        trends,
+        trend_data: trendData,
+        flags,
+        behavioral,
+      },
+      `interview_analytics_${isoDateStamp()}.json`,
+    );
   };
 
   if (loading) {
@@ -312,6 +335,15 @@ export function AnalyticsDashboard() {
           >
             <Download className="h-4 w-4" />
             Export CSV Report
+          </button>
+
+          <button
+            type="button"
+            onClick={downloadJSONReport}
+            className="px-6 py-3 bg-slate-700 text-white rounded-lg font-semibold hover:bg-slate-800 flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Export JSON Report
           </button>
 
           <button

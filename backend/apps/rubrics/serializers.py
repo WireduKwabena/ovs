@@ -31,6 +31,7 @@ class VettingRubricSerializer(serializers.ModelSerializer):
     criteria = RubricCriteriaSerializer(many=True, read_only=True)
     rubric_type_display = serializers.CharField(source="get_rubric_type_display", read_only=True)
     total_weight = serializers.SerializerMethodField(read_only=True)
+    status = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = VettingRubric
@@ -54,6 +55,7 @@ class VettingRubricSerializer(serializers.ModelSerializer):
             "critical_flags_auto_fail",
             "max_unresolved_flags",
             "is_active",
+            "status",
             "is_default",
             "created_by",
             "created_at",
@@ -71,6 +73,9 @@ class VettingRubricSerializer(serializers.ModelSerializer):
             + obj.interview_weight
             + obj.manual_review_weight
         )
+
+    def get_status(self, obj) -> str:
+        return "active" if obj.is_active else "archived"
 
 
 class CriteriaOverrideSerializer(serializers.ModelSerializer):

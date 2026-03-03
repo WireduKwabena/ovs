@@ -1,14 +1,15 @@
 // src/components/common/Navbar.tsx (Fixed - Type-Safe User Display)
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, LogOut, Menu, X, ChevronDown, KeyRound, Shield, ShieldCheck } from 'lucide-react';
+import { Bell, LogOut, Menu, X, ChevronDown, KeyRound, Settings2, Shield, ShieldCheck } from 'lucide-react';
 import { Button } from '../ui/button';
 import type { AppDispatch, RootState } from '@/app/store';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchNotifications } from '@/store/notificationSlice';
-import type { AdminUser, User } from '@/types';
+import type { User } from '@/types';
 import { createSelector } from '@reduxjs/toolkit';
 import { useAuth } from '@/hooks/useAuth';
+import { getUserDisplayName, getUserInitial } from '@/utils/userDisplay';
 
 // ✅ CRITICAL: Define selectors OUTSIDE the component
 const selectAuthState = (state: RootState) => state.auth;
@@ -33,6 +34,7 @@ export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const { logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileMenuMounted, setMobileMenuMounted] = useState(false);
   const dispatch = useDispatch<AppDispatch>();
 
   
@@ -41,6 +43,13 @@ export const Navbar: React.FC = () => {
   const unreadCount = useSelector(selectUnreadCount);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileDrawerRef = useRef<HTMLDivElement>(null);
+
+  // ✅ Sync state during render to avoid cascading renders from useEffect
+  if (mobileMenuOpen && !mobileMenuMounted) {
+    setMobileMenuMounted(true);
+  }
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -58,6 +67,104 @@ export const Navbar: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (!mobileMenuOpen) {
+      return;
+    }
+
+    const originalOverflow = document.body.style.overflow;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+
+    const getFocusableInDrawer = (): HTMLElement[] => {
+      const drawer = mobileDrawerRef.current;
+      if (!drawer) {
+        return [];
+      }
+
+      const nodes = drawer.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      return Array.from(nodes).filter((node) => node.getAttribute('aria-hidden') !== 'true');
+    };
+
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setMobileMenuOpen(false);
+        return;
+      }
+
+      if (event.key !== 'Tab') {
+        return;
+      }
+
+      const drawer = mobileDrawerRef.current;
+      if (!drawer) {
+        return;
+      }
+
+      const focusableNodes = getFocusableInDrawer();
+      if (focusableNodes.length === 0) {
+        event.preventDefault();
+        drawer.focus();
+        return;
+      }
+
+      const first = focusableNodes[0];
+      const last = focusableNodes[focusableNodes.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (event.shiftKey) {
+        if (!active || active === first || !drawer.contains(active)) {
+          event.preventDefault();
+          last.focus();
+        }
+        return;
+      }
+
+      if (active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.body.style.overflow = 'hidden';
+    window.setTimeout(() => {
+      const focusableNodes = getFocusableInDrawer();
+      if (focusableNodes.length > 0) {
+        focusableNodes[0].focus();
+      } else {
+        mobileDrawerRef.current?.focus();
+      }
+    }, 0);
+    document.addEventListener('keydown', handleKeydown);
+
+    const menuButton = mobileMenuButtonRef.current;
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.removeEventListener('keydown', handleKeydown);
+      const fallbackTarget = menuButton;
+      if (fallbackTarget && document.contains(fallbackTarget)) {
+        fallbackTarget.focus();
+      } else if (previouslyFocused && document.contains(previouslyFocused)) {
+        previouslyFocused.focus();
+      }
+    };
+  }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    // If open, we don't need a timeout
+    if (mobileMenuOpen || !mobileMenuMounted) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setMobileMenuMounted(false);
+    }, 240);
+
+    return () => window.clearTimeout(timeout);
+  }, [mobileMenuOpen, mobileMenuMounted]);
+
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -65,9 +172,7 @@ export const Navbar: React.FC = () => {
 
   if (!isAuthenticated) return null;
 
-  const displayName = userType === 'admin' 
-    ? (user as AdminUser)?.username 
-    : (user as User)?.full_name;
+  const displayName = getUserDisplayName(user, 'User');
 
   const roleLabel = userType === 'admin' ? 'Admin' : userType === 'hr_manager' ? 'HR Manager' : userType === 'applicant' ? 'Applicant' : 'User';
   const canManageTwoFactor = userType !== 'applicant';
@@ -76,21 +181,35 @@ export const Navbar: React.FC = () => {
       ? [
           { to: '/admin/dashboard', label: 'Dashboard' },
           { to: '/admin/cases', label: 'Cases' },
+          { to: '/admin/users', label: 'Users' },
           { to: '/admin/rubrics', label: 'Rubrics' },
+          { to: '/video-calls', label: 'Video Calls' },
+          { to: '/admin/control-center', label: 'Admin Control' },
+          { to: '/fraud-insights', label: 'Fraud' },
+          { to: '/background-checks', label: 'Checks' },
+          { to: '/audit-logs', label: 'Audit' },
+          { to: '/ml-monitoring', label: 'ML Ops' },
+          { to: '/ai-monitor', label: 'AI Monitor' },
           { to: '/admin/analytics', label: 'Analytics' },
         ]
       : userType === 'applicant'
         ? [
             { to: '/dashboard', label: 'Dashboard' },
             { to: '/applications', label: 'Applications' },
+            { to: '/video-calls', label: 'Video Calls' },
           ]
         : [
             { to: '/dashboard', label: 'Dashboard' },
             { to: '/campaigns', label: 'Campaigns' },
             { to: '/applications', label: 'Cases' },
+            { to: '/video-calls', label: 'Video Calls' },
+            { to: '/fraud-insights', label: 'Fraud' },
+            { to: '/background-checks', label: 'Checks' },
+            { to: '/audit-logs', label: 'Audit' },
+            { to: '/ai-monitor', label: 'AI Monitor' },
           ];
   
-  const initial = displayName?.charAt(0).toUpperCase() || '?';
+  const initial = getUserInitial(user, '?');
 
   const profile_picture_url = userType === 'applicant' ? (user as User)?.profile_picture_url:'';
 
@@ -101,14 +220,17 @@ export const Navbar: React.FC = () => {
           <div className="flex items-center">
             <Link to={userType === 'admin' ? '/admin/dashboard' : '/dashboard'} className="flex items-center">
               <div className="flex items-center">
-              <Shield className="w-8 h-8 text-indigo-600" />
-              <span className="ml-2 text-2xl font-bold text-gray-900">VettingSystem</span>
+              <Shield className="h-7 w-7 text-indigo-600 sm:h-8 sm:w-8" />
+              <span className="ml-2 text-lg leading-none font-bold text-gray-900 sm:text-xl xl:text-2xl">
+                <span className="sm:hidden">OVS</span>
+                <span className="hidden sm:inline">VettingSystem</span>
+              </span>
             </div>
             </Link>
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-4">
+          <div className="hidden xl:flex items-center space-x-4">
             {navLinks.map((navItem) => (
               <Link
                 key={navItem.to}
@@ -131,7 +253,14 @@ export const Navbar: React.FC = () => {
             </Link>
 
             <div className="relative" ref={profileMenuRef}>
-              <button onClick={() => setProfileMenuOpen(!profileMenuOpen)} className="flex items-center space-x-2 ml-4 p-2 rounded-lg hover:bg-gray-100">
+              <Button
+                type="button"
+                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                aria-expanded={profileMenuOpen ? "true" : "false"}
+                aria-haspopup="true"
+                aria-label="Toggle profile menu"
+                className="flex items-center space-x-2 ml-4 p-2 rounded-lg hover:bg-gray-100"
+              >
                 {profile_picture_url ? (
                   <img src={profile_picture_url} alt={displayName || 'user'} className="w-8 h-8 rounded-full" />
                 ) : (
@@ -146,9 +275,17 @@ export const Navbar: React.FC = () => {
                   <p className="text-xs text-gray-500">{roleLabel}</p>
                 </div>
                 <ChevronDown className="w-4 h-4 text-gray-500" />
-              </button>
+              </Button>
               {profileMenuOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-20 border">
+                  <Link
+                    to="/settings"
+                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setProfileMenuOpen(false)}
+                  >
+                    <Settings2 className="w-4 h-4 mr-2" />
+                    Profile & Settings
+                  </Link>
                   {canManageTwoFactor && (
                     <Link
                       to="/security"
@@ -168,6 +305,7 @@ export const Navbar: React.FC = () => {
                     Change Password
                   </Link>
                   <Button
+                    type="button"
                     onClick={handleLogout}
                     className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 justify-start"
                     variant="ghost"
@@ -181,21 +319,51 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          <div className="xl:hidden flex items-center">
+            <Button
+              type="button"
+              ref={mobileMenuButtonRef}
+              onClick={() => {
+                setProfileMenuOpen(false);
+                setMobileMenuOpen((previous) => !previous);
+              }}
+              aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              aria-expanded={mobileMenuOpen ? "true" : "false"}
+              aria-controls="mobile-nav-drawer"
               className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
 
       {/* Mobile Navigation */}
-      {mobileMenuOpen && (
-        <div className="md:hidden border-t border-gray-200">
-          <div className="px-4 py-3 space-y-3">
+      {mobileMenuMounted && (
+        <div
+          className={`fixed inset-x-0 top-16 bottom-0 z-40 xl:hidden transition-opacity duration-200 ${
+            mobileMenuOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+          }`}
+        >
+          <button
+            type="button"
+            aria-label="Close navigation menu"
+            className={`absolute inset-0 bg-slate-900/30 transition-opacity duration-200 ${
+              mobileMenuOpen ? 'opacity-100' : 'opacity-0'
+            }`}
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <div
+            id="mobile-nav-drawer"
+            ref={mobileDrawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
+            tabIndex={-1}
+            className={`absolute right-0 top-0 h-full w-full max-w-sm overflow-y-auto border-l border-gray-200 bg-white px-4 py-4 shadow-2xl transition-transform duration-300 ease-out ${
+              mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
+            }`}
+          >
             <div className="flex items-center space-x-3 mb-4">
               {profile_picture_url ? (
                 <img src={profile_picture_url} alt={displayName || 'user'} className="w-10 h-10 rounded-full" />
@@ -211,60 +379,70 @@ export const Navbar: React.FC = () => {
                 <p className="text-sm text-gray-500">{roleLabel}</p>
               </div>
             </div>
-            {navLinks.map((navItem) => (
+            <div className="space-y-3">
+              {navLinks.map((navItem) => (
+                <Link
+                  key={navItem.to}
+                  to={navItem.to}
+                  className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {navItem.label}
+                </Link>
+              ))}
               <Link
-                key={navItem.to}
-                to={navItem.to}
-                className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"
+                to="/notifications"
+                className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                {navItem.label}
+                <span className="text-gray-700">Notifications</span>
+                {unreadCount > 0 && (
+                  <span className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                    {unreadCount}
+                  </span>
+                )}
               </Link>
-            ))}
-            <Link
-              to="/notifications"
-              className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              <span className="text-gray-700">Notifications</span>
-              {unreadCount > 0 && (
-                <span className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full">
-                  {unreadCount}
-                </span>
+              {canManageTwoFactor && (
+                <Link
+                  to="/security"
+                  className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <ShieldCheck className="w-5 h-5 mr-2 text-gray-600" />
+                  <span className="text-gray-700">Security</span>
+                </Link>
               )}
-            </Link>
-            {canManageTwoFactor && (
               <Link
-                to="/security"
+                to="/settings"
                 className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                <ShieldCheck className="w-5 h-5 mr-2 text-gray-600" />
-                <span className="text-gray-700">Security</span>
+                <Settings2 className="w-5 h-5 mr-2 text-gray-600" />
+                <span className="text-gray-700">Profile & Settings</span>
               </Link>
-            )}
-            <Link
-              to="/change-password"
-              className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              <KeyRound className="w-5 h-5 mr-2 text-gray-600" />
-              <span className="text-gray-700">Change Password</span>
-            </Link>
-            <button
-              onClick={() => {
-                handleLogout();
-                setMobileMenuOpen(false);
-              }}
-              className="w-full flex items-center px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg"
-            >
-              <LogOut className="w-5 h-5 mr-2" />
-              <span>Logout</span>
-            </button>
+              <Link
+                to="/change-password"
+                className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <KeyRound className="w-5 h-5 mr-2 text-gray-600" />
+                <span className="text-gray-700">Change Password</span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  handleLogout();
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg"
+              >
+                <LogOut className="w-5 h-5 mr-2" />
+                <span>Logout</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
     </nav>
   );
 };
-

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useBeforeUnload, useBlocker } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { useBeforeUnload } from "react-router-dom";
 
 import type { BackupCodesAttentionState } from "@/components/security/BackupCodesAttentionBadge";
 
@@ -27,10 +27,8 @@ export const useBackupCodesProtection = (
   const warningMessage = options.warningMessage || DEFAULT_WARNING_MESSAGE;
   const [issuedBackupCodes, setIssuedBackupCodes] = useState<string[] | null>(null);
   const [backupCodesAcknowledged, setBackupCodesAcknowledged] = useState(false);
-  const isPromptingNavigationRef = useRef(false);
 
   const shouldGuardNavigation = Boolean(issuedBackupCodes?.length) && !backupCodesAcknowledged;
-  const blocker = useBlocker(shouldGuardNavigation);
 
   const backupCodesAttentionState: BackupCodesAttentionState = useMemo(() => {
     if (!issuedBackupCodes?.length) {
@@ -52,21 +50,6 @@ export const useBackupCodesProtection = (
       [shouldGuardNavigation],
     ),
   );
-
-  useEffect(() => {
-    if (blocker.state !== "blocked" || isPromptingNavigationRef.current) {
-      return;
-    }
-
-    isPromptingNavigationRef.current = true;
-    const shouldLeave = window.confirm(warningMessage);
-    if (shouldLeave) {
-      blocker.proceed();
-    } else {
-      blocker.reset();
-    }
-    isPromptingNavigationRef.current = false;
-  }, [blocker, warningMessage]);
 
   const revealBackupCodes = (codes: string[]) => {
     setIssuedBackupCodes(codes);

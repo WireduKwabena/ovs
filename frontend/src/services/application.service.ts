@@ -3,7 +3,7 @@ import api from './api';
 import type {
   VettingCase,
   ApplicationWithDocuments,
-  VerificationStatusType,
+  VerificationStatusResponse,
   Document,
   ApiError,
 } from '@/types';
@@ -25,7 +25,7 @@ interface PaginatedResponse<T> {
 export const applicationService = {
   async create(data: CreateApplicationData): Promise<VettingCase> {
     try {
-      const response = await api.post<VettingCase>('/applications/', data);
+      const response = await api.post<VettingCase>('/applications/cases/', data);
       return response.data;
     } catch (error: any) {
       throw new Error((error.response?.data as ApiError)?.message || 'Creation failed');
@@ -34,7 +34,7 @@ export const applicationService = {
 
   async getAll(): Promise<ApplicationWithDocuments[]> {
     try {
-      const response = await api.get<PaginatedResponse<ApplicationWithDocuments>>('/applications/');
+      const response = await api.get<PaginatedResponse<ApplicationWithDocuments>>('/applications/cases/');
       console.log('API response for applications:', response.data);
 
       // ✅ Extract results array from paginated response
@@ -58,7 +58,7 @@ export const applicationService = {
 
   async getById(caseId: string): Promise<ApplicationWithDocuments> {
     try {
-      const response = await api.get<ApplicationWithDocuments>(`/applications/${caseId}/`);
+      const response = await api.get<ApplicationWithDocuments>(`/applications/cases/${caseId}/`);
       return response.data;
     } catch (error: any) {
       throw new Error((error.response?.data as ApiError)?.message || 'Detail fetch failed');
@@ -67,7 +67,7 @@ export const applicationService = {
 
   async update(caseId: string, data: Partial<VettingCase>): Promise<VettingCase> {
     try {
-      const response = await api.patch<VettingCase>(`/applications/${caseId}/`, data);
+      const response = await api.patch<VettingCase>(`/applications/cases/${caseId}/`, data);
       return response.data;
     } catch (error: any) {
       throw new Error((error.response?.data as ApiError)?.message || 'Update failed');
@@ -76,7 +76,7 @@ export const applicationService = {
 
   async delete(caseId: string): Promise<void> {
     try {
-      await api.delete(`/applications/${caseId}/`);
+      await api.delete(`/applications/cases/${caseId}/`);
     } catch (error: any) {
       throw new Error((error.response?.data as ApiError)?.message || 'Deletion failed');
     }
@@ -101,7 +101,7 @@ export const applicationService = {
       formData.append('document_type', documentType);
 
       const response = await api.post(
-        `/applications/${caseId}/upload_document/`,
+        `/applications/cases/${caseId}/upload-document/`,
         formData,
         {
           headers: {
@@ -115,14 +115,47 @@ export const applicationService = {
     }
   },
 
-  async getVerificationStatus(caseId: string): Promise<VerificationStatusType> {
+  async getVerificationStatus(caseId: string): Promise<VerificationStatusResponse> {
     try {
-      const response = await api.get<VerificationStatusType>(
-        `/applications/${caseId}/verification_status/`
+      const response = await api.get<VerificationStatusResponse>(
+        `/applications/cases/${caseId}/verification-status/`
       );
       return response.data;
     } catch (error: any) {
       throw new Error((error.response?.data as ApiError)?.message || 'Status fetch failed');
+    }
+  },
+
+  async recheckSocialProfiles(caseId: string): Promise<ApplicationWithDocuments> {
+    try {
+      const response = await api.post<ApplicationWithDocuments>(
+        `/applications/cases/${caseId}/recheck-social-profiles/`,
+        {},
+      );
+      return response.data;
+    } catch (error: any) {
+      throw new Error((error.response?.data as ApiError)?.message || 'Social profile recheck failed');
+    }
+  },
+
+  async listDocuments(): Promise<Document[]> {
+    try {
+      const response = await api.get<PaginatedResponse<Document> | Document[]>('/applications/documents/');
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
+      return Array.isArray(response.data.results) ? response.data.results : [];
+    } catch (error: any) {
+      throw new Error((error.response?.data as ApiError)?.message || 'Document list fetch failed');
+    }
+  },
+
+  async getDocumentById(documentId: number | string): Promise<Document> {
+    try {
+      const response = await api.get<Document>(`/applications/documents/${documentId}/`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error((error.response?.data as ApiError)?.message || 'Document detail fetch failed');
     }
   },
 };

@@ -1,30 +1,38 @@
 // src/services/notification.service.ts (Enhanced with safety checks)
 import api from './api';
-import type { Notification, ApiError } from '@/types';
+import type { Notification, ApiError, PaginatedResponse } from '@/types';
+
+const extractResults = <T>(payload: PaginatedResponse<T> | T[]): T[] => {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+  return Array.isArray(payload.results) ? payload.results : [];
+};
 
 export const notificationService = {
-  async getAll(): Promise<Notification[]> {
+  async getAll(params?: {
+    status?: string;
+    type?: string;
+    priority?: string;
+  }): Promise<Notification[]> {
     try {
-      const response = await api.get<Notification[]>('/notifications/');
-      console.log('API response for notifications:', response.data);
-      
-      // ✅ Extract the results array from paginated response
-      if (response.data && typeof response.data === 'object' && 'results' in response.data) {
-        const notifications = (response.data as any).results;
-        console.log('✅ Extracted notifications array:', notifications);
-        return Array.isArray(notifications) ? notifications : [];
-      }
-      
-      // Fallback for non-paginated response (just in case)
-      if (Array.isArray(response.data)) {
-        return response.data;
-      }
-      
-      console.error('Unexpected API response structure:', response.data);
-      return [];
+      const response = await api.get<PaginatedResponse<Notification> | Notification[]>(
+        '/notifications/',
+        { params },
+      );
+      return extractResults(response.data);
     } catch (error: any) {
       console.error('Notification service error:', error);
       throw new Error((error.response?.data as ApiError)?.message || 'Failed to fetch notifications');
+    }
+  },
+
+  async getById(id: number): Promise<Notification> {
+    try {
+      const response = await api.get<Notification>(`/notifications/${id}/`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error((error.response?.data as ApiError)?.message || 'Failed to fetch notification detail');
     }
   },
 
@@ -59,7 +67,7 @@ export const notificationService = {
 
   async markSingleAsRead(id: number): Promise<void> {
     try {
-      await api.post(`/notifications/${id}/mark-read/`);
+      await api.post(`/notifications/${id}/mark_read/`);
     } catch (error: any) {
       throw new Error((error.response?.data as ApiError)?.message || 'Mark single failed');
     }

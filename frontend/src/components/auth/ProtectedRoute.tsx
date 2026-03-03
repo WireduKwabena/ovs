@@ -2,8 +2,9 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import type { RootState } from '@/app/store';  // Fixed: space + path
+import type { RootState } from '@/app/store';
 import { Loader } from '../common/Loader';
+import { resolveProtectedRouteRedirect } from '@/utils/authRouting';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -16,21 +17,26 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   adminOnly = false,
   disallowUserTypes = [],
 }) => {
-  const { isAuthenticated, userType } = useSelector((state: RootState) => state.auth);
+  const { isAuthenticated, userType, twoFactorRequired, twoFactorToken } = useSelector(
+    (state: RootState) => state.auth,
+  );
   const location = useLocation();
 
-   const isRehydrated = useSelector(
-    (state: RootState) => state._persist?.rehydrated
+  const isRehydrated = useSelector(
+    (state: RootState) => (state._persist ? state._persist.rehydrated : true),
   );
 
   if (!isRehydrated) {
-    return <Loader size="lg" />;  // Show loader during auth rehydration
+    return <Loader size="lg" />;
   }
-  
-  // 2️⃣ Redirect to login if not authenticated
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+  const routeRedirect = resolveProtectedRouteRedirect({
+    isAuthenticated,
+    twoFactorRequired,
+    twoFactorToken,
+  });
+  if (routeRedirect) {
+    return <Navigate to={routeRedirect} state={{ from: location }} replace />;
   }
 
   if (adminOnly && userType !== 'admin') {

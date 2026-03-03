@@ -15,6 +15,8 @@ backend/.env
 backend/media/
 backend/logs/
 backend/models/
+backend/backups/
+*.dump
 backend/gunicorn.ctl
 backend/ai_ml_services/datasets/raw_dataset/
 backend/ai_ml_services/datasets/processed/
@@ -24,4 +26,8 @@ backend/ai_ml_services/datasets/processed/
 .tmp_ai_training_run/
 .tmp_ai_training_smoke2/
 .tmp_ai_training_test/
-
+.tmp_ai_training_auth_quick/
+.tmp_ai_training_auth_tuned/
+.tmp_ai_training_fast/
+.tmp_ai_training_full/
+.tmp_ai_training_prod/

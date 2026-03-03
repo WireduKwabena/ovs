@@ -36,6 +36,8 @@ class InterviewSession(models.Model):
     Tracks timing for performance analysis.
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     STATUS_CHOICES = [
         ('created', 'Created'),
         ('in_progress', 'In Progress'),
@@ -197,6 +199,8 @@ class InterviewQuestion(models.Model):
     Difficulty levels allow adaptive interview progression.
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     QUESTION_TYPE_CHOICES = [
         ('general', 'General Background'),
         ('education', 'Educational Background'),
@@ -296,6 +300,8 @@ class InterviewResponse(models.Model):
     - LLM evaluation (GPT-4/Claude)
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     # Relationships
     session = models.ForeignKey(
         InterviewSession,
@@ -449,6 +455,8 @@ class VideoAnalysis(models.Model):
     Used for deception detection research (ethical considerations apply).
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     # Relationship
     response = models.OneToOneField(
         InterviewResponse,
@@ -564,6 +572,8 @@ class InterviewFeedback(models.Model):
     3. Ensuring fairness and bias mitigation
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     # Relationships
     session = models.ForeignKey(
         InterviewSession,
@@ -642,5 +652,4 @@ class InterviewFeedback(models.Model):
 DynamicInterviewSession = InterviewSession
 InterviewExchange = InterviewResponse
 NonVerbalAnalysis = VideoAnalysis
-
 

@@ -1,4 +1,9 @@
+import uuid
+import logging
+
+from django.conf import settings
 from django.db.models import Q
+from django.core.files.storage import default_storage
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status, viewsets
@@ -6,6 +11,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.invitations.permissions import IsAuthenticatedOrCandidateAccessSession
 from apps.applications.models import VettingCase
@@ -26,6 +32,8 @@ from .serializers import (
     InterviewAnalyticsDashboardQuerySerializer,
     InterviewAnalyticsDashboardResponseSerializer,
     InterviewAvatarSessionResponseSerializer,
+    InterviewResponseUploadRequestSerializer,
+    InterviewResponseUploadResponseSerializer,
     InterviewCompareRequestSerializer,
     InterviewCompareResponseSerializer,
     InterviewFeedbackSerializer,
@@ -35,6 +43,8 @@ from .serializers import (
     InterviewQuestionSerializer,
     InterviewResponseSerializer,
     InterviewSessionSerializer,
+    LegacyInterviewStartRequestSerializer,
+    LegacyInterviewStartResponseSerializer,
 )
 from .services.analytics_service import InterviewAnalytics
 from .services.comparison_service import ApplicantComparisonService
@@ -42,6 +52,8 @@ from .services.flag_generator import InterrogationFlagGenerator
 from .services.heygen_sdk import build_avatar_session_payload
 from .services.playback_service import InterviewPlaybackService
 from .tasks import analyze_response_task, generate_session_summary_task
+
+logger = logging.getLogger(__name__)
 
 
 def _question_type_from_intent(intent: str) -> str:
@@ -60,6 +72,31 @@ def _candidate_enrollment_id(request) -> int | None:
 
 def _is_service_authenticated_request(request) -> bool:
     return bool(getattr(request, "service_authenticated", False))
+
+
+def _queue_interview_task_safely(task, *args, fallback_to_inline: bool = False) -> bool:
+    try:
+        task.delay(*args)
+        return True
+    except Exception as exc:
+        logger.warning(
+            "Failed to queue interview task '%s' with args=%s: %s",
+            getattr(task, "name", repr(task)),
+            args,
+            exc,
+        )
+        if fallback_to_inline:
+            try:
+                task.run(*args)
+                return True
+            except Exception as run_exc:
+                logger.warning(
+                    "Failed inline interview task '%s' with args=%s after queue failure: %s",
+                    getattr(task, "name", repr(task)),
+                    args,
+                    run_exc,
+                )
+        return False
 
 
 class InterviewSessionViewSet(viewsets.ModelViewSet):
@@ -133,7 +170,13 @@ class InterviewSessionViewSet(viewsets.ModelViewSet):
             return Response({"error": "Session is already finished."}, status=status.HTTP_400_BAD_REQUEST)
 
         session.complete_session()
-        generate_session_summary_task.delay(session.id)
+        _queue_interview_task_safely(
+            generate_session_summary_task,
+            session.id,
+            fallback_to_inline=bool(
+                getattr(settings, "INTERVIEWS_TASK_INLINE_FALLBACK_ENABLED", False)
+            ),
+        )
 
         enrollment = session.case.candidate_enrollment
         if enrollment and enrollment.status in {"invited", "registered", "in_progress"}:
@@ -251,7 +294,13 @@ class InterviewSessionViewSet(viewsets.ModelViewSet):
         session.conversation_history = [*(session.conversation_history or []), history_entry]
         session.save(update_fields=["conversation_history"])
 
-        analyze_response_task.delay(response.id)
+        _queue_interview_task_safely(
+            analyze_response_task,
+            response.id,
+            fallback_to_inline=bool(
+                getattr(settings, "INTERVIEWS_TASK_INLINE_FALLBACK_ENABLED", False)
+            ),
+        )
 
         return Response(
             {
@@ -445,7 +494,13 @@ class InterviewResponseViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="analyze")
     def analyze(self, request, pk=None):
         response = self.get_object()
-        analyze_response_task.delay(response.id)
+        _queue_interview_task_safely(
+            analyze_response_task,
+            response.id,
+            fallback_to_inline=bool(
+                getattr(settings, "INTERVIEWS_TASK_INLINE_FALLBACK_ENABLED", False)
+            ),
+        )
         return Response({"message": "Response queued for analysis."}, status=status.HTTP_202_ACCEPTED)
 
 
@@ -462,3 +517,110 @@ class InterviewFeedbackViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(reviewer=self.request.user)
+
+
+def _build_interview_ws_url(request, session_id: str) -> str:
+    protocol = "wss" if request.is_secure() else "ws"
+    host = request.get_host()
+    return f"{protocol}://{host}/ws/interview/{session_id}/"
+
+
+class LegacyInterviewStartAPIView(APIView):
+    """
+    Backward-compatible bootstrap endpoint used by older frontend integrations.
+
+    POST /api/interviews/interrogation/start/
+    Body: {"application_id": "<case_id or pk>"}
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=LegacyInterviewStartRequestSerializer,
+        responses={
+            200: LegacyInterviewStartResponseSerializer,
+            400: InterviewActionErrorSerializer,
+            404: InterviewActionErrorSerializer,
+        },
+    )
+    def post(self, request):
+        application_id = request.data.get("application_id")
+        if not application_id:
+            return Response({"error": "application_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        case = VettingCase.objects.filter(case_id=str(application_id)).first()
+        if case is None:
+            try:
+                case = VettingCase.objects.get(id=application_id)
+            except (VettingCase.DoesNotExist, ValueError, TypeError):
+                return Response({"error": "Vetting case not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        session = (
+            InterviewSession.objects.filter(case=case)
+            .order_by("-created_at")
+            .first()
+        )
+        if session is None:
+            session = InterviewSession.objects.create(case=case, use_dynamic_questions=True)
+
+        if session.status == "created":
+            session.start_session()
+
+        serialized = InterviewSessionSerializer(session, context={"request": request}).data
+        return Response(
+            {
+                "session_id": session.session_id,
+                "interrogation_flags": serialized.get("interrogation_flags", []),
+                "websocket_url": _build_interview_ws_url(request, session.session_id),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class InterviewResponseUploadAPIView(APIView):
+    """
+    Backward-compatible media upload endpoint used before websocket-only flow.
+
+    POST /api/interviews/upload-response/
+    multipart: video, session_id
+    """
+
+    permission_classes = [IsAuthenticatedOrCandidateAccessSession]
+
+    @extend_schema(
+        request=InterviewResponseUploadRequestSerializer,
+        responses={
+            201: InterviewResponseUploadResponseSerializer,
+            400: InterviewActionErrorSerializer,
+            404: InterviewActionErrorSerializer,
+        },
+    )
+    def post(self, request):
+        session_ref = request.data.get("session_id")
+        video = request.FILES.get("video")
+
+        if not session_ref:
+            return Response({"error": "session_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+        if video is None:
+            return Response({"error": "video file is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        session = InterviewSession.objects.filter(session_id=str(session_ref)).first()
+        if session is None:
+            session = InterviewSession.objects.filter(id=session_ref).first()
+        if session is None:
+            return Response({"error": "Interview session not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        upload_path = f"interview_uploads/{session.session_id}/{uuid.uuid4().hex}.webm"
+        saved_path = default_storage.save(upload_path, video)
+        try:
+            saved_url = default_storage.url(saved_path)
+        except Exception:
+            saved_url = ""
+
+        return Response(
+            {
+                "video_path": saved_path,
+                "video_url": saved_url,
+            },
+            status=status.HTTP_201_CREATED,
+        )

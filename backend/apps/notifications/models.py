@@ -12,6 +12,8 @@ Implements notification system for:
 4. Audit trail (who was notified when)
 """
 
+import uuid
+
 from django.db import models
 from django.utils import timezone
 from apps.authentication.models import User
@@ -30,6 +32,8 @@ class NotificationTemplate(models.Model):
     Template pattern for consistent messaging.
     Supports variable interpolation for personalization.
     """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     TEMPLATE_TYPE_CHOICES = [
         ('email', 'Email'),
@@ -105,6 +109,8 @@ class Notification(models.Model):
     Audit trail for compliance and debugging.
     Enables analysis of notification patterns and user engagement.
     """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     STATUS_CHOICES = [
         ('pending', 'Pending'),
@@ -240,6 +246,8 @@ class AlertRule(models.Model):
     Rule-based expert system for proactive alerting.
     Helps ensure timely human review of critical issues.
     """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     TRIGGER_TYPE_CHOICES = [
         ('fraud_score_threshold', 'Fraud Score Above Threshold'),

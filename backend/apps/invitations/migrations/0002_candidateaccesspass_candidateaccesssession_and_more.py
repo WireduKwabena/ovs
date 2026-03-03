@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='CandidateAccessPass',
             fields=[
-                ('id', models.BigAutoField(primary_key=True, serialize=False)),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('pass_type', models.CharField(choices=[('portal', 'Portal Access'), ('results', 'Results Access')], db_index=True, default='portal', max_length=20)),
                 ('status', models.CharField(choices=[('issued', 'Issued'), ('revoked', 'Revoked'), ('expired', 'Expired')], db_index=True, default='issued', max_length=20)),
                 ('token_hash', models.CharField(db_index=True, max_length=64, unique=True)),
@@ -44,7 +44,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='CandidateAccessSession',
             fields=[
-                ('id', models.BigAutoField(primary_key=True, serialize=False)),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('session_key', models.UUIDField(db_index=True, default=uuid.uuid4, editable=False, unique=True)),
                 ('status', models.CharField(choices=[('active', 'Active'), ('expired', 'Expired'), ('closed', 'Closed')], db_index=True, default='active', max_length=20)),
                 ('ip_address', models.GenericIPAddressField(blank=True, null=True)),

@@ -1,3 +1,5 @@
+import uuid
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -12,7 +14,7 @@ class VettingCampaign(models.Model):
         ("archived", "Archived"),
     ]
 
-    id = models.BigAutoField(primary_key=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="draft", db_index=True)
@@ -41,7 +43,7 @@ class VettingCampaign(models.Model):
 
 
 class CampaignRubricVersion(models.Model):
-    id = models.BigAutoField(primary_key=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     campaign = models.ForeignKey(
         VettingCampaign,

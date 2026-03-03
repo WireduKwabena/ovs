@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from apps.applications.models import VettingCase
+from apps.authentication.models import User
 
 
 class VettingCaseAdminSerializer(serializers.ModelSerializer):
@@ -40,7 +41,7 @@ class VettingCaseAdminSerializer(serializers.ModelSerializer):
 
 
 class DashboardRecentApplicationSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
+    id = serializers.UUIDField()
     case_id = serializers.CharField()
     applicant_name = serializers.CharField()
     application_type = serializers.CharField()
@@ -113,4 +114,50 @@ class AdminCasesResponseSerializer(serializers.Serializer):
     page_size = serializers.IntegerField()
     total_pages = serializers.IntegerField()
     ordering = serializers.CharField(required=False)
+
+
+class AdminManagedUserSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "email",
+            "first_name",
+            "last_name",
+            "full_name",
+            "user_type",
+            "is_active",
+            "is_staff",
+            "is_superuser",
+            "is_two_factor_enabled",
+            "last_login",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_full_name(self, obj) -> str:
+        if hasattr(obj, "get_full_name"):
+            return obj.get_full_name()
+        return f"{obj.first_name} {obj.last_name}".strip() or obj.email
+
+
+class AdminUsersResponseSerializer(serializers.Serializer):
+    results = AdminManagedUserSerializer(many=True)
+    count = serializers.IntegerField()
+    page = serializers.IntegerField()
+    page_size = serializers.IntegerField()
+    total_pages = serializers.IntegerField()
+    ordering = serializers.CharField(required=False)
+
+
+class AdminUserUpdateRequestSerializer(serializers.Serializer):
+    user_type = serializers.ChoiceField(
+        choices=User.USER_TYPE_CHOICES,
+        required=False,
+    )
+    is_active = serializers.BooleanField(required=False)
+    is_staff = serializers.BooleanField(required=False)
+    reset_two_factor = serializers.BooleanField(required=False, default=False)
 

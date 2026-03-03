@@ -1,12 +1,15 @@
+import logging
 from statistics import mean
 from pathlib import Path
 
 from celery import shared_task
+from django.conf import settings
 from django.utils import timezone
 
 from .case_sync import sync_case_interview_outcome
 from .models import InterviewResponse, InterviewSession, VideoAnalysis
 
+logger = logging.getLogger(__name__)
 
 IDENTITY_DOCUMENT_TYPE_PRIORITY = ("id_card", "passport", "drivers_license")
 
@@ -98,6 +101,36 @@ def _simple_sentiment(transcript: str) -> tuple[str, float]:
     if bounded <= 40:
         return "negative", float(bounded)
     return "neutral", float(bounded)
+
+
+def _run_task_inline_safely(task, *args) -> bool:
+    try:
+        task.run(*args)
+        return True
+    except Exception as exc:
+        logger.warning(
+            "Failed inline execution for task '%s' with args=%s: %s",
+            getattr(task, "name", repr(task)),
+            args,
+            exc,
+        )
+        return False
+
+
+def _queue_task_safely(task, *args, fallback_to_inline: bool = False) -> bool:
+    try:
+        task.delay(*args)
+        return True
+    except Exception as exc:
+        logger.warning(
+            "Failed to queue task '%s' with args=%s: %s",
+            getattr(task, "name", repr(task)),
+            args,
+            exc,
+        )
+        if fallback_to_inline:
+            return _run_task_inline_safely(task, *args)
+        return False
 
 
 @shared_task(bind=True, max_retries=1)
@@ -199,7 +232,11 @@ def analyze_response_task(self, response_id: int):
         },
     )
 
-    generate_session_summary_task.delay(response.session_id)
+    _queue_task_safely(
+        generate_session_summary_task,
+        response.session_id,
+        fallback_to_inline=bool(getattr(settings, "INTERVIEWS_TASK_INLINE_FALLBACK_ENABLED", False)),
+    )
     return {"success": True, "response_id": response.id, "quality_score": response_quality_score}
 
 

@@ -4,6 +4,7 @@ import django.core.validators
 import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
+import uuid
 
 
 class Migration(migrations.Migration):
@@ -19,7 +20,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='RubricCriteria',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('name', models.CharField(max_length=200)),
                 ('description', models.TextField()),
                 ('criteria_type', models.CharField(choices=[('document', 'Document Quality'), ('consistency', 'Data Consistency'), ('interview', 'Interview Performance'), ('behavioral', 'Behavioral Assessment'), ('technical', 'Technical Competency'), ('custom', 'Custom Criterion')], max_length=20)),
@@ -39,7 +40,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='RubricEvaluation',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('status', models.CharField(choices=[('pending', 'Pending'), ('in_progress', 'In Progress'), ('completed', 'Completed'), ('requires_review', 'Requires Manual Review')], default='pending', max_length=20)),
                 ('document_authenticity_score', models.FloatField(blank=True, null=True, validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(100)])),
                 ('consistency_score', models.FloatField(blank=True, null=True, validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(100)])),
@@ -76,7 +77,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='CriteriaOverride',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('original_score', models.FloatField(validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(100)])),
                 ('overridden_score', models.FloatField(validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(100)])),
                 ('justification', models.TextField(help_text='Explanation for the override')),
@@ -94,7 +95,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='VettingRubric',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('name', models.CharField(max_length=200, unique=True)),
                 ('description', models.TextField(blank=True)),
                 ('rubric_type', models.CharField(choices=[('general', 'General Purpose'), ('technical', 'Technical Position'), ('executive', 'Executive Level'), ('sensitive', 'High-Security Position'), ('custom', 'Custom')], default='general', max_length=20)),

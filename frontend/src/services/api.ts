@@ -31,7 +31,8 @@ const getApiErrorMessage = (error: AxiosError<ApiError>): string => {
 
 const api = axios.create({
   baseURL: API_URL,
-  withCredentials: true,
+  // JWT/Bearer auth is used for API requests; avoid session cookies to prevent CSRF coupling.
+  withCredentials: false,
   headers: {
     'Content-Type': 'application/json',
   },

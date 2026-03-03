@@ -1,14 +1,27 @@
-# Ensure proper permissions for rubric management
+"""Permission classes for rubric APIs."""
+
 from rest_framework.permissions import BasePermission
 
+
+def is_hr_or_admin_user(user) -> bool:
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
+    return bool(
+        getattr(user, "is_staff", False)
+        or getattr(user, "is_superuser", False)
+        or getattr(user, "user_type", None) in {"hr_manager", "admin"}
+    )
+
+
 class IsHRManager(BasePermission):
-    """Only HR managers can create/edit rubrics"""
-    
+    """Allow only HR managers/admin users."""
+
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.role in ['hr_manager', 'admin']
+        return is_hr_or_admin_user(getattr(request, "user", None))
+
 
 class CanOverrideScores(BasePermission):
-    """Only authorized users can override scores"""
-    
+    """Allow only HR managers/admin users to override rubric scores."""
+
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.role in ['hr_manager', 'reviewer', 'admin']
+        return is_hr_or_admin_user(getattr(request, "user", None))

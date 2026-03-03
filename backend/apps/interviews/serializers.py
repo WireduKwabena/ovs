@@ -232,7 +232,7 @@ class InterviewGenerateFlagsResponseSerializer(serializers.Serializer):
     case_id = serializers.CharField()
     generated_count = serializers.IntegerField()
     created_count = serializers.IntegerField()
-    created_flag_ids = serializers.ListField(child=serializers.IntegerField())
+    created_flag_ids = serializers.ListField(child=serializers.UUIDField())
     flags = serializers.ListField(child=serializers.DictField())
 
 
@@ -247,3 +247,23 @@ class InterviewAvatarSessionResponseSerializer(serializers.Serializer):
     )
     language = serializers.CharField(required=False, allow_blank=True)
     activity_idle_timeout = serializers.IntegerField(required=False)
+
+
+class LegacyInterviewStartRequestSerializer(serializers.Serializer):
+    application_id = serializers.CharField()
+
+
+class LegacyInterviewStartResponseSerializer(serializers.Serializer):
+    session_id = serializers.CharField()
+    interrogation_flags = serializers.ListField(child=serializers.DictField())
+    websocket_url = serializers.CharField()
+
+
+class InterviewResponseUploadRequestSerializer(serializers.Serializer):
+    session_id = serializers.CharField()
+    video = serializers.FileField()
+
+
+class InterviewResponseUploadResponseSerializer(serializers.Serializer):
+    video_path = serializers.CharField()
+    video_url = serializers.CharField(allow_blank=True, required=False)

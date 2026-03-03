@@ -268,6 +268,7 @@ class BillingApiTests(APITestCase):
         self.assertEqual(kwargs["changes"]["reason"], "ok")
         self.assertEqual(kwargs["changes"]["rate_limited"], False)
 
+    @override_settings(STRIPE_SECRET_KEY="")
     def test_stripe_checkout_requires_secret_key(self):
         response = self.client.post(
             self.stripe_checkout_endpoint,

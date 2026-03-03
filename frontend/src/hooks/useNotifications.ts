@@ -11,7 +11,7 @@ export const useNotifications = () => {
   const dispatch = useDispatch<AppDispatch>();
   const queryClient = useQueryClient();
 
-  const { data: notificationsData, isLoading } = useQuery({
+  const { data: notificationsData, isLoading, refetch } = useQuery({
     queryKey: ['notifications'],
     queryFn: () => notificationService.getAll(),
     refetchInterval: 30000, // Poll every 30 seconds
@@ -42,10 +42,22 @@ export const useNotifications = () => {
     onError: (err) => toast.error(err.message || 'Failed to mark all as read'),  // Use err.message
   });
 
+  const archiveMutation = useMutation({
+    mutationFn: (id: number) => notificationService.archive(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      void refetch();
+    },
+    onError: (err) => toast.error(err.message || 'Failed to archive notification'),
+  });
+
   return {
     notifications: notificationsData || [],
     isLoading,
     markAsRead: markAsReadMutation.mutate,
     markAllAsRead: markAllAsReadMutation.mutate,
+    archive: archiveMutation.mutate,
+    archiveAsync: archiveMutation.mutateAsync,
+    refresh: refetch,
   };
 };

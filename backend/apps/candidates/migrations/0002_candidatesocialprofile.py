@@ -2,6 +2,7 @@
 
 import django.db.models.deletion
 from django.db import migrations, models
+import uuid
 
 
 class Migration(migrations.Migration):
@@ -14,7 +15,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='CandidateSocialProfile',
             fields=[
-                ('id', models.BigAutoField(primary_key=True, serialize=False)),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('platform', models.CharField(choices=[('linkedin', 'LinkedIn'), ('github', 'GitHub'), ('x', 'X'), ('facebook', 'Facebook'), ('instagram', 'Instagram'), ('tiktok', 'TikTok'), ('other', 'Other')], db_index=True, max_length=20)),
                 ('url', models.URLField(blank=True)),
                 ('username', models.CharField(blank=True, max_length=120)),

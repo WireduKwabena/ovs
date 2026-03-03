@@ -9,6 +9,8 @@ DRY (Don't Repeat Yourself) principle implementation.
 Provides reusable components across all apps.
 """
 
+import uuid
+
 from django.db import models
 from django.utils import timezone
 
@@ -25,6 +27,8 @@ class TimeStampedModel(models.Model):
     Essential for debugging and performance analysis.
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -53,6 +57,8 @@ class SoftDeleteModel(models.Model):
     Important for compliance with data retention policies.
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     is_deleted = models.BooleanField(default=False, db_index=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
     deleted_by = models.ForeignKey(
@@ -94,6 +100,8 @@ class AuditModel(models.Model):
     Enables forensic analysis of data changes.
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     created_by = models.ForeignKey(
         'authentication.User',
@@ -128,6 +136,8 @@ class ProcessingStatusModel(models.Model):
     Enables monitoring and troubleshooting of async workflows.
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('queued', 'Queued'),
@@ -195,6 +205,8 @@ class ScoreModel(models.Model):
     Always include confidence scores for uncertainty quantification.
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     score = models.FloatField(
         null=True,
         blank=True,
@@ -233,6 +245,8 @@ class FileUploadModel(models.Model):
     Important for storage management and security auditing.
     """
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     file = models.FileField(upload_to='uploads/')
     original_filename = models.CharField(max_length=255)
     file_size = models.IntegerField(help_text="Size in bytes")

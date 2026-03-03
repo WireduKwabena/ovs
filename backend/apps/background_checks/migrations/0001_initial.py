@@ -50,7 +50,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='BackgroundCheckEvent',
             fields=[
-                ('id', models.BigAutoField(primary_key=True, serialize=False)),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('event_type', models.CharField(choices=[('submitted', 'Submitted'), ('provider_update', 'Provider Update'), ('webhook', 'Webhook'), ('manual', 'Manual Update'), ('error', 'Error')], max_length=30)),
                 ('status_before', models.CharField(blank=True, max_length=20)),
                 ('status_after', models.CharField(blank=True, max_length=20)),

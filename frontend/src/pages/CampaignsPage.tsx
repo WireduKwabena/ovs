@@ -14,7 +14,7 @@ const statusBadgeClass: Record<string, string> = {
 };
 
 const CampaignsPage: React.FC = () => {
-  const { isAdmin, userType } = useAuth();
+  const { isHrOrAdmin } = useAuth();
   const [campaigns, setCampaigns] = useState<VettingCampaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +27,7 @@ const CampaignsPage: React.FC = () => {
     ends_at: '',
   });
 
-  const canManageCampaigns = isAdmin || userType === 'hr_manager';
+  const canManageCampaigns = isHrOrAdmin;
 
   const fetchCampaigns = useCallback(async () => {
     setLoading(true);

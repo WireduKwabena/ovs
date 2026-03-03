@@ -7,9 +7,9 @@ import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';  // Add this
 import { store, persistor } from './app/store';  // Import persistor
 import 'react-toastify/dist/ReactToastify.css'; // ✅ Make sure this is imported
+import '@livekit/components-styles';
 import App from './App';
 import './index.css';
-import './App.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {

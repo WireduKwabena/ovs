@@ -11,6 +11,7 @@ import { Loader } from '@/components/common/Loader';
 import { adminService } from '@/services/admin.service';
 import type { ApplicationStatus, DashboardStats } from '@/types';
 import { formatDate } from '@/utils/helper';
+import BillingHealthCard from '@/components/admin/BillingHealthCard';
 
 
 interface StatCardProps {
@@ -39,16 +40,13 @@ const StatCard: React.FC<StatCardProps> = ({ icon: Icon, title, value, color, su
 );
 
 interface RecentApplication {
-  id: number;
+  id: string;
   case_id: string;
+  applicant_name: string;
   status: ApplicationStatus;
-  applicant: {
-    full_name: string;
-  };
   application_type: string;
   created_at: string;
-  consistency_score?: number;
-  fraud_risk_score?: number;
+  rubric_score?: number | null;
 }
 
 export const AdminDashboard: React.FC = () => {
@@ -124,6 +122,8 @@ export const AdminDashboard: React.FC = () => {
           </p>
         </div>
 
+        <BillingHealthCard />
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
@@ -158,7 +158,7 @@ export const AdminDashboard: React.FC = () => {
         </div>
 
         {/* Performance Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
           <div className="bg-white rounded-lg shadow-sm p-6">
             <div className="flex items-center gap-3 mb-4">
               <TrendingUp className="w-6 h-6 text-green-600" />
@@ -217,7 +217,7 @@ export const AdminDashboard: React.FC = () => {
                         <StatusBadge status={app.status} />
                       </div>
                       <p className="text-sm text-gray-600">
-                        {app.applicant?.full_name || 'Unknown'} • {' '}
+                        {app.applicant_name || 'Unknown'} • {' '}
                         <span className="capitalize">{app.application_type.replace('_', ' ')}</span>
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
@@ -226,22 +226,14 @@ export const AdminDashboard: React.FC = () => {
                     </div>
 
                     <div className="text-right ml-6">
-                      {(app.consistency_score || app.fraud_risk_score) && (
+                      {typeof app.rubric_score === 'number' && (
                         <div className="mb-3">
-                          {app.consistency_score && (
-                            <div className="text-sm text-gray-600">
-                              Consistency: <span className="font-semibold text-green-600">
-                                {app.consistency_score.toFixed(1)}%
-                              </span>
-                            </div>
-                          )}
-                          {app.fraud_risk_score && (
-                            <div className="text-sm text-gray-600">
-                              Fraud Risk: <span className="font-semibold text-red-600">
-                                {app.fraud_risk_score.toFixed(1)}%
-                              </span>
-                            </div>
-                          )}
+                          <div className="text-sm text-gray-600">
+                            Rubric Score:{' '}
+                            <span className="font-semibold text-indigo-600">
+                              {app.rubric_score.toFixed(1)}%
+                            </span>
+                          </div>
                         </div>
                       )}
                       <button
@@ -302,6 +294,32 @@ export const AdminDashboard: React.FC = () => {
             <p className="text-sm text-gray-600 mt-1">View detailed system statistics</p>
             <div className="mt-4 flex items-center text-blue-600 font-medium text-sm">
               <span>View Stats</span>
+              <span className="ml-2 group-hover:ml-3 transition-all">→</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => navigate('/admin/control-center')}
+            className="group p-6 bg-linear-to-br from-slate-50 to-slate-100 rounded-lg border-2 border-slate-200 hover:border-slate-300 hover:shadow-md transition-all text-left"
+          >
+            <Users className="w-10 h-10 text-slate-700 mb-3 group-hover:scale-110 transition-transform" />
+            <h3 className="font-bold text-lg text-gray-900">Admin Control</h3>
+            <p className="text-sm text-gray-600 mt-1">Open full Django admin module controls</p>
+            <div className="mt-4 flex items-center text-slate-700 font-medium text-sm">
+              <span>Open Control Center</span>
+              <span className="ml-2 group-hover:ml-3 transition-all">→</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => navigate('/admin/users')}
+            className="group p-6 bg-linear-to-br from-emerald-50 to-emerald-100 rounded-lg border-2 border-emerald-200 hover:border-emerald-300 hover:shadow-md transition-all text-left"
+          >
+            <Users className="w-10 h-10 text-emerald-700 mb-3 group-hover:scale-110 transition-transform" />
+            <h3 className="font-bold text-lg text-gray-900">Manage Users</h3>
+            <p className="text-sm text-gray-600 mt-1">Update roles, activity status, and account security.</p>
+            <div className="mt-4 flex items-center text-emerald-700 font-medium text-sm">
+              <span>Open Users</span>
               <span className="ml-2 group-hover:ml-3 transition-all">→</span>
             </div>
           </button>

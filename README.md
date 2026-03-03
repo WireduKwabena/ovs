@@ -208,6 +208,30 @@ The backend now includes a phase-1 orchestration layer for campaign-driven vetti
    python manage.py createsuperuser
    ```
 
+### UUID Primary Key Schema Validation (PostgreSQL)
+
+All managed models under `backend/apps/**` are expected to use UUID primary keys.
+
+Run DB schema validation:
+
+```bash
+cd backend
+python manage.py check_uuid_schema
+```
+
+If your existing local DB was created before the UUID migration update, recreate it with backup.
+Run this from repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File backend/scripts/reset_dev_db_uuid.ps1 -Force
+```
+
+Dry run first:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File backend/scripts/reset_dev_db_uuid.ps1
+```
+
 ### S3 Document Storage Configuration
 
 `documents.services.DocumentService` now expects S3 mode to be explicitly enabled.
