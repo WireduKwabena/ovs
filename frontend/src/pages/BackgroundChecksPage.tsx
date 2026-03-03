@@ -22,6 +22,7 @@ import type {
   BackgroundCheckType,
 } from "@/types";
 import { downloadCsvFile, isoDateStamp } from "@/utils/csv";
+import { downloadJsonFile } from "@/utils/json";
 import { formatDate } from "@/utils/helper";
 
 type CheckTypeFilter = BackgroundCheckType | "all";
@@ -259,6 +260,28 @@ const BackgroundChecksPage: React.FC = () => {
     toast.success(`Exported ${checks.length} background check row(s).`);
   };
 
+  const exportChecksJson = () => {
+    if (checks.length === 0) {
+      toast.info("No background check rows to export.");
+      return;
+    }
+
+    downloadJsonFile(
+      {
+        exported_at: new Date().toISOString(),
+        filters: {
+          case_id: caseFilter,
+          check_type: checkTypeFilter,
+          status: statusFilter,
+        },
+        total_rows: checks.length,
+        checks,
+      },
+      `background-checks-${isoDateStamp()}.json`,
+    );
+    toast.success(`Exported ${checks.length} background check row(s) as JSON.`);
+  };
+
   const webhookUrl = useMemo(() => buildProviderWebhookUrl(providerKey), [providerKey]);
 
   const handleCopyWebhookUrl = async () => {
@@ -304,6 +327,15 @@ const BackgroundChecksPage: React.FC = () => {
             >
               <Download className="mr-2 h-4 w-4" />
               Export CSV
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={exportChecksJson}
+              disabled={loadingChecks || checks.length === 0}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export JSON
             </Button>
             <Button
               type="button"
