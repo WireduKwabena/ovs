@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, Download, Eye, RefreshCw, Search } from "lucide-react";
+import { Activity, Eye, RefreshCw, Search } from "lucide-react";
 import { toast } from "react-toastify";
 
+import ExportActions from "@/components/common/ExportActions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -181,14 +182,12 @@ const AuditLogsPage: React.FC = () => {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="outline" onClick={exportAuditCsv} disabled={loading || logs.length === 0}>
-              <Download className="mr-2 h-4 w-4" />
-              Export CSV
-            </Button>
-            <Button type="button" variant="outline" onClick={exportAuditJson} disabled={loading || logs.length === 0}>
-              <Download className="mr-2 h-4 w-4" />
-              Export JSON
-            </Button>
+            <ExportActions
+              onCsv={exportAuditCsv}
+              onJson={exportAuditJson}
+              csvDisabled={loading || logs.length === 0}
+              jsonDisabled={loading || logs.length === 0}
+            />
             <Button type="button" variant="outline" onClick={() => void handleRefresh()} disabled={refreshing}>
               <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
               Refresh

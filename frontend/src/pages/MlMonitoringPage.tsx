@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { BarChart3, Brain, Download, RefreshCw } from "lucide-react";
+import { BarChart3, Brain, RefreshCw } from "lucide-react";
 import { toast } from "react-toastify";
 
+import ExportActions from "@/components/common/ExportActions";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -216,14 +217,14 @@ const MlMonitoringPage: React.FC = () => {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="outline" onClick={exportLatestCsv} disabled={loading || displayedLatest.length === 0}>
-              <Download className="mr-2 h-4 w-4" />
-              Export Latest CSV
-            </Button>
-            <Button type="button" variant="outline" onClick={exportLatestJson} disabled={loading || displayedLatest.length === 0}>
-              <Download className="mr-2 h-4 w-4" />
-              Export Latest JSON
-            </Button>
+            <ExportActions
+              onCsv={exportLatestCsv}
+              onJson={exportLatestJson}
+              csvLabel="Export Latest CSV"
+              jsonLabel="Export Latest JSON"
+              csvDisabled={loading || displayedLatest.length === 0}
+              jsonDisabled={loading || displayedLatest.length === 0}
+            />
             <Button type="button" variant="outline" onClick={() => void handleRefresh()} disabled={refreshing}>
               <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
               Refresh
@@ -348,16 +349,14 @@ const MlMonitoringPage: React.FC = () => {
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-bold text-slate-900">Model History</h2>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button type="button" variant="outline" onClick={exportHistoryCsv} disabled={history.length === 0}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Export History CSV
-                </Button>
-                <Button type="button" variant="outline" onClick={exportHistoryJson} disabled={history.length === 0}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Export History JSON
-                </Button>
-              </div>
+              <ExportActions
+                onCsv={exportHistoryCsv}
+                onJson={exportHistoryJson}
+                csvLabel="Export History CSV"
+                jsonLabel="Export History JSON"
+                csvDisabled={history.length === 0}
+                jsonDisabled={history.length === 0}
+              />
             </div>
             {history.length === 0 ? (
               <p className="mt-3 text-sm text-slate-500">No history available for selected model.</p>

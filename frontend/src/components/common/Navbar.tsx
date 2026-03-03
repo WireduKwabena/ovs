@@ -35,6 +35,7 @@ export const Navbar: React.FC = () => {
   const { logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileMenuMounted, setMobileMenuMounted] = useState(false);
+  const [adminMoreMenuOpen, setAdminMoreMenuOpen] = useState(false);
   const dispatch = useDispatch<AppDispatch>();
 
   
@@ -43,13 +44,9 @@ export const Navbar: React.FC = () => {
   const unreadCount = useSelector(selectUnreadCount);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const adminMoreMenuRef = useRef<HTMLDivElement>(null);
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const mobileDrawerRef = useRef<HTMLDivElement>(null);
-
-  // ✅ Sync state during render to avoid cascading renders from useEffect
-  if (mobileMenuOpen && !mobileMenuMounted) {
-    setMobileMenuMounted(true);
-  }
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -61,6 +58,9 @@ export const Navbar: React.FC = () => {
     const handleClickOutside = (event: MouseEvent) => {
       if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
         setProfileMenuOpen(false);
+      }
+      if (adminMoreMenuRef.current && !adminMoreMenuRef.current.contains(event.target as Node)) {
+        setAdminMoreMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -208,13 +208,37 @@ export const Navbar: React.FC = () => {
             { to: '/audit-logs', label: 'Audit' },
             { to: '/ai-monitor', label: 'AI Monitor' },
           ];
+
+  const desktopPrimaryLinks =
+    userType === 'admin'
+      ? [
+          { to: '/admin/dashboard', label: 'Dashboard' },
+          { to: '/admin/cases', label: 'Cases' },
+          { to: '/admin/users', label: 'Users' },
+          { to: '/admin/rubrics', label: 'Rubrics' },
+          { to: '/video-calls', label: 'Video Calls' },
+        ]
+      : navLinks;
+
+  const desktopOverflowLinks =
+    userType === 'admin'
+      ? [
+          { to: '/admin/control-center', label: 'Admin Control' },
+          { to: '/fraud-insights', label: 'Fraud' },
+          { to: '/background-checks', label: 'Checks' },
+          { to: '/audit-logs', label: 'Audit' },
+          { to: '/ml-monitoring', label: 'ML Ops' },
+          { to: '/ai-monitor', label: 'AI Monitor' },
+          { to: '/admin/analytics', label: 'Analytics' },
+        ]
+      : [];
   
   const initial = getUserInitial(user, '?');
 
   const profile_picture_url = userType === 'applicant' ? (user as User)?.profile_picture_url:'';
 
   return (
-    <nav className="bg-white shadow-lg sticky top-0 z-50">
+    <nav className="bg-slate-50 border-b border-slate-200 shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
@@ -231,18 +255,48 @@ export const Navbar: React.FC = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden xl:flex items-center space-x-4">
-            {navLinks.map((navItem) => (
+            {desktopPrimaryLinks.map((navItem) => (
               <Link
                 key={navItem.to}
                 to={navItem.to}
-                className="text-sm font-medium text-gray-600 hover:text-indigo-600 px-2 py-1 rounded"
+                className="text-sm font-semibold text-slate-800 hover:text-indigo-700 hover:bg-indigo-50 px-2 py-1 rounded"
               >
                 {navItem.label}
               </Link>
             ))}
+            {desktopOverflowLinks.length > 0 && (
+              <div className="relative" ref={adminMoreMenuRef}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setAdminMoreMenuOpen(!adminMoreMenuOpen);
+                    setProfileMenuOpen(false);
+                  }}
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-slate-800 hover:text-indigo-700 hover:bg-indigo-50 px-2 py-1 rounded"
+                >
+                  More
+                  <ChevronDown className="w-4 h-4 text-slate-600" />
+                </Button>
+                {adminMoreMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20 border">
+                    {desktopOverflowLinks.map((navItem) => (
+                      <Link
+                        key={navItem.to}
+                        to={navItem.to}
+                        className="block px-4 py-2 text-sm font-medium text-slate-800 hover:bg-indigo-50 hover:text-indigo-700"
+                        onClick={() => setAdminMoreMenuOpen(false)}
+                      >
+                        {navItem.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             <Link
               to="/notifications"
-              className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+              className="relative p-2 text-slate-800 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg"
             >
               <Bell className="w-6 h-6" />
               {unreadCount > 0 && (
@@ -255,11 +309,15 @@ export const Navbar: React.FC = () => {
             <div className="relative" ref={profileMenuRef}>
               <Button
                 type="button"
-                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                variant="ghost"
+                onClick={() => {
+                  setProfileMenuOpen(!profileMenuOpen);
+                  setAdminMoreMenuOpen(false);
+                }}
                 aria-expanded={profileMenuOpen ? "true" : "false"}
                 aria-haspopup="true"
                 aria-label="Toggle profile menu"
-                className="flex items-center space-x-2 ml-4 p-2 rounded-lg hover:bg-gray-100"
+                className="flex items-center space-x-2 ml-4 p-2 text-slate-800 rounded-lg hover:bg-indigo-50"
               >
                 {profile_picture_url ? (
                   <img src={profile_picture_url} alt={displayName || 'user'} className="w-8 h-8 rounded-full" />
@@ -272,15 +330,15 @@ export const Navbar: React.FC = () => {
                   <p className="text-sm font-medium text-indigo-600">
                     {displayName}
                   </p>
-                  <p className="text-xs text-gray-500">{roleLabel}</p>
+                  <p className="text-xs text-slate-600">{roleLabel}</p>
                 </div>
-                <ChevronDown className="w-4 h-4 text-gray-500" />
+                <ChevronDown className="w-4 h-4 text-slate-600" />
               </Button>
               {profileMenuOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-20 border">
                   <Link
                     to="/settings"
-                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="flex items-center w-full px-4 py-2 text-sm font-medium text-slate-800 hover:bg-indigo-50"
                     onClick={() => setProfileMenuOpen(false)}
                   >
                     <Settings2 className="w-4 h-4 mr-2" />
@@ -289,7 +347,7 @@ export const Navbar: React.FC = () => {
                   {canManageTwoFactor && (
                     <Link
                       to="/security"
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      className="flex items-center w-full px-4 py-2 text-sm font-medium text-slate-800 hover:bg-indigo-50"
                       onClick={() => setProfileMenuOpen(false)}
                     >
                       <ShieldCheck className="w-4 h-4 mr-2" />
@@ -298,7 +356,7 @@ export const Navbar: React.FC = () => {
                   )}
                   <Link
                     to="/change-password"
-                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="flex items-center w-full px-4 py-2 text-sm font-medium text-slate-800 hover:bg-indigo-50"
                     onClick={() => setProfileMenuOpen(false)}
                   >
                     <KeyRound className="w-4 h-4 mr-2" />
@@ -322,15 +380,20 @@ export const Navbar: React.FC = () => {
           <div className="xl:hidden flex items-center">
             <Button
               type="button"
+              variant="ghost"
               ref={mobileMenuButtonRef}
               onClick={() => {
                 setProfileMenuOpen(false);
+                setAdminMoreMenuOpen(false);
+                if (!mobileMenuOpen) {
+                  setMobileMenuMounted(true);
+                }
                 setMobileMenuOpen((previous) => !previous);
               }}
               aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
               aria-expanded={mobileMenuOpen ? "true" : "false"}
               aria-controls="mobile-nav-drawer"
-              className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              className="p-2 rounded-md text-slate-800 hover:text-indigo-700 hover:bg-indigo-50"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </Button>
@@ -376,7 +439,7 @@ export const Navbar: React.FC = () => {
                 <p className="text-base font-medium text-gray-900">
                   {displayName}
                 </p>
-                <p className="text-sm text-gray-500">{roleLabel}</p>
+                <p className="text-sm text-slate-600">{roleLabel}</p>
               </div>
             </div>
             <div className="space-y-3">
@@ -384,7 +447,7 @@ export const Navbar: React.FC = () => {
                 <Link
                   key={navItem.to}
                   to={navItem.to}
-                  className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"
+                  className="flex items-center px-3 py-2 rounded-lg hover:bg-indigo-50 text-slate-800"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   {navItem.label}
@@ -392,10 +455,10 @@ export const Navbar: React.FC = () => {
               ))}
               <Link
                 to="/notifications"
-                className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100"
+                className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-indigo-50"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                <span className="text-gray-700">Notifications</span>
+                <span className="text-slate-800">Notifications</span>
                 {unreadCount > 0 && (
                   <span className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full">
                     {unreadCount}
@@ -405,28 +468,28 @@ export const Navbar: React.FC = () => {
               {canManageTwoFactor && (
                 <Link
                   to="/security"
-                  className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100"
+                  className="flex items-center px-3 py-2 rounded-lg hover:bg-indigo-50"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  <ShieldCheck className="w-5 h-5 mr-2 text-gray-600" />
-                  <span className="text-gray-700">Security</span>
+                  <ShieldCheck className="w-5 h-5 mr-2 text-slate-700" />
+                  <span className="text-slate-800">Security</span>
                 </Link>
               )}
               <Link
                 to="/settings"
-                className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100"
+                className="flex items-center px-3 py-2 rounded-lg hover:bg-indigo-50"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                <Settings2 className="w-5 h-5 mr-2 text-gray-600" />
-                <span className="text-gray-700">Profile & Settings</span>
+                <Settings2 className="w-5 h-5 mr-2 text-slate-700" />
+                <span className="text-slate-800">Profile & Settings</span>
               </Link>
               <Link
                 to="/change-password"
-                className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100"
+                className="flex items-center px-3 py-2 rounded-lg hover:bg-indigo-50"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                <KeyRound className="w-5 h-5 mr-2 text-gray-600" />
-                <span className="text-gray-700">Change Password</span>
+                <KeyRound className="w-5 h-5 mr-2 text-slate-700" />
+                <span className="text-slate-800">Change Password</span>
               </Link>
               <button
                 type="button"
