@@ -130,7 +130,7 @@ export const BillingHealthCard: React.FC<BillingHealthCardProps> = ({ onStatusCh
               </span>
             ) : null}
           </div>
-          <p className='mt-1 text-[11px] text-slate-700'>
+          <p className='mt-1 text-[11px] text-slate-800'>
             {lastCheckedAt ? `Last checked ${lastCheckedAt.toLocaleTimeString()}` : 'Not checked yet'}
           </p>
         </div>
@@ -146,26 +146,26 @@ export const BillingHealthCard: React.FC<BillingHealthCardProps> = ({ onStatusCh
       </div>
 
       {isLoading && !health ? (
-        <p className='mt-3 text-sm text-slate-700'>Checking billing health...</p>
+        <p className='mt-3 text-sm text-slate-800'>Checking billing health...</p>
       ) : (
         <>
           {error ? <p className='mt-3 text-sm text-rose-600'>{error}</p> : null}
           {health ? (
             <div className='mt-4 space-y-3 text-sm'>
               <div className='flex items-center justify-between'>
-                <span className='text-slate-700'>API Status</span>
+                <span className='text-slate-800'>API Status</span>
                 <span className={badgeClass(health.status === 'ok')}>
                   {health.status === 'ok' ? 'OK' : health.status}
                 </span>
               </div>
               <div className='flex items-center justify-between'>
-                <span className='text-slate-700'>Access Policy</span>
+                <span className='text-slate-800'>Access Policy</span>
                 <span className={badgeClass(!health.access.staff_required)}>
                   {health.access.staff_required ? 'Staff-only' : 'Open'}
                 </span>
               </div>
               <div className='flex items-center justify-between'>
-                <span className='text-slate-700'>Stripe SDK (Backend)</span>
+                <span className='text-slate-800'>Stripe SDK (Backend)</span>
                 <span className={badgeClass(health.stripe.sdk_installed)}>
                   {health.stripe.sdk_installed ? 'Installed' : 'Missing'}
                 </span>
@@ -176,29 +176,29 @@ export const BillingHealthCard: React.FC<BillingHealthCardProps> = ({ onStatusCh
                 </p>
               ) : null}
               <div className='flex items-center justify-between'>
-                <span className='text-slate-700'>Stripe Secret Key</span>
+                <span className='text-slate-800'>Stripe Secret Key</span>
                 <span className={badgeClass(health.stripe.secret_key_configured)}>
                   {health.stripe.secret_key_configured ? 'Configured' : 'Not Configured'}
                 </span>
               </div>
               <div className='flex items-center justify-between'>
-                <span className='text-slate-700'>Stripe Webhook Secret</span>
+                <span className='text-slate-800'>Stripe Webhook Secret</span>
                 <span className={badgeClass(health.stripe.webhook_secret_configured)}>
                   {health.stripe.webhook_secret_configured ? 'Configured' : 'Not Configured'}
                 </span>
               </div>
               <div className='flex items-center justify-between'>
-                <span className='text-slate-700'>Verify Rate Limit</span>
+                <span className='text-slate-800'>Verify Rate Limit</span>
                 <span className={badgeClass(health.subscription_verify_rate_limit.enabled)}>
                   {health.subscription_verify_rate_limit.enabled ? 'Enabled' : 'Disabled'}
                 </span>
               </div>
-              <p className='text-xs text-slate-700'>
+              <p className='text-xs text-slate-800'>
                 Verify limit: {health.subscription_verify_rate_limit.per_minute} requests/minute.
               </p>
             </div>
           ) : (
-            <p className='mt-3 text-sm text-slate-700'>No health data available.</p>
+            <p className='mt-3 text-sm text-slate-800'>No health data available.</p>
           )}
         </>
       )}

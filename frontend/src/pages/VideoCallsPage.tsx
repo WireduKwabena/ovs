@@ -1109,7 +1109,7 @@ const VideoCallsPage: React.FC = () => {
                   value={form.participantEmails}
                   onChange={(event) => setForm((prev) => ({ ...prev, participantEmails: event.target.value }))}
                   placeholder="candidate1@example.com,candidate2@example.com"
-                  className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 placeholder:opacity-100 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
               </label>
 

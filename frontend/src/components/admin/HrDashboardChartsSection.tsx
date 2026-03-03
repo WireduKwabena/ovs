@@ -76,11 +76,11 @@ const HrDashboardChartsSection: React.FC<HrDashboardChartsSectionProps> = ({
                 Percent
               </button>
             </div>
-            <p className="text-xs text-slate-700">Top 8 campaigns by recency</p>
+            <p className="text-xs text-slate-800">Top 8 campaigns by recency</p>
           </div>
         </div>
         {throughputDisplayData.length === 0 ? (
-          <div className="py-10 text-center text-slate-700">No throughput data yet.</div>
+          <div className="py-10 text-center text-slate-800">No throughput data yet.</div>
         ) : (
           <div className="h-80 mt-4">
             <ResponsiveContainer width="100%" height="100%">
@@ -124,7 +124,7 @@ const HrDashboardChartsSection: React.FC<HrDashboardChartsSectionProps> = ({
       <div className="rounded-xl border border-slate-200 bg-white p-5">
         <h2 className="text-lg font-semibold">Pipeline Mix</h2>
         {pipelineMixDisplayData.length === 0 ? (
-          <div className="py-10 text-center text-slate-700">No pipeline data yet.</div>
+          <div className="py-10 text-center text-slate-800">No pipeline data yet.</div>
         ) : (
           <div className="h-60 mt-3">
             <ResponsiveContainer width="100%" height="100%">
@@ -159,9 +159,9 @@ const HrDashboardChartsSection: React.FC<HrDashboardChartsSectionProps> = ({
           </div>
         )}
 
-        <h3 className="text-sm font-semibold mt-4 text-slate-700">Decision Mix</h3>
+        <h3 className="text-sm font-semibold mt-4 text-slate-800">Decision Mix</h3>
         {decisionMixDisplayData.length === 0 ? (
-          <p className="text-xs text-slate-700 mt-2">No decisions recorded yet.</p>
+          <p className="text-xs text-slate-800 mt-2">No decisions recorded yet.</p>
         ) : (
           <div className="h-44 mt-2">
             <ResponsiveContainer width="100%" height="100%">

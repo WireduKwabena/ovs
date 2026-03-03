@@ -178,7 +178,7 @@ export const CaseReview: React.FC = () => {
             <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
               Case Review: {application.case_id}
             </h1>
-            <p className="mt-1 text-slate-700">
+            <p className="mt-1 text-slate-800">
               Submitted: {formatDate(application.created_at)}
             </p>
           </div>
@@ -196,25 +196,25 @@ export const CaseReview: React.FC = () => {
               </h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <p className="text-sm text-slate-700">Full Name</p>
+                  <p className="text-sm text-slate-800">Full Name</p>
                   <p className="font-semibold text-gray-900">
                     {application.applicant?.full_name || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-slate-700">Email</p>
+                  <p className="text-sm text-slate-800">Email</p>
                   <p className="font-semibold text-gray-900">
                     {application.applicant?.email || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-slate-700">Phone</p>
+                  <p className="text-sm text-slate-800">Phone</p>
                   <p className="font-semibold text-gray-900">
                     {application.applicant?.phone_number || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-slate-700">Date of Birth</p>
+                  <p className="text-sm text-slate-800">Date of Birth</p>
                   <p className="font-semibold text-gray-900">
                     {application.applicant?.date_of_birth
                       ? formatDate(application.applicant.date_of_birth)
@@ -222,13 +222,13 @@ export const CaseReview: React.FC = () => {
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-slate-700">Application Type</p>
+                  <p className="text-sm text-slate-800">Application Type</p>
                   <p className="font-semibold text-gray-900 capitalize">
                     {application.application_type.replace("_", " ")}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-slate-700">Priority</p>
+                  <p className="text-sm text-slate-800">Priority</p>
                   <p className="font-semibold text-gray-900 capitalize">
                     {application.priority}
                   </p>
@@ -259,15 +259,15 @@ export const CaseReview: React.FC = () => {
                       className="flex flex-col gap-3 rounded-lg border border-slate-200 p-4 transition-colors hover:border-indigo-300 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="flex items-center gap-3">
-                        <FileText className="w-8 h-8 text-slate-700" />
+                        <FileText className="w-8 h-8 text-slate-800" />
                         <div>
                           <p className="font-semibold text-gray-900 capitalize">
                             {doc.document_type.replace("_", " ")}
                           </p>
-                          <p className="text-sm text-slate-700">
+                          <p className="text-sm text-slate-800">
                             {doc.file_name} • {formatFileSize(doc.file_size)}
                           </p>
-                          <p className="mt-1 text-xs text-slate-700">
+                          <p className="mt-1 text-xs text-slate-800">
                             Uploaded: {formatDate(doc.upload_date)}
                           </p>
                         </div>
@@ -275,7 +275,7 @@ export const CaseReview: React.FC = () => {
                       <div className="text-left sm:text-right">
                         <StatusBadge status={doc.verification_status} />
                         {doc.ai_confidence_score && (
-                          <p className="mt-2 text-sm text-slate-700">
+                          <p className="mt-2 text-sm text-slate-800">
                             Confidence:{" "}
                             <span className="font-semibold">
                               {doc.ai_confidence_score.toFixed(1)}%
@@ -290,8 +290,8 @@ export const CaseReview: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <div className="py-8 text-center text-slate-700">
-                  <FileText className="w-12 h-12 text-slate-700 mx-auto mb-3" />
+                <div className="py-8 text-center text-slate-800">
+                  <FileText className="w-12 h-12 text-slate-800 mx-auto mb-3" />
                   <p>No documents uploaded</p>
                 </div>
               )}
@@ -330,7 +330,7 @@ export const CaseReview: React.FC = () => {
                           style={{ width: `${application.consistency_score}%` }}
                         />
                       </div>
-                      <p className="mt-1 text-xs text-slate-700">
+                      <p className="mt-1 text-xs text-slate-800">
                         Measures consistency across all submitted documents
                       </p>
                     </div>
@@ -356,7 +356,7 @@ export const CaseReview: React.FC = () => {
                           style={{ width: `${application.fraud_risk_score}%` }}
                         />
                       </div>
-                      <p className="mt-1 text-xs text-slate-700">
+                      <p className="mt-1 text-xs text-slate-800">
                         Probability of fraudulent information (lower is better)
                       </p>
                     </div>
@@ -407,7 +407,7 @@ export const CaseReview: React.FC = () => {
                 className="h-32 w-full resize-none rounded-lg border border-slate-700 p-3 text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 placeholder="Add your review notes, reasons for decision, or additional comments..."
               />
-              <p className="mt-2 text-xs text-slate-700">
+              <p className="mt-2 text-xs text-slate-800">
                 {notes.length === 0 && decision === "reject"
                   ? "Note: Rejection reason is required"
                   : `${notes.length} characters`}
@@ -474,35 +474,35 @@ export const CaseReview: React.FC = () => {
               <h3 className="font-semibold mb-4 text-gray-900">Case Summary</h3>
               <div className="space-y-3 text-sm">
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-slate-700">Case ID:</span>
+                  <span className="text-slate-800">Case ID:</span>
                   <span className="font-medium text-gray-900 text-right break-all">
                     {application.case_id}
                   </span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-slate-700">Status:</span>
+                  <span className="text-slate-800">Status:</span>
                   <StatusBadge status={application.status} />
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-slate-700">Priority:</span>
+                  <span className="text-slate-800">Priority:</span>
                   <span className="font-medium text-gray-900 capitalize text-right">
                     {application.priority}
                   </span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-slate-700">Documents:</span>
+                  <span className="text-slate-800">Documents:</span>
                   <span className="font-medium text-gray-900 text-right">
                     {application.documents?.length || 0}
                   </span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-slate-700">Created:</span>
+                  <span className="text-slate-800">Created:</span>
                   <span className="font-medium text-gray-900 text-right">
                     {formatDate(application.created_at)}
                   </span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-slate-700">Updated:</span>
+                  <span className="text-slate-800">Updated:</span>
                   <span className="font-medium text-gray-900 text-right">
                     {formatDate(application.updated_at)}
                   </span>
@@ -531,7 +531,7 @@ export const CaseReview: React.FC = () => {
                 >
                   {application.rubric_evaluation.ai_recommendation}
                 </p>
-                <p className="mt-2 text-sm text-slate-700">
+                <p className="mt-2 text-sm text-slate-800">
                   Based on rubric evaluation and AI analysis
                 </p>
               </div>

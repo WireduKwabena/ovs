@@ -269,6 +269,7 @@ const AdminCasesPage: React.FC = () => {
                   id="application-type-filter"
                   value={typeFilterInput}
                   placeholder="employment, education, credential..."
+                  className="text-slate-900 placeholder:text-slate-500 placeholder:opacity-100"
                   onChange={(event) => setTypeFilterInput(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') {

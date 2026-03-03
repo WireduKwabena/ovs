@@ -172,7 +172,7 @@ export const Analytics: React.FC = () => {
         <div className="max-w-xl rounded-xl border border-red-200 bg-white p-6 text-center shadow-sm">
           <Activity className="w-16 h-16 text-red-400 mx-auto mb-4" />
           <p className="text-red-700 font-semibold">Analytics unavailable</p>
-          <p className="mt-2 text-sm text-slate-700">{error}</p>
+          <p className="mt-2 text-sm text-slate-800">{error}</p>
           <button
             type="button"
             onClick={() => void loadAnalytics()}
@@ -190,8 +190,8 @@ export const Analytics: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex justify-center items-center">
         <div className="text-center">
-          <Activity className="w-16 h-16 text-slate-700 mx-auto mb-4" />
-          <p className="text-slate-700">No analytics data available</p>
+          <Activity className="w-16 h-16 text-slate-800 mx-auto mb-4" />
+          <p className="text-slate-800">No analytics data available</p>
         </div>
       </div>
     );
@@ -203,7 +203,7 @@ export const Analytics: React.FC = () => {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
-            <p className="mt-1 text-slate-700">Comprehensive system insights and metrics</p>
+            <p className="mt-1 text-slate-800">Comprehensive system insights and metrics</p>
           </div>
 
           <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3 lg:w-auto">
@@ -232,7 +232,7 @@ export const Analytics: React.FC = () => {
                 Live
               </span>
             </div>
-            <p className="text-sm text-slate-700">Total Applications</p>
+            <p className="text-sm text-slate-800">Total Applications</p>
             <p className="text-3xl font-bold text-gray-900 mt-1">
               {data.overview.totalApplications.toLocaleString()}
             </p>
@@ -246,7 +246,7 @@ export const Analytics: React.FC = () => {
                 Computed
               </span>
             </div>
-            <p className="text-sm text-slate-700">Approval Rate</p>
+            <p className="text-sm text-slate-800">Approval Rate</p>
             <p className="text-3xl font-bold text-gray-900 mt-1">
               {data.overview.approvalRate.toFixed(1)}%
             </p>
@@ -255,12 +255,12 @@ export const Analytics: React.FC = () => {
           <div className="bg-white rounded-lg shadow-sm p-6">
             <div className="flex items-center justify-between mb-2">
               <Clock className="w-8 h-8 text-amber-700" />
-              <span className="flex items-center text-sm font-medium text-slate-700">
+              <span className="flex items-center text-sm font-medium text-slate-800">
                 <TrendingDown className="w-4 h-4 mr-1" />
                 N/A
               </span>
             </div>
-            <p className="text-sm text-slate-700">Avg. Processing Time</p>
+            <p className="text-sm text-slate-800">Avg. Processing Time</p>
             <p className="text-3xl font-bold text-gray-900 mt-1">
               {data.overview.avgProcessingTime.toFixed(1)} days
             </p>
@@ -274,7 +274,7 @@ export const Analytics: React.FC = () => {
                 Live
               </span>
             </div>
-            <p className="text-sm text-slate-700">Active Users</p>
+            <p className="text-sm text-slate-800">Active Users</p>
             <p className="text-3xl font-bold text-gray-900 mt-1">
               {data.overview.activeUsers.toLocaleString()}
             </p>
@@ -326,25 +326,25 @@ export const Analytics: React.FC = () => {
             <div className="text-center p-4 bg-blue-50 rounded-lg">
               <Clock className="w-8 h-8 text-blue-600 mx-auto mb-2" />
               <p className="text-2xl font-bold text-blue-600">{data.performanceMetrics.avgReviewTime.toFixed(1)} days</p>
-              <p className="mt-1 text-sm text-slate-700">Avg. Review Time</p>
+              <p className="mt-1 text-sm text-slate-800">Avg. Review Time</p>
             </div>
 
             <div className="text-center p-4 bg-green-50 rounded-lg">
               <FileText className="w-8 h-8 text-green-600 mx-auto mb-2" />
               <p className="text-2xl font-bold text-green-600">{data.performanceMetrics.avgDocumentsPerApp.toFixed(1)}</p>
-              <p className="mt-1 text-sm text-slate-700">Docs per Application</p>
+              <p className="mt-1 text-sm text-slate-800">Docs per Application</p>
             </div>
 
             <div className="text-center p-4 bg-purple-50 rounded-lg">
               <Activity className="w-8 h-8 text-purple-600 mx-auto mb-2" />
               <p className="text-2xl font-bold text-purple-600">{data.performanceMetrics.aiAccuracy.toFixed(1)}%</p>
-              <p className="mt-1 text-sm text-slate-700">Rubric Avg Score</p>
+              <p className="mt-1 text-sm text-slate-800">Rubric Avg Score</p>
             </div>
 
             <div className="text-center p-4 bg-red-50 rounded-lg">
               <XCircle className="w-8 h-8 text-red-600 mx-auto mb-2" />
               <p className="text-2xl font-bold text-red-600">{data.performanceMetrics.fraudDetectionRate.toFixed(1)}%</p>
-              <p className="mt-1 text-sm text-slate-700">Fail/Review Ratio</p>
+              <p className="mt-1 text-sm text-slate-800">Fail/Review Ratio</p>
             </div>
           </div>
         </div>
