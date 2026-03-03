@@ -978,7 +978,7 @@ const VideoCallsPage: React.FC = () => {
                   max={120}
                   value={form.reminderBeforeMinutes}
                   onChange={(event) => setForm((prev) => ({ ...prev, reminderBeforeMinutes: event.target.value }))}
-                  className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 placeholder:opacity-100 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
               </label>
 
@@ -1577,7 +1577,7 @@ const VideoCallsPage: React.FC = () => {
                 value={seriesConfirmationText}
                 onChange={(event) => setSeriesConfirmationText(event.target.value)}
                 placeholder={SERIES_CANCEL_ALL_PHRASE}
-                className="w-full rounded-md border border-slate-700 px-2 py-1.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="w-full rounded-md border border-slate-700 px-2 py-1.5 text-sm text-slate-900 placeholder:text-slate-500 placeholder:opacity-100 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               />
             </div>
           )}
@@ -1621,5 +1621,3 @@ const VideoCallsPage: React.FC = () => {
 };
 
 export default VideoCallsPage;
-
-

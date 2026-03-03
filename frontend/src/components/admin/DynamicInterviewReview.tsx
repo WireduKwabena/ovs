@@ -1,6 +1,7 @@
 // frontend/src/components/admin/DynamicInterviewReview.tsx
 import { useEffect, useState, useCallback } from 'react';
 import { MessageCircle, TrendingUp, AlertTriangle } from 'lucide-react';
+import api from '@/services/api';
 
 // Type Definitions
 interface Inconsistency {
@@ -39,19 +40,59 @@ interface DynamicInterviewReviewProps {
 
 export function DynamicInterviewReview({ sessionId }: DynamicInterviewReviewProps) {
   const [session, setSession] = useState<Session | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchSession = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    const endpoint = `/interviews/dynamic/${sessionId}/`;
     try {
-      const response = await fetch(`/api/interviews/dynamic/${sessionId}/`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      const token = localStorage.getItem('token');
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await fetch(`/api${endpoint}`, {
+        headers,
+        credentials: 'include',
       });
+
+      if (!response.ok) {
+        const fallbackMessage = `Unable to load interview analysis (${response.status}).`;
+        let apiMessage = fallbackMessage;
+        try {
+          const parsed = await response.json();
+          apiMessage = parsed?.message || parsed?.detail || fallbackMessage;
+        } catch {
+          // Ignore JSON parse fallback.
+        }
+        throw new Error(apiMessage);
+      }
+
       const data = await response.json();
+      if (!data || !Array.isArray(data.exchanges)) {
+        throw new Error('Interview session payload is invalid.');
+      }
+
       setSession(data);
-    } catch (error) {
-      console.error('Error fetching session:', error);
+    } catch (fetchError) {
+      try {
+        // Secondary fallback through shared API client for consistent auth handling.
+        const response = await api.get<Session>(endpoint);
+        const data = response.data;
+        if (!data || !Array.isArray(data.exchanges)) {
+          throw new Error('Interview session payload is invalid.');
+        }
+        setSession(data);
+      } catch (apiError) {
+        const message =
+          apiError instanceof Error
+            ? apiError.message
+            : fetchError instanceof Error
+              ? fetchError.message
+              : 'Failed to load session data. Please try again later.';
+        setSession(null);
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -62,14 +103,26 @@ export function DynamicInterviewReview({ sessionId }: DynamicInterviewReviewProp
   }, [fetchSession]);
 
   if (loading) {
-    return <div className="flex items-center justify-center h-96">Loading...</div>;
+    return (
+      <div className="flex h-96 items-center justify-center text-base font-medium text-slate-800">
+        Loading interview analysis...
+      </div>
+    );
   }
 
-  if (!session) {
+  if (!session || error) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-red-500">
-          Failed to load session data. Please try again later.
+      <div className="flex h-96 items-center justify-center px-4">
+        <div className="w-full max-w-xl rounded-xl border border-red-200 bg-red-50 p-5 text-center">
+          <p className="text-sm font-semibold text-red-700">Unable to load interview session</p>
+          <p className="mt-2 text-sm text-red-700">{error || 'Please try again later.'}</p>
+          <button
+            type="button"
+            onClick={() => void fetchSession()}
+            className="mt-4 rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -94,35 +147,35 @@ export function DynamicInterviewReview({ sessionId }: DynamicInterviewReviewProp
       {/* Score Cards */}
         <div className="mb-8 grid gap-4 sm:grid-cols-2 sm:gap-6 xl:grid-cols-4">
           <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="text-sm text-slate-700 mb-2">Overall Score</div>
+          <div className="text-sm text-slate-800 mb-2">Overall Score</div>
           <div className={`text-4xl font-bold ${getScoreColor(session.overall_score)}`}>
             {session.overall_score.toFixed(1)}
           </div>
-          <div className="text-xs text-slate-700 mt-1">out of 100</div>
+          <div className="text-xs text-slate-800 mt-1">out of 100</div>
         </div>
         
         <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="text-sm text-slate-700 mb-2">Confidence</div>
+          <div className="text-sm text-slate-800 mb-2">Confidence</div>
           <div className={`text-4xl font-bold ${getScoreColor(session.confidence_score)}`}>
             {session.confidence_score.toFixed(1)}%
           </div>
-          <div className="text-xs text-slate-700 mt-1">speech clarity</div>
+          <div className="text-xs text-slate-800 mt-1">speech clarity</div>
         </div>
         
         <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="text-sm text-slate-700 mb-2">Consistency</div>
+          <div className="text-sm text-slate-800 mb-2">Consistency</div>
           <div className={`text-4xl font-bold ${getScoreColor(session.consistency_score)}`}>
             {session.consistency_score.toFixed(1)}%
           </div>
-          <div className="text-xs text-slate-700 mt-1">across responses</div>
+          <div className="text-xs text-slate-800 mt-1">across responses</div>
         </div>
         
         <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="text-sm text-slate-700 mb-2">Completeness</div>
+          <div className="text-sm text-slate-800 mb-2">Completeness</div>
           <div className={`text-4xl font-bold ${getScoreColor(session.completeness_score)}`}>
             {session.completeness_score.toFixed(1)}%
           </div>
-          <div className="text-xs text-slate-700 mt-1">information provided</div>
+          <div className="text-xs text-slate-800 mt-1">information provided</div>
         </div>
       </div>
 
@@ -163,7 +216,7 @@ export function DynamicInterviewReview({ sessionId }: DynamicInterviewReviewProp
                     {index + 1}
                   </div>
                   <div>
-                    <div className="text-sm text-slate-700 uppercase tracking-wide font-semibold">
+                    <div className="text-sm text-slate-800 uppercase tracking-wide font-semibold">
                       AI Generated • {exchange.question_intent}
                     </div>
                     <h3 className="text-lg font-semibold text-gray-900 mt-1">
@@ -175,19 +228,19 @@ export function DynamicInterviewReview({ sessionId }: DynamicInterviewReviewProp
                   <div className={`text-2xl font-bold ${getScoreColor(exchange.response_quality_score)}`}>
                     {exchange.response_quality_score.toFixed(1)}
                   </div>
-                  <div className="text-xs text-slate-700">Quality</div>
+                  <div className="text-xs text-slate-800">Quality</div>
                 </div>
               </div>
                
               <div className="bg-slate-100 rounded-lg p-4 mb-3">
                 <div className="text-sm font-medium text-slate-800 mb-2">Response:</div>
-                <p className="text-slate-700 italic">&quot;{exchange.transcript}&quot;</p>
+                <p className="text-slate-800 italic">&quot;{exchange.transcript}&quot;</p>
               </div>
                
               <div className="grid gap-3 text-sm sm:grid-cols-3">
                 <div>
                   <span className="font-medium text-slate-800">Sentiment:</span>
-                  <span className={`ml-2 ${exchange.sentiment === 'confident' ? 'text-green-700' : exchange.sentiment === 'nervous' ? 'text-amber-700' : 'text-slate-700'}`}>
+                  <span className={`ml-2 ${exchange.sentiment === 'confident' ? 'text-green-700' : exchange.sentiment === 'nervous' ? 'text-amber-700' : 'text-slate-800'}`}>
                     {exchange.sentiment}
                   </span>
                 </div>
