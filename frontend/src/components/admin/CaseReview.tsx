@@ -152,32 +152,33 @@ export const CaseReview: React.FC = () => {
 
   const getScoreColor = (score: number): string => {
     if (score >= 85) return "text-green-600";
-    if (score >= 70) return "text-yellow-600";
+    if (score >= 70) return "text-amber-700";
     return "text-red-600";
   };
 
   const getScoreBg = (score: number): string => {
     if (score >= 85) return "bg-green-500";
-    if (score >= 70) return "bg-yellow-500";
+    if (score >= 70) return "bg-amber-600";
     return "bg-red-500";
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
         {/* Header */}
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
           <Button
             onClick={() => navigate("/admin/cases")}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            variant="ghost"
+            className="rounded-lg p-2 text-slate-800 transition-colors hover:bg-slate-100"
           >
-            <ArrowLeft className="w-6 h-6 text-gray-700" />
+            <ArrowLeft className="h-6 w-6 text-slate-800" />
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
               Case Review: {application.case_id}
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="mt-1 text-slate-700">
               Submitted: {formatDate(application.created_at)}
             </p>
           </div>
@@ -193,27 +194,27 @@ export const CaseReview: React.FC = () => {
                 <FileText className="w-5 h-5 text-indigo-600" />
                 Applicant Information
               </h2>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <p className="text-sm text-gray-600">Full Name</p>
+                  <p className="text-sm text-slate-700">Full Name</p>
                   <p className="font-semibold text-gray-900">
                     {application.applicant?.full_name || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Email</p>
+                  <p className="text-sm text-slate-700">Email</p>
                   <p className="font-semibold text-gray-900">
                     {application.applicant?.email || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Phone</p>
+                  <p className="text-sm text-slate-700">Phone</p>
                   <p className="font-semibold text-gray-900">
                     {application.applicant?.phone_number || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Date of Birth</p>
+                  <p className="text-sm text-slate-700">Date of Birth</p>
                   <p className="font-semibold text-gray-900">
                     {application.applicant?.date_of_birth
                       ? formatDate(application.applicant.date_of_birth)
@@ -221,13 +222,13 @@ export const CaseReview: React.FC = () => {
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Application Type</p>
+                  <p className="text-sm text-slate-700">Application Type</p>
                   <p className="font-semibold text-gray-900 capitalize">
                     {application.application_type.replace("_", " ")}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Priority</p>
+                  <p className="text-sm text-slate-700">Priority</p>
                   <p className="font-semibold text-gray-900 capitalize">
                     {application.priority}
                   </p>
@@ -255,26 +256,26 @@ export const CaseReview: React.FC = () => {
                   {application.documents.map((doc) => (
                     <div
                       key={doc.id}
-                      className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-indigo-300 transition-colors"
+                      className="flex flex-col gap-3 rounded-lg border border-slate-200 p-4 transition-colors hover:border-indigo-300 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="flex items-center gap-3">
-                        <FileText className="w-8 h-8 text-gray-400" />
+                        <FileText className="w-8 h-8 text-slate-700" />
                         <div>
                           <p className="font-semibold text-gray-900 capitalize">
                             {doc.document_type.replace("_", " ")}
                           </p>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-slate-700">
                             {doc.file_name} • {formatFileSize(doc.file_size)}
                           </p>
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="mt-1 text-xs text-slate-700">
                             Uploaded: {formatDate(doc.upload_date)}
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-left sm:text-right">
                         <StatusBadge status={doc.verification_status} />
                         {doc.ai_confidence_score && (
-                          <p className="text-sm text-gray-600 mt-2">
+                          <p className="mt-2 text-sm text-slate-700">
                             Confidence:{" "}
                             <span className="font-semibold">
                               {doc.ai_confidence_score.toFixed(1)}%
@@ -289,8 +290,8 @@ export const CaseReview: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <div className="py-8 text-center text-slate-700">
+                  <FileText className="w-12 h-12 text-slate-700 mx-auto mb-3" />
                   <p>No documents uploaded</p>
                 </div>
               )}
@@ -310,7 +311,7 @@ export const CaseReview: React.FC = () => {
                   {application.consistency_score !== undefined && (
                     <div>
                       <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium text-gray-700">
+                        <span className="text-sm font-medium text-slate-800">
                           Consistency Score
                         </span>
                         <span
@@ -321,7 +322,7 @@ export const CaseReview: React.FC = () => {
                           {application.consistency_score.toFixed(1)}%
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3">
+                      <div className="h-3 w-full rounded-full bg-slate-200">
                         <div
                           className={`h-3 rounded-full transition-all ${getScoreBg(
                             application.consistency_score
@@ -329,7 +330,7 @@ export const CaseReview: React.FC = () => {
                           style={{ width: `${application.consistency_score}%` }}
                         />
                       </div>
-                      <p className="text-xs text-gray-600 mt-1">
+                      <p className="mt-1 text-xs text-slate-700">
                         Measures consistency across all submitted documents
                       </p>
                     </div>
@@ -338,7 +339,7 @@ export const CaseReview: React.FC = () => {
                   {application.fraud_risk_score !== undefined && (
                     <div>
                       <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium text-gray-700">
+                        <span className="text-sm font-medium text-slate-800">
                           Fraud Risk Score
                         </span>
                         <span
@@ -349,13 +350,13 @@ export const CaseReview: React.FC = () => {
                           {application.fraud_risk_score.toFixed(1)}%
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3">
+                      <div className="h-3 w-full rounded-full bg-slate-200">
                         <div
                           className="bg-red-500 h-3 rounded-full transition-all"
                           style={{ width: `${application.fraud_risk_score}%` }}
                         />
                       </div>
-                      <p className="text-xs text-gray-600 mt-1">
+                      <p className="mt-1 text-xs text-slate-700">
                         Probability of fraudulent information (lower is better)
                       </p>
                     </div>
@@ -365,7 +366,7 @@ export const CaseReview: React.FC = () => {
                     <div className="mt-4 p-4 bg-indigo-50 rounded-lg">
                       <div className="flex justify-between items-center">
                         <div>
-                          <p className="text-sm font-medium text-gray-700">
+                          <p className="text-sm font-medium text-slate-800">
                             Rubric Evaluation
                           </p>
                         </div>
@@ -403,10 +404,10 @@ export const CaseReview: React.FC = () => {
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full h-32 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                className="h-32 w-full resize-none rounded-lg border border-slate-700 p-3 text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 placeholder="Add your review notes, reasons for decision, or additional comments..."
               />
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="mt-2 text-xs text-slate-700">
                 {notes.length === 0 && decision === "reject"
                   ? "Note: Rejection reason is required"
                   : `${notes.length} characters`}
@@ -472,37 +473,37 @@ export const CaseReview: React.FC = () => {
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h3 className="font-semibold mb-4 text-gray-900">Case Summary</h3>
               <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Case ID:</span>
-                  <span className="font-medium text-gray-900">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-slate-700">Case ID:</span>
+                  <span className="font-medium text-gray-900 text-right break-all">
                     {application.case_id}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Status:</span>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-slate-700">Status:</span>
                   <StatusBadge status={application.status} />
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Priority:</span>
-                  <span className="font-medium text-gray-900 capitalize">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-slate-700">Priority:</span>
+                  <span className="font-medium text-gray-900 capitalize text-right">
                     {application.priority}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Documents:</span>
-                  <span className="font-medium text-gray-900">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-slate-700">Documents:</span>
+                  <span className="font-medium text-gray-900 text-right">
                     {application.documents?.length || 0}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Created:</span>
-                  <span className="font-medium text-gray-900">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-slate-700">Created:</span>
+                  <span className="font-medium text-gray-900 text-right">
                     {formatDate(application.created_at)}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Updated:</span>
-                  <span className="font-medium text-gray-900">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-slate-700">Updated:</span>
+                  <span className="font-medium text-gray-900 text-right">
                     {formatDate(application.updated_at)}
                   </span>
                 </div>
@@ -530,7 +531,7 @@ export const CaseReview: React.FC = () => {
                 >
                   {application.rubric_evaluation.ai_recommendation}
                 </p>
-                <p className="text-sm text-gray-600 mt-2">
+                <p className="mt-2 text-sm text-slate-700">
                   Based on rubric evaluation and AI analysis
                 </p>
               </div>

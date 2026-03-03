@@ -37,7 +37,7 @@ const riskPillClass = (riskLevel: string): string => {
   if (normalized === "low") return "bg-emerald-100 text-emerald-700";
   if (normalized === "medium") return "bg-amber-100 text-amber-700";
   if (normalized === "high") return "bg-rose-100 text-rose-700";
-  return "bg-slate-100 text-slate-700";
+  return "bg-slate-200 text-slate-800";
 };
 
 const AiMonitorPage: React.FC = () => {
@@ -199,7 +199,7 @@ const AiMonitorPage: React.FC = () => {
             {Array.isArray(result.top_k) && result.top_k.length > 0 ? (
               <div className="mt-3 overflow-x-auto">
                 <table className="min-w-full text-xs">
-                  <thead className="bg-slate-50 text-left uppercase text-slate-500">
+                  <thead className="bg-slate-50 text-left uppercase text-slate-700">
                     <tr>
                       <th className="px-2 py-1">Label</th>
                       <th className="px-2 py-1">Score</th>
@@ -226,7 +226,7 @@ const AiMonitorPage: React.FC = () => {
     <main className="mx-auto max-w-7xl space-y-6 px-4 py-8">
       <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h1 className="text-3xl font-black tracking-tight text-slate-900">AI Monitor</h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-slate-700">
           Runtime model health, document type classification, and advisory social profile checks.
         </p>
       </header>
@@ -260,24 +260,24 @@ const AiMonitorPage: React.FC = () => {
         {health ? (
           <div className="mt-4 grid gap-3 md:grid-cols-3">
             <article className="rounded-xl border border-slate-200 p-4">
-              <p className="text-xs uppercase text-slate-500">Model</p>
+              <p className="text-xs uppercase text-slate-700">Model</p>
               <p className="mt-1 text-sm font-semibold text-slate-900">{health.model_name}</p>
-              <p className="mt-1 text-xs text-slate-500">Updated {formatDate(health.timestamp)}</p>
+              <p className="mt-1 text-xs text-slate-700">Updated {formatDate(health.timestamp)}</p>
             </article>
             <article className="rounded-xl border border-slate-200 p-4">
-              <p className="text-xs uppercase text-slate-500">Monitor</p>
+              <p className="text-xs uppercase text-slate-700">Monitor</p>
               <p className="mt-1 text-sm font-semibold text-slate-900">
                 {health.monitor.enabled ? "Enabled" : "Disabled"}
               </p>
-              <p className="mt-1 text-xs text-slate-600">
+              <p className="mt-1 text-xs text-slate-700">
                 backend: {health.monitor.backend || "-"} | redis:{" "}
                 {health.monitor.redis_configured ? "configured" : "not configured"}
               </p>
             </article>
             <article className="rounded-xl border border-slate-200 p-4">
-              <p className="text-xs uppercase text-slate-500">Status</p>
+              <p className="text-xs uppercase text-slate-700">Status</p>
               <p className="mt-1 text-sm font-semibold text-slate-900">{health.status}</p>
-              <p className="mt-1 text-xs text-slate-600">use_redis: {health.monitor.use_redis ? "true" : "false"}</p>
+              <p className="mt-1 text-xs text-slate-700">use_redis: {health.monitor.use_redis ? "true" : "false"}</p>
             </article>
           </div>
         ) : null}
@@ -291,7 +291,7 @@ const AiMonitorPage: React.FC = () => {
 
         <form className="mt-4 grid gap-3 md:grid-cols-3" onSubmit={handleClassifyDocument}>
           <div>
-            <label htmlFor="ai-monitor-file" className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+            <label htmlFor="ai-monitor-file" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
               File
             </label>
             <Input
@@ -305,7 +305,7 @@ const AiMonitorPage: React.FC = () => {
           <div>
             <label
               htmlFor="ai-monitor-document-type"
-              className="mb-1 block text-xs font-semibold uppercase text-slate-500"
+              className="mb-1 block text-xs font-semibold uppercase text-slate-700"
             >
               Declared Document Type
             </label>
@@ -318,7 +318,7 @@ const AiMonitorPage: React.FC = () => {
             />
           </div>
           <div>
-            <label htmlFor="ai-monitor-top-k" className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+            <label htmlFor="ai-monitor-top-k" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
               Top-K
             </label>
             <Select value={topK} onValueChange={setTopK}>
@@ -363,7 +363,7 @@ const AiMonitorPage: React.FC = () => {
               ) : null}
               {Array.isArray(classification.document_type_alignment?.details) &&
               classification.document_type_alignment.details.length > 0 ? (
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-slate-600">
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-slate-700">
                   {classification.document_type_alignment.details.map((item, index) => (
                     <li key={`detail-${index}`}>
                       {item.model ? `${item.model}: ` : ""}
@@ -386,7 +386,7 @@ const AiMonitorPage: React.FC = () => {
         <form className="mt-4 space-y-3" onSubmit={handleSocialCheck}>
           <div className="grid gap-3 md:grid-cols-3">
             <div>
-              <label htmlFor="social-case-id" className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+              <label htmlFor="social-case-id" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
                 Case ID (Optional)
               </label>
               <Input
@@ -467,21 +467,21 @@ const AiMonitorPage: React.FC = () => {
           <div className="mt-4 space-y-3">
             <div className="grid gap-3 md:grid-cols-4">
               <article className="rounded-xl border border-slate-200 p-4">
-                <p className="text-xs uppercase text-slate-500">Case</p>
+                <p className="text-xs uppercase text-slate-700">Case</p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">{socialResult.case_id || "-"}</p>
               </article>
               <article className="rounded-xl border border-slate-200 p-4">
-                <p className="text-xs uppercase text-slate-500">Profiles Checked</p>
+                <p className="text-xs uppercase text-slate-700">Profiles Checked</p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">{socialResult.profiles_checked}</p>
               </article>
               <article className="rounded-xl border border-slate-200 p-4">
-                <p className="text-xs uppercase text-slate-500">Overall Score</p>
+                <p className="text-xs uppercase text-slate-700">Overall Score</p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">
                   {socialResult.overall_score.toFixed(2)}
                 </p>
               </article>
               <article className="rounded-xl border border-slate-200 p-4">
-                <p className="text-xs uppercase text-slate-500">Risk Level</p>
+                <p className="text-xs uppercase text-slate-700">Risk Level</p>
                 <span className={`mt-1 inline-flex rounded-full px-2 py-1 text-xs font-semibold ${riskPillClass(socialResult.risk_level)}`}>
                   {socialResult.risk_level}
                 </span>
@@ -491,7 +491,7 @@ const AiMonitorPage: React.FC = () => {
             {socialResult.profiles.length > 0 ? (
               <div className="overflow-x-auto rounded-xl border border-slate-200">
                 <table className="min-w-full text-sm">
-                  <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+                  <thead className="bg-slate-50 text-left text-xs uppercase text-slate-700">
                     <tr>
                       <th className="px-3 py-2">Platform</th>
                       <th className="px-3 py-2">Username</th>
@@ -524,7 +524,7 @@ const AiMonitorPage: React.FC = () => {
                 </table>
               </div>
             ) : (
-              <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+              <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
                 No profile-level records returned.
               </p>
             )}

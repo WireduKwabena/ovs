@@ -40,14 +40,14 @@ export const ProvisioningQrCard: React.FC<ProvisioningQrCardProps> = ({
 
         {showRawUri ? (
           <div className="w-full">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Provisioning URI</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-700">Provisioning URI</p>
             <div className="mt-1 max-h-28 overflow-auto break-all rounded border border-slate-200 bg-slate-50 px-2 py-2 font-mono text-[10px] text-slate-700">
               {uri}
             </div>
             <button
               type="button"
               onClick={handleCopy}
-              className="mt-2 inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+              className="mt-2 inline-flex items-center gap-2 rounded-md border border-slate-700 bg-white px-2 py-1 text-[11px] font-semibold text-slate-900 hover:bg-slate-100"
             >
               <Copy className="h-3.5 w-3.5" />
               Copy URI

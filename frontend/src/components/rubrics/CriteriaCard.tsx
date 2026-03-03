@@ -24,12 +24,12 @@ export function CriteriaCard({ criterion, onUpdate, onDelete }: CriteriaCardProp
       
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-700">Type</span>
+          <span className="text-sm font-medium text-slate-800">Type</span>
           <span className="text-sm text-gray-900">{criterion.criteria_type}</span>
         </div>
         
         <div className="flex items-center justify-between">
-          <label htmlFor={`criterion-weight-${criterion.id}`} className="text-sm font-medium text-gray-700">Weight</label>
+          <label htmlFor={`criterion-weight-${criterion.id}`} className="text-sm font-medium text-slate-800">Weight</label>
           <Input
             id={`criterion-weight-${criterion.id}`}
             type="number"
@@ -42,7 +42,7 @@ export function CriteriaCard({ criterion, onUpdate, onDelete }: CriteriaCardProp
         </div>
         
         <div className="flex items-center justify-between">
-          <label htmlFor={`criterion-min-score-${criterion.id}`} className="text-sm font-medium text-gray-700">Min Score</label>
+          <label htmlFor={`criterion-min-score-${criterion.id}`} className="text-sm font-medium text-slate-800">Min Score</label>
           <Input
             id={`criterion-min-score-${criterion.id}`}
             type="number"
@@ -61,16 +61,17 @@ export function CriteriaCard({ criterion, onUpdate, onDelete }: CriteriaCardProp
             onChange={(e) => onUpdate('is_mandatory', e.target.checked)}
             className="w-5 h-5 text-blue-600 rounded"
           />
-          <span className="text-sm font-medium text-gray-700">Mandatory</span>
+          <span className="text-sm font-medium text-slate-800">Mandatory</span>
         </label>
       </div>
       
       {criterion.scoring_rules && Object.keys(criterion.scoring_rules).length > 0 && (
         <div className="mt-4 p-3 bg-gray-50 rounded">
           <h5 className="text-sm font-semibold mb-2">Scoring Rules</h5>
-          <pre className="text-xs text-gray-600 overflow-auto max-h-32">{JSON.stringify(criterion.scoring_rules, null, 2)}</pre>
+          <pre className="text-xs text-slate-700 overflow-auto max-h-32">{JSON.stringify(criterion.scoring_rules, null, 2)}</pre>
         </div>
       )}
     </div>
   );
 }
+

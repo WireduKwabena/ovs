@@ -129,12 +129,12 @@ export const TwoFactorPage: React.FC = () => {
         </div>
 
         <h1 className="text-3xl font-black tracking-tight text-slate-900">Verify Your Login</h1>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-slate-700">
           {twoFactorMessage || "Enter the 6-digit code from your authenticator app."}
         </p>
         <BackupCodesAttentionBadge state={backupCodesAttentionState} />
         {twoFactorExpiresInSeconds ? (
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-slate-700">
             This challenge expires in about {Math.max(1, Math.floor(twoFactorExpiresInSeconds / 60))} minute(s).
           </p>
         ) : null}
@@ -175,7 +175,7 @@ export const TwoFactorPage: React.FC = () => {
             toggleToOtpText="Use authenticator code"
             otpPlaceholder="123456"
             backupPlaceholder="ABCD-EFGH"
-            inputClassName="h-12 rounded-xl border border-slate-300 bg-slate-50 px-4 text-center text-lg tracking-[0.3em]"
+            inputClassName="h-12 rounded-xl border border-slate-700 bg-slate-50 px-4 text-center text-lg tracking-[0.3em]"
           />
 
           {issuedBackupCodes?.length ? (
@@ -224,7 +224,7 @@ export const TwoFactorPage: React.FC = () => {
           <button
             type="button"
             onClick={handleBackToLogin}
-            className="font-semibold text-slate-600 hover:text-slate-900"
+            className="font-semibold text-slate-700 hover:text-slate-900"
           >
             Back to Login
           </button>
@@ -239,3 +239,4 @@ export const TwoFactorPage: React.FC = () => {
 };
 
 export default TwoFactorPage;
+

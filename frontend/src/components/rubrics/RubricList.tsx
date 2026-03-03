@@ -41,7 +41,7 @@ export function RubricList() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Vetting Rubrics</h1>
-          <p className="text-gray-600 mt-2">Manage evaluation criteria and scoring rules</p>
+          <p className="text-slate-700 mt-2">Manage evaluation criteria and scoring rules</p>
         </div>
         <Button
           onClick={() => navigate('/rubrics/new')}
@@ -54,11 +54,11 @@ export function RubricList() {
       
       {/* Filter */}
       <div className="mb-6">
-        <label className="text-sm font-medium text-gray-700 mr-4">Filter by Status:
+        <label className="text-sm font-medium text-slate-800 mr-4">Filter by Status:
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-2 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="active">Active</option>
           <option value="draft">Draft</option>
@@ -82,24 +82,24 @@ export function RubricList() {
                 </div>
               </div>
               
-              <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+              <p className="text-sm text-slate-700 mb-4 line-clamp-2">
                 {rubric.description || 'No description'}
               </p>
               
               <div className="space-y-2 mb-4">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Criteria:</span>
+                  <span className="text-slate-700">Criteria:</span>
                   <span className="font-medium">{rubric.criteria?.length || 0}</span>
                 </div>
                 
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Passing Score:</span>
+                  <span className="text-slate-700">Passing Score:</span>
                   <span className="font-medium">{rubric.passing_score}%</span>
                 </div>
                 
                 {rubric.department && (
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Department:</span>
+                    <span className="text-slate-700">Department:</span>
                     <span className="font-medium">{rubric.department}</span>
                   </div>
                 )}
@@ -128,9 +128,9 @@ export function RubricList() {
       
       {rubrics.length === 0 && (
         <div className="text-center py-12">
-          <FileText className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+          <FileText className="w-12 h-12 mx-auto mb-4 text-slate-700" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No rubrics found</h3>
-          <p className="text-gray-500 mb-6">Create your first rubric to get started</p>
+          <p className="text-slate-700 mb-6">Create your first rubric to get started</p>
           <Button onClick={() => navigate('/rubrics/new')} className="bg-blue-600 hover:bg-blue-700">
             <Plus className="w-4 h-4 mr-2" />
             Create Rubric

@@ -67,11 +67,11 @@ function SortableCriterion({ id, criterion, updateCriterion, removeCriterion, cr
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-gray-50 rounded-lg p-4 border-2 border-dashed border-gray-300"
+      className="bg-gray-50 rounded-lg p-4 border-2 border-dashed border-slate-700"
     >
       <div className="flex items-start gap-4">
         <div {...attributes} {...listeners} className="shrink-0 mt-1 cursor-grab active:cursor-grabbing">
-          <GripVertical className="w-5 h-5 text-gray-400" />
+          <GripVertical className="w-5 h-5 text-slate-700" />
         </div>
 
         <div className="flex-1">
@@ -81,13 +81,13 @@ function SortableCriterion({ id, criterion, updateCriterion, removeCriterion, cr
               value={criterion.name}
               onChange={(e) => updateCriterion(criterion.id, 'name', e.target.value)}
               placeholder="Criterion name"
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 px-3 py-2 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <p className="block text-xs font-medium text-gray-700 mb-1">Type</p>
+              <p className="block text-xs font-medium text-slate-800 mb-1">Type</p>
               <Select value={criterion.criteria_type} onValueChange={(value) => updateCriterion(criterion.id, 'criteria_type', value)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
@@ -103,7 +103,7 @@ function SortableCriterion({ id, criterion, updateCriterion, removeCriterion, cr
             </div>
 
             <div>
-              <label htmlFor={`criterion-weight-${criterion.id}`} className="block text-xs font-medium text-gray-700 mb-1">
+              <label htmlFor={`criterion-weight-${criterion.id}`} className="block text-xs font-medium text-slate-800 mb-1">
                 Weight (%)
               </label>
               <Input
@@ -113,14 +113,14 @@ function SortableCriterion({ id, criterion, updateCriterion, removeCriterion, cr
                 onChange={(e) => updateCriterion(criterion.id, 'weight', parseInt(e.target.value))}
                 min="0"
                 max="100"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <label htmlFor={`criterion-min-score-${criterion.id}`} className="block text-xs font-medium text-gray-700 mb-1">
+              <label htmlFor={`criterion-min-score-${criterion.id}`} className="block text-xs font-medium text-slate-800 mb-1">
                 Min Score (%)
               </label>
               <Input
@@ -130,7 +130,7 @@ function SortableCriterion({ id, criterion, updateCriterion, removeCriterion, cr
                 onChange={(e) => updateCriterion(criterion.id, 'minimum_score', parseInt(e.target.value))}
                 min="0"
                 max="100"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
@@ -142,7 +142,7 @@ function SortableCriterion({ id, criterion, updateCriterion, removeCriterion, cr
                 onChange={(e) => updateCriterion(criterion.id, 'is_mandatory', e.target.checked)}
                 className="w-5 h-5 text-blue-600 rounded"
               />
-              <label htmlFor={`criterion-mandatory-${criterion.id}`} className="text-sm font-medium text-gray-700">
+              <label htmlFor={`criterion-mandatory-${criterion.id}`} className="text-sm font-medium text-slate-800">
                 Mandatory
               </label>
             </div>
@@ -278,19 +278,19 @@ export function RubricBuilder() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div>
-              <label htmlFor="rubric-name" className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
+              <label htmlFor="rubric-name" className="block text-sm font-medium text-slate-800 mb-2">Name *</label>
               <input
                 id="rubric-name"
                 type="text"
                 value={rubric.name}
                 onChange={(e) => setRubric({ ...rubric, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter rubric name"
               />
             </div>
             
             <div>
-              <p className="block text-sm font-medium text-gray-700 mb-2">Type *</p>
+              <p className="block text-sm font-medium text-slate-800 mb-2">Type *</p>
               <Select value={rubric.rubric_type} onValueChange={(value) => setRubric({ ...rubric, rubric_type: value as ApplicationType })}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select type" />
@@ -309,7 +309,7 @@ export function RubricBuilder() {
             </div>
             
             <div>
-              <label htmlFor="rubric-passing-score" className="block text-sm font-medium text-gray-700 mb-2">Passing Score (%)*</label>
+              <label htmlFor="rubric-passing-score" className="block text-sm font-medium text-slate-800 mb-2">Passing Score (%)*</label>
               <Input
                 id="rubric-passing-score"
                 type="number"
@@ -317,18 +317,18 @@ export function RubricBuilder() {
                 onChange={(e) => setRubric({ ...rubric, passing_score: parseInt(e.target.value) })}
                 min="0"
                 max="100"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             
             <div>
-              <label htmlFor="rubric-department" className="block text-sm font-medium text-gray-700 mb-2">Department</label>
+              <label htmlFor="rubric-department" className="block text-sm font-medium text-slate-800 mb-2">Department</label>
               <input
                 id="rubric-department"
                 type="text"
                 value={rubric.department}
                 onChange={(e) => setRubric({ ...rubric, department: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Optional department"
               />
             </div>
@@ -340,17 +340,17 @@ export function RubricBuilder() {
               onChange={(e) => setRubric({ ...rubric, description: e.target.value })}
               placeholder="Rubric description (optional)"
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             
             <div>
-              <label htmlFor="rubric-position-level" className="block text-sm font-medium text-gray-700 mb-2">Position Level</label>
+              <label htmlFor="rubric-position-level" className="block text-sm font-medium text-slate-800 mb-2">Position Level</label>
               <input
                 id="rubric-position-level"
                 type="text"
                 value={rubric.position_level}
                 onChange={(e) => setRubric({ ...rubric, position_level: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Optional position level"
               />
             </div>
@@ -370,8 +370,8 @@ export function RubricBuilder() {
           </div>
           
           {rubric.criteria.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <FileText className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+            <div className="text-center py-12 text-slate-700">
+              <FileText className="w-12 h-12 mx-auto mb-4 text-slate-700" />
               <p className="text-lg">No criteria added yet</p>
               <p className="text-sm">Add criteria to define evaluation rules</p>
             </div>
@@ -405,7 +405,7 @@ export function RubricBuilder() {
         <div className="flex justify-end gap-4">
           <button
             onClick={() => navigate('/rubrics')}
-            className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold"
+            className="px-6 py-3 border-2 border-slate-700 text-slate-800 rounded-lg hover:bg-slate-100 font-semibold"
           >
             Cancel
           </button>
@@ -429,7 +429,7 @@ export function RubricBuilder() {
         </div>
         
         {errors.weights && (
-          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="mt-4 p-4 bg-amber-50 border border-yellow-200 rounded-lg">
             <div className="flex items-center gap-2 text-yellow-800">
               <AlertCircle className="w-5 h-5" />
               <span>{errors.weights}</span>
@@ -440,3 +440,4 @@ export function RubricBuilder() {
     </div>
   );
 }
+

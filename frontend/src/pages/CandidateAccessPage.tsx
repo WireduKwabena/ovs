@@ -170,7 +170,7 @@ const CandidateAccessPage: React.FC = () => {
     <main className="max-w-4xl mx-auto px-4 py-10 space-y-5">
       <section className="rounded-2xl bg-slate-900 text-white p-6">
         <h1 className="text-2xl font-semibold">Candidate Access Portal</h1>
-        <p className="text-slate-300 mt-1">
+        <p className="text-slate-700 mt-1">
           Use your tokenized URL to start vetting and return to view your results.
         </p>
       </section>
@@ -207,7 +207,7 @@ const CandidateAccessPage: React.FC = () => {
               value={tokenInput}
               onChange={(event) => setTokenInput(event.target.value)}
               placeholder="Paste access token from email/SMS URL"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
+              className="w-full rounded-lg border border-slate-700 px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
             />
             <button
               type="submit"
@@ -229,7 +229,7 @@ const CandidateAccessPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => void refreshContext()}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-sm"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-sm"
                 >
                   <RefreshCw className="w-4 h-4" />
                   Refresh
@@ -253,7 +253,7 @@ const CandidateAccessPage: React.FC = () => {
             <p className="text-sm text-slate-700">
               Enrollment Status: <strong>{context.enrollment_status}</strong>
             </p>
-            <p className="text-sm text-slate-500">Session expires: {formatDateTime(context.session_expires_at)}</p>
+            <p className="text-sm text-slate-700">Session expires: {formatDateTime(context.session_expires_at)}</p>
           </section>
 
           <section className="rounded-xl border border-slate-200 bg-white p-5">
@@ -289,7 +289,7 @@ const CandidateAccessPage: React.FC = () => {
                       <span className={`mt-1 inline-flex h-2.5 w-2.5 rounded-full ${bulletClass}`} />
                       <div>
                         <p className="text-sm font-medium text-slate-900">{step.title}</p>
-                        <p className="text-xs text-slate-600 mt-1">{step.description}</p>
+                        <p className="text-xs text-slate-700 mt-1">{step.description}</p>
                       </div>
                     </div>
                   </article>
@@ -348,7 +348,7 @@ const CandidateAccessPage: React.FC = () => {
         </>
       )}
 
-      <section className="text-sm text-slate-500">
+      <section className="text-sm text-slate-700">
         Received a legacy invitation link? Open{' '}
         <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">/invite/&lt;token&gt;</code>.
       </section>
@@ -357,3 +357,4 @@ const CandidateAccessPage: React.FC = () => {
 };
 
 export default CandidateAccessPage;
+

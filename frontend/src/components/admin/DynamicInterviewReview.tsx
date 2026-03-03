@@ -77,63 +77,63 @@ export function DynamicInterviewReview({ sessionId }: DynamicInterviewReviewProp
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-600';
-    if (score >= 60) return 'text-yellow-600';
+    if (score >= 60) return 'text-amber-700';
     return 'text-red-600';
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-8">
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:p-8">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl shadow-2xl p-8 mb-8">
-        <h1 className="text-4xl font-bold mb-2">AI Interview Analysis</h1>
-        <p className="text-blue-100 text-lg">
+      <div className="mb-8 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white shadow-2xl sm:p-8">
+        <h1 className="mb-2 text-3xl font-bold sm:text-4xl">AI Interview Analysis</h1>
+        <p className="text-base text-blue-100 sm:text-lg">
           Session: {session.session_id} • {session.exchanges.length} Questions Asked
         </p>
       </div>
 
       {/* Score Cards */}
-      <div className="grid md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="text-sm text-gray-600 mb-2">Overall Score</div>
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 sm:gap-6 xl:grid-cols-4">
+          <div className="bg-white rounded-xl shadow-lg p-6">
+          <div className="text-sm text-slate-700 mb-2">Overall Score</div>
           <div className={`text-4xl font-bold ${getScoreColor(session.overall_score)}`}>
             {session.overall_score.toFixed(1)}
           </div>
-          <div className="text-xs text-gray-500 mt-1">out of 100</div>
+          <div className="text-xs text-slate-700 mt-1">out of 100</div>
         </div>
         
         <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="text-sm text-gray-600 mb-2">Confidence</div>
+          <div className="text-sm text-slate-700 mb-2">Confidence</div>
           <div className={`text-4xl font-bold ${getScoreColor(session.confidence_score)}`}>
             {session.confidence_score.toFixed(1)}%
           </div>
-          <div className="text-xs text-gray-500 mt-1">speech clarity</div>
+          <div className="text-xs text-slate-700 mt-1">speech clarity</div>
         </div>
         
         <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="text-sm text-gray-600 mb-2">Consistency</div>
+          <div className="text-sm text-slate-700 mb-2">Consistency</div>
           <div className={`text-4xl font-bold ${getScoreColor(session.consistency_score)}`}>
             {session.consistency_score.toFixed(1)}%
           </div>
-          <div className="text-xs text-gray-500 mt-1">across responses</div>
+          <div className="text-xs text-slate-700 mt-1">across responses</div>
         </div>
         
         <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="text-sm text-gray-600 mb-2">Completeness</div>
+          <div className="text-sm text-slate-700 mb-2">Completeness</div>
           <div className={`text-4xl font-bold ${getScoreColor(session.completeness_score)}`}>
             {session.completeness_score.toFixed(1)}%
           </div>
-          <div className="text-xs text-gray-500 mt-1">information provided</div>
+          <div className="text-xs text-slate-700 mt-1">information provided</div>
         </div>
       </div>
 
       {/* AI Summary */}
-      <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
+      <div className="mb-8 rounded-2xl bg-white p-6 shadow-xl sm:p-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
           <TrendingUp className="text-blue-600" size={28} />
           AI Analysis Summary
         </h2>
         <div className="prose max-w-none">
-          <p className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap">
+          <p className="text-slate-800 text-lg leading-relaxed whitespace-pre-wrap">
             {session.interview_summary}
           </p>
         </div>
@@ -148,7 +148,7 @@ export function DynamicInterviewReview({ sessionId }: DynamicInterviewReviewProp
       </div>
 
       {/* Conversation Flow */}
-      <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
+      <div className="mb-8 rounded-2xl bg-white p-6 shadow-xl sm:p-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
           <MessageCircle className="text-purple-600" size={28} />
           Dynamic Question Flow
@@ -157,13 +157,13 @@ export function DynamicInterviewReview({ sessionId }: DynamicInterviewReviewProp
         <div className="space-y-6">
           {session.exchanges.map((exchange, index) => (
             <div key={exchange.id} className="border-l-4 border-purple-500 pl-6 py-4">
-              <div className="flex items-start justify-between mb-3">
+              <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center font-bold">
                     {index + 1}
                   </div>
                   <div>
-                    <div className="text-sm text-gray-600 uppercase tracking-wide font-semibold">
+                    <div className="text-sm text-slate-700 uppercase tracking-wide font-semibold">
                       AI Generated • {exchange.question_intent}
                     </div>
                     <h3 className="text-lg font-semibold text-gray-900 mt-1">
@@ -171,32 +171,32 @@ export function DynamicInterviewReview({ sessionId }: DynamicInterviewReviewProp
                     </h3>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-left lg:text-right">
                   <div className={`text-2xl font-bold ${getScoreColor(exchange.response_quality_score)}`}>
                     {exchange.response_quality_score.toFixed(1)}
                   </div>
-                  <div className="text-xs text-gray-600">Quality</div>
+                  <div className="text-xs text-slate-700">Quality</div>
                 </div>
               </div>
-              
-              <div className="bg-gray-50 rounded-lg p-4 mb-3">
-                <div className="text-sm font-medium text-gray-700 mb-2">Response:</div>
-                <p className="text-gray-600 italic">&quot;{exchange.transcript}&quot;</p>
+               
+              <div className="bg-slate-100 rounded-lg p-4 mb-3">
+                <div className="text-sm font-medium text-slate-800 mb-2">Response:</div>
+                <p className="text-slate-700 italic">&quot;{exchange.transcript}&quot;</p>
               </div>
-              
-              <div className="grid md:grid-cols-3 gap-4 text-sm">
+               
+              <div className="grid gap-3 text-sm sm:grid-cols-3">
                 <div>
-                  <span className="font-medium text-gray-700">Sentiment:</span>
-                  <span className={`ml-2 ${exchange.sentiment === 'confident' ? 'text-green-600' : exchange.sentiment === 'nervous' ? 'text-yellow-600' : 'text-gray-600'}`}>
+                  <span className="font-medium text-slate-800">Sentiment:</span>
+                  <span className={`ml-2 ${exchange.sentiment === 'confident' ? 'text-green-700' : exchange.sentiment === 'nervous' ? 'text-amber-700' : 'text-slate-700'}`}>
                     {exchange.sentiment}
                   </span>
                 </div>
                 <div>
-                  <span className="font-medium text-gray-700">Confidence:</span>
+                  <span className="font-medium text-slate-800">Confidence:</span>
                   <span className="ml-2 text-blue-600">{exchange.confidence_level.toFixed(1)}%</span>
                 </div>
                 <div>
-                  <span className="font-medium text-gray-700">Relevance:</span>
+                  <span className="font-medium text-slate-800">Relevance:</span>
                   <span className="ml-2 text-purple-600">{exchange.relevance_score.toFixed(1)}%</span>
                 </div>
               </div>
@@ -232,7 +232,7 @@ export function DynamicInterviewReview({ sessionId }: DynamicInterviewReviewProp
 
       {/* Red Flags */}
       {session.red_flags && session.red_flags.length > 0 && (
-        <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-8">
+        <div className="rounded-2xl border-2 border-red-200 bg-red-50 p-6 sm:p-8">
           <h2 className="text-2xl font-bold text-red-900 mb-4 flex items-center gap-3">
             <AlertTriangle className="text-red-600" size={28} />
             Red Flags Identified

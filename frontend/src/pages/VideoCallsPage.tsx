@@ -26,7 +26,7 @@ import { downloadJsonFile } from "@/utils/json";
 const statusClass: Record<string, string> = {
   scheduled: "bg-blue-100 text-blue-700",
   ongoing: "bg-emerald-100 text-emerald-700",
-  completed: "bg-slate-100 text-slate-700",
+  completed: "bg-slate-200 text-slate-800",
   cancelled: "bg-rose-100 text-rose-700",
 };
 
@@ -52,12 +52,12 @@ const meetingEventActionClass: Record<string, string> = {
   extended: "bg-blue-100 text-blue-700 border border-blue-200",
   cancelled: "bg-rose-100 text-rose-700 border border-rose-200",
   started: "bg-teal-100 text-teal-700 border border-teal-200",
-  completed: "bg-slate-100 text-slate-700 border border-slate-200",
+  completed: "bg-slate-200 text-slate-800 border border-slate-700",
   left: "bg-amber-100 text-amber-700 border border-amber-200",
 };
 
 const meetingEventScopeClass: Record<string, string> = {
-  single: "bg-slate-100 text-slate-700 border border-slate-200",
+  single: "bg-slate-200 text-slate-800 border border-slate-700",
   future: "bg-cyan-100 text-cyan-700 border border-cyan-200",
   all: "bg-orange-100 text-orange-700 border border-orange-200",
 };
@@ -937,14 +937,14 @@ const VideoCallsPage: React.FC = () => {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h1 className="text-2xl font-semibold text-slate-900">Video Calls</h1>
-              <p className="mt-1 text-sm text-slate-600">
+              <p className="mt-1 text-sm text-slate-700">
                 Schedule and run 1v1 or 1vMany candidate meetings through LiveKit.
               </p>
             </div>
             <button
               type="button"
               onClick={() => void loadMeetings()}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
             >
               <RefreshCcw className="h-4 w-4" />
               Refresh
@@ -961,7 +961,7 @@ const VideoCallsPage: React.FC = () => {
                 <select
                   value={form.template}
                   onChange={(event) => applyTemplatePreset(event.target.value as MeetingTemplate)}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 >
                   <option value="custom">Custom</option>
                   <option value="one_on_one">1v1 Screening</option>
@@ -978,7 +978,7 @@ const VideoCallsPage: React.FC = () => {
                   max={120}
                   value={form.reminderBeforeMinutes}
                   onChange={(event) => setForm((prev) => ({ ...prev, reminderBeforeMinutes: event.target.value }))}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
               </label>
 
@@ -988,7 +988,7 @@ const VideoCallsPage: React.FC = () => {
                   required
                   value={form.title}
                   onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
               </label>
 
@@ -998,7 +998,7 @@ const VideoCallsPage: React.FC = () => {
                   value={form.caseId}
                   onChange={(event) => setForm((prev) => ({ ...prev, caseId: event.target.value }))}
                   disabled={loadingCaseOptions}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:bg-slate-100 disabled:text-slate-500"
+                  className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:bg-slate-100 disabled:text-slate-700"
                 >
                   <option value="">{loadingCaseOptions ? "Loading cases..." : "No linked case"}</option>
                   {caseOptions.map((option) => (
@@ -1008,7 +1008,7 @@ const VideoCallsPage: React.FC = () => {
                   ))}
                 </select>
                 {!loadingCaseOptions && caseOptions.length === 0 && (
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-700">
                     No vetting cases available yet. Create a case first or invite explicit participants by email.
                   </p>
                 )}
@@ -1019,7 +1019,7 @@ const VideoCallsPage: React.FC = () => {
                 <textarea
                   value={form.description}
                   onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-                  className="min-h-24 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="min-h-24 w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
               </label>
 
@@ -1030,7 +1030,7 @@ const VideoCallsPage: React.FC = () => {
                   type="datetime-local"
                   value={form.start}
                   onChange={(event) => setForm((prev) => ({ ...prev, start: event.target.value }))}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
               </label>
 
@@ -1041,7 +1041,7 @@ const VideoCallsPage: React.FC = () => {
                   type="datetime-local"
                   value={form.end}
                   onChange={(event) => setForm((prev) => ({ ...prev, end: event.target.value }))}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
               </label>
 
@@ -1053,7 +1053,7 @@ const VideoCallsPage: React.FC = () => {
                       key={minutes}
                       type="button"
                       onClick={() => applyDurationFromStart(minutes)}
-                      className="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                      className="rounded-md border border-slate-700 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
                     >
                       {minutes} min
                     </button>
@@ -1072,7 +1072,7 @@ const VideoCallsPage: React.FC = () => {
                       recurrenceCount: event.target.value === "none" ? "1" : prev.recurrenceCount,
                     }))
                   }
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 >
                   <option value="none">No recurrence</option>
                   <option value="daily">Daily</option>
@@ -1089,7 +1089,7 @@ const VideoCallsPage: React.FC = () => {
                     max={12}
                     value={form.recurrenceCount}
                     onChange={(event) => setForm((prev) => ({ ...prev, recurrenceCount: event.target.value }))}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                   />
                 </label>
               )}
@@ -1099,7 +1099,7 @@ const VideoCallsPage: React.FC = () => {
                 <input
                   value={form.timezone}
                   onChange={(event) => setForm((prev) => ({ ...prev, timezone: event.target.value }))}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
               </label>
 
@@ -1109,7 +1109,7 @@ const VideoCallsPage: React.FC = () => {
                   value={form.participantEmails}
                   onChange={(event) => setForm((prev) => ({ ...prev, participantEmails: event.target.value }))}
                   placeholder="candidate1@example.com,candidate2@example.com"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
               </label>
 
@@ -1131,13 +1131,13 @@ const VideoCallsPage: React.FC = () => {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-semibold text-slate-900">Meetings</h2>
             <div className="flex flex-wrap items-center gap-2">
-              <label className="inline-flex items-center gap-2 text-xs text-slate-600">
+              <label className="inline-flex items-center gap-2 text-xs text-slate-700">
                 <Clock3 className="h-3.5 w-3.5" />
                 Status
                 <select
                   value={statusFilter}
                   onChange={(event) => setStatusFilter(event.target.value as "all" | VideoMeeting["status"])}
-                  className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700"
+                  className="rounded-md border border-slate-700 bg-white px-2 py-1 text-xs text-slate-700"
                 >
                   <option value="all">All</option>
                   <option value="scheduled">Scheduled</option>
@@ -1150,7 +1150,7 @@ const VideoCallsPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setSearchParams({})}
-                  className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                  className="rounded-md border border-slate-700 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
                 >
                   Clear focus
                 </button>
@@ -1158,12 +1158,12 @@ const VideoCallsPage: React.FC = () => {
             </div>
           </div>
           {loading ? (
-            <div className="mt-4 flex items-center gap-2 text-slate-600">
+            <div className="mt-4 flex items-center gap-2 text-slate-700">
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading meetings...
             </div>
           ) : filteredMeetings.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-600">No meetings scheduled yet.</p>
+            <p className="mt-4 text-sm text-slate-700">No meetings scheduled yet.</p>
           ) : (
             <div className="mt-4 space-y-3">
               {filteredMeetings.map((meeting) => (
@@ -1182,18 +1182,18 @@ const VideoCallsPage: React.FC = () => {
                     <div className="space-y-1">
                       <h3 className="text-base font-semibold text-slate-900">{meeting.title}</h3>
                       <p className="text-sm text-slate-700">{meeting.description || "No description provided."}</p>
-                      <p className="text-xs text-slate-600">
+                      <p className="text-xs text-slate-700">
                         {new Date(meeting.scheduled_start).toLocaleString()} -{" "}
                         {new Date(meeting.scheduled_end).toLocaleString()} ({meeting.timezone})
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-slate-700">
                         Room: <span className="font-mono">{meeting.livekit_room_name}</span>
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-slate-700">
                         Reminder: {meeting.reminder_before_minutes} minute(s) before start
                       </p>
                       {meeting.series_id && (
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-slate-700">
                           Series ID: <span className="font-mono">{meeting.series_id}</span>
                         </p>
                       )}
@@ -1209,9 +1209,9 @@ const VideoCallsPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end max-[420px]:grid max-[420px]:grid-cols-1 [&>*]:w-full sm:[&>*]:w-auto">
                       <span
-                        className={`rounded-full px-2 py-1 text-xs font-medium ${statusClass[meeting.status] || "bg-slate-100 text-slate-700"}`}
+                        className={`rounded-full px-2 py-1 text-xs font-medium ${statusClass[meeting.status] || "bg-slate-200 text-slate-800"}`}
                       >
                         {meeting.status}
                       </span>
@@ -1228,7 +1228,7 @@ const VideoCallsPage: React.FC = () => {
                         href={buildGoogleCalendarUrl(meeting)}
                         target="_blank"
                         rel="noreferrer"
-                        className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                        className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
                       >
                         Google Calendar
                       </a>
@@ -1236,7 +1236,7 @@ const VideoCallsPage: React.FC = () => {
                         type="button"
                         onClick={() => void handleDownloadIcs(meeting)}
                         disabled={downloadingIcsId === meeting.id}
-                        className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                        className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
                       >
                         {downloadingIcsId === meeting.id ? "Downloading..." : "Download .ics"}
                       </button>
@@ -1244,13 +1244,13 @@ const VideoCallsPage: React.FC = () => {
                         type="button"
                         onClick={() => void toggleEventsPanel(meeting)}
                         disabled={loadingEventsId === meeting.id}
-                        className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
                       >
                         {loadingEventsId === meeting.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <History className="h-3.5 w-3.5" />}
                         History
                       </button>
                       {isHrOrAdmin && meeting.series_id && (
-                        <label className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700">
+                        <label className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-white px-2 py-1 text-xs text-slate-700">
                           <span>Series</span>
                           <select
                             value={getSeriesScope(meeting.id)}
@@ -1277,7 +1277,7 @@ const VideoCallsPage: React.FC = () => {
                             type="button"
                             onClick={() => void handleQuickExtend(meeting)}
                             disabled={actionMeetingId === meeting.id}
-                            className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                            className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
                           >
                             +15 min
                           </button>
@@ -1285,7 +1285,7 @@ const VideoCallsPage: React.FC = () => {
                             type="button"
                             onClick={() => void handleQuickShift(meeting)}
                             disabled={actionMeetingId === meeting.id}
-                            className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                            className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
                           >
                             Shift +30 min
                           </button>
@@ -1303,7 +1303,7 @@ const VideoCallsPage: React.FC = () => {
                             type="button"
                             onClick={() => toggleReschedulePanel(meeting)}
                             disabled={actionMeetingId === meeting.id}
-                            className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                            className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
                           >
                             Custom time
                           </button>
@@ -1335,7 +1335,7 @@ const VideoCallsPage: React.FC = () => {
                             type="button"
                             onClick={() => void handleQuickExtend(meeting)}
                             disabled={actionMeetingId === meeting.id}
-                            className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                            className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
                           >
                             +15 min
                           </button>
@@ -1371,7 +1371,7 @@ const VideoCallsPage: React.FC = () => {
                           type="datetime-local"
                           value={rescheduleDrafts[meeting.id]?.start || ""}
                           onChange={(event) => updateRescheduleDraft(meeting.id, "start", event.target.value)}
-                          className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                          className="w-full rounded-md border border-slate-700 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                         />
                       </label>
                       <label className="space-y-1 text-xs text-slate-700">
@@ -1380,7 +1380,7 @@ const VideoCallsPage: React.FC = () => {
                           type="datetime-local"
                           value={rescheduleDrafts[meeting.id]?.end || ""}
                           onChange={(event) => updateRescheduleDraft(meeting.id, "end", event.target.value)}
-                          className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                          className="w-full rounded-md border border-slate-700 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                         />
                       </label>
                       <label className="space-y-1 text-xs text-slate-700">
@@ -1388,14 +1388,14 @@ const VideoCallsPage: React.FC = () => {
                         <input
                           value={rescheduleDrafts[meeting.id]?.timezone || "UTC"}
                           onChange={(event) => updateRescheduleDraft(meeting.id, "timezone", event.target.value)}
-                          className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                          className="w-full rounded-md border border-slate-700 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                         />
                       </label>
                       <div className="md:col-span-3 flex flex-wrap justify-end gap-2">
                         <button
                           type="button"
                           onClick={() => setExpandedRescheduleId(null)}
-                          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                          className="rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
                         >
                           Close
                         </button>
@@ -1428,8 +1428,8 @@ const VideoCallsPage: React.FC = () => {
                         <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-700">
                           Meeting History
                         </h4>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <label className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700">
+                        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end max-[420px]:grid max-[420px]:grid-cols-1 [&>*]:w-full sm:[&>*]:w-auto">
+                          <label className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-white px-2 py-1 text-xs text-slate-700">
                             <span>View</span>
                             <select
                               value={getTimelineFilterMode(meeting)}
@@ -1441,7 +1441,7 @@ const VideoCallsPage: React.FC = () => {
                               {meeting.series_id && <option value="series">Other occurrences</option>}
                             </select>
                           </label>
-                          <label className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700">
+                          <label className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-white px-2 py-1 text-xs text-slate-700">
                             <span>Range</span>
                             <select
                               value={getTimelineTimeRange(meeting)}
@@ -1457,7 +1457,7 @@ const VideoCallsPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => exportTimelineCsv(meeting)}
-                            className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                            className="inline-flex items-center gap-1 rounded-md border border-slate-700 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
                           >
                             <Download className="h-3.5 w-3.5" />
                             CSV
@@ -1465,7 +1465,7 @@ const VideoCallsPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => exportTimelineJson(meeting)}
-                            className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                            className="inline-flex items-center gap-1 rounded-md border border-slate-700 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
                           >
                             <Download className="h-3.5 w-3.5" />
                             JSON
@@ -1474,20 +1474,20 @@ const VideoCallsPage: React.FC = () => {
                             type="button"
                             onClick={() => void loadMeetingEvents(meeting, getTimelineFilterMode(meeting))}
                             disabled={loadingEventsId === meeting.id}
-                            className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                            className="inline-flex items-center gap-1 rounded-md border border-slate-700 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
                           >
                             {loadingEventsId === meeting.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="h-3.5 w-3.5" />}
                             Refresh
                           </button>
                         </div>
                       </div>
-                      <p className="mb-2 text-[11px] text-slate-500">
+                      <p className="mb-2 text-[11px] text-slate-700">
                         Showing {getVisibleTimelineEvents(meeting).length} event(s)
                       </p>
                       {loadingEventsId === meeting.id && !eventTimelineByMeeting[meeting.id] ? (
-                        <p className="text-xs text-slate-600">Loading history...</p>
+                        <p className="text-xs text-slate-700">Loading history...</p>
                       ) : getVisibleTimelineEvents(meeting).length === 0 ? (
-                        <p className="text-xs text-slate-600">No history for the selected view.</p>
+                        <p className="text-xs text-slate-700">No history for the selected view.</p>
                       ) : (
                         <div className="space-y-2">
                           {getVisibleTimelineEvents(meeting).map((event) => (
@@ -1498,29 +1498,29 @@ const VideoCallsPage: React.FC = () => {
                               <div className="flex flex-wrap items-center justify-between gap-2">
                                 <div className="flex flex-wrap items-center gap-1.5">
                                   <span
-                                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${meetingEventActionClass[event.action] || "bg-slate-100 text-slate-700 border border-slate-200"}`}
+                                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${meetingEventActionClass[event.action] || "bg-slate-200 text-slate-800 border border-slate-700"}`}
                                   >
                                     {meetingEventActionLabel[event.action] || event.action}
                                   </span>
                                   <span
-                                    className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${meetingEventScopeClass[event.scope] || "bg-slate-100 text-slate-700 border border-slate-200"}`}
+                                    className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${meetingEventScopeClass[event.scope] || "bg-slate-200 text-slate-800 border border-slate-700"}`}
                                   >
                                     {meetingEventScopeLabel[event.scope] || event.scope}
                                   </span>
                                   {event.meeting !== meeting.id && (
-                                    <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 font-mono text-[10px] text-slate-600">
+                                    <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 font-mono text-[10px] text-slate-700">
                                       occurrence {event.meeting.slice(0, 8)}
                                     </span>
                                   )}
                                 </div>
-                                <p className="text-[11px] text-slate-500">
+                                <p className="text-[11px] text-slate-700">
                                   {new Date(event.created_at).toLocaleString()}
                                 </p>
                               </div>
                               <p className="mt-1 text-xs text-slate-700">
                                 {event.detail || "No additional detail."}
                               </p>
-                              <p className="mt-1 text-[11px] text-slate-500">
+                              <p className="mt-1 text-[11px] text-slate-700">
                                 By {event.actor_name}
                                 {event.actor_email ? ` (${event.actor_email})` : ""}
                               </p>
@@ -1577,7 +1577,7 @@ const VideoCallsPage: React.FC = () => {
                 value={seriesConfirmationText}
                 onChange={(event) => setSeriesConfirmationText(event.target.value)}
                 placeholder={SERIES_CANCEL_ALL_PHRASE}
-                className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="w-full rounded-md border border-slate-700 px-2 py-1.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               />
             </div>
           )}
@@ -1590,12 +1590,12 @@ const VideoCallsPage: React.FC = () => {
                 <h3 className="text-base font-semibold text-slate-900">
                   In Call: {activeJoin.meeting.title}
                 </h3>
-                <p className="text-xs text-slate-600">Room: {activeJoin.credentials.room_name}</p>
+                <p className="text-xs text-slate-700">Room: {activeJoin.credentials.room_name}</p>
               </div>
               <button
                 type="button"
                 onClick={() => void handleCloseRoom()}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
               >
                 Leave Room
               </button>
@@ -1621,3 +1621,5 @@ const VideoCallsPage: React.FC = () => {
 };
 
 export default VideoCallsPage;
+
+

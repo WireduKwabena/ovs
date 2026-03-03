@@ -209,20 +209,20 @@ export function FileUpload({ caseId, onUploadComplete, onFilesChanged, onRemoveR
         {...getRootProps()}
         className={cn(
           'border-2 border-dashed rounded-lg p-8 text-center transition-colors',
-          isDragActive ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
+          isDragActive ? 'border-blue-400 bg-blue-50' : 'border-slate-700'
         )}
       >
         <input {...getInputProps()} />
-        <Upload className="mx-auto w-12 h-12 text-gray-400 mb-4" />
+        <Upload className="mx-auto w-12 h-12 text-slate-700 mb-4" />
         <p className="text-lg font-medium text-gray-900 mb-2">
           {isDragActive ? 'Drop the files here ...' : 'Drag & drop files here, or click to select'}
         </p>
-        <p className="text-sm text-gray-500 mb-4">PDF, PNG, JPG up to 10MB</p>
+        <p className="text-sm text-slate-700 mb-4">PDF, PNG, JPG up to 10MB</p>
       </div>
 
       {/* Page-level document type hint */}
       {normalizedPageDocumentType && (
-        <div className="mt-3 text-sm text-gray-600">
+        <div className="mt-3 text-sm text-slate-700">
           Uploading as: <span className="font-medium">{normalizedPageDocumentType.replace('_', ' ')}</span>
         </div>
       )}
@@ -233,10 +233,10 @@ export function FileUpload({ caseId, onUploadComplete, onFilesChanged, onRemoveR
           {files.map((fileItem) => (
             <div key={fileItem.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div className="flex items-center gap-3 flex-1">
-                <File className="w-5 h-5 text-gray-400" />
+                <File className="w-5 h-5 text-slate-700" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{fileItem.file.name}</p>
-                  <label htmlFor={`document-type-${fileItem.id}`} className="text-xs text-gray-700">
+                  <label htmlFor={`document-type-${fileItem.id}`} className="text-xs text-slate-800">
                     Select option:
                   </label>
                   <select
@@ -244,7 +244,7 @@ export function FileUpload({ caseId, onUploadComplete, onFilesChanged, onRemoveR
                     value={normalizedPageDocumentType || fileItem.documentType}
                     onChange={(e) => updateFileDocumentType(fileItem.id, e.target.value as DocumentType)}
                     disabled={Boolean(normalizedPageDocumentType)}
-                    className="mt-1 text-xs border rounded px-2 py-1 disabled:bg-gray-100 disabled:text-gray-500"
+                    className="mt-1 text-xs border rounded px-2 py-1 disabled:bg-gray-100 disabled:text-slate-700"
                   >
                     {DOCUMENT_TYPES.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -257,13 +257,13 @@ export function FileUpload({ caseId, onUploadComplete, onFilesChanged, onRemoveR
                 {/* Progress */}
                 {fileItem.status === 'uploading' && (
                   <div className="w-16">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-slate-200 rounded-full h-2">
                       <div
                         className="bg-blue-600 h-2 rounded-full transition-all"
                         style={{ width: `${fileItem.progress}%` }}
                       />
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-slate-700 mt-1">
                       {fileItem.progress}%
                     </p>
                   </div>
@@ -278,12 +278,12 @@ export function FileUpload({ caseId, onUploadComplete, onFilesChanged, onRemoveR
               {fileItem.status !== 'uploading' && (
                 <Button
                   onClick={() => removeFile(fileItem.id)}
-                  className="shrink-0 p-1 hover:bg-gray-100 rounded"
+                  className="shrink-0 p-1 hover:bg-slate-100 rounded"
                   variant="ghost"
                   size="sm"
                   aria-label={`Remove ${fileItem.file.name}`}
                 >
-                  <X className="w-5 h-5 text-gray-400" />
+                  <X className="w-5 h-5 text-slate-700" />
                 </Button>
               )}
             </div>
@@ -303,7 +303,7 @@ export function FileUpload({ caseId, onUploadComplete, onFilesChanged, onRemoveR
       )}
 
       {!caseId && files.length > 0 && (
-        <div className="mt-4 p-3 text-sm text-gray-600 bg-yellow-50 rounded">
+        <div className="mt-4 p-3 text-sm text-slate-700 bg-amber-50 rounded">
           Files are staged locally and will be uploaded after the application is created.
         </div>
       )}
@@ -334,3 +334,4 @@ export function FileUpload({ caseId, onUploadComplete, onFilesChanged, onRemoveR
     </div>
   );
 }
+

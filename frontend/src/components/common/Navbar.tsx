@@ -216,13 +216,20 @@ export const Navbar: React.FC = () => {
           { to: '/admin/cases', label: 'Cases' },
           { to: '/admin/users', label: 'Users' },
           { to: '/admin/rubrics', label: 'Rubrics' },
-          { to: '/video-calls', label: 'Video Calls' },
         ]
-      : navLinks;
+      : userType === 'hr_manager'
+        ? [
+            { to: '/dashboard', label: 'Dashboard' },
+            { to: '/campaigns', label: 'Campaigns' },
+            { to: '/applications', label: 'Cases' },
+            { to: '/video-calls', label: 'Video Calls' },
+          ]
+        : navLinks;
 
   const desktopOverflowLinks =
     userType === 'admin'
       ? [
+          { to: '/video-calls', label: 'Video Calls' },
           { to: '/admin/control-center', label: 'Admin Control' },
           { to: '/fraud-insights', label: 'Fraud' },
           { to: '/background-checks', label: 'Checks' },
@@ -231,7 +238,14 @@ export const Navbar: React.FC = () => {
           { to: '/ai-monitor', label: 'AI Monitor' },
           { to: '/admin/analytics', label: 'Analytics' },
         ]
-      : [];
+      : userType === 'hr_manager'
+        ? [
+            { to: '/fraud-insights', label: 'Fraud' },
+            { to: '/background-checks', label: 'Checks' },
+            { to: '/audit-logs', label: 'Audit' },
+            { to: '/ai-monitor', label: 'AI Monitor' },
+          ]
+        : [];
   
   const initial = getUserInitial(user, '?');
 
@@ -254,7 +268,7 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden xl:flex items-center space-x-4">
+          <div className="hidden xl:flex items-center space-x-2">
             {desktopPrimaryLinks.map((navItem) => (
               <Link
                 key={navItem.to}
@@ -276,7 +290,7 @@ export const Navbar: React.FC = () => {
                   className="inline-flex items-center gap-1 text-sm font-semibold text-slate-800 hover:text-indigo-700 hover:bg-indigo-50 px-2 py-1 rounded"
                 >
                   More
-                  <ChevronDown className="w-4 h-4 text-slate-600" />
+                  <ChevronDown className="w-4 h-4 text-slate-700" />
                 </Button>
                 {adminMoreMenuOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20 border">
@@ -330,9 +344,9 @@ export const Navbar: React.FC = () => {
                   <p className="text-sm font-medium text-indigo-600">
                     {displayName}
                   </p>
-                  <p className="text-xs text-slate-600">{roleLabel}</p>
+                  <p className="text-xs text-slate-700">{roleLabel}</p>
                 </div>
-                <ChevronDown className="w-4 h-4 text-slate-600" />
+                <ChevronDown className="w-4 h-4 text-slate-700" />
               </Button>
               {profileMenuOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-20 border">
@@ -439,7 +453,7 @@ export const Navbar: React.FC = () => {
                 <p className="text-base font-medium text-gray-900">
                   {displayName}
                 </p>
-                <p className="text-sm text-slate-600">{roleLabel}</p>
+                <p className="text-sm text-slate-700">{roleLabel}</p>
               </div>
             </div>
             <div className="space-y-3">

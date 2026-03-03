@@ -11,6 +11,7 @@ import type {
   TwoFactorStatusResponse,
   User,
 } from "@/types";
+import { getApiErrorMessage } from "@/utils/apiError";
 
 export interface LoginCredentials {
   email: string;
@@ -41,12 +42,9 @@ export interface ProfileResponse {
 }
 
 const toApiError = (error: any, fallback: string): Error => {
-  const payload = error?.response?.data as ApiError & {
-    detail?: string;
-    error?: string;
-  };
-
-  return new Error(payload?.message || payload?.detail || payload?.error || fallback);
+  const payload = error?.response?.data as ApiError | undefined;
+  const message = getApiErrorMessage(payload ?? error, fallback);
+  return new Error(message);
 };
 
 export const authService = {

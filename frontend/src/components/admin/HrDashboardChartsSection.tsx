@@ -49,15 +49,17 @@ const HrDashboardChartsSection: React.FC<HrDashboardChartsSectionProps> = ({
   return (
     <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
       <div className="xl:col-span-2 rounded-xl border border-slate-200 bg-white p-5">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold">Campaign Throughput</h2>
-          <div className="flex items-center gap-3">
-            <div className="inline-flex rounded-lg border border-slate-300 p-0.5 bg-slate-50">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
+            <div className="inline-flex rounded-lg border border-slate-700 bg-slate-100 p-0.5">
               <button
                 type="button"
                 onClick={() => onChartModeChange('count')}
                 className={`px-2.5 py-1 text-xs rounded-md ${
-                  chartMode === 'count' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
+                  chartMode === 'count'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-800 hover:bg-slate-100'
                 }`}
               >
                 Count
@@ -66,17 +68,19 @@ const HrDashboardChartsSection: React.FC<HrDashboardChartsSectionProps> = ({
                 type="button"
                 onClick={() => onChartModeChange('percentage')}
                 className={`px-2.5 py-1 text-xs rounded-md ${
-                  chartMode === 'percentage' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
+                  chartMode === 'percentage'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-800 hover:bg-slate-100'
                 }`}
               >
                 Percent
               </button>
             </div>
-            <p className="text-xs text-slate-500">Top 8 campaigns by recency</p>
+            <p className="text-xs text-slate-700">Top 8 campaigns by recency</p>
           </div>
         </div>
         {throughputDisplayData.length === 0 ? (
-          <div className="py-10 text-center text-slate-500">No throughput data yet.</div>
+          <div className="py-10 text-center text-slate-700">No throughput data yet.</div>
         ) : (
           <div className="h-80 mt-4">
             <ResponsiveContainer width="100%" height="100%">
@@ -120,7 +124,7 @@ const HrDashboardChartsSection: React.FC<HrDashboardChartsSectionProps> = ({
       <div className="rounded-xl border border-slate-200 bg-white p-5">
         <h2 className="text-lg font-semibold">Pipeline Mix</h2>
         {pipelineMixDisplayData.length === 0 ? (
-          <div className="py-10 text-center text-slate-500">No pipeline data yet.</div>
+          <div className="py-10 text-center text-slate-700">No pipeline data yet.</div>
         ) : (
           <div className="h-60 mt-3">
             <ResponsiveContainer width="100%" height="100%">
@@ -157,7 +161,7 @@ const HrDashboardChartsSection: React.FC<HrDashboardChartsSectionProps> = ({
 
         <h3 className="text-sm font-semibold mt-4 text-slate-700">Decision Mix</h3>
         {decisionMixDisplayData.length === 0 ? (
-          <p className="text-xs text-slate-500 mt-2">No decisions recorded yet.</p>
+          <p className="text-xs text-slate-700 mt-2">No decisions recorded yet.</p>
         ) : (
           <div className="h-44 mt-2">
             <ResponsiveContainer width="100%" height="100%">

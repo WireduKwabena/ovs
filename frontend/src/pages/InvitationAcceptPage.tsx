@@ -43,7 +43,7 @@ const InvitationAcceptPage: React.FC = () => {
   return (
     <main className="max-w-2xl mx-auto px-4 py-12">
       <section className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
-        {loading && <p className="text-slate-600">Validating invitation...</p>}
+        {loading && <p className="text-slate-700">Validating invitation...</p>}
 
         {!loading && payload && (
           <>
@@ -78,7 +78,7 @@ const InvitationAcceptPage: React.FC = () => {
           <Link to={accessPath} className="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">
             Continue to Candidate Access
           </Link>
-          <p className="text-xs text-slate-500 mt-2">
+          <p className="text-xs text-slate-700 mt-2">
             Use the access URL from your invitation email/SMS inside the portal if prompted.
           </p>
         </div>
@@ -88,3 +88,4 @@ const InvitationAcceptPage: React.FC = () => {
 };
 
 export default InvitationAcceptPage;
+

@@ -31,6 +31,7 @@ except ModuleNotFoundError:  # pragma: no cover - optional in some setups
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/system/", include("apps.core.urls")),
     path("api/auth/", include("apps.authentication.urls")),
     path("api/admin/", include("apps.admin_dashboard.urls")),
     path("api/campaigns/", include("apps.campaigns.urls")),

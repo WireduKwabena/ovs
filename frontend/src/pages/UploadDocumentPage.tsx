@@ -24,7 +24,7 @@ export const UploadDocumentPage: React.FC = () => {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <button
           onClick={() => navigate(`/applications/${caseId}`)}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
+          className="flex items-center gap-2 text-slate-700 hover:text-gray-900 mb-6"
         >
           <ArrowLeft className="w-5 h-5" />
           Back to Application
@@ -34,14 +34,14 @@ export const UploadDocumentPage: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Upload Documents
           </h1>
-          <p className="text-gray-600 mb-8">
+          <p className="text-slate-700 mb-8">
             Add additional documents to your application
           </p>
 
           <div className="space-y-6">
             {/* File Upload */}
             <div>
-              <p className="block text-sm font-medium text-gray-700 mb-2">
+              <p className="block text-sm font-medium text-slate-800 mb-2">
                 Files (PDF, JPG, PNG - Max 10MB each)
               </p>
               {caseId ? (
@@ -74,11 +74,11 @@ export const UploadDocumentPage: React.FC = () => {
                       <h4 className="text-sm font-medium mb-2">
                         Selected files
                       </h4>
-                      <ul className="text-sm text-gray-700 space-y-1">
+                      <ul className="text-sm text-slate-800 space-y-1">
                         {selectedFiles.map((f) => (
                           <li key={f.id} className="flex justify-between">
                             <span className="truncate">{f.name}</span>
-                            <span className="ml-4 text-xs text-gray-500">
+                            <span className="ml-4 text-xs text-slate-700">
                               {f.status}
                             </span>
                           </li>
@@ -97,7 +97,7 @@ export const UploadDocumentPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => navigate(`/applications/${caseId}`)}
-                className="w-full px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+                className="w-full px-6 py-3 border-2 border-slate-700 text-slate-800 rounded-lg hover:bg-slate-100 font-medium"
               >
                 Back to Application
               </button>
@@ -125,7 +125,7 @@ export const UploadDocumentPage: React.FC = () => {
           confirmLabel="Remove"
           cancelLabel="Cancel"
         >
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-slate-800">
             Are you sure you want to remove{" "}
             <strong>
               {confirmState.file?.file?.name ?? confirmState.file?.name}
@@ -139,3 +139,4 @@ export const UploadDocumentPage: React.FC = () => {
 };
 
 export default UploadDocumentPage;
+

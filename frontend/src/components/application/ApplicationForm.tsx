@@ -56,13 +56,13 @@ export function ApplicationForm() {
         <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
           {/* Type */}
           <div>
-            <label htmlFor="application-type" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="application-type" className="block text-sm font-medium text-slate-800 mb-2">
               Application Type *
             </label>
             <select
               id="application-type"
               {...register('application_type')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select type...</option>
               {/* From constants */}
@@ -78,13 +78,13 @@ export function ApplicationForm() {
 
           {/* Priority */}
           <div>
-            <label htmlFor="application-priority" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="application-priority" className="block text-sm font-medium text-slate-800 mb-2">
               Priority *
             </label>
             <select
               id="application-priority"
               {...register('priority')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select priority...</option>
               <option value="low">Low</option>
@@ -99,14 +99,14 @@ export function ApplicationForm() {
 
           {/* Notes */}
           <div>
-            <label htmlFor="application-notes" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="application-notes" className="block text-sm font-medium text-slate-800 mb-2">
               Additional Notes
             </label>
             <textarea
               id="application-notes"
               {...register('notes')}
               rows={4}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Any additional information..."
             />
           </div>
@@ -126,7 +126,7 @@ export function ApplicationForm() {
             <button
               type="button"
               onClick={() => navigate('/applications')}
-              className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold"
+              className="flex-1 px-6 py-3 border-2 border-slate-700 text-slate-800 rounded-lg hover:bg-slate-100 font-semibold"
             >
               Cancel
             </button>
@@ -143,3 +143,4 @@ export function ApplicationForm() {
     </div>
   );
 }
+

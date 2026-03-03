@@ -95,7 +95,7 @@ export const RubricsPage: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900">
               Vetting Rubrics
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-slate-700 mt-1">
               Create and manage evaluation criteria
             </p>
           </div>
@@ -112,23 +112,23 @@ export const RubricsPage: React.FC = () => {
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-700 w-5 h-5" />
               <input
                 type="text"
                 placeholder="Search rubrics..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full pl-10 pr-4 py-2 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
             <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-700 w-5 h-5" />
               <select
                 aria-label="select"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none"
+                className="w-full pl-10 pr-4 py-2 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none"
               >
                 <option value="all">All Statuses</option>
                 <option value="active">Active</option>
@@ -164,9 +164,9 @@ export const RubricsPage: React.FC = () => {
                       </span>
                     </div>
                     {rubric.description && (
-                      <p className="text-gray-600 mb-2">{rubric.description}</p>
+                      <p className="text-slate-700 mb-2">{rubric.description}</p>
                     )}
-                    <div className="flex gap-4 text-sm text-gray-500">
+                    <div className="flex gap-4 text-sm text-slate-700">
                       <span>Type: {rubric.rubric_type}</span>
                       {rubric.department && (
                         <span>Department: {rubric.department}</span>
@@ -175,7 +175,7 @@ export const RubricsPage: React.FC = () => {
                       <span>{rubric.criteria?.length || 0} Criteria</span>
                     </div>
                     {rubric.created_at && (
-                      <p className="text-xs text-gray-500 mt-2">
+                      <p className="text-xs text-slate-700 mt-2">
                         Created: {formatDate(rubric.created_at)}
                       </p>
                     )}
@@ -223,7 +223,7 @@ export const RubricsPage: React.FC = () => {
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
               No rubrics found
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-slate-700 mb-6">
               {searchTerm || statusFilter !== "all"
                 ? "Try adjusting your filters"
                 : "Get started by creating your first rubric"}
@@ -243,3 +243,5 @@ export const RubricsPage: React.FC = () => {
     </div>
   );
 };
+
+

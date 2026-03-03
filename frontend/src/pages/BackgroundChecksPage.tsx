@@ -49,7 +49,7 @@ const STATUS_OPTIONS: Array<{ value: CheckStatusFilter; label: string }> = [
 ];
 
 const statusPillClass: Record<BackgroundCheckStatus, string> = {
-  pending: "bg-slate-100 text-slate-700",
+  pending: "bg-slate-200 text-slate-800",
   submitted: "bg-indigo-100 text-indigo-700",
   in_progress: "bg-amber-100 text-amber-700",
   completed: "bg-emerald-100 text-emerald-700",
@@ -315,7 +315,7 @@ const BackgroundChecksPage: React.FC = () => {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black tracking-tight text-slate-900">Background Checks</h1>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-slate-700">
               Submit and monitor third-party verification checks tied to vetting cases.
             </p>
           </div>
@@ -341,13 +341,13 @@ const BackgroundChecksPage: React.FC = () => {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-bold text-slate-900">Provider Operations</h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-slate-700">
           Use this webhook endpoint for provider callbacks. The backend validates provider key and optional token header.
         </p>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <article className="rounded-xl border border-slate-200 p-4">
-            <p className="text-xs font-semibold uppercase text-slate-500">Webhook URL</p>
+            <p className="text-xs font-semibold uppercase text-slate-700">Webhook URL</p>
             <p className="mt-2 break-all text-sm text-slate-800">{webhookUrl}</p>
             <Button
               type="button"
@@ -362,7 +362,7 @@ const BackgroundChecksPage: React.FC = () => {
           </article>
 
           <article className="rounded-xl border border-slate-200 p-4">
-            <p className="text-xs font-semibold uppercase text-slate-500">Auth Header Template</p>
+            <p className="text-xs font-semibold uppercase text-slate-700">Auth Header Template</p>
             <p className="mt-2 text-sm text-slate-800">X-Background-Webhook-Token: &lt;token&gt;</p>
             <Button
               type="button"
@@ -390,7 +390,7 @@ const BackgroundChecksPage: React.FC = () => {
         <h2 className="text-lg font-bold text-slate-900">Filters</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <div>
-            <label htmlFor="bg-check-case-filter" className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+            <label htmlFor="bg-check-case-filter" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
               Case
             </label>
             <Select value={caseFilter} onValueChange={setCaseFilter}>
@@ -409,7 +409,7 @@ const BackgroundChecksPage: React.FC = () => {
           </div>
 
           <div>
-            <label htmlFor="bg-check-type-filter" className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+            <label htmlFor="bg-check-type-filter" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
               Check Type
             </label>
             <Select value={checkTypeFilter} onValueChange={(value) => setCheckTypeFilter(value as CheckTypeFilter)}>
@@ -428,7 +428,7 @@ const BackgroundChecksPage: React.FC = () => {
           </div>
 
           <div>
-            <label htmlFor="bg-check-status-filter" className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+            <label htmlFor="bg-check-status-filter" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
               Status
             </label>
             <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as CheckStatusFilter)}>
@@ -451,7 +451,7 @@ const BackgroundChecksPage: React.FC = () => {
         <h2 className="text-lg font-bold text-slate-900">Submit Background Check</h2>
         <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={handleCreateCheck}>
           <div>
-            <label htmlFor="bg-check-case" className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+            <label htmlFor="bg-check-case" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
               Case
             </label>
             <Select value={selectedCase} onValueChange={setSelectedCase} disabled={loadingCases || submitting}>
@@ -469,7 +469,7 @@ const BackgroundChecksPage: React.FC = () => {
           </div>
 
           <div>
-            <label htmlFor="bg-check-type" className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+            <label htmlFor="bg-check-type" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
               Check Type
             </label>
             <Select
@@ -491,7 +491,7 @@ const BackgroundChecksPage: React.FC = () => {
           </div>
 
           <div>
-            <label htmlFor="bg-check-provider" className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+            <label htmlFor="bg-check-provider" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
               Provider Key
             </label>
             <Input
@@ -504,7 +504,7 @@ const BackgroundChecksPage: React.FC = () => {
           </div>
 
           <div>
-            <label htmlFor="bg-check-consent-notes" className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+            <label htmlFor="bg-check-consent-notes" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
               Consent Notes
             </label>
             <Input
@@ -545,17 +545,17 @@ const BackgroundChecksPage: React.FC = () => {
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-900">Background Check Runs</h2>
-          <p className="text-sm text-slate-500">{checks.length} records</p>
+          <p className="text-sm text-slate-700">{checks.length} records</p>
         </div>
 
         {loadingChecks ? (
-          <div className="py-10 text-center text-slate-500">Loading checks...</div>
+          <div className="py-10 text-center text-slate-700">Loading checks...</div>
         ) : errorMessage ? (
           <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
             {errorMessage}
           </div>
         ) : checks.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
+          <div className="rounded-lg border border-dashed border-slate-700 px-4 py-8 text-center text-sm text-slate-700">
             No background checks found for the current filter.
           </div>
         ) : (
@@ -565,10 +565,10 @@ const BackgroundChecksPage: React.FC = () => {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-slate-900">{check.case_id}</p>
-                    <p className="text-xs text-slate-600">
+                    <p className="text-xs text-slate-700">
                       {check.check_type} | provider: {check.provider_key}
                     </p>
-                    <p className="text-xs text-slate-500 mt-1">Submitted: {formatDate(check.created_at)}</p>
+                    <p className="text-xs text-slate-700 mt-1">Submitted: {formatDate(check.created_at)}</p>
                   </div>
                   <span
                     className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
@@ -579,25 +579,25 @@ const BackgroundChecksPage: React.FC = () => {
                   </span>
                 </div>
 
-                <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600 md:grid-cols-5">
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-700 md:grid-cols-5">
                   <div>
-                    <p className="text-slate-500">Risk</p>
+                    <p className="text-slate-700">Risk</p>
                     <p className="font-semibold">{check.risk_level}</p>
                   </div>
                   <div>
-                    <p className="text-slate-500">Recommendation</p>
+                    <p className="text-slate-700">Recommendation</p>
                     <p className="font-semibold">{check.recommendation}</p>
                   </div>
                   <div>
-                    <p className="text-slate-500">Score</p>
+                    <p className="text-slate-700">Score</p>
                     <p className="font-semibold">{typeof check.score === "number" ? check.score.toFixed(1) : "-"}</p>
                   </div>
                   <div>
-                    <p className="text-slate-500">Applicant</p>
+                    <p className="text-slate-700">Applicant</p>
                     <p className="font-semibold">{check.applicant_email || "-"}</p>
                   </div>
                   <div>
-                    <p className="text-slate-500">External Ref</p>
+                    <p className="text-slate-700">External Ref</p>
                     <p className="font-semibold">{check.external_reference || "-"}</p>
                   </div>
                 </div>
@@ -632,19 +632,19 @@ const BackgroundChecksPage: React.FC = () => {
 
                 {expandedCheckId === check.id ? (
                   <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs font-semibold uppercase text-slate-500">Events</p>
+                    <p className="text-xs font-semibold uppercase text-slate-700">Events</p>
                     {(eventsByCheck[check.id] || []).length === 0 ? (
-                      <p className="mt-2 text-sm text-slate-500">No events recorded yet.</p>
+                      <p className="mt-2 text-sm text-slate-700">No events recorded yet.</p>
                     ) : (
                       <ul className="mt-2 space-y-2">
                         {(eventsByCheck[check.id] || []).map((item) => (
                           <li key={item.id} className="rounded-md border border-slate-200 bg-white px-3 py-2">
                             <p className="text-sm font-medium text-slate-800">{item.event_type}</p>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-slate-700">
                               {item.status_before || "-"} {"->"} {item.status_after || "-"} at{" "}
                               {formatDate(item.created_at)}
                             </p>
-                            {item.message ? <p className="mt-1 text-xs text-slate-600">{item.message}</p> : null}
+                            {item.message ? <p className="mt-1 text-xs text-slate-700">{item.message}</p> : null}
                           </li>
                         ))}
                       </ul>

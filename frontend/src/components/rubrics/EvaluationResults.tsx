@@ -12,7 +12,7 @@ export function EvaluationResults({ evaluation }: EvaluationResultsProps) {
   if (!evaluation) {
     return (
       <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-        <p className="text-gray-600">No evaluation results available</p>
+        <p className="text-slate-700">No evaluation results available</p>
       </div>
     );
   }
@@ -28,7 +28,7 @@ export function EvaluationResults({ evaluation }: EvaluationResultsProps) {
             <div className={cn(`text-6xl font-bold ${getScoreColor(evaluation.overall_score)} mb-2`)}>
               {evaluation.overall_score.toFixed(1)}%
             </div>
-            <p className="text-lg text-gray-600 mb-4">Overall Score</p>
+            <p className="text-lg text-slate-700 mb-4">Overall Score</p>
             
             {evaluation.passed ? (
               <div className="inline-flex items-center gap-2 px-6 py-3 bg-green-100 text-green-800 rounded-full font-semibold">
@@ -59,14 +59,14 @@ export function EvaluationResults({ evaluation }: EvaluationResultsProps) {
                 </div>
               </div>
               
-              <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
+              <div className="flex items-center justify-between text-sm text-slate-700 mb-4">
                 <span>
                   {scoreData.passed ? '✓ Passed' : '✗ Not Passed'}
                 </span>
                 <span>Weighted: {scoreData.weighted_score.toFixed(2)}</span>
               </div>
               
-              <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+              <div className="w-full bg-slate-200 rounded-full h-2 mb-4">
                 <div 
                   className={`h-2 rounded-full transition-all duration-300 ${getProgressBarColor(scoreData.score)}`}
                   style={{ width: `${scoreData.score}%` }}
@@ -98,14 +98,14 @@ export function EvaluationResults({ evaluation }: EvaluationResultsProps) {
       {/* Warnings (Strings) */}
       {evaluation.warnings && evaluation.warnings.length > 0 && (
         <div className="bg-white rounded-lg shadow-lg p-8">
-          <h3 className="text-xl font-bold mb-4 text-yellow-600 flex items-center gap-2">
+          <h3 className="text-xl font-bold mb-4 text-amber-700 flex items-center gap-2">
             <AlertTriangle className="w-6 h-6" />
             Warnings ({evaluation.warnings.length})
           </h3>
           
           <div className="space-y-3">
             {evaluation.warnings.map((warning, index) => (
-              <div key={index} className="p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded">
+              <div key={index} className="p-4 bg-amber-50 border-l-4 border-yellow-500 rounded">
                 <div className="font-semibold text-yellow-900">{warning}</div>  {/* String render */}
               </div>
             ))}

@@ -18,6 +18,7 @@ import {
   type TwoFactorChallengeResponse,
   type User,
 } from "../types";
+import { getApiErrorMessage } from "@/utils/apiError";
 
 interface AuthState {
   user: User | AdminUser | null;
@@ -49,29 +50,6 @@ const initialState: AuthState = {
   twoFactorProvisioningUri: null,
   twoFactorExpiresInSeconds: null,
   twoFactorMessage: null,
-};
-
-const getErrorMessage = (error: unknown, fallback: string): string => {
-  if (!error) return fallback;
-  if (typeof error === "string") return error;
-  if (error instanceof Error && error.message) return error.message;
-
-  const normalizedError = error as {
-    message?: string;
-    response?: {
-      data?: {
-        message?: string;
-        detail?: string;
-      };
-    };
-  };
-
-  return (
-    normalizedError.response?.data?.message ||
-    normalizedError.response?.data?.detail ||
-    normalizedError.message ||
-    fallback
-  );
 };
 
 const resolveUserType = (
@@ -116,7 +94,7 @@ export const login = createAsyncThunk<
   try {
     return await authService.login(credentials);
   } catch (error: unknown) {
-    return rejectWithValue({ message: getErrorMessage(error, "Login failed") });
+    return rejectWithValue({ message: getApiErrorMessage(error, "Login failed") });
   }
 });
 
@@ -128,7 +106,7 @@ export const verifyTwoFactor = createAsyncThunk<
   try {
     return await authService.verifyTwoFactor(payload);
   } catch (error: unknown) {
-    return rejectWithValue({ message: getErrorMessage(error, "Two-factor verification failed") });
+    return rejectWithValue({ message: getApiErrorMessage(error, "Two-factor verification failed") });
   }
 });
 
@@ -140,7 +118,7 @@ export const register = createAsyncThunk<
   try {
     return await authService.register(credentials);
   } catch (error: unknown) {
-    return rejectWithValue({ message: getErrorMessage(error, "Registration failed") });
+    return rejectWithValue({ message: getApiErrorMessage(error, "Registration failed") });
   }
 });
 
@@ -171,7 +149,7 @@ export const fetchProfile = createAsyncThunk<
   try {
     return await authService.getProfile();
   } catch (error: unknown) {
-    return rejectWithValue({ message: getErrorMessage(error, "Profile fetch failed") });
+    return rejectWithValue({ message: getApiErrorMessage(error, "Profile fetch failed") });
   }
 });
 
@@ -188,7 +166,7 @@ export const refreshToken = createAsyncThunk<
   try {
     return await authService.refreshToken(refreshTokenValue);
   } catch (error: unknown) {
-    return rejectWithValue({ message: getErrorMessage(error, "Token refresh failed") });
+    return rejectWithValue({ message: getApiErrorMessage(error, "Token refresh failed") });
   }
 });
 
@@ -198,7 +176,7 @@ export const updateUserProfile = createAsyncThunk(
     try {
       return await authService.updateProfile(data);
     } catch (error: unknown) {
-      return rejectWithValue(getErrorMessage(error, "Failed to update profile"));
+      return rejectWithValue(getApiErrorMessage(error, "Failed to update profile"));
     }
   },
 );
@@ -211,7 +189,7 @@ export const changePassword = createAsyncThunk<
   try {
     await authService.changePassword(data);
   } catch (error: unknown) {
-    return rejectWithValue({ message: getErrorMessage(error, "Password change failed") });
+    return rejectWithValue({ message: getApiErrorMessage(error, "Password change failed") });
   }
 });
 
@@ -226,7 +204,7 @@ export const resetPassword = createAsyncThunk<
       new_password_confirm: data.new_password2,
     });
   } catch (error: unknown) {
-    return rejectWithValue({ message: getErrorMessage(error, "Password reset failed") });
+    return rejectWithValue({ message: getApiErrorMessage(error, "Password reset failed") });
   }
 });
 
@@ -238,7 +216,7 @@ export const requestPasswordReset = createAsyncThunk<
   try {
     await authService.requestPasswordReset(data.email);
   } catch (error: unknown) {
-    return rejectWithValue({ message: getErrorMessage(error, "Password reset request failed") });
+    return rejectWithValue({ message: getApiErrorMessage(error, "Password reset request failed") });
   }
 });
 

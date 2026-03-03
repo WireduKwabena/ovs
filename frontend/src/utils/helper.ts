@@ -28,19 +28,19 @@ export function formatFileSize(bytes: number): string {
 
 export function getScoreColor(score: number): string {
   if (score >= 85) return 'text-green-600';
-  if (score >= 70) return 'text-yellow-600';
+  if (score >= 70) return 'text-amber-700';
   return 'text-red-600';
 }
 
 export function getScoreBg(score: number): string {  // New export - matches component need
   if (score >= 85) return 'bg-green-50';
-  if (score >= 70) return 'bg-yellow-50';
+  if (score >= 70) return 'bg-amber-50';
   return 'bg-red-50';
 }
 
 export function getProgressBarColor(score: number): string {
   if (score >= 85) return 'bg-green-500';
-  if (score >= 70) return 'bg-yellow-500';
+  if (score >= 70) return 'bg-amber-600';
   return 'bg-red-500';
 }
 

@@ -42,7 +42,7 @@ const actionPillClass: Record<string, string> = {
   delete: "bg-rose-100 text-rose-700",
   login: "bg-indigo-100 text-indigo-700",
   logout: "bg-zinc-100 text-zinc-700",
-  other: "bg-slate-100 text-slate-700",
+  other: "bg-slate-200 text-slate-800",
 };
 
 const AuditLogsPage: React.FC = () => {
@@ -177,7 +177,7 @@ const AuditLogsPage: React.FC = () => {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black tracking-tight text-slate-900">Audit Logs</h1>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-slate-700">
               Track security and workflow actions across user and admin activity.
             </p>
           </div>
@@ -198,20 +198,20 @@ const AuditLogsPage: React.FC = () => {
 
       <section className="grid gap-4 md:grid-cols-3">
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Total Logs</p>
+          <p className="text-sm text-slate-700">Total Logs</p>
           <p className="mt-2 text-3xl font-black text-slate-900">{stats.total_logs}</p>
         </article>
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:col-span-2">
-          <p className="text-sm text-slate-500">Top Actions</p>
+          <p className="text-sm text-slate-700">Top Actions</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {topActions.length === 0 ? (
-              <span className="text-sm text-slate-500">No action statistics available.</span>
+              <span className="text-sm text-slate-700">No action statistics available.</span>
             ) : (
               topActions.map((item) => (
                 <span
                   key={item.action}
                   className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                    actionPillClass[item.action] || "bg-slate-100 text-slate-700"
+                    actionPillClass[item.action] || "bg-slate-200 text-slate-800"
                   }`}
                 >
                   {item.action}: {item.count}
@@ -226,7 +226,7 @@ const AuditLogsPage: React.FC = () => {
         <h2 className="text-lg font-bold text-slate-900">Filters</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-4">
           <div>
-            <label htmlFor="audit-action-filter" className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+            <label htmlFor="audit-action-filter" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
               Action
             </label>
             <Select value={actionFilter} onValueChange={(value) => setActionFilter(value as AuditActionFilter)}>
@@ -243,7 +243,7 @@ const AuditLogsPage: React.FC = () => {
             </Select>
           </div>
           <div>
-            <label htmlFor="audit-entity-type" className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+            <label htmlFor="audit-entity-type" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
               Entity Type
             </label>
             <Input
@@ -254,7 +254,7 @@ const AuditLogsPage: React.FC = () => {
             />
           </div>
           <div>
-            <label htmlFor="audit-entity-id" className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+            <label htmlFor="audit-entity-id" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
               Entity ID
             </label>
             <Input
@@ -265,11 +265,11 @@ const AuditLogsPage: React.FC = () => {
             />
           </div>
           <div>
-            <label htmlFor="audit-search" className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+            <label htmlFor="audit-search" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
               Search
             </label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-700" />
               <Input
                 id="audit-search"
                 value={searchFilter}
@@ -283,7 +283,7 @@ const AuditLogsPage: React.FC = () => {
       </section>
 
       {loading ? (
-        <section className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center text-slate-500 shadow-sm">
+        <section className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center text-slate-700 shadow-sm">
           Loading audit logs...
         </section>
       ) : errorMessage ? (
@@ -295,13 +295,15 @@ const AuditLogsPage: React.FC = () => {
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-bold text-slate-900">Audit Entries</h2>
             {logs.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-500">No audit logs found for current filters.</p>
+              <p className="mt-3 text-sm text-slate-700">No audit logs found for current filters.</p>
             ) : (
-              <div className="mt-3 overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+              <>
+                <p className="mt-3 text-xs text-slate-700 md:hidden">Swipe horizontally to view all audit columns.</p>
+                <div className="mt-2 overflow-x-auto rounded-lg border border-slate-200">
+                <table className="min-w-[980px] w-full text-sm">
+                  <thead className="bg-slate-50 text-left text-xs uppercase text-slate-700">
                     <tr>
-                      <th className="px-3 py-2">Action</th>
+                      <th className="sticky left-0 z-10 bg-slate-50 px-3 py-2">Action</th>
                       <th className="px-3 py-2">Actor</th>
                       <th className="px-3 py-2">Entity</th>
                       <th className="px-3 py-2">IP</th>
@@ -311,11 +313,11 @@ const AuditLogsPage: React.FC = () => {
                   </thead>
                   <tbody>
                     {logs.map((log) => (
-                      <tr key={log.id} className="border-t border-slate-100">
-                        <td className="px-3 py-2">
+                      <tr key={log.id} className="border-t border-slate-100 hover:bg-slate-50/70">
+                        <td className="sticky left-0 bg-white px-3 py-2">
                           <span
                             className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
-                              actionPillClass[log.action] || "bg-slate-100 text-slate-700"
+                              actionPillClass[log.action] || "bg-slate-200 text-slate-800"
                             }`}
                           >
                             {log.action_display || log.action}
@@ -328,14 +330,14 @@ const AuditLogsPage: React.FC = () => {
                           {log.entity_type || "-"}
                           {log.entity_id ? ` #${log.entity_id}` : ""}
                         </td>
-                        <td className="px-3 py-2 text-slate-500">{log.ip_address || "-"}</td>
-                        <td className="px-3 py-2 text-slate-500">{formatDate(log.created_at)}</td>
+                        <td className="px-3 py-2 text-slate-700">{log.ip_address || "-"}</td>
+                        <td className="px-3 py-2 text-slate-700">{formatDate(log.created_at)}</td>
                         <td className="px-3 py-2">
                           <button
                             type="button"
                             onClick={() => void handleSelectLog(log.id)}
                             disabled={loadingLogId === log.id}
-                            className="inline-flex items-center gap-1 rounded border border-slate-200 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                            className="inline-flex items-center gap-1 rounded border border-slate-700 px-2 py-1 text-xs font-medium text-slate-800 hover:bg-slate-100 disabled:opacity-60"
                           >
                             <Eye className="h-3.5 w-3.5" />
                             {loadingLogId === log.id ? "Loading..." : "View"}
@@ -346,41 +348,42 @@ const AuditLogsPage: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-bold text-slate-900">Selected Audit Detail</h2>
             {!selectedLog ? (
-              <p className="mt-3 text-sm text-slate-500">Select a row to inspect full event details.</p>
+              <p className="mt-3 text-sm text-slate-700">Select a row to inspect full event details.</p>
             ) : (
               <div className="mt-3 grid gap-4 md:grid-cols-2">
                 <div>
-                  <p className="text-xs uppercase text-slate-500">Action</p>
+                  <p className="text-xs uppercase text-slate-700">Action</p>
                   <p className="text-sm text-slate-800">{selectedLog.action_display || selectedLog.action}</p>
                 </div>
                 <div>
-                  <p className="text-xs uppercase text-slate-500">Entity</p>
+                  <p className="text-xs uppercase text-slate-700">Entity</p>
                   <p className="text-sm text-slate-800">
                     {selectedLog.entity_type} {selectedLog.entity_id ? `#${selectedLog.entity_id}` : ""}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs uppercase text-slate-500">Actor</p>
+                  <p className="text-xs uppercase text-slate-700">Actor</p>
                   <p className="text-sm text-slate-800">
                     {selectedLog.admin_user_name || selectedLog.user_name || "system"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs uppercase text-slate-500">Timestamp</p>
+                  <p className="text-xs uppercase text-slate-700">Timestamp</p>
                   <p className="text-sm text-slate-800">{formatDate(selectedLog.created_at)}</p>
                 </div>
                 <div className="md:col-span-2">
-                  <p className="text-xs uppercase text-slate-500">User Agent</p>
+                  <p className="text-xs uppercase text-slate-700">User Agent</p>
                   <p className="text-sm text-slate-700 break-all">{selectedLog.user_agent || "-"}</p>
                 </div>
                 <div className="md:col-span-2">
-                  <p className="text-xs uppercase text-slate-500">Changes</p>
+                  <p className="text-xs uppercase text-slate-700">Changes</p>
                   <pre className="mt-1 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700 overflow-auto">
                     {JSON.stringify(selectedLog.changes || {}, null, 2)}
                   </pre>
@@ -393,7 +396,7 @@ const AuditLogsPage: React.FC = () => {
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <h2 className="text-lg font-bold text-slate-900">Entity Distribution</h2>
               {topEntities.length === 0 ? (
-                <p className="mt-3 text-sm text-slate-500">No entity distribution data available.</p>
+                <p className="mt-3 text-sm text-slate-700">No entity distribution data available.</p>
               ) : (
                 <ul className="mt-3 space-y-2">
                   {topEntities.map((item) => (
@@ -409,17 +412,17 @@ const AuditLogsPage: React.FC = () => {
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <h2 className="text-lg font-bold text-slate-900">Recent Activity</h2>
               {recentLogs.length === 0 ? (
-                <p className="mt-3 text-sm text-slate-500">No recent activity available.</p>
+                <p className="mt-3 text-sm text-slate-700">No recent activity available.</p>
               ) : (
                 <ul className="mt-3 space-y-2">
                   {recentLogs.map((log) => (
                     <li key={log.id} className="flex items-start gap-3 rounded-lg border border-slate-200 px-3 py-2">
-                      <Activity className="mt-0.5 h-4 w-4 text-slate-500" />
+                      <Activity className="mt-0.5 h-4 w-4 text-slate-700" />
                       <div>
                         <p className="text-sm font-medium text-slate-800">
                           {log.action_display || log.action} on {log.entity_type || "N/A"}
                         </p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-slate-700">
                           {log.admin_user_name || log.user_name || "system"} at {formatDate(log.created_at)}
                         </p>
                       </div>
@@ -436,3 +439,4 @@ const AuditLogsPage: React.FC = () => {
 };
 
 export default AuditLogsPage;
+

@@ -157,14 +157,14 @@ function MetricCard({ title, value, icon, color }: MetricCardProps) {
     blue: 'bg-blue-50 text-blue-600',
     green: 'bg-green-50 text-green-600',
     red: 'bg-red-50 text-red-600',
-    yellow: 'bg-yellow-50 text-yellow-600',
+    yellow: 'bg-amber-50 text-amber-700',
   };
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-gray-600 mb-1">{title}</p>
+          <p className="mb-1 text-sm text-slate-700">{title}</p>
           <p className="text-3xl font-bold text-gray-900">{value}</p>
         </div>
         <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl ${colorClasses[color]}`}>
@@ -178,7 +178,7 @@ function MetricCard({ title, value, icon, color }: MetricCardProps) {
 function MetricRow({ label, value }: MetricRowProps) {
   return (
     <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
-      <span className="text-sm text-gray-600">{label}</span>
+      <span className="text-sm text-slate-700">{label}</span>
       <span className="text-sm font-semibold text-gray-900">{value}</span>
     </div>
   );
@@ -307,19 +307,19 @@ export function AnalyticsDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
+        <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900">Interview Analytics</h1>
-            <p className="text-gray-600 mt-2">AI Interrogation System Performance</p>
+            <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">Interview Analytics</h1>
+            <p className="mt-2 text-slate-700">AI Interrogation System Performance</p>
           </div>
 
           <select
             title="Select Time Range"
             value={timeRange}
             onChange={(event) => setTimeRange(Number(event.target.value))}
-            className="px-4 py-2 border border-gray-300 rounded-lg"
+            className="w-full rounded-lg border border-slate-700 bg-white px-4 py-2 text-slate-900 sm:w-auto"
           >
             <option value={7}>Last 7 days</option>
             <option value={30}>Last 30 days</option>
@@ -327,11 +327,11 @@ export function AnalyticsDashboard() {
           </select>
         </div>
 
-        <div className="flex gap-4 mb-8">
+        <div className="mb-8 flex flex-wrap gap-3 [&>*]:w-full sm:[&>*]:w-auto">
           <button
             type="button"
             onClick={downloadCSVReport}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 flex items-center gap-2"
+            className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-700"
           >
             <Download className="h-4 w-4" />
             Export CSV Report
@@ -340,7 +340,7 @@ export function AnalyticsDashboard() {
           <button
             type="button"
             onClick={downloadJSONReport}
-            className="px-6 py-3 bg-slate-700 text-white rounded-lg font-semibold hover:bg-slate-800 flex items-center gap-2"
+            className="flex items-center justify-center gap-2 rounded-lg bg-slate-700 px-6 py-3 font-semibold text-white hover:bg-slate-800"
           >
             <Download className="h-4 w-4" />
             Export JSON Report
@@ -349,14 +349,14 @@ export function AnalyticsDashboard() {
           <button
             type="button"
             onClick={downloadPDFReport}
-            className="px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 flex items-center gap-2"
+            className="flex items-center justify-center gap-2 rounded-lg bg-purple-600 px-6 py-3 font-semibold text-white hover:bg-purple-700"
           >
             <FileText className="h-4 w-4" />
             Print / Save PDF
           </button>
         </div>
 
-        <div className="grid md:grid-cols-4 gap-6 mb-8">
+        <div className="mb-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard title="Total Interviews" value={metrics.overview.total_interviews} icon="📊" color="blue" />
           <MetricCard title="Completion Rate" value={`${metrics.overview.completion_rate}%`} icon="✅" color="green" />
           <MetricCard
@@ -368,7 +368,7 @@ export function AnalyticsDashboard() {
           <MetricCard title="Total Cost" value={`${metrics.cost.estimated_cost}`} icon="💰" color="yellow" />
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 mb-8">
+        <div className="mb-8 grid gap-6 md:grid-cols-2">
           <div className="bg-white rounded-xl shadow-lg p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Interview Trend</h2>
             <ResponsiveContainer width="100%" height={300}>
@@ -439,7 +439,7 @@ export function AnalyticsDashboard() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <div className="mb-8 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           <div className="bg-white rounded-xl shadow-lg p-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
               <span>⚡</span> Performance Metrics
@@ -476,19 +476,20 @@ export function AnalyticsDashboard() {
 
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Most Common Flag Types</h2>
+          <p className="mb-2 text-xs text-slate-700 md:hidden">Swipe horizontally to view all flag columns.</p>
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="min-w-[720px] w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Flag Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Occurrences</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Severity</th>
+                  <th className="sticky left-0 z-10 bg-gray-50 px-6 py-3 text-left text-xs font-medium uppercase text-slate-700">Flag Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-700">Occurrences</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-700">Severity</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {flags.map((flag) => (
-                  <tr key={flag.flag_type}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <tr key={flag.flag_type} className="hover:bg-slate-50/70">
+                    <td className="sticky left-0 whitespace-nowrap bg-white px-6 py-4 text-sm text-gray-900">
                       {flag.flag_type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{flag.count}</td>

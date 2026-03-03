@@ -244,11 +244,12 @@ const AdminCasesPage: React.FC = () => {
         <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Admin Case Queue</h1>
-            <p className="text-gray-600 mt-1">Review vetting cases with server-side filters and pagination.</p>
+            <p className="mt-1 text-slate-800">Review vetting cases with server-side filters and pagination.</p>
           </div>
           <Button
             type="button"
             variant="outline"
+            className="w-full border-slate-700 text-slate-900 hover:bg-slate-100 md:w-auto"
             onClick={() => setReloadCounter((value) => value + 1)}
             disabled={loading}
           >
@@ -260,10 +261,10 @@ const AdminCasesPage: React.FC = () => {
         <section className="bg-white rounded-lg shadow-sm p-4 md:p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div className="md:col-span-2">
-              <label htmlFor="application-type-filter" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="application-type-filter" className="mb-1 block text-sm font-medium text-slate-800">
                 Application Type
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <Input
                   id="application-type-filter"
                   value={typeFilterInput}
@@ -278,6 +279,7 @@ const AdminCasesPage: React.FC = () => {
                 <Button
                   type="button"
                   variant="outline"
+                  className="w-full border-slate-700 text-slate-900 hover:bg-slate-100 sm:w-auto"
                   onClick={() => updateQuery({ application_type: typeFilterInput.trim() || null })}
                 >
                   <Search className="h-4 w-4" />
@@ -287,7 +289,7 @@ const AdminCasesPage: React.FC = () => {
             </div>
 
             <div>
-              <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="status-filter" className="mb-1 block text-sm font-medium text-slate-800">
                 Status
               </label>
               <Select
@@ -308,7 +310,7 @@ const AdminCasesPage: React.FC = () => {
             </div>
 
             <div>
-              <label htmlFor="priority-filter" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="priority-filter" className="mb-1 block text-sm font-medium text-slate-800">
                 Priority
               </label>
               <Select
@@ -330,20 +332,20 @@ const AdminCasesPage: React.FC = () => {
           </div>
 
           <div className="flex flex-col gap-3 border-t pt-4 md:flex-row md:items-center md:justify-between">
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-slate-800">
               {loading ? 'Loading cases...' : `Showing ${pageStart}-${pageEnd} of ${totalCount} cases`}
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Filter className="h-4 w-4 text-gray-500" />
-              <span className="text-sm text-gray-600">Page size</span>
+              <Filter className="h-4 w-4 text-slate-800" />
+              <span className="text-sm text-slate-800">Page size</span>
               <Select
                 value={pageSize}
                 onValueChange={(value) =>
                   updateQuery({ page_size: value, page: '1' }, { keepPage: true })
                 }
               >
-                <SelectTrigger className="w-24">
+                <SelectTrigger className="w-full sm:w-24">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -355,12 +357,12 @@ const AdminCasesPage: React.FC = () => {
                 </SelectContent>
               </Select>
 
-              <span className="ml-2 text-sm text-gray-600">Sort</span>
+              <span className="ml-2 text-sm text-slate-800">Sort</span>
               <Select
                 value={sorting.field}
                 onValueChange={(value) => updateQuery({ ordering: toOrdering(value as SortField, sorting.direction) })}
               >
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="w-full sm:w-48">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -375,6 +377,7 @@ const AdminCasesPage: React.FC = () => {
               <Button
                 type="button"
                 variant="outline"
+                className="w-full border-slate-700 text-slate-900 hover:bg-slate-100 sm:w-auto"
                 onClick={() =>
                   updateQuery({
                     ordering: toOrdering(
@@ -403,13 +406,14 @@ const AdminCasesPage: React.FC = () => {
 
         <section className="bg-white rounded-lg shadow-sm p-4 md:p-6 space-y-3">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <p className="text-sm text-gray-700">
+            <p className="text-sm text-slate-900">
               Selected on current queue: <span className="font-semibold">{selectedCaseIds.length}</span>
             </p>
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
                 variant="outline"
+                className="w-full border-slate-700 text-slate-900 hover:bg-slate-100 sm:w-auto"
                 disabled={selectedCaseIds.length === 0 || bulkActionLoading}
                 onClick={() => handleBulkStatusUpdate('approved')}
               >
@@ -429,10 +433,10 @@ const AdminCasesPage: React.FC = () => {
           </div>
 
           {bulkActionLoading && (
-            <p className="text-sm text-gray-600">Applying bulk action...</p>
+            <p className="text-sm text-slate-800">Applying bulk action...</p>
           )}
           {bulkActionSummary && (
-            <p className="text-sm text-gray-700">{bulkActionSummary}</p>
+            <p className="text-sm text-slate-800">{bulkActionSummary}</p>
           )}
         </section>
 
@@ -447,23 +451,26 @@ const AdminCasesPage: React.FC = () => {
               <Button
                 type="button"
                 variant="outline"
-                className="mt-4"
+                className="mt-4 border-slate-700 text-slate-900 hover:bg-slate-100"
                 onClick={() => setReloadCounter((value) => value + 1)}
               >
                 Try Again
               </Button>
             </div>
           ) : cases.length === 0 ? (
-            <div className="p-10 text-center text-gray-600">
+            <div className="p-10 text-center text-slate-800">
               No cases matched your filters.
             </div>
           ) : (
             <>
+              <div className="md:hidden px-4 pt-3 text-xs text-slate-800">
+                Swipe horizontally to view all case columns.
+              </div>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+                <table className="min-w-[1120px] w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      <th className="sticky left-0 z-30 w-12 bg-gray-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-800">
                         <input
                           type="checkbox"
                           checked={allVisibleSelected}
@@ -471,21 +478,21 @@ const AdminCasesPage: React.FC = () => {
                           aria-label="Select all visible cases"
                         />
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Case</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Applicant</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Priority</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Consistency</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Fraud Risk</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Created</th>
-                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
+                      <th className="sticky left-12 z-20 min-w-[180px] bg-gray-50 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-800">Case</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-800">Applicant</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-800">Type</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-800">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-800">Priority</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-800">Consistency</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-800">Fraud Risk</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-800">Created</th>
+                      <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-800">Action</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-100">
                     {cases.map((item: AdminCase) => (
-                      <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-4 whitespace-nowrap">
+                      <tr key={item.id} className="hover:bg-slate-100">
+                        <td className="sticky left-0 z-20 w-12 whitespace-nowrap bg-white px-4 py-4">
                           <input
                             type="checkbox"
                             checked={selectedCaseIdSet.has(item.case_id)}
@@ -493,17 +500,17 @@ const AdminCasesPage: React.FC = () => {
                             aria-label={`Select case ${item.case_id}`}
                           />
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">{item.case_id}</td>
-                        <td className="px-6 py-4 text-sm text-gray-700">
+                        <td className="sticky left-12 z-10 min-w-[180px] whitespace-nowrap bg-white px-6 py-4 text-sm font-semibold text-gray-900">{item.case_id}</td>
+                        <td className="px-6 py-4 text-sm text-slate-800">
                           <div className="font-medium">{item.applicant_name}</div>
-                          <div className="text-gray-500">{item.applicant_email}</div>
+                          <div className="text-slate-800">{item.applicant_email}</div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.application_type || '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800">{item.application_type || '-'}</td>
                         <td className="px-6 py-4 whitespace-nowrap"><StatusBadge status={item.status} /></td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 capitalize">{item.priority || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{scoreLabel(item.consistency_score)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{scoreLabel(item.fraud_risk_score)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{formatDate(item.created_at)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800 capitalize">{item.priority || '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800">{scoreLabel(item.consistency_score)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800">{scoreLabel(item.fraud_risk_score)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800">{formatDate(item.created_at)}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
                           <Button asChild size="sm">
                             <Link to={`/admin/cases/${item.case_id}`}>Review</Link>
@@ -515,14 +522,15 @@ const AdminCasesPage: React.FC = () => {
                 </table>
               </div>
 
-              <div className="border-t px-6 py-4 flex items-center justify-between">
-                <p className="text-sm text-gray-600">
+              <div className="flex flex-col gap-2 border-t px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-slate-800">
                   Page {page} of {totalPages}
                 </p>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <Button
                     type="button"
                     variant="outline"
+                    className="w-full border-slate-700 text-slate-900 hover:bg-slate-100 sm:w-auto"
                     size="sm"
                     disabled={page <= 1}
                     onClick={() => updateQuery({ page: String(page - 1) }, { keepPage: true })}
@@ -532,6 +540,7 @@ const AdminCasesPage: React.FC = () => {
                   <Button
                     type="button"
                     variant="outline"
+                    className="w-full border-slate-700 text-slate-900 hover:bg-slate-100 sm:w-auto"
                     size="sm"
                     disabled={page >= totalPages}
                     onClick={() => updateQuery({ page: String(page + 1) }, { keepPage: true })}

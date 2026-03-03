@@ -212,7 +212,7 @@ const MlMonitoringPage: React.FC = () => {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black tracking-tight text-slate-900">ML Monitoring</h1>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-slate-700">
               Track model performance metrics, latest versions, and trend history.
             </p>
           </div>
@@ -236,20 +236,20 @@ const MlMonitoringPage: React.FC = () => {
       <section className="grid gap-4 md:grid-cols-3">
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">Models Tracked</p>
+            <p className="text-sm text-slate-700">Models Tracked</p>
             <Brain className="h-5 w-5 text-indigo-600" />
           </div>
           <p className="mt-2 text-3xl font-black text-slate-900">{summary.total_models}</p>
         </article>
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">Active Filter</p>
+            <p className="text-sm text-slate-700">Active Filter</p>
             <BarChart3 className="h-5 w-5 text-cyan-600" />
           </div>
           <p className="mt-2 text-lg font-semibold text-slate-900">{activeModel || "None"}</p>
         </article>
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Latest Metrics Entries</p>
+          <p className="text-sm text-slate-700">Latest Metrics Entries</p>
           <p className="mt-2 text-3xl font-black text-slate-900">{latestMetrics.length}</p>
         </article>
       </section>
@@ -257,7 +257,7 @@ const MlMonitoringPage: React.FC = () => {
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="grid gap-3 md:grid-cols-3">
           <div>
-            <label htmlFor="ml-model-filter" className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+            <label htmlFor="ml-model-filter" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
               Model
             </label>
             <Select value={selectedModel} onValueChange={(value) => void handleModelChange(value)}>
@@ -278,7 +278,7 @@ const MlMonitoringPage: React.FC = () => {
       </section>
 
       {loading ? (
-        <section className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center text-slate-500 shadow-sm">
+        <section className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center text-slate-700 shadow-sm">
           Loading model metrics...
         </section>
       ) : errorMessage ? (
@@ -290,13 +290,15 @@ const MlMonitoringPage: React.FC = () => {
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-bold text-slate-900">Latest Model Metrics</h2>
             {displayedLatest.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-500">No latest metrics available.</p>
+              <p className="mt-3 text-sm text-slate-700">No latest metrics available.</p>
             ) : (
-              <div className="mt-3 overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+              <>
+                <p className="mt-3 text-xs text-slate-700 md:hidden">Swipe horizontally to view all metric columns.</p>
+                <div className="mt-2 overflow-x-auto rounded-lg border border-slate-200">
+                <table className="min-w-[940px] w-full text-sm">
+                  <thead className="bg-slate-50 text-left text-xs uppercase text-slate-700">
                     <tr>
-                      <th className="px-3 py-2">Model</th>
+                      <th className="sticky left-0 z-10 bg-slate-50 px-3 py-2">Model</th>
                       <th className="px-3 py-2">Version</th>
                       <th className="px-3 py-2">Accuracy</th>
                       <th className="px-3 py-2">Precision</th>
@@ -307,39 +309,40 @@ const MlMonitoringPage: React.FC = () => {
                   </thead>
                   <tbody>
                     {displayedLatest.map((metric) => (
-                      <tr key={metric.id} className="border-t border-slate-100">
-                        <td className="px-3 py-2 font-semibold text-slate-800">{metric.model_name}</td>
+                      <tr key={metric.id} className="border-t border-slate-100 hover:bg-slate-50/70">
+                        <td className="sticky left-0 bg-white px-3 py-2 font-semibold text-slate-800">{metric.model_name}</td>
                         <td className="px-3 py-2 text-slate-700">{metric.model_version}</td>
                         <td className="px-3 py-2 text-slate-700">{percentage(metric.accuracy)}</td>
                         <td className="px-3 py-2 text-slate-700">{percentage(metric.precision)}</td>
                         <td className="px-3 py-2 text-slate-700">{percentage(metric.recall)}</td>
                         <td className="px-3 py-2 text-slate-700">{percentage(metric.f1_score)}</td>
-                        <td className="px-3 py-2 text-slate-500">{formatDate(metric.evaluated_at)}</td>
+                        <td className="px-3 py-2 text-slate-700">{formatDate(metric.evaluated_at)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-bold text-slate-900">Performance Summary</h2>
             {Object.keys(summary.models).length === 0 ? (
-              <p className="mt-3 text-sm text-slate-500">No performance summary available.</p>
+              <p className="mt-3 text-sm text-slate-700">No performance summary available.</p>
             ) : (
               <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                 {Object.entries(summary.models).map(([modelName, model]) => (
                   <article key={modelName} className="rounded-xl border border-slate-200 p-4">
                     <p className="text-sm font-semibold text-slate-800">{modelName}</p>
-                    <p className="text-xs text-slate-500">Version: {model.version}</p>
-                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                    <p className="text-xs text-slate-700">Version: {model.version}</p>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-700">
                       <span>Acc: {percentage(model.accuracy)}</span>
                       <span>Prec: {percentage(model.precision)}</span>
                       <span>Rec: {percentage(model.recall)}</span>
                       <span>F1: {percentage(model.f1_score)}</span>
                     </div>
-                    <p className="mt-2 text-xs text-slate-500">Evaluated: {formatDate(model.last_evaluated)}</p>
+                    <p className="mt-2 text-xs text-slate-700">Evaluated: {formatDate(model.last_evaluated)}</p>
                   </article>
                 ))}
               </div>
@@ -359,13 +362,15 @@ const MlMonitoringPage: React.FC = () => {
               />
             </div>
             {history.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-500">No history available for selected model.</p>
+              <p className="mt-3 text-sm text-slate-700">No history available for selected model.</p>
             ) : (
-              <div className="mt-3 overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+              <>
+                <p className="mt-3 text-xs text-slate-700 md:hidden">Swipe horizontally to view full model history columns.</p>
+                <div className="mt-2 overflow-x-auto rounded-lg border border-slate-200">
+                <table className="min-w-[920px] w-full text-sm">
+                  <thead className="bg-slate-50 text-left text-xs uppercase text-slate-700">
                     <tr>
-                      <th className="px-3 py-2">Version</th>
+                      <th className="sticky left-0 z-10 bg-slate-50 px-3 py-2">Version</th>
                       <th className="px-3 py-2">Accuracy</th>
                       <th className="px-3 py-2">Precision</th>
                       <th className="px-3 py-2">Recall</th>
@@ -376,19 +381,20 @@ const MlMonitoringPage: React.FC = () => {
                   </thead>
                   <tbody>
                     {history.map((metric) => (
-                      <tr key={metric.id} className="border-t border-slate-100">
-                        <td className="px-3 py-2 text-slate-700">{metric.model_version}</td>
+                      <tr key={metric.id} className="border-t border-slate-100 hover:bg-slate-50/70">
+                        <td className="sticky left-0 bg-white px-3 py-2 text-slate-700">{metric.model_version}</td>
                         <td className="px-3 py-2 text-slate-700">{percentage(metric.accuracy)}</td>
                         <td className="px-3 py-2 text-slate-700">{percentage(metric.precision)}</td>
                         <td className="px-3 py-2 text-slate-700">{percentage(metric.recall)}</td>
                         <td className="px-3 py-2 text-slate-700">{percentage(metric.f1_score)}</td>
-                        <td className="px-3 py-2 text-slate-500">{formatDate(metric.trained_at)}</td>
-                        <td className="px-3 py-2 text-slate-500">{formatDate(metric.evaluated_at)}</td>
+                        <td className="px-3 py-2 text-slate-700">{formatDate(metric.trained_at)}</td>
+                        <td className="px-3 py-2 text-slate-700">{formatDate(metric.evaluated_at)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </section>
         </>

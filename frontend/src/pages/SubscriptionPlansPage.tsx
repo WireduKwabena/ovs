@@ -205,7 +205,7 @@ export const SubscriptionPlansPage: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate("/")}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               Back home
@@ -217,7 +217,7 @@ export const SubscriptionPlansPage: React.FC = () => {
               <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
                 Activate your firm workspace
               </h1>
-              <p className="mt-3 max-w-2xl text-sm text-slate-600 sm:text-base">
+              <p className="mt-3 max-w-2xl text-sm text-slate-700 sm:text-base">
                 Registration stays locked until subscription is confirmed. Choose a plan,
                 confirm payment mode, then continue to organization account setup.
               </p>
@@ -234,7 +234,7 @@ export const SubscriptionPlansPage: React.FC = () => {
           </div>
         </header>
 
-        <div className="mb-6 inline-flex rounded-xl border border-slate-300 bg-white p-1 shadow-sm">
+        <div className="mb-6 inline-flex rounded-xl border border-slate-700 bg-white p-1 shadow-sm">
           <button
             type="button"
             onClick={() => setBillingCycle("monthly")}
@@ -287,11 +287,11 @@ export const SubscriptionPlansPage: React.FC = () => {
                   {selected && <BadgeCheck className="h-5 w-5 text-cyan-700" />}
                 </div>
 
-                <p className="text-sm text-slate-600">{plan.subtitle}</p>
+                <p className="text-sm text-slate-700">{plan.subtitle}</p>
 
                 <p className="mt-4 text-3xl font-black text-slate-900">
                   {formatUsd(planPrice)}
-                  <span className="ml-1 text-sm font-medium text-slate-500">
+                  <span className="ml-1 text-sm font-medium text-slate-700">
                     /{billingCycle === "monthly" ? "mo" : "yr"}
                   </span>
                 </p>
@@ -312,7 +312,7 @@ export const SubscriptionPlansPage: React.FC = () => {
         <section className="mt-8 grid gap-6 lg:grid-cols-5">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-3">
             <h3 className="text-lg font-black text-slate-900">Payment method</h3>
-            <p className="mt-1 text-sm text-slate-600">Select your preferred payment route.</p>
+            <p className="mt-1 text-sm text-slate-700">Select your preferred payment route.</p>
 
             <div className="mt-4 space-y-3">
               {paymentMethods.map((method) => {
@@ -338,7 +338,7 @@ export const SubscriptionPlansPage: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-sm font-bold text-slate-900">{method.label}</p>
-                      <p className="text-xs text-slate-600">{method.description}</p>
+                      <p className="text-xs text-slate-700">{method.description}</p>
                     </div>
                   </button>
                 );
@@ -356,17 +356,17 @@ export const SubscriptionPlansPage: React.FC = () => {
             <h3 className="text-lg font-black text-slate-900">Order summary</h3>
             <dl className="mt-4 space-y-2 text-sm">
               <div className="flex items-center justify-between">
-                <dt className="text-slate-600">Plan</dt>
+                <dt className="text-slate-700">Plan</dt>
                 <dd className="font-semibold text-slate-900">{selectedPlan.name}</dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt className="text-slate-600">Billing cycle</dt>
+                <dt className="text-slate-700">Billing cycle</dt>
                 <dd className="font-semibold text-slate-900">
                   {billingCycle === "monthly" ? "Monthly" : "Annual"}
                 </dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt className="text-slate-600">Payment</dt>
+                <dt className="text-slate-700">Payment</dt>
                 <dd className="font-semibold text-slate-900">{selectedPaymentMethodLabel}</dd>
               </div>
               {annualSavings > 0 && (
@@ -398,7 +398,7 @@ export const SubscriptionPlansPage: React.FC = () => {
                 : "Confirm and continue"}
             </Button>
 
-            <p className="mt-3 text-xs text-slate-500">
+            <p className="mt-3 text-xs text-slate-700">
               Checkout mode: {checkoutMode === "api" ? "API" : checkoutMode === "stripe" ? "Stripe" : "Sandbox"}.
             </p>
           </aside>
@@ -409,3 +409,4 @@ export const SubscriptionPlansPage: React.FC = () => {
 };
 
 export default SubscriptionPlansPage;
+

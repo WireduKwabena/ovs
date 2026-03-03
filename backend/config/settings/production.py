@@ -5,6 +5,8 @@ Settings for production deployment.
 """
 
 import copy
+from pathlib import Path
+from urllib.parse import urlparse
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -29,6 +31,49 @@ CSRF_COOKIE_SECURE = True
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+
+
+def _is_local_host(value: str) -> bool:
+    normalized = str(value or "").strip().lower()
+    return normalized in {"localhost", "127.0.0.1", "0.0.0.0", "[::1]"}
+
+
+normalized_allowed_hosts = [host.strip().lower() for host in ALLOWED_HOSTS if host.strip()]
+if not normalized_allowed_hosts:
+    raise ImproperlyConfigured("ALLOWED_HOSTS cannot be empty in production.")
+if "*" in normalized_allowed_hosts:
+    raise ImproperlyConfigured("ALLOWED_HOSTS cannot contain '*' in production.")
+if any(_is_local_host(host) for host in normalized_allowed_hosts):
+    raise ImproperlyConfigured(
+        "ALLOWED_HOSTS cannot include localhost/loopback values in production."
+    )
+
+if not CSRF_TRUSTED_ORIGINS:
+    raise ImproperlyConfigured("CSRF_TRUSTED_ORIGINS must be configured in production.")
+for origin in CSRF_TRUSTED_ORIGINS:
+    parsed = urlparse(origin)
+    if parsed.scheme != "https":
+        raise ImproperlyConfigured(
+            f"CSRF_TRUSTED_ORIGINS entry must use https:// in production: {origin}"
+        )
+    if _is_local_host(parsed.hostname or ""):
+        raise ImproperlyConfigured(
+            f"CSRF_TRUSTED_ORIGINS cannot include localhost/loopback values: {origin}"
+        )
+
+for origin in CORS_ALLOWED_ORIGINS:
+    parsed = urlparse(origin)
+    if parsed.scheme and parsed.scheme != "https":
+        raise ImproperlyConfigured(
+            f"CORS_ALLOWED_ORIGINS entry must use https:// in production: {origin}"
+        )
+    if _is_local_host(parsed.hostname or ""):
+        raise ImproperlyConfigured(
+            f"CORS_ALLOWED_ORIGINS cannot include localhost/loopback values: {origin}"
+        )
 
 # Database - use PostgreSQL in production
 database_url = config("DATABASE_URL", default="")
@@ -74,6 +119,23 @@ AI_ML_METRIC_GATES_ENABLED = config(
 if not AI_ML_METRIC_GATES_ENABLED:
     raise ImproperlyConfigured(
         "AI_ML_METRIC_GATES_ENABLED cannot be disabled in production."
+    )
+
+AI_ML_MODEL_MANIFEST_REQUIRED = config(
+    "AI_ML_MODEL_MANIFEST_REQUIRED",
+    default=True,
+    cast=bool,
+)
+if not AI_ML_MODEL_MANIFEST_REQUIRED:
+    raise ImproperlyConfigured(
+        "AI_ML_MODEL_MANIFEST_REQUIRED cannot be disabled in production."
+    )
+manifest_path = Path(str(AI_ML_MODEL_MANIFEST_PATH))
+if not manifest_path.is_absolute():
+    manifest_path = Path(BASE_DIR) / manifest_path
+if not manifest_path.exists():
+    raise ImproperlyConfigured(
+        f"AI_ML_MODEL_MANIFEST_PATH must point to an existing file in production: {manifest_path}"
     )
 
 
@@ -122,6 +184,35 @@ AI_ML_METRIC_MIN_MIDV500_MACRO_F1 = _require_min_metric(
     "AI_ML_METRIC_MIN_MIDV500_MACRO_F1",
     AI_ML_METRIC_MIN_MIDV500_MACRO_F1,
     0.40,
+)
+
+
+def _require_positive_days(setting_name: str, value: int, minimum: int = 1) -> int:
+    try:
+        days = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ImproperlyConfigured(
+            f"{setting_name} must be an integer day count in production."
+        ) from exc
+    if days < minimum:
+        raise ImproperlyConfigured(
+            f"{setting_name} must be >= {minimum} day(s) in production (got {days})."
+        )
+    return days
+
+
+PII_RETENTION_DAYS = _require_positive_days("PII_RETENTION_DAYS", PII_RETENTION_DAYS)
+BIOMETRIC_RETENTION_DAYS = _require_positive_days(
+    "BIOMETRIC_RETENTION_DAYS",
+    BIOMETRIC_RETENTION_DAYS,
+)
+BACKGROUND_CHECK_RETENTION_DAYS = _require_positive_days(
+    "BACKGROUND_CHECK_RETENTION_DAYS",
+    BACKGROUND_CHECK_RETENTION_DAYS,
+)
+AUDIT_LOG_RETENTION_DAYS = _require_positive_days(
+    "AUDIT_LOG_RETENTION_DAYS",
+    AUDIT_LOG_RETENTION_DAYS,
 )
 
 # Background checks must not run against mock providers in production.
