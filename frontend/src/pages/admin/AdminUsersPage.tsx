@@ -115,6 +115,7 @@ const AdminUsersPage: React.FC = () => {
                   id="user-search"
                   value={searchInput}
                   placeholder="name or email"
+                  className="text-slate-900 placeholder:text-slate-500 placeholder:opacity-100"
                   onChange={(event) => setSearchInput(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {

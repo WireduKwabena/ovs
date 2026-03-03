@@ -34,10 +34,10 @@ const StatCard: React.FC<StatCardProps> = ({ icon: Icon, title, value, color, su
   <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
     <div className="flex items-center justify-between">
       <div>
-        <p className="text-sm font-medium text-slate-700">{title}</p>
+        <p className="text-sm font-medium text-slate-800">{title}</p>
         <p className={`text-3xl font-bold ${color} mt-2`}>{value.toLocaleString()}</p>
         {subtitle && (
-          <p className="text-xs text-slate-700 mt-1">{subtitle}</p>
+          <p className="text-xs text-slate-800 mt-1">{subtitle}</p>
         )}
       </div>
       <div className={`p-3 rounded-full ${ICON_BG_BY_TEXT_COLOR[color] ?? 'bg-slate-100'}`}>
@@ -125,7 +125,7 @@ export const AdminDashboard: React.FC = () => {
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="text-slate-700 mt-2">
+          <p className="text-slate-800 mt-2">
             Overview of vetting applications and system performance
           </p>
         </div>
@@ -175,7 +175,7 @@ export const AdminDashboard: React.FC = () => {
             <p className="text-2xl font-bold text-green-600">
               {stats.pending > 0 ? '~2.5 days' : 'Up to date'}
             </p>
-            <p className="text-sm text-slate-700 mt-1">Average review time</p>
+            <p className="text-sm text-slate-800 mt-1">Average review time</p>
           </div>
 
           <div className="bg-white rounded-lg shadow-sm p-6">
@@ -186,7 +186,7 @@ export const AdminDashboard: React.FC = () => {
             <p className="text-2xl font-bold text-blue-600">
               {Math.floor(stats.total_applications * 0.8)}
             </p>
-            <p className="text-sm text-slate-700 mt-1">Registered applicants</p>
+            <p className="text-sm text-slate-800 mt-1">Registered applicants</p>
           </div>
 
           <div className="bg-white rounded-lg shadow-sm p-6">
@@ -195,7 +195,7 @@ export const AdminDashboard: React.FC = () => {
               <h3 className="font-semibold text-gray-900">Success Rate</h3>
             </div>
             <p className="text-2xl font-bold text-purple-600">{approvalRate}%</p>
-            <p className="text-sm text-slate-700 mt-1">Applications approved</p>
+            <p className="text-sm text-slate-800 mt-1">Applications approved</p>
           </div>
         </div>
 
@@ -224,11 +224,11 @@ export const AdminDashboard: React.FC = () => {
                         <h3 className="font-semibold text-lg text-gray-900">{app.case_id}</h3>
                         <StatusBadge status={app.status} />
                       </div>
-                      <p className="text-sm text-slate-700">
+                      <p className="text-sm text-slate-800">
                         {app.applicant_name || 'Unknown'} • {' '}
                         <span className="capitalize">{app.application_type.replace('_', ' ')}</span>
                       </p>
-                      <p className="text-xs text-slate-700 mt-1">
+                      <p className="text-xs text-slate-800 mt-1">
                         Submitted: {formatDate(app.created_at)}
                       </p>
                     </div>
@@ -236,7 +236,7 @@ export const AdminDashboard: React.FC = () => {
                     <div className="w-full text-left lg:ml-6 lg:w-auto lg:text-right">
                       {typeof app.rubric_score === 'number' && (
                         <div className="mb-3">
-                          <div className="text-sm text-slate-700">
+                          <div className="text-sm text-slate-800">
                             Rubric Score:{' '}
                             <span className="font-semibold text-indigo-600">
                               {app.rubric_score.toFixed(1)}%
@@ -257,9 +257,9 @@ export const AdminDashboard: React.FC = () => {
               ))
             ) : (
               <div className="p-12 text-center">
-                <FileText className="w-16 h-16 text-slate-700 mx-auto mb-4" />
-                <p className="text-slate-700 text-lg">No recent applications</p>
-                <p className="text-slate-700 text-sm mt-1">New applications will appear here</p>
+                <FileText className="w-16 h-16 text-slate-800 mx-auto mb-4" />
+                <p className="text-slate-800 text-lg">No recent applications</p>
+                <p className="text-slate-800 text-sm mt-1">New applications will appear here</p>
               </div>
             )}
           </div>

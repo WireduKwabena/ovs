@@ -164,7 +164,7 @@ function MetricCard({ title, value, icon, color }: MetricCardProps) {
     <div className="bg-white rounded-xl shadow-lg p-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="mb-1 text-sm text-slate-700">{title}</p>
+          <p className="mb-1 text-sm text-slate-800">{title}</p>
           <p className="text-3xl font-bold text-gray-900">{value}</p>
         </div>
         <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl ${colorClasses[color]}`}>
@@ -178,7 +178,7 @@ function MetricCard({ title, value, icon, color }: MetricCardProps) {
 function MetricRow({ label, value }: MetricRowProps) {
   return (
     <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
-      <span className="text-sm text-slate-700">{label}</span>
+      <span className="text-sm text-slate-800">{label}</span>
       <span className="text-sm font-semibold text-gray-900">{value}</span>
     </div>
   );
@@ -312,7 +312,7 @@ export function AnalyticsDashboard() {
         <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">Interview Analytics</h1>
-            <p className="mt-2 text-slate-700">AI Interrogation System Performance</p>
+            <p className="mt-2 text-slate-800">AI Interrogation System Performance</p>
           </div>
 
           <select
@@ -476,14 +476,14 @@ export function AnalyticsDashboard() {
 
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Most Common Flag Types</h2>
-          <p className="mb-2 text-xs text-slate-700 md:hidden">Swipe horizontally to view all flag columns.</p>
+          <p className="mb-2 text-xs text-slate-800 md:hidden">Swipe horizontally to view all flag columns.</p>
           <div className="overflow-x-auto">
             <table className="min-w-[720px] w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="sticky left-0 z-10 bg-gray-50 px-6 py-3 text-left text-xs font-medium uppercase text-slate-700">Flag Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-700">Occurrences</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-700">Severity</th>
+                  <th className="sticky left-0 z-10 bg-gray-50 px-6 py-3 text-left text-xs font-medium uppercase text-slate-800">Flag Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-800">Occurrences</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-800">Severity</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">

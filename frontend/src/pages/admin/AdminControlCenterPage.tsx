@@ -28,7 +28,7 @@ const AdminControlCenterPage: React.FC = () => {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h1 className="text-2xl font-semibold text-slate-900">Admin Control Center</h1>
-              <p className="mt-1 text-sm text-slate-700">
+              <p className="mt-1 text-sm text-slate-800">
                 Full backend administration is available through Django Admin modules below.
               </p>
             </div>
@@ -56,7 +56,7 @@ const AdminControlCenterPage: React.FC = () => {
           {ADMIN_SECTIONS.map((section) => (
             <article key={section.path} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <h2 className="text-base font-semibold text-slate-900">{section.label}</h2>
-              <p className="mt-1 text-xs text-slate-700">Direct model administration panel.</p>
+              <p className="mt-1 text-xs text-slate-800">Direct model administration panel.</p>
               <a
                 href={`${adminBaseUrl}${section.path}`}
                 target="_blank"
