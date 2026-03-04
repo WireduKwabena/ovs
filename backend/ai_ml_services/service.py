@@ -14,6 +14,7 @@ from typing import Dict, List, Optional
 from django.conf import settings
 
 from ai_ml_services.utils.pdf import pdf2image_kwargs
+from ai_ml_services.utils.paths import resolve_settings_path
 
 logger = logging.getLogger(__name__)
 
@@ -54,10 +55,11 @@ class AIOrchestrator:
 
     @staticmethod
     def _resolve_path(raw_path: str) -> Path:
-        path = Path(str(raw_path))
-        if not path.is_absolute():
-            path = Path(settings.BASE_DIR) / path
-        return path
+        return resolve_settings_path(
+            raw_path,
+            base_dir=Path(settings.BASE_DIR),
+            fallback_dir=Path(getattr(settings, "MODEL_PATH", Path(settings.BASE_DIR) / "models")),
+        )
 
     @staticmethod
     def _is_signature_document(document_type: str) -> bool:

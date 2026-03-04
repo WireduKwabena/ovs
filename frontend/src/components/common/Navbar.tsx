@@ -205,8 +205,6 @@ export const Navbar: React.FC = () => {
             { to: '/video-calls', label: 'Video Calls' },
             { to: '/fraud-insights', label: 'Fraud' },
             { to: '/background-checks', label: 'Checks' },
-            { to: '/audit-logs', label: 'Audit' },
-            { to: '/ai-monitor', label: 'AI Monitor' },
           ];
 
   const desktopPrimaryLinks =
@@ -242,8 +240,6 @@ export const Navbar: React.FC = () => {
         ? [
             { to: '/fraud-insights', label: 'Fraud' },
             { to: '/background-checks', label: 'Checks' },
-            { to: '/audit-logs', label: 'Audit' },
-            { to: '/ai-monitor', label: 'AI Monitor' },
           ]
         : [];
   

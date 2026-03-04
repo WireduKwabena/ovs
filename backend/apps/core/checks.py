@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import sys
 from urllib.parse import urlparse
 
 from django.apps import apps
@@ -45,12 +47,27 @@ def _is_local_host(value: str) -> bool:
     return normalized in {"localhost", "127.0.0.1", "0.0.0.0", "[::1]"}
 
 
+def _is_test_runtime() -> bool:
+    """
+    Detect Django/pytest test execution contexts.
+
+    This prevents production-origin hardening checks from blocking unit/integration
+    tests where Django may force DEBUG=False in the test environment.
+    """
+    argv = " ".join(sys.argv).lower()
+    return (
+        " test " in f" {argv} "
+        or " pytest " in f" {argv} "
+        or os.getenv("PYTEST_CURRENT_TEST") is not None
+    )
+
+
 @register()
 def enforce_production_origin_hardening(app_configs, **kwargs):
     """
     Enforce safer host/origin settings when running with DEBUG disabled.
     """
-    if settings.DEBUG:
+    if settings.DEBUG or _is_test_runtime():
         return []
 
     findings = []

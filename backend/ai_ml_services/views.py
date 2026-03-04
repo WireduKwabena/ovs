@@ -14,12 +14,11 @@ except ModuleNotFoundError:  # pragma: no cover - optional at runtime
 from django.utils import timezone
 from rest_framework import serializers, status
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.audit.events import log_event
-from apps.core.security import has_valid_service_token
 from ai_ml_services.monitoring.model_monitor import model_monitor
 from ai_ml_services.service import get_ai_service
 from ai_ml_services.utils.pdf import pdf2image_kwargs
@@ -47,7 +46,7 @@ def _is_admin_request(request) -> bool:
     return bool(
         getattr(user, "is_staff", False)
         or getattr(user, "is_superuser", False)
-        or getattr(user, "user_type", None) in {"admin", "hr_manager"}
+        or getattr(user, "user_type", None) == "admin"
     )
 
 
@@ -85,7 +84,7 @@ class SocialProfileCheckSerializer(serializers.Serializer):
 
 
 class MonitorHealthAPIView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     serializer_class = MonitorHealthQuerySerializer
 
     @extend_schema(
@@ -100,14 +99,11 @@ class MonitorHealthAPIView(APIView):
         Runtime health snapshot for AI monitoring backend.
 
         Access:
-        - authenticated admin/staff user, or
-        - valid X-Service-Token header (matches SERVICE_TOKEN setting)
+        - authenticated admin/staff user
         """
-        if not (_is_admin_request(request) or has_valid_service_token(request)):
+        if not _is_admin_request(request):
             return Response(
-                {
-                    "detail": "Forbidden. Use an admin account or a valid X-Service-Token."
-                },
+                {"detail": "Forbidden. Admin access is required."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -143,7 +139,7 @@ class MonitorHealthAPIView(APIView):
 
 
 class DocumentClassificationAPIView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
     serializer_class = DocumentClassificationUploadSerializer
 
@@ -189,14 +185,11 @@ class DocumentClassificationAPIView(APIView):
         Classify document image into RVL-CDIP/MIDV-500 taxonomy.
 
         Access:
-        - authenticated admin/staff user, or
-        - valid X-Service-Token header (matches SERVICE_TOKEN setting)
+        - authenticated admin/staff user
         """
-        if not (_is_admin_request(request) or has_valid_service_token(request)):
+        if not _is_admin_request(request):
             return Response(
-                {
-                    "detail": "Forbidden. Use an admin account or a valid X-Service-Token."
-                },
+                {"detail": "Forbidden. Admin access is required."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -243,7 +236,7 @@ class DocumentClassificationAPIView(APIView):
 
 
 class SocialProfileCheckAPIView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     serializer_class = SocialProfileCheckSerializer
 
     @extend_schema(
@@ -256,11 +249,9 @@ class SocialProfileCheckAPIView(APIView):
     )
     def post(self, request):
         """Run advisory social profile checks for a case."""
-        if not (_is_admin_request(request) or has_valid_service_token(request)):
+        if not _is_admin_request(request):
             return Response(
-                {
-                    "detail": "Forbidden. Use an admin account or a valid X-Service-Token."
-                },
+                {"detail": "Forbidden. Admin access is required."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 

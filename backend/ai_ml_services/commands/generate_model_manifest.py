@@ -9,6 +9,7 @@ from pathlib import Path
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
+from ai_ml_services.utils.paths import resolve_settings_path
 
 DEFAULT_PLACEHOLDER_SHA256 = "0" * 64
 
@@ -167,10 +168,11 @@ class Command(BaseCommand):
         }
 
     def _resolve_path(self, raw_path: str | Path) -> Path:
-        path = Path(str(raw_path))
-        if not path.is_absolute():
-            path = Path(settings.BASE_DIR) / path
-        return path
+        return resolve_settings_path(
+            raw_path,
+            base_dir=Path(settings.BASE_DIR),
+            fallback_dir=Path(getattr(settings, "MODEL_PATH", Path(settings.BASE_DIR) / "models")),
+        )
 
     def _display_path(self, path: Path) -> str:
         try:

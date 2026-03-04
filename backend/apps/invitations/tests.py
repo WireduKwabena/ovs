@@ -299,7 +299,7 @@ class CandidateAccessVettingEndpointsTests(APITestCase):
         self.assertEqual(cases.status_code, 200)
         case_rows = self._items(cases.json())
         self.assertEqual(len(case_rows), 1)
-        self.assertEqual(case_rows[0]["id"], self.case.id)
+        self.assertEqual(case_rows[0]["id"], str(self.case.id))
 
         upload = self.client.post(
             f"/api/applications/cases/{self.case.id}/upload-document/",
@@ -317,7 +317,7 @@ class CandidateAccessVettingEndpointsTests(APITestCase):
         self.assertEqual(sessions.status_code, 200)
         session_rows = self._items(sessions.json())
         self.assertEqual(len(session_rows), 1)
-        self.assertEqual(session_rows[0]["id"], self.interview_session.id)
+        self.assertEqual(session_rows[0]["id"], str(self.interview_session.id))
 
         start = self.client.post(f"/api/interviews/sessions/{self.interview_session.id}/start/")
         self.assertEqual(start.status_code, 200)

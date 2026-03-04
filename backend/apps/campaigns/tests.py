@@ -41,8 +41,8 @@ class CampaignAuthorizationTests(APITestCase):
         response = self.client.get("/api/campaigns/")
         self.assertEqual(response.status_code, 200)
         ids = {item["id"] for item in self._items(response.json())}
-        self.assertIn(self.campaign_one.id, ids)
-        self.assertNotIn(self.campaign_two.id, ids)
+        self.assertIn(str(self.campaign_one.id), ids)
+        self.assertNotIn(str(self.campaign_two.id), ids)
 
     def test_hr_manager_cannot_access_other_campaign_detail(self):
         self.client.force_authenticate(self.hr_one)
@@ -54,5 +54,5 @@ class CampaignAuthorizationTests(APITestCase):
         response = self.client.get("/api/campaigns/")
         self.assertEqual(response.status_code, 200)
         ids = {item["id"] for item in self._items(response.json())}
-        self.assertIn(self.campaign_one.id, ids)
-        self.assertIn(self.campaign_two.id, ids)
+        self.assertIn(str(self.campaign_one.id), ids)
+        self.assertIn(str(self.campaign_two.id), ids)

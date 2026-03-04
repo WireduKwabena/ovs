@@ -128,3 +128,46 @@ class DocumentTypeClassifierTests(SimpleTestCase):
             self.assertTrue(prediction["available"])
             self.assertEqual(prediction.get("model_kind"), "torch")
             self.assertIn(prediction["predicted_label"], {"invoice", "resume"})
+
+    def test_classifier_loads_torch_artifact_with_windows_checkpoint_path(self):
+        with TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            invoice = root / "invoice.png"
+            self._write_image(invoice, "horizontal")
+
+            try:
+                from torchvision import models as tv_models
+            except ModuleNotFoundError:
+                self.skipTest("torchvision not installed")
+
+            try:
+                model = tv_models.resnet18(weights=None)
+            except TypeError:
+                model = tv_models.resnet18(pretrained=False)
+            model.fc = torch.nn.Linear(model.fc.in_features, 2)
+
+            checkpoint_path = root / "rvl_classifier.pth"
+            torch.save({"model_state_dict": model.state_dict()}, checkpoint_path)
+
+            artifact_path = root / "rvl_classifier.pkl"
+            # Simulate artifact produced on Windows then loaded in Linux runtime.
+            joblib.dump(
+                {
+                    "model_type": "torch_resnet18_classifier",
+                    "checkpoint_path": r"A:\projects\Django\OVS-Redo\backend\models\rvl_classifier.pth",
+                    "classes": ["invoice", "resume"],
+                    "input_size": 224,
+                    "normalization": {
+                        "mean": [0.485, 0.456, 0.406],
+                        "std": [0.229, 0.224, 0.225],
+                    },
+                },
+                artifact_path,
+            )
+
+            classifier = DocumentTypeClassifier(model_path=artifact_path)
+            prediction = classifier.predict_file(invoice)
+
+            self.assertTrue(prediction["available"])
+            self.assertEqual(prediction.get("model_kind"), "torch")
+            self.assertIn(prediction["predicted_label"], {"invoice", "resume"})

@@ -4,6 +4,7 @@ from datetime import timedelta
 
 from celery import shared_task
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
@@ -59,11 +60,14 @@ def process_video_meeting_reminders() -> dict[str, int]:
     )
 
     for meeting in meetings_starting_now:
-        notify_meeting_start_now(meeting)
         with transaction.atomic():
-            meeting.status = VideoMeeting.STATUS_ONGOING
+            try:
+                meeting.mark_ongoing()
+            except ValidationError:
+                continue
             meeting.reminder_start_sent_at = now
-            meeting.save(update_fields=["status", "reminder_start_sent_at", "updated_at"])
+            meeting.save(update_fields=["reminder_start_sent_at", "updated_at"])
+        notify_meeting_start_now(meeting)
         stats["start_now"] += 1
 
     meetings_completed = (
@@ -75,8 +79,13 @@ def process_video_meeting_reminders() -> dict[str, int]:
         )
     )
     for meeting in meetings_completed:
+        try:
+            with transaction.atomic():
+                if meeting.status == VideoMeeting.STATUS_SCHEDULED:
+                    meeting.mark_ongoing()
+                meeting.mark_completed()
+        except ValidationError:
+            continue
         notify_meeting_time_up(meeting)
-        meeting.status = VideoMeeting.STATUS_COMPLETED
-        meeting.save(update_fields=["status", "updated_at"])
         stats["completed"] += 1
     return stats

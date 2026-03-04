@@ -271,9 +271,13 @@ class VideoMeetingViewSet(viewsets.ModelViewSet):
         cancelled: list[VideoMeeting] = []
         with transaction.atomic():
             for target in targets:
-                target.status = VideoMeeting.STATUS_CANCELLED
-                target.cancellation_reason = reason
-                target.save(update_fields=["status", "cancellation_reason", "updated_at"])
+                try:
+                    target.mark_cancelled(reason=reason)
+                except DjangoValidationError as exc:
+                    return Response(
+                        {"error": exc.message_dict if hasattr(exc, "message_dict") else exc.messages},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
                 self._log_meeting_event(
                     meeting=target,
                     action=VideoMeetingEvent.ACTION_CANCELLED,
@@ -290,6 +294,11 @@ class VideoMeetingViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="reschedule")
     def reschedule(self, request, pk=None):
         meeting = self.get_object()
+        if meeting.status != VideoMeeting.STATUS_SCHEDULED:
+            return Response(
+                {"error": "Only scheduled meetings can be rescheduled."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         serializer = VideoMeetingRescheduleSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -335,6 +344,11 @@ class VideoMeetingViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="extend")
     def extend(self, request, pk=None):
         meeting = self.get_object()
+        if meeting.status in {VideoMeeting.STATUS_CANCELLED, VideoMeeting.STATUS_COMPLETED}:
+            return Response(
+                {"error": "Cannot extend a closed meeting."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         serializer = VideoMeetingExtendSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         minutes = serializer.validated_data["minutes"]
@@ -362,10 +376,16 @@ class VideoMeetingViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="cancel")
     def cancel(self, request, pk=None):
         meeting = self.get_object()
+        if meeting.status in {VideoMeeting.STATUS_CANCELLED, VideoMeeting.STATUS_COMPLETED}:
+            return Response({"error": "Cannot cancel a closed meeting."}, status=status.HTTP_400_BAD_REQUEST)
         reason = str(request.data.get("reason", "")).strip()
-        meeting.status = VideoMeeting.STATUS_CANCELLED
-        meeting.cancellation_reason = reason
-        meeting.save(update_fields=["status", "cancellation_reason", "updated_at"])
+        try:
+            meeting.mark_cancelled(reason=reason)
+        except DjangoValidationError as exc:
+            return Response(
+                {"error": exc.message_dict if hasattr(exc, "message_dict") else exc.messages},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         self._log_meeting_event(
             meeting=meeting,
             action=VideoMeetingEvent.ACTION_CANCELLED,
@@ -379,11 +399,15 @@ class VideoMeetingViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="start")
     def start(self, request, pk=None):
         meeting = self.get_object()
-        if meeting.status in {VideoMeeting.STATUS_CANCELLED, VideoMeeting.STATUS_COMPLETED}:
-            return Response({"error": "Cannot start a closed meeting."}, status=status.HTTP_400_BAD_REQUEST)
-
-        meeting.status = VideoMeeting.STATUS_ONGOING
-        meeting.save(update_fields=["status", "updated_at"])
+        if meeting.status == VideoMeeting.STATUS_ONGOING:
+            return Response({"error": "Meeting is already in progress."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            meeting.mark_ongoing()
+        except DjangoValidationError as exc:
+            return Response(
+                {"error": exc.message_dict if hasattr(exc, "message_dict") else exc.messages},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         self._log_meeting_event(
             meeting=meeting,
             action=VideoMeetingEvent.ACTION_STARTED,
@@ -395,10 +419,15 @@ class VideoMeetingViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="complete")
     def complete(self, request, pk=None):
         meeting = self.get_object()
-        if meeting.status == VideoMeeting.STATUS_CANCELLED:
-            return Response({"error": "Cannot complete a cancelled meeting."}, status=status.HTTP_400_BAD_REQUEST)
-        meeting.status = VideoMeeting.STATUS_COMPLETED
-        meeting.save(update_fields=["status", "updated_at"])
+        if meeting.status == VideoMeeting.STATUS_COMPLETED:
+            return Response({"error": "Meeting is already completed."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            meeting.mark_completed()
+        except DjangoValidationError as exc:
+            return Response(
+                {"error": exc.message_dict if hasattr(exc, "message_dict") else exc.messages},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         self._log_meeting_event(
             meeting=meeting,
             action=VideoMeetingEvent.ACTION_COMPLETED,

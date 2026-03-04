@@ -242,8 +242,7 @@ Runtime monitor status is available at:
 
 Access rules:
 
-- authenticated staff/admin user, or
-- `X-Service-Token` header matching `SERVICE_TOKEN`.
+- authenticated admin/staff user only.
 
 Optional query params:
 
