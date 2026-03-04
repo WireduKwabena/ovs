@@ -117,7 +117,7 @@ paths:
   /api/ai-monitor/check-social-profiles/:
     post:
       operationId: ai_monitor_check_social_profiles_create
-      description: Run advisory social profile checks for a case.
+      description: Run advisory social profile checks for a case. Admin access required.
       tags:
       - ai-monitor
       requestBody:
@@ -135,7 +135,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - {}
       responses:
         '200':
           content:
@@ -165,8 +164,7 @@ paths:
         Classify document image into RVL-CDIP/MIDV-500 taxonomy.
 
         Access:
-        - authenticated admin/staff user, or
-        - valid X-Service-Token header (matches SERVICE_TOKEN setting)
+        - authenticated admin/staff user
       tags:
       - ai-monitor
       requestBody:
@@ -181,7 +179,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - {}
       responses:
         '200':
           content:
@@ -211,8 +208,7 @@ paths:
         Runtime health snapshot for AI monitoring backend.
 
         Access:
-        - authenticated admin/staff user, or
-        - valid X-Service-Token header (matches SERVICE_TOKEN setting)
+        - authenticated admin/staff user
       parameters:
       - in: query
         name: model_name
@@ -225,7 +221,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - {}
       responses:
         '200':
           content:

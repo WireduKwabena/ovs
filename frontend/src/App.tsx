@@ -232,7 +232,7 @@ const AppShell: React.FC = () => {
           <Route
             path="/audit-logs"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute adminOnly>
                 <AuditLogsPage />
               </ProtectedRoute>
             }
@@ -248,7 +248,7 @@ const AppShell: React.FC = () => {
           <Route
             path="/ai-monitor"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute adminOnly>
                 <AiMonitorPage />
               </ProtectedRoute>
             }

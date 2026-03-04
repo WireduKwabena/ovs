@@ -29,6 +29,7 @@ from ai_ml_services.datasets.pytorch_loaders import DocumentAuthenticityDataset
 from ai_ml_services.fraud.fraud_detector import FraudDetector
 from ai_ml_services.signature.train import train_signature_model
 from ai_ml_services.utils.pdf import pdf2image_kwargs
+from ai_ml_services.utils.paths import resolve_settings_path
 
 logger = logging.getLogger(__name__)
 DEFAULT_FORGERY_TYPES: Tuple[str, ...] = ("copy_move", "resampling", "jpeg")
@@ -36,10 +37,11 @@ DEFAULT_PDF_CONVERSION_WARNING_LIMIT = 5
 
 
 def _resolve_output_path(raw_path: str) -> Path:
-    path = Path(str(raw_path))
-    if not path.is_absolute():
-        path = Path(settings.BASE_DIR) / path
-    return path
+    return resolve_settings_path(
+        raw_path,
+        base_dir=Path(settings.BASE_DIR),
+        fallback_dir=Path(getattr(settings, "MODEL_PATH", Path(settings.BASE_DIR) / "models")),
+    )
 
 
 class Command(BaseCommand):

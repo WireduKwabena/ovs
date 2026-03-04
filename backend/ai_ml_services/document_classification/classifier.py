@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
+from pathlib import PureWindowsPath
 from typing import Any, Dict, List
 
 import cv2
@@ -11,6 +13,7 @@ import numpy as np
 from ai_ml_services.document_classification.features import DocumentFeatureExtractor
 
 logger = logging.getLogger(__name__)
+WINDOWS_ABSOLUTE_PATH_RE = re.compile(r"^[A-Za-z]:[\\/]")
 
 
 class DocumentTypeClassifier:
@@ -34,10 +37,23 @@ class DocumentTypeClassifier:
         self._load()
 
     def _resolve_checkpoint_path(self, raw_path: str | Path) -> Path:
-        path = Path(str(raw_path))
+        raw_text = str(raw_path or "").strip()
+        path = Path(raw_text)
+        if path.exists():
+            return path
+
+        # Windows absolute paths are not considered absolute on Linux/macOS.
+        # When artifacts move between environments, fall back to checkpoint basename
+        # colocated with the serialized classifier artifact.
+        if WINDOWS_ABSOLUTE_PATH_RE.match(raw_text):
+            win_name = PureWindowsPath(raw_text).name
+            return (self.model_path.parent / win_name).resolve()
+
         if not path.is_absolute():
-            path = (self.model_path.parent / path).resolve()
-        return path
+            return (self.model_path.parent / path).resolve()
+
+        # Absolute path provided but not present in this runtime; try colocated basename.
+        return (self.model_path.parent / path.name).resolve()
 
     def _load_torch_classifier_artifact(self, artifact: Dict[str, Any]) -> None:
         try:

@@ -1,6 +1,7 @@
 import uuid
 from datetime import timedelta
 
+from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -22,6 +23,12 @@ class VideoMeeting(models.Model):
         (STATUS_COMPLETED, "Completed"),
         (STATUS_CANCELLED, "Cancelled"),
     ]
+    STATUS_TRANSITIONS = {
+        STATUS_SCHEDULED: {STATUS_ONGOING, STATUS_CANCELLED},
+        STATUS_ONGOING: {STATUS_COMPLETED, STATUS_CANCELLED},
+        STATUS_COMPLETED: set(),
+        STATUS_CANCELLED: set(),
+    }
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     series_id = models.UUIDField(null=True, blank=True, db_index=True)
@@ -89,13 +96,44 @@ class VideoMeeting(models.Model):
     def is_joinable(self) -> bool:
         now = timezone.now()
         join_window_start = self.scheduled_start - timedelta(seconds=self.allow_join_before_seconds)
+        join_grace_minutes = int(getattr(settings, "VIDEO_CALLS_JOIN_GRACE_MINUTES", 30) or 30)
+        if join_grace_minutes < 0:
+            join_grace_minutes = 0
         return (
             self.status in {self.STATUS_SCHEDULED, self.STATUS_ONGOING}
-            and join_window_start <= now <= self.scheduled_end + timedelta(minutes=30)
+            and join_window_start <= now <= self.scheduled_end + timedelta(minutes=join_grace_minutes)
         )
 
     def has_participant(self, user: User) -> bool:
         return self.participants.filter(user=user).exists()
+
+    def can_transition_to(self, next_status: str) -> bool:
+        if next_status == self.status:
+            return True
+        allowed = self.STATUS_TRANSITIONS.get(self.status, set())
+        return next_status in allowed
+
+    def _assert_status_transition(self, next_status: str) -> None:
+        if not self.can_transition_to(next_status):
+            raise ValidationError(
+                {"status": [f"Invalid status transition: {self.status} -> {next_status}."]}
+            )
+
+    def mark_ongoing(self) -> None:
+        self._assert_status_transition(self.STATUS_ONGOING)
+        self.status = self.STATUS_ONGOING
+        self.save(update_fields=["status", "updated_at"])
+
+    def mark_completed(self) -> None:
+        self._assert_status_transition(self.STATUS_COMPLETED)
+        self.status = self.STATUS_COMPLETED
+        self.save(update_fields=["status", "updated_at"])
+
+    def mark_cancelled(self, *, reason: str = "") -> None:
+        self._assert_status_transition(self.STATUS_CANCELLED)
+        self.status = self.STATUS_CANCELLED
+        self.cancellation_reason = str(reason or "").strip()
+        self.save(update_fields=["status", "cancellation_reason", "updated_at"])
 
 
 class VideoMeetingParticipant(models.Model):
@@ -141,7 +179,12 @@ class VideoMeetingParticipant(models.Model):
 
     class Meta:
         ordering = ["invited_at"]
-        unique_together = [("meeting", "user")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["meeting", "user"],
+                name="uq_video_meeting_participant_user",
+            )
+        ]
         indexes = [
             models.Index(fields=["meeting", "role"]),
             models.Index(fields=["user", "status"]),

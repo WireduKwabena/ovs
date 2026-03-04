@@ -40,6 +40,13 @@ class AuditApiTests(APITestCase):
             last_name="Other",
             user_type="applicant",
         )
+        self.hr_user = User.objects.create_user(
+            email="audit-hr@example.com",
+            password="Pass1234!",
+            first_name="Audit",
+            last_name="HR",
+            user_type="hr_manager",
+        )
 
         self.log_own = AuditLog.objects.create(
             user=self.applicant_user,
@@ -63,13 +70,17 @@ class AuditApiTests(APITestCase):
             changes={},
         )
 
-    def test_regular_user_sees_only_own_logs(self):
+    def test_regular_user_cannot_access_audit_logs(self):
         self.client.force_authenticate(self.applicant_user)
         response = self.client.get("/api/audit/logs/")
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["count"], 1)
-        self.assertEqual(response.data["results"][0]["id"], str(self.log_own.id))
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_hr_manager_cannot_access_audit_logs(self):
+        self.client.force_authenticate(self.hr_user)
+        response = self.client.get("/api/audit/logs/")
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_admin_sees_all_logs(self):
         self.client.force_authenticate(self.admin_user)

@@ -3,9 +3,10 @@
 from django.db.models import Count
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
+
+from apps.authentication.permissions import IsAdminUser
 
 from .models import AuditLog
 from .serializers import AuditLogSerializer
@@ -22,7 +23,7 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = AuditLog.objects.select_related("user", "admin_user").all()
     serializer_class = AuditLogSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['action', 'entity_type', 'entity_id']
     search_fields = ['entity_type', 'changes']
@@ -32,20 +33,7 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return AuditLog.objects.none()
-        
-        queryset = super().get_queryset()
-        user = self.request.user
-        
-        # Regular users can only see their own logs
-        if not (
-            getattr(user, "is_staff", False)
-            or getattr(user, "is_superuser", False)
-            or getattr(user, "user_type", None) in {"admin", "hr_manager"}
-        ):
-            queryset = queryset.filter(user=user)
-        # Admins can see all logs
-        
-        return queryset
+        return super().get_queryset()
     
     @action(detail=False, methods=['get'])
     def by_entity(self, request):

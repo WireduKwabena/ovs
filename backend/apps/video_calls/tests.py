@@ -1,14 +1,17 @@
 from datetime import timedelta
+from unittest.mock import patch
 
+from django.core.exceptions import ValidationError
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
+from django.db import IntegrityError
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.applications.models import VettingCase
 from apps.authentication.models import User
-from apps.video_calls.models import VideoMeeting, VideoMeetingEvent
+from apps.video_calls.models import VideoMeeting, VideoMeetingEvent, VideoMeetingParticipant
 from apps.video_calls.tasks import process_video_meeting_reminders
 
 
@@ -195,7 +198,7 @@ class VideoMeetingApiTests(APITestCase):
 
     @override_settings(
         LIVEKIT_API_KEY="test-api-key",
-        LIVEKIT_API_SECRET="test-secret",
+        LIVEKIT_API_SECRET="test-secret-32-chars-minimum-value",
         LIVEKIT_URL="wss://livekit.example.test",
         LIVEKIT_TOKEN_TTL_SECONDS=600,
     )
@@ -408,3 +411,152 @@ class VideoMeetingApiTests(APITestCase):
             if event["action"] == VideoMeetingEvent.ACTION_CANCELLED and event["scope"] == VideoMeetingEvent.SCOPE_ALL
         ]
         self.assertGreaterEqual(len(cancelled_all_events), 1)
+
+    def test_complete_requires_meeting_to_be_in_progress(self):
+        meeting = VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Cannot complete scheduled",
+            scheduled_start=timezone.now() + timedelta(hours=1),
+            scheduled_end=timezone.now() + timedelta(hours=2),
+            timezone="UTC",
+        )
+        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.candidate, role="candidate")
+
+        response = self.client.post(
+            reverse("video-meeting-complete", kwargs={"pk": meeting.pk}),
+            data={},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        meeting.refresh_from_db()
+        self.assertEqual(meeting.status, VideoMeeting.STATUS_SCHEDULED)
+
+    def test_cancel_rejects_completed_meeting(self):
+        meeting = VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Cannot cancel completed",
+            scheduled_start=timezone.now() - timedelta(minutes=5),
+            scheduled_end=timezone.now() + timedelta(minutes=30),
+            timezone="UTC",
+        )
+        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.candidate, role="candidate")
+
+        start_response = self.client.post(reverse("video-meeting-start", kwargs={"pk": meeting.pk}), data={}, format="json")
+        self.assertEqual(start_response.status_code, status.HTTP_200_OK)
+        complete_response = self.client.post(reverse("video-meeting-complete", kwargs={"pk": meeting.pk}), data={}, format="json")
+        self.assertEqual(complete_response.status_code, status.HTTP_200_OK)
+
+        cancel_response = self.client.post(
+            reverse("video-meeting-cancel", kwargs={"pk": meeting.pk}),
+            data={"reason": "Too late"},
+            format="json",
+        )
+        self.assertEqual(cancel_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_reschedule_rejects_non_scheduled_meeting(self):
+        meeting = VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Cannot reschedule ongoing",
+            status=VideoMeeting.STATUS_ONGOING,
+            scheduled_start=timezone.now() - timedelta(minutes=10),
+            scheduled_end=timezone.now() + timedelta(minutes=20),
+            timezone="UTC",
+        )
+        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.candidate, role="candidate")
+
+        response = self.client.post(
+            reverse("video-meeting-reschedule", kwargs={"pk": meeting.pk}),
+            data={
+                "scheduled_start": (timezone.now() + timedelta(hours=1)).isoformat(),
+                "scheduled_end": (timezone.now() + timedelta(hours=2)).isoformat(),
+                "timezone": "UTC",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_joinability_respects_configured_join_grace_minutes(self):
+        meeting = VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Grace window check",
+            status=VideoMeeting.STATUS_ONGOING,
+            scheduled_start=timezone.now() - timedelta(hours=1),
+            scheduled_end=timezone.now() - timedelta(minutes=10),
+            timezone="UTC",
+        )
+
+        with override_settings(VIDEO_CALLS_JOIN_GRACE_MINUTES=5):
+            self.assertFalse(meeting.is_joinable)
+
+        with override_settings(VIDEO_CALLS_JOIN_GRACE_MINUTES=15):
+            self.assertTrue(meeting.is_joinable)
+
+    def test_meeting_participant_unique_constraint(self):
+        meeting = VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Unique participant check",
+            scheduled_start=timezone.now() + timedelta(hours=1),
+            scheduled_end=timezone.now() + timedelta(hours=2),
+            timezone="UTC",
+        )
+        VideoMeetingParticipant.objects.create(
+            meeting=meeting,
+            user=self.candidate,
+            role=VideoMeetingParticipant.ROLE_CANDIDATE,
+        )
+        with self.assertRaises(IntegrityError):
+            VideoMeetingParticipant.objects.create(
+                meeting=meeting,
+                user=self.candidate,
+                role=VideoMeetingParticipant.ROLE_OBSERVER,
+            )
+
+    def test_reminder_task_skips_start_notification_if_status_transition_fails(self):
+        meeting = VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Start transition failure",
+            scheduled_start=timezone.now(),
+            scheduled_end=timezone.now() + timedelta(minutes=30),
+            timezone="UTC",
+        )
+        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.candidate, role="candidate")
+
+        with patch.object(VideoMeeting, "mark_ongoing", side_effect=ValidationError("transition blocked")):
+            with patch("apps.video_calls.tasks.notify_meeting_start_now") as notify_mock:
+                stats = process_video_meeting_reminders()
+
+        self.assertEqual(stats["start_now"], 0)
+        notify_mock.assert_not_called()
+
+    def test_reminder_task_skips_time_up_notification_if_completion_transition_fails(self):
+        meeting = VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Completion transition failure",
+            status=VideoMeeting.STATUS_ONGOING,
+            scheduled_start=timezone.now() - timedelta(hours=1),
+            scheduled_end=timezone.now() - timedelta(minutes=1),
+            timezone="UTC",
+        )
+        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.candidate, role="candidate")
+
+        with patch.object(VideoMeeting, "mark_completed", side_effect=ValidationError("completion blocked")):
+            with patch("apps.video_calls.tasks.notify_meeting_time_up") as notify_mock:
+                stats = process_video_meeting_reminders()
+
+        meeting.refresh_from_db()
+        self.assertEqual(meeting.status, VideoMeeting.STATUS_ONGOING)
+        self.assertEqual(stats["completed"], 0)
+        notify_mock.assert_not_called()

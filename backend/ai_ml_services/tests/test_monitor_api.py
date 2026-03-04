@@ -2,21 +2,54 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import cv2
 import numpy as np
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import SimpleTestCase, override_settings
-from rest_framework.test import APIClient
+from django.test import override_settings
+from rest_framework import status
+from rest_framework.test import APITestCase
+
+from apps.authentication.models import User
 
 
 @override_settings(ROOT_URLCONF="ai_ml_services.tests.urls")
-class TestMonitorHealthAPI(SimpleTestCase):
+class MonitorApiBaseTests(APITestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_user(
+            email="aimonitor-admin@example.com",
+            password="Pass1234!",
+            first_name="AI",
+            last_name="Admin",
+            user_type="admin",
+            is_staff=True,
+        )
+        self.hr_user = User.objects.create_user(
+            email="aimonitor-hr@example.com",
+            password="Pass1234!",
+            first_name="AI",
+            last_name="HR",
+            user_type="hr_manager",
+        )
+
+    def authenticate_admin(self):
+        self.client.force_authenticate(self.admin_user)
+
+    def authenticate_hr(self):
+        self.client.force_authenticate(self.hr_user)
+
+    @staticmethod
+    def _sample_image_upload(name: str = "doc.png") -> SimpleUploadedFile:
+        canvas = np.full((64, 64, 3), 255, dtype=np.uint8)
+        ok, encoded = cv2.imencode(".png", canvas)
+        assert ok
+        return SimpleUploadedFile(name, encoded.tobytes(), content_type="image/png")
+
+
+class MonitorHealthApiTests(MonitorApiBaseTests):
     @patch("ai_ml_services.views.model_monitor")
-    @override_settings(SERVICE_TOKEN="test-service-token")
-    def test_health_endpoint_allows_valid_service_token(self, mock_monitor):
+    def test_health_endpoint_allows_admin(self, mock_monitor):
         mock_monitor.enabled = True
         mock_monitor.backend = "memory"
         mock_monitor.use_redis = False
@@ -32,14 +65,11 @@ class TestMonitorHealthAPI(SimpleTestCase):
             "reason": "Insufficient data",
         }
 
-        client = APIClient()
+        self.authenticate_admin()
         with patch("ai_ml_services.views.log_event") as mock_log_event:
-            response = client.get(
-                "/api/ai-monitor/health/",
-                HTTP_X_SERVICE_TOKEN="test-service-token",
-            )
+            response = self.client.get("/api/ai-monitor/health/")
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["status"], "ok")
         self.assertEqual(response.data["monitor"]["backend"], "memory")
         self.assertIn("metrics", response.data)
@@ -53,24 +83,25 @@ class TestMonitorHealthAPI(SimpleTestCase):
         self.assertEqual(kwargs["changes"]["status"], "ok")
         self.assertEqual(kwargs["changes"]["model_name"], "default")
 
-    @patch("ai_ml_services.views.model_monitor")
-    @override_settings(SERVICE_TOKEN="test-service-token")
-    def test_health_endpoint_rejects_missing_token_for_anonymous(self, mock_monitor):
-        mock_monitor.enabled = True
-        mock_monitor.backend = "memory"
-        mock_monitor.use_redis = False
-        mock_monitor.redis_url = "redis://localhost:6379/2"
-
-        client = APIClient()
+    def test_health_endpoint_rejects_hr_manager(self):
+        self.authenticate_hr()
         with patch("ai_ml_services.views.log_event") as mock_log_event:
-            response = client.get("/api/ai-monitor/health/")
+            response = self.client.get("/api/ai-monitor/health/")
 
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         mock_log_event.assert_not_called()
 
+    def test_health_endpoint_rejects_anonymous(self):
+        with patch("ai_ml_services.views.log_event") as mock_log_event:
+            response = self.client.get("/api/ai-monitor/health/")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        mock_log_event.assert_not_called()
+
+
+class MonitorDocumentClassificationApiTests(MonitorApiBaseTests):
     @patch("ai_ml_services.views.get_ai_service")
-    @override_settings(SERVICE_TOKEN="test-service-token")
-    def test_document_classification_endpoint_accepts_valid_token(self, mock_get_service):
+    def test_document_classification_endpoint_accepts_admin(self, mock_get_service):
         mock_service = MagicMock()
         mock_service.classify_document_image.return_value = {
             "document_classification": {
@@ -85,25 +116,17 @@ class TestMonitorHealthAPI(SimpleTestCase):
         }
         mock_get_service.return_value = mock_service
 
-        canvas = np.full((64, 64, 3), 255, dtype=np.uint8)
-        ok, encoded = cv2.imencode(".png", canvas)
-        self.assertTrue(ok)
-        upload = SimpleUploadedFile(
-            "doc.png",
-            encoded.tobytes(),
-            content_type="image/png",
-        )
+        self.authenticate_admin()
+        upload = self._sample_image_upload()
 
-        client = APIClient()
         with patch("ai_ml_services.views.log_event") as mock_log_event:
-            response = client.post(
+            response = self.client.post(
                 "/api/ai-monitor/classify-document/",
                 {"file": upload, "document_type": "passport", "top_k": 3},
                 format="multipart",
-                HTTP_X_SERVICE_TOKEN="test-service-token",
             )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["status"], "ok")
         self.assertIn("document_classification", response.data)
         self.assertIn("document_type_alignment", response.data)
@@ -118,52 +141,50 @@ class TestMonitorHealthAPI(SimpleTestCase):
         self.assertEqual(kwargs["changes"]["top_k"], 3)
         self.assertEqual(kwargs["changes"]["filename"], "doc.png")
 
-    @override_settings(SERVICE_TOKEN="test-service-token")
-    def test_document_classification_endpoint_requires_token_or_admin(self):
-        canvas = np.full((64, 64, 3), 255, dtype=np.uint8)
-        ok, encoded = cv2.imencode(".png", canvas)
-        self.assertTrue(ok)
-        upload = SimpleUploadedFile(
-            "doc.png",
-            encoded.tobytes(),
-            content_type="image/png",
-        )
-
-        client = APIClient()
+    def test_document_classification_endpoint_rejects_hr_manager(self):
+        self.authenticate_hr()
+        upload = self._sample_image_upload()
         with patch("ai_ml_services.views.log_event") as mock_log_event:
-            response = client.post(
+            response = self.client.post(
                 "/api/ai-monitor/classify-document/",
                 {"file": upload},
                 format="multipart",
             )
 
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         mock_log_event.assert_not_called()
 
-    @override_settings(SERVICE_TOKEN="test-service-token")
-    def test_document_classification_endpoint_invalid_file_returns_400_without_audit(self):
-        bad_upload = SimpleUploadedFile(
-            "broken.png",
-            b"not-an-image",
-            content_type="image/png",
-        )
-
-        client = APIClient()
+    def test_document_classification_endpoint_rejects_anonymous(self):
+        upload = self._sample_image_upload()
         with patch("ai_ml_services.views.log_event") as mock_log_event:
-            response = client.post(
+            response = self.client.post(
+                "/api/ai-monitor/classify-document/",
+                {"file": upload},
+                format="multipart",
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        mock_log_event.assert_not_called()
+
+    def test_document_classification_endpoint_invalid_file_returns_400_without_audit(self):
+        self.authenticate_admin()
+        bad_upload = SimpleUploadedFile("broken.png", b"not-an-image", content_type="image/png")
+
+        with patch("ai_ml_services.views.log_event") as mock_log_event:
+            response = self.client.post(
                 "/api/ai-monitor/classify-document/",
                 {"file": bad_upload, "document_type": "passport", "top_k": 3},
                 format="multipart",
-                HTTP_X_SERVICE_TOKEN="test-service-token",
             )
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("detail", response.data)
         mock_log_event.assert_not_called()
 
+
+class MonitorSocialProfileApiTests(MonitorApiBaseTests):
     @patch("ai_ml_services.views.get_ai_service")
-    @override_settings(SERVICE_TOKEN="test-service-token")
-    def test_social_profile_check_endpoint_accepts_valid_token(self, mock_get_service):
+    def test_social_profile_check_endpoint_accepts_admin(self, mock_get_service):
         mock_service = MagicMock()
         mock_service.check_social_profiles.return_value = {
             "case_id": "CASE-SOC-3",
@@ -190,22 +211,19 @@ class TestMonitorHealthAPI(SimpleTestCase):
         }
         mock_get_service.return_value = mock_service
 
-        client = APIClient()
+        self.authenticate_admin()
         with patch("ai_ml_services.views.log_event") as mock_log_event:
-            response = client.post(
+            response = self.client.post(
                 "/api/ai-monitor/check-social-profiles/",
                 {
                     "case_id": "CASE-SOC-3",
                     "consent_provided": True,
-                    "profiles": [
-                        {"platform": "linkedin", "url": "https://linkedin.com/in/user"}
-                    ],
+                    "profiles": [{"platform": "linkedin", "url": "https://linkedin.com/in/user"}],
                 },
                 format="json",
-                HTTP_X_SERVICE_TOKEN="test-service-token",
             )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["status"], "ok")
         self.assertEqual(response.data["overall_score"], 81.0)
         self.assertEqual(response.data["profiles_checked"], 1)
@@ -224,11 +242,10 @@ class TestMonitorHealthAPI(SimpleTestCase):
         self.assertEqual(kwargs["changes"]["risk_level"], "low")
         self.assertEqual(kwargs["changes"]["recommendation"], "MANUAL_REVIEW")
 
-    @override_settings(SERVICE_TOKEN="test-service-token")
-    def test_social_profile_check_endpoint_requires_token_or_admin(self):
-        client = APIClient()
+    def test_social_profile_check_endpoint_rejects_hr_manager(self):
+        self.authenticate_hr()
         with patch("ai_ml_services.views.log_event") as mock_log_event:
-            response = client.post(
+            response = self.client.post(
                 "/api/ai-monitor/check-social-profiles/",
                 {
                     "consent_provided": True,
@@ -237,14 +254,27 @@ class TestMonitorHealthAPI(SimpleTestCase):
                 format="json",
             )
 
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         mock_log_event.assert_not_called()
 
-    @override_settings(SERVICE_TOKEN="test-service-token")
-    def test_social_profile_check_endpoint_invalid_payload_returns_400_without_audit(self):
-        client = APIClient()
+    def test_social_profile_check_endpoint_rejects_anonymous(self):
         with patch("ai_ml_services.views.log_event") as mock_log_event:
-            response = client.post(
+            response = self.client.post(
+                "/api/ai-monitor/check-social-profiles/",
+                {
+                    "consent_provided": True,
+                    "profiles": [{"platform": "linkedin", "url": "https://linkedin.com/in/user"}],
+                },
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        mock_log_event.assert_not_called()
+
+    def test_social_profile_check_endpoint_invalid_payload_returns_400_without_audit(self):
+        self.authenticate_admin()
+        with patch("ai_ml_services.views.log_event") as mock_log_event:
+            response = self.client.post(
                 "/api/ai-monitor/check-social-profiles/",
                 {
                     "case_id": "CASE-SOC-3",
@@ -252,9 +282,8 @@ class TestMonitorHealthAPI(SimpleTestCase):
                     "profiles": [],
                 },
                 format="json",
-                HTTP_X_SERVICE_TOKEN="test-service-token",
             )
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("profiles", response.data)
         mock_log_event.assert_not_called()

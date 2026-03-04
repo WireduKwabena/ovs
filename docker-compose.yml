@@ -250,9 +250,16 @@ services:
     image: node:20-alpine
     container_name: ovs_frontend
     working_dir: /workspace
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 3000"
+    command: >
+      sh -c 'LOCK_HASH="$$(sha256sum package-lock.json | awk "{print $$1}")";
+             CACHED_HASH="$$(cat node_modules/.package-lock.hash 2>/dev/null || true)";
+             if [ "$$LOCK_HASH" != "$$CACHED_HASH" ] || [ ! -d node_modules ] || [ ! -f node_modules/.package-lock.hash ]; then
+               npm ci && echo "$$LOCK_HASH" > node_modules/.package-lock.hash;
+             fi;
+             npm run dev -- --host 0.0.0.0 --port 3000'
     volumes:
       - ./frontend:/workspace
+      - frontend_node_modules:/workspace/node_modules
     ports:
       - "3000:3000"
     depends_on:
@@ -263,3 +270,4 @@ volumes:
   redis_data:
   media_data:
   logs_data:
+  frontend_node_modules:

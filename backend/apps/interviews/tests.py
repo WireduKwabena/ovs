@@ -10,7 +10,7 @@ from apps.interviews.models import (
     InterviewSession,
     VideoAnalysis,
 )
-from apps.interviews.tasks import analyze_response_task
+from apps.interviews.tasks import analyze_response_task, generate_session_summary_task
 
 
 class InterviewsApiTests(APITestCase):
@@ -87,10 +87,13 @@ class InterviewsApiTests(APITestCase):
             format="json",
         )
         self.assertEqual(create_response.status_code, 201)
+        response_id = create_response.json()["id"]
+        analyze_response_task.run(response_id)
 
         complete_session = self.client.post(f"/api/interviews/sessions/{session_id}/complete/")
         self.assertEqual(complete_session.status_code, 200)
         self.assertEqual(complete_session.json()["status"], "completed")
+        generate_session_summary_task.run(session_id)
 
         get_session = self.client.get(f"/api/interviews/sessions/{session_id}/")
         self.assertEqual(get_session.status_code, 200)
