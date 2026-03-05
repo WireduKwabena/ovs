@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -14,7 +14,12 @@ import { toast } from "react-toastify";
 
 import type { BillingCycle, PaymentMethod } from "@/utils/subscriptionAccess";
 import { Button } from "@/components/ui/button";
-import { subscriptionService } from "@/services/subscription.service";
+import {
+  subscriptionService,
+  type HostedCheckoutProvider,
+} from "@/services/subscription.service";
+
+const env = (import.meta as { env?: Record<string, string | undefined> }).env;
 
 interface Plan {
   id: string;
@@ -69,6 +74,20 @@ const plans: Plan[] = [
   },
 ];
 
+const hostedProviderConfig: Record<
+  HostedCheckoutProvider,
+  { label: string; description: string }
+> = {
+  stripe: {
+    label: "Stripe",
+    description: "Best for global card payments.",
+  },
+  paystack: {
+    label: "Paystack",
+    description: "Supports cards and mobile money routes.",
+  },
+};
+
 const paymentMethods: {
   id: PaymentMethod;
   label: string;
@@ -95,12 +114,119 @@ const paymentMethods: {
   },
 ];
 
-const formatUsd = (amount: number): string => {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(amount);
+const PAYSTACK_CURRENCY = (() => {
+  const raw = String(env?.VITE_PAYSTACK_CURRENCY || "GHS").trim().toUpperCase();
+  if (/^[A-Z]{3}$/.test(raw)) return raw;
+  return "USD";
+})();
+
+const EXCHANGE_RATE_API_URL = String(
+  env?.VITE_EXCHANGE_RATE_API_URL || env?.EXCHANGE_RATE_API_URL || "",
+).trim();
+
+const PAYSTACK_USD_EXCHANGE_RATE = (() => {
+  const raw = Number(env?.VITE_PAYSTACK_USD_EXCHANGE_RATE || "1");
+  if (Number.isFinite(raw) && raw > 0) return raw;
+  return 1;
+})();
+
+const isTestMode = String(env?.MODE || "").toLowerCase() === "test";
+
+const getDisplayCurrency = (provider: HostedCheckoutProvider | null): string => {
+  if (provider === "paystack") return PAYSTACK_CURRENCY;
+  return "USD";
+};
+
+const buildExchangeRateApiUrl = (
+  baseCurrency: string,
+  targetCurrency: string,
+): string | null => {
+  if (!EXCHANGE_RATE_API_URL) return null;
+
+  if (
+    EXCHANGE_RATE_API_URL.includes("{base}") ||
+    EXCHANGE_RATE_API_URL.includes("{target}") ||
+    EXCHANGE_RATE_API_URL.includes("{from}") ||
+    EXCHANGE_RATE_API_URL.includes("{to}")
+  ) {
+    return EXCHANGE_RATE_API_URL.replace("{base}", baseCurrency)
+      .replace("{target}", targetCurrency)
+      .replace("{from}", baseCurrency)
+      .replace("{to}", targetCurrency);
+  }
+
+  try {
+    const apiUrl = new URL(EXCHANGE_RATE_API_URL);
+    if (!apiUrl.searchParams.has("base")) {
+      apiUrl.searchParams.set("base", baseCurrency);
+    }
+    if (!apiUrl.searchParams.has("symbols")) {
+      apiUrl.searchParams.set("symbols", targetCurrency);
+    }
+    return apiUrl.toString();
+  } catch {
+    return EXCHANGE_RATE_API_URL;
+  }
+};
+
+const extractExchangeRate = (payload: unknown, targetCurrency: string): number | null => {
+  if (!payload || typeof payload !== "object") return null;
+  const target = targetCurrency.trim().toUpperCase();
+  if (!target) return null;
+  const payloadRecord = payload as Record<string, unknown>;
+
+  const toPositiveNumber = (value: unknown): number | null => {
+    const num = Number(value);
+    if (Number.isFinite(num) && num > 0) return num;
+    return null;
+  };
+
+  const fromMap = (source: unknown): number | null => {
+    if (!source || typeof source !== "object") return null;
+    const map = source as Record<string, unknown>;
+    const direct = toPositiveNumber(map[target] ?? map[target.toLowerCase()]);
+    if (direct !== null) return direct;
+    return null;
+  };
+
+  for (const key of ["conversion_rates", "rates", "data"]) {
+    const rate = fromMap(payloadRecord[key]);
+    if (rate !== null) return rate;
+  }
+
+  for (const key of ["rate", "exchange_rate", "conversion_rate", "price", "value"]) {
+    const rate = toPositiveNumber(payloadRecord[key]);
+    if (rate !== null) return rate;
+  }
+
+  const resultMap = payloadRecord.result;
+  const resultRate = fromMap(resultMap);
+  if (resultRate !== null) return resultRate;
+
+  return null;
+};
+
+const convertUsdToDisplayAmount = (
+  amountUsd: number,
+  provider: HostedCheckoutProvider | null,
+  paystackUsdExchangeRate: number,
+): number => {
+  if (provider === "paystack" && PAYSTACK_CURRENCY !== "USD") {
+    return amountUsd * paystackUsdExchangeRate;
+  }
+  return amountUsd;
+};
+
+const formatCurrencyAmount = (amount: number, currency: string): string => {
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return `${currency} ${amount.toFixed(2)}`;
+  }
 };
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
@@ -131,8 +257,68 @@ export const SubscriptionPlansPage: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
   const [customerEmail, setCustomerEmail] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [paystackUsdExchangeRate, setPaystackUsdExchangeRate] = useState(PAYSTACK_USD_EXCHANGE_RATE);
 
   const checkoutMode = subscriptionService.getCheckoutMode();
+  const hostedProviders = subscriptionService.getHostedCheckoutProviders();
+  const hasHostedCheckout = hostedProviders.length > 0;
+  const [selectedHostedProvider, setSelectedHostedProvider] =
+    useState<HostedCheckoutProvider | null>(hostedProviders[0] ?? null);
+
+  useEffect(() => {
+    if (!hasHostedCheckout) {
+      if (selectedHostedProvider !== null) {
+        setSelectedHostedProvider(null);
+      }
+      return;
+    }
+
+    if (!selectedHostedProvider || !hostedProviders.includes(selectedHostedProvider)) {
+      setSelectedHostedProvider(hostedProviders[0]);
+    }
+  }, [hasHostedCheckout, hostedProviders, selectedHostedProvider]);
+
+  useEffect(() => {
+    if (selectedHostedProvider === "stripe" && paymentMethod !== "card") {
+      setPaymentMethod("card");
+    }
+  }, [paymentMethod, selectedHostedProvider]);
+
+  useEffect(() => {
+    if (isTestMode) return undefined;
+    if (PAYSTACK_CURRENCY === "USD") return undefined;
+    const rateApiUrl = buildExchangeRateApiUrl("USD", PAYSTACK_CURRENCY);
+    if (!rateApiUrl) return undefined;
+
+    let isActive = true;
+    const abortController = new AbortController();
+
+    const fetchExchangeRate = async () => {
+      try {
+        const response = await fetch(rateApiUrl, {
+          method: "GET",
+          signal: abortController.signal,
+        });
+        if (!response.ok) return;
+
+        const payload = (await response.json()) as unknown;
+        const liveRate = extractExchangeRate(payload, PAYSTACK_CURRENCY);
+        if (isActive && liveRate && liveRate > 0) {
+          setPaystackUsdExchangeRate(liveRate);
+        }
+      } catch {
+        // Ignore API failures and keep configured fallback rate.
+      }
+    };
+
+    void fetchExchangeRate();
+
+    return () => {
+      isActive = false;
+      abortController.abort();
+    };
+  }, []);
+
   const defaultReturnPath = "/register";
   const returnToPath = normalizeReturnPath(searchParams.get("returnTo"), defaultReturnPath);
 
@@ -151,12 +337,29 @@ export const SubscriptionPlansPage: React.FC = () => {
     const annualFromMonthly = selectedPlan.monthlyPriceUsd * 12;
     return Math.max(0, annualFromMonthly - selectedPlan.annualPriceUsd);
   }, [billingCycle, selectedPlan]);
+  const displayCurrency = getDisplayCurrency(selectedHostedProvider);
+  const displayAmount = convertUsdToDisplayAmount(
+    amountUsd,
+    selectedHostedProvider,
+    paystackUsdExchangeRate,
+  );
+  const displayAnnualSavings = convertUsdToDisplayAmount(
+    annualSavings,
+    selectedHostedProvider,
+    paystackUsdExchangeRate,
+  );
 
   const effectivePaymentMethod: PaymentMethod =
-    checkoutMode === "stripe" || checkoutMode === "paystack" ? "card" : paymentMethod;
+    selectedHostedProvider === "stripe" ? "card" : paymentMethod;
 
   const selectedPaymentMethodLabel =
     paymentMethods.find((method) => method.id === effectivePaymentMethod)?.label ?? "N/A";
+  const selectedProviderLabel = selectedHostedProvider
+    ? hostedProviderConfig[selectedHostedProvider].label
+    : "Internal";
+  const selectedProviderDescription = selectedHostedProvider
+    ? hostedProviderConfig[selectedHostedProvider].description
+    : "Direct API confirmation flow.";
 
   const handleConfirmSubscription = async () => {
     if (isProcessing) return;
@@ -164,7 +367,7 @@ export const SubscriptionPlansPage: React.FC = () => {
     setIsProcessing(true);
 
     try {
-      if (checkoutMode === "stripe") {
+      if (hasHostedCheckout && selectedHostedProvider === "stripe") {
         const origin =
           typeof window !== "undefined" && window.location?.origin
             ? window.location.origin
@@ -184,7 +387,7 @@ export const SubscriptionPlansPage: React.FC = () => {
         return;
       }
 
-      if (checkoutMode === "paystack") {
+      if (hasHostedCheckout && selectedHostedProvider === "paystack") {
         const normalizedCustomerEmail = customerEmail.trim().toLowerCase();
 
         const origin =
@@ -196,7 +399,7 @@ export const SubscriptionPlansPage: React.FC = () => {
           planId: selectedPlan.id,
           planName: selectedPlan.name,
           billingCycle,
-          paymentMethod: "card",
+          paymentMethod: effectivePaymentMethod,
           amountUsd,
           customerEmail: normalizedCustomerEmail || undefined,
           successUrl: `${origin}/billing/success?next=${encodedReturnPath}`,
@@ -204,6 +407,11 @@ export const SubscriptionPlansPage: React.FC = () => {
         });
 
         window.location.assign(session.checkout_url);
+        return;
+      }
+
+      if (hasHostedCheckout && !selectedHostedProvider) {
+        toast.error("Select a billing provider to continue.");
         return;
       }
 
@@ -307,6 +515,11 @@ export const SubscriptionPlansPage: React.FC = () => {
           {plans.map((plan) => {
             const planPrice =
               billingCycle === "monthly" ? plan.monthlyPriceUsd : plan.annualPriceUsd;
+            const planDisplayPrice = convertUsdToDisplayAmount(
+              planPrice,
+              selectedHostedProvider,
+              paystackUsdExchangeRate,
+            );
             const selected = plan.id === selectedPlanId;
 
             return (
@@ -334,7 +547,7 @@ export const SubscriptionPlansPage: React.FC = () => {
                 <p className="text-sm text-slate-700">{plan.subtitle}</p>
 
                 <p className="mt-4 text-3xl font-black text-slate-900">
-                  {formatUsd(planPrice)}
+                  {formatCurrencyAmount(planDisplayPrice, displayCurrency)}
                   <span className="ml-1 text-sm font-medium text-slate-700">
                     /{billingCycle === "monthly" ? "mo" : "yr"}
                   </span>
@@ -358,11 +571,41 @@ export const SubscriptionPlansPage: React.FC = () => {
             <h3 className="text-lg font-black text-slate-900">Payment method</h3>
             <p className="mt-1 text-sm text-slate-700">Select your preferred payment route.</p>
 
+            {hasHostedCheckout ? (
+              <div className="mt-4 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                  Billing provider
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {hostedProviders.map((provider) => {
+                    const selected = selectedHostedProvider === provider;
+                    const config = hostedProviderConfig[provider];
+
+                    return (
+                      <button
+                        key={provider}
+                        type="button"
+                        onClick={() => setSelectedHostedProvider(provider)}
+                        className={`rounded-xl border p-4 text-left transition ${
+                          selected
+                            ? "border-cyan-500 bg-cyan-50"
+                            : "border-slate-200 hover:border-cyan-300"
+                        }`}
+                      >
+                        <p className="text-sm font-bold text-slate-900">{config.label}</p>
+                        <p className="text-xs text-slate-700">{config.description}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+
             <div className="mt-4 space-y-3">
               {paymentMethods.map((method) => {
                 const selected = method.id === effectivePaymentMethod;
                 const disabled =
-                  (checkoutMode === "stripe" || checkoutMode === "paystack") && method.id !== "card";
+                  selectedHostedProvider === "stripe" && method.id !== "card";
 
                 return (
                   <button
@@ -390,12 +633,12 @@ export const SubscriptionPlansPage: React.FC = () => {
               })}
             </div>
 
-            {checkoutMode === "stripe" && (
+            {selectedHostedProvider === "stripe" && (
               <p className="mt-3 text-xs text-amber-700">
                 Stripe checkout currently supports card payments in this flow.
               </p>
             )}
-            {checkoutMode === "paystack" && (
+            {selectedHostedProvider === "paystack" && (
               <div className="mt-3 space-y-2">
                 <label
                   htmlFor="paystack-customer-email"
@@ -416,6 +659,11 @@ export const SubscriptionPlansPage: React.FC = () => {
                 </p>
               </div>
             )}
+            {hasHostedCheckout ? (
+              <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                Routing: card can use Stripe or Paystack; mobile money and bank transfer are processed via Paystack.
+              </p>
+            ) : null}
           </div>
 
           <aside className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
@@ -432,19 +680,32 @@ export const SubscriptionPlansPage: React.FC = () => {
                 </dd>
               </div>
               <div className="flex items-center justify-between">
+                <dt className="text-slate-700">Provider</dt>
+                <dd
+                  className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-900"
+                  title={selectedProviderDescription}
+                >
+                  {selectedProviderLabel}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between">
                 <dt className="text-slate-700">Payment</dt>
                 <dd className="font-semibold text-slate-900">{selectedPaymentMethodLabel}</dd>
               </div>
               {annualSavings > 0 && (
                 <div className="flex items-center justify-between">
                   <dt className="text-emerald-700">Annual savings</dt>
-                  <dd className="font-bold text-emerald-700">{formatUsd(annualSavings)}</dd>
+                  <dd className="font-bold text-emerald-700">
+                    {formatCurrencyAmount(displayAnnualSavings, displayCurrency)}
+                  </dd>
                 </div>
               )}
               <div className="my-2 border-t border-slate-200" />
               <div className="flex items-center justify-between text-base">
                 <dt className="font-bold text-slate-900">Total</dt>
-                <dd className="text-xl font-black text-slate-900">{formatUsd(amountUsd)}</dd>
+                <dd className="text-xl font-black text-slate-900">
+                  {formatCurrencyAmount(displayAmount, displayCurrency)}
+                </dd>
               </div>
             </dl>
 
@@ -456,29 +717,35 @@ export const SubscriptionPlansPage: React.FC = () => {
               className="mt-6 h-12 w-full rounded-xl bg-cyan-700 text-sm font-bold text-white transition hover:bg-cyan-800"
             >
               {isProcessing
-                ? checkoutMode === "stripe"
+                ? selectedHostedProvider === "stripe"
                   ? "Preparing Stripe checkout..."
-                  : checkoutMode === "paystack"
+                  : selectedHostedProvider === "paystack"
                   ? "Preparing Paystack checkout..."
                   : "Confirming subscription..."
-                : checkoutMode === "stripe"
+                : selectedHostedProvider === "stripe"
                 ? "Continue to Stripe"
-                : checkoutMode === "paystack"
+                : selectedHostedProvider === "paystack"
                 ? "Continue to Paystack"
                 : "Confirm and continue"}
             </Button>
 
             <p className="mt-3 text-xs text-slate-700">
               Checkout mode:{" "}
-              {checkoutMode === "api"
+              {hasHostedCheckout
+                ? hostedProviders.map((provider) => hostedProviderConfig[provider].label).join(" + ")
+                : checkoutMode === "api"
                 ? "API"
-                : checkoutMode === "stripe"
-                ? "Stripe"
-                : checkoutMode === "paystack"
-                ? "Paystack"
                 : "Sandbox"}
               .
             </p>
+            <p className="mt-1 text-xs text-slate-700">
+              Selected provider: <span className="font-semibold text-slate-900">{selectedProviderLabel}</span>.
+            </p>
+            {selectedHostedProvider === "paystack" && displayCurrency !== "USD" ? (
+              <p className="mt-1 text-xs text-slate-700">
+                Paystack conversion rate: 1 USD = {paystackUsdExchangeRate} {displayCurrency}.
+              </p>
+            ) : null}
           </aside>
         </section>
       </div>

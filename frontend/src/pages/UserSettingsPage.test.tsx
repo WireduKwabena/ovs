@@ -84,7 +84,7 @@ describe("UserSettingsPage billing empty-state", () => {
     );
 
     expect(
-      await screen.findByRole("button", { name: /add subscription & payment method/i }),
+      await screen.findByRole("button", { name: /add subscription plan/i }),
     ).toBeTruthy();
   });
 });

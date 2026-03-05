@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { StrictMode } from "react";
 
 import BillingCheckoutResultPage from "./BillingCheckoutResultPage";
 
@@ -34,6 +35,19 @@ const renderAt = (url: string) => {
         <Route path="/billing/cancel" element={<BillingCheckoutResultPage />} />
       </Routes>
     </MemoryRouter>,
+  );
+};
+
+const renderAtStrict = (url: string) => {
+  return render(
+    <StrictMode>
+      <MemoryRouter initialEntries={[url]}>
+        <Routes>
+          <Route path="/billing/success" element={<BillingCheckoutResultPage />} />
+          <Route path="/billing/cancel" element={<BillingCheckoutResultPage />} />
+        </Routes>
+      </MemoryRouter>
+    </StrictMode>,
   );
 };
 
@@ -145,6 +159,70 @@ describe("BillingCheckoutResultPage", () => {
     expect(
       await screen.findByText(/paystack transaction is not successful yet \(status: abandoned\)\./i),
     ).toBeTruthy();
+    expect(mocks.confirmPaystackReference).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows Resume Checkout link when backend returns checkout_url on confirmation failure", async () => {
+    mocks.confirmPaystackReference.mockRejectedValue({
+      response: {
+        data: {
+          detail: "Paystack transaction is not successful yet (status: abandoned).",
+          checkout_url: "https://checkout.paystack.com/retry-flow",
+        },
+      },
+    });
+
+    renderAt("/billing/success?reference=OVS-PAYSTACK-RESUME");
+
+    expect(await screen.findByText(/verification failed/i)).toBeTruthy();
+    const resumeLink = await screen.findByRole("link", { name: /resume checkout/i });
+    expect(resumeLink.getAttribute("href")).toBe("https://checkout.paystack.com/retry-flow");
+  });
+
+  it("retries same callback URL after remount even when prior attempt never resolved", async () => {
+    mocks.confirmPaystackReference.mockImplementationOnce(
+      () => new Promise(() => undefined),
+    );
+
+    renderAt("/billing/success?reference=OVS-PAYSTACK-STUCK");
+    await waitFor(() => {
+      expect(mocks.confirmPaystackReference).toHaveBeenCalledTimes(1);
+    });
+
+    cleanup();
+
+    mocks.confirmPaystackReference.mockResolvedValueOnce({
+      planId: "growth",
+      planName: "Growth",
+      billingCycle: "monthly",
+      paymentMethod: "card",
+      amountUsd: 399,
+      reference: "OVS-PAYSTACK-STUCK",
+      confirmedAt: Date.now(),
+      expiresAt: Date.now() + 60_000,
+    });
+
+    renderAt("/billing/success?reference=OVS-PAYSTACK-STUCK");
+
+    expect(await screen.findByText(/payment confirmed/i)).toBeTruthy();
+    expect(mocks.confirmPaystackReference).toHaveBeenCalledTimes(2);
+  });
+
+  it("confirms paystack callback in React StrictMode", async () => {
+    mocks.confirmPaystackReference.mockResolvedValue({
+      planId: "growth",
+      planName: "Growth",
+      billingCycle: "monthly",
+      paymentMethod: "mobile_money",
+      amountUsd: 399,
+      reference: "OVS-PAYSTACK-STRICT",
+      confirmedAt: Date.now(),
+      expiresAt: Date.now() + 60_000,
+    });
+
+    renderAtStrict("/billing/success?reference=OVS-PAYSTACK-STRICT");
+
+    expect(await screen.findByText(/payment confirmed/i)).toBeTruthy();
     expect(mocks.confirmPaystackReference).toHaveBeenCalledTimes(1);
   });
 });
