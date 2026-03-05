@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, Loader2, RotateCcw, XCircle } from "lucide-react";
 import { toast } from "react-toastify";
@@ -19,33 +19,63 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
 
 type ConfirmationStatus = "idle" | "processing" | "success" | "error";
 
+// Prevent duplicate confirmation requests in React StrictMode double-effect runs.
+const inFlightConfirmationAttempts = new Set<string>();
+
+const normalizeNextPath = (value: string | null, fallback: string): string => {
+  if (!value) return fallback;
+  if (!value.startsWith("/") || value.startsWith("//")) return fallback;
+  if (value.startsWith("/billing/")) return fallback;
+  return value;
+};
+
 const BillingCheckoutResultPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const stripeSessionId = searchParams.get("stripe_session_id") || "";
+  const paystackReference =
+    searchParams.get("paystack_reference") ||
+    searchParams.get("reference") ||
+    searchParams.get("trxref") ||
+    "";
+  const checkoutProvider: "stripe" | "paystack" | null = stripeSessionId
+    ? "stripe"
+    : paystackReference
+    ? "paystack"
+    : null;
+  const checkoutIdentifier = stripeSessionId || paystackReference;
+  const nextPath = normalizeNextPath(searchParams.get("next"), "/register");
 
   const [status, setStatus] = useState<ConfirmationStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [retryCycle, setRetryCycle] = useState(0);
 
-  const handledSessionRef = useRef<string | null>(null);
+  const normalizedPath = location.pathname.replace(/\/+$/, "") || "/";
+  const isSuccessRoute = normalizedPath === "/billing/success";
+  const isCancelRoute = normalizedPath === "/billing/cancel";
 
-  const isSuccessRoute = location.pathname === "/billing/success";
-  const isCancelRoute = location.pathname === "/billing/cancel";
-
-  const confirmStripeSession = useCallback(async (sessionId: string) => {
+  const confirmHostedCheckout = useCallback(async (provider: "stripe" | "paystack", identifier: string) => {
     setStatus("processing");
     setErrorMessage(null);
 
     try {
-      await subscriptionService.confirmStripeSession(sessionId);
+      if (provider === "stripe") {
+        await subscriptionService.confirmStripeSession(identifier);
+      } else {
+        await subscriptionService.confirmPaystackReference(identifier);
+      }
       setStatus("success");
-      toast.success("Payment confirmed. Continue with organization registration.", {
+      toast.success("Payment confirmed.", {
         toastId: "billing-checkout-success",
       });
     } catch (error: unknown) {
-      const message = getErrorMessage(error, "Unable to confirm Stripe checkout session.");
+      const message = getErrorMessage(
+        error,
+        provider === "stripe"
+          ? "Unable to confirm Stripe checkout session."
+          : "Unable to confirm Paystack checkout session.",
+      );
       setErrorMessage(message);
       setStatus("error");
       toast.error(message, { toastId: "billing-checkout-error" });
@@ -54,18 +84,25 @@ const BillingCheckoutResultPage: React.FC = () => {
 
   useEffect(() => {
     if (!isSuccessRoute) return undefined;
-    if (!stripeSessionId) return undefined;
-    if (handledSessionRef.current === `${stripeSessionId}:${retryCycle}`) return undefined;
+    if (!checkoutProvider || !checkoutIdentifier) return undefined;
+    const attemptKey = `${checkoutProvider}:${checkoutIdentifier}:${retryCycle}`;
+    if (inFlightConfirmationAttempts.has(attemptKey)) return undefined;
 
-    handledSessionRef.current = `${stripeSessionId}:${retryCycle}`;
-    const timeout = window.setTimeout(() => {
-      void confirmStripeSession(stripeSessionId);
-    }, 0);
-
+    let isActive = true;
+    inFlightConfirmationAttempts.add(attemptKey);
+    queueMicrotask(() => {
+      if (!isActive) {
+        inFlightConfirmationAttempts.delete(attemptKey);
+        return;
+      }
+      void confirmHostedCheckout(checkoutProvider, checkoutIdentifier).finally(() => {
+        inFlightConfirmationAttempts.delete(attemptKey);
+      });
+    });
     return () => {
-      window.clearTimeout(timeout);
+      isActive = false;
     };
-  }, [confirmStripeSession, isSuccessRoute, retryCycle, stripeSessionId]);
+  }, [checkoutIdentifier, checkoutProvider, confirmHostedCheckout, isSuccessRoute, retryCycle]);
 
   if (isCancelRoute) {
     return (
@@ -81,7 +118,7 @@ const BillingCheckoutResultPage: React.FC = () => {
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <button
               type="button"
-              onClick={() => navigate("/subscribe")}
+              onClick={() => navigate(`/subscribe?returnTo=${encodeURIComponent(nextPath)}`)}
               className="rounded-lg bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800"
             >
               Back to Plans
@@ -98,7 +135,7 @@ const BillingCheckoutResultPage: React.FC = () => {
     );
   }
 
-  const hasMissingSession = isSuccessRoute && !stripeSessionId;
+  const hasMissingSession = isSuccessRoute && !checkoutIdentifier;
 
   if (hasMissingSession || status === "error") {
     return (
@@ -110,7 +147,7 @@ const BillingCheckoutResultPage: React.FC = () => {
           <h1 className="text-center text-2xl font-black text-slate-900">Verification Failed</h1>
           <p className="mt-3 text-center text-sm text-slate-700">
             {hasMissingSession
-              ? "Missing Stripe session ID in callback URL."
+              ? "Missing checkout reference in callback URL."
               : errorMessage || "Unable to confirm payment at the moment."}
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
@@ -126,7 +163,7 @@ const BillingCheckoutResultPage: React.FC = () => {
             ) : null}
             <button
               type="button"
-              onClick={() => navigate("/subscribe")}
+              onClick={() => navigate(`/subscribe?returnTo=${encodeURIComponent(nextPath)}`)}
               className="rounded-lg bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800"
             >
               Back to Plans
@@ -146,15 +183,15 @@ const BillingCheckoutResultPage: React.FC = () => {
           </div>
           <h1 className="text-center text-2xl font-black text-slate-900">Payment Confirmed</h1>
           <p className="mt-3 text-center text-sm text-slate-700">
-            Your subscription access has been activated. Continue to organization registration.
+            Your subscription access has been activated.
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <button
               type="button"
-              onClick={() => navigate("/register", { replace: true })}
+              onClick={() => navigate(nextPath, { replace: true })}
               className="rounded-lg bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800"
             >
-              Continue to Register
+              Continue
             </button>
             <Link
               to="/login"
@@ -176,7 +213,7 @@ const BillingCheckoutResultPage: React.FC = () => {
         </div>
         <h1 className="text-2xl font-black text-slate-900">Confirming Payment</h1>
         <p className="mt-3 text-sm text-slate-700">
-          We are validating your checkout session with Stripe.
+          We are validating your checkout session.
         </p>
       </section>
     </main>

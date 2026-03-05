@@ -5,6 +5,8 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.billing.quotas import enforce_candidate_quota
+
 from .models import Candidate, CandidateEnrollment, CandidateSocialProfile
 from .serializers import (
     CandidateEnrollmentSerializer,
@@ -118,11 +120,21 @@ class CandidateEnrollmentViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         campaign = serializer.validated_data["campaign"]
+        candidate = serializer.validated_data["candidate"]
+
         if not _is_admin(user):
             if getattr(user, "user_type", None) != "hr_manager":
                 raise PermissionDenied("Only HR managers/admins can create enrollments.")
             if campaign.initiated_by_id != user.id:
                 raise PermissionDenied("You cannot create enrollments for another manager's campaign.")
+
+            already_enrolled = CandidateEnrollment.objects.filter(
+                campaign=campaign,
+                candidate=candidate,
+            ).exists()
+            if not already_enrolled:
+                enforce_candidate_quota(user=user, additional=1)
+
         now = timezone.now()
         serializer.save(invited_at=now)
 

@@ -16,7 +16,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.video_calls.models import VideoMeeting, VideoMeetingEvent, VideoMeetingParticipant
-from apps.video_calls.permissions import IsMeetingCreatorOrReadOnly, is_hr_or_admin_user
+from apps.video_calls.permissions import IsMeetingCreatorOrReadOnly, is_admin_user, is_hr_or_admin_user
 from apps.video_calls.serializers import (
     VideoMeetingExtendSerializer,
     VideoMeetingEventSerializer,
@@ -208,7 +208,17 @@ class VideoMeetingViewSet(viewsets.ModelViewSet):
                     target.timezone = new_timezone
                 target.status = VideoMeeting.STATUS_SCHEDULED
                 target.reminder_before_sent_at = None
+                target.reminder_before_failure_count = 0
+                target.reminder_before_last_failure_at = None
+                target.reminder_before_next_retry_at = None
                 target.reminder_start_sent_at = None
+                target.reminder_start_failure_count = 0
+                target.reminder_start_last_failure_at = None
+                target.reminder_start_next_retry_at = None
+                target.reminder_time_up_sent_at = None
+                target.reminder_time_up_failure_count = 0
+                target.reminder_time_up_last_failure_at = None
+                target.reminder_time_up_next_retry_at = None
                 try:
                     target.save(
                         update_fields=[
@@ -217,7 +227,17 @@ class VideoMeetingViewSet(viewsets.ModelViewSet):
                             "timezone",
                             "status",
                             "reminder_before_sent_at",
+                            "reminder_before_failure_count",
+                            "reminder_before_last_failure_at",
+                            "reminder_before_next_retry_at",
                             "reminder_start_sent_at",
+                            "reminder_start_failure_count",
+                            "reminder_start_last_failure_at",
+                            "reminder_start_next_retry_at",
+                            "reminder_time_up_sent_at",
+                            "reminder_time_up_failure_count",
+                            "reminder_time_up_last_failure_at",
+                            "reminder_time_up_next_retry_at",
                             "updated_at",
                         ]
                     )
@@ -310,7 +330,17 @@ class VideoMeetingViewSet(viewsets.ModelViewSet):
             meeting.timezone = serializer.validated_data["timezone"]
         meeting.status = VideoMeeting.STATUS_SCHEDULED
         meeting.reminder_before_sent_at = None
+        meeting.reminder_before_failure_count = 0
+        meeting.reminder_before_last_failure_at = None
+        meeting.reminder_before_next_retry_at = None
         meeting.reminder_start_sent_at = None
+        meeting.reminder_start_failure_count = 0
+        meeting.reminder_start_last_failure_at = None
+        meeting.reminder_start_next_retry_at = None
+        meeting.reminder_time_up_sent_at = None
+        meeting.reminder_time_up_failure_count = 0
+        meeting.reminder_time_up_last_failure_at = None
+        meeting.reminder_time_up_next_retry_at = None
         try:
             meeting.save(
                 update_fields=[
@@ -319,7 +349,17 @@ class VideoMeetingViewSet(viewsets.ModelViewSet):
                     "timezone",
                     "status",
                     "reminder_before_sent_at",
+                    "reminder_before_failure_count",
+                    "reminder_before_last_failure_at",
+                    "reminder_before_next_retry_at",
                     "reminder_start_sent_at",
+                    "reminder_start_failure_count",
+                    "reminder_start_last_failure_at",
+                    "reminder_start_next_retry_at",
+                    "reminder_time_up_sent_at",
+                    "reminder_time_up_failure_count",
+                    "reminder_time_up_last_failure_at",
+                    "reminder_time_up_next_retry_at",
                     "updated_at",
                 ]
             )
@@ -521,3 +561,66 @@ class VideoMeetingViewSet(viewsets.ModelViewSet):
         )
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=["get"], url_path="reminder-health")
+    def reminder_health(self, request):
+        if not is_admin_user(request.user):
+            return Response(
+                {"error": "Only admin users can view reminder health metrics."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        now = timezone.now()
+        try:
+            max_retries = int(getattr(settings, "VIDEO_CALLS_REMINDER_RETRY_MAX_ATTEMPTS", 3))
+        except (TypeError, ValueError):
+            max_retries = 3
+        if max_retries < 1:
+            max_retries = 1
+
+        queryset = self.get_queryset()
+
+        payload = {
+            "generated_at": now.isoformat(),
+            "max_retries": max_retries,
+            "soon_retry_pending": queryset.filter(
+                status=VideoMeeting.STATUS_SCHEDULED,
+                reminder_before_sent_at__isnull=True,
+                reminder_before_failure_count__gt=0,
+                reminder_before_failure_count__lt=max_retries,
+                reminder_before_next_retry_at__isnull=False,
+                reminder_before_next_retry_at__lte=now,
+            ).count(),
+            "soon_retry_exhausted": queryset.filter(
+                status=VideoMeeting.STATUS_SCHEDULED,
+                reminder_before_sent_at__isnull=True,
+                reminder_before_failure_count__gte=max_retries,
+            ).count(),
+            "start_now_retry_pending": queryset.filter(
+                status=VideoMeeting.STATUS_ONGOING,
+                reminder_start_sent_at__isnull=True,
+                reminder_start_failure_count__gt=0,
+                reminder_start_failure_count__lt=max_retries,
+                reminder_start_next_retry_at__isnull=False,
+                reminder_start_next_retry_at__lte=now,
+            ).count(),
+            "start_now_retry_exhausted": queryset.filter(
+                status=VideoMeeting.STATUS_ONGOING,
+                reminder_start_sent_at__isnull=True,
+                reminder_start_failure_count__gte=max_retries,
+            ).count(),
+            "time_up_retry_pending": queryset.filter(
+                status=VideoMeeting.STATUS_COMPLETED,
+                reminder_time_up_sent_at__isnull=True,
+                reminder_time_up_failure_count__gt=0,
+                reminder_time_up_failure_count__lt=max_retries,
+                reminder_time_up_next_retry_at__isnull=False,
+                reminder_time_up_next_retry_at__lte=now,
+            ).count(),
+            "time_up_retry_exhausted": queryset.filter(
+                status=VideoMeeting.STATUS_COMPLETED,
+                reminder_time_up_sent_at__isnull=True,
+                reminder_time_up_failure_count__gte=max_retries,
+            ).count(),
+        }
+        return Response(payload, status=status.HTTP_200_OK)

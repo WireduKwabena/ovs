@@ -46,7 +46,7 @@ export function CriteriaCard({ criterion, onUpdate, onDelete }: CriteriaCardProp
           <Input
             id={`criterion-min-score-${criterion.id}`}
             type="number"
-            value={criterion.minimum_score}
+            value={criterion.minimum_score ?? ''}
             onChange={(e) => onUpdate('minimum_score', parseInt(e.target.value))}
             className="w-20 px-2 py-1 border rounded text-sm"
             min="0"

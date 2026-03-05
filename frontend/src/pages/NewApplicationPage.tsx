@@ -3,11 +3,12 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
-import { ArrowLeft, X } from "lucide-react";
+import { ArrowLeft, Info, X } from "lucide-react";
 import { FileUpload } from "@/components/common/FileUpload";
 import { applicationService } from "@/services/application.service";
 import { applicationSchema } from "@/utils/validators";
 import { useApplications } from "@/hooks/useApplications";
+import { FieldLabel } from "@/components/common/FieldHelp";
 import {
   APPLICATION_TYPES,
   PRIORITIES,
@@ -97,16 +98,21 @@ export const NewApplicationPage: React.FC = () => {
           <p className="text-slate-700 mb-8">
             Fill in the details and upload required documents
           </p>
+          <div className="mb-6 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+            Hover or focus the <Info className="mx-1 inline h-4 w-4 align-text-bottom" /> icons beside labels to understand each field.
+          </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Application Type */}
             <div>
-              <label
+              <FieldLabel
                 htmlFor="new-app-type"
-                className="block text-sm font-medium text-slate-800 mb-2"
-              >
-                Application Type *
-              </label>
+                label="Application Type"
+                required
+                help="Select the type that best matches this vetting request so reviewers apply the right workflow."
+                className="mb-2 flex items-center gap-1.5"
+                textClassName="block text-sm font-medium text-slate-800"
+              />
               <select
                 id="new-app-type"
                 {...register("application_type")}
@@ -128,12 +134,14 @@ export const NewApplicationPage: React.FC = () => {
 
             {/* Priority */}
             <div>
-              <label
+              <FieldLabel
                 htmlFor="new-app-priority"
-                className="block text-sm font-medium text-slate-800 mb-2"
-              >
-                Priority *
-              </label>
+                label="Priority"
+                required
+                help="Use priority to signal urgency for processing and review turnaround."
+                className="mb-2 flex items-center gap-1.5"
+                textClassName="block text-sm font-medium text-slate-800"
+              />
               <select
                 id="new-app-priority"
                 {...register("priority")}
@@ -155,12 +163,13 @@ export const NewApplicationPage: React.FC = () => {
 
             {/* Notes */}
             <div>
-              <label
+              <FieldLabel
                 htmlFor="new-app-notes"
-                className="block text-sm font-medium text-slate-800 mb-2"
-              >
-                Additional Notes
-              </label>
+                label="Additional Notes"
+                help="Optional context that may help reviewers interpret documents and candidate details."
+                className="mb-2 flex items-center gap-1.5"
+                textClassName="block text-sm font-medium text-slate-800"
+              />
               <textarea
                 id="new-app-notes"
                 {...register("notes")}
@@ -172,12 +181,13 @@ export const NewApplicationPage: React.FC = () => {
 
             {/* File Upload */}
             <div>
-              <label
+              <FieldLabel
                 htmlFor="upload-doc-type"
-                className="block text-sm font-medium text-slate-800 mb-2"
-              >
-                Document Type for Uploads
-              </label>
+                label="Document Type for Uploads"
+                help="Choose the document category before upload so AI checks and downstream workflows use the right validators."
+                className="mb-2 flex items-center gap-1.5"
+                textClassName="block text-sm font-medium text-slate-800"
+              />
               <select
                 id="upload-doc-type"
                 aria-label="Document type for uploads"
@@ -193,9 +203,13 @@ export const NewApplicationPage: React.FC = () => {
                   </option>
                 ))}
               </select>
-              <p className="block text-sm font-medium text-slate-800 mb-2">
-                Documents * (PDF, JPG, PNG - Max 10MB each)
-              </p>
+              <FieldLabel
+                label="Documents (PDF, JPG, PNG)"
+                required
+                help="Upload one or more files. Maximum size per file is 10MB."
+                className="mb-2 flex items-center gap-1.5"
+                textClassName="block text-sm font-medium text-slate-800"
+              />
               <FileUpload
                 pageDocumentType={documentType}
                 onFilesChanged={(fileItems) =>

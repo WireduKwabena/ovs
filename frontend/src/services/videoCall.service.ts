@@ -11,6 +11,7 @@ import type {
   VideoMeetingSeriesReschedulePayload,
   VideoMeetingSeriesResponse,
   VideoMeetingReschedulePayload,
+  VideoMeetingReminderHealth,
 } from "@/types";
 
 const extractResults = <T>(payload: PaginatedResponse<T> | T[]): T[] => {
@@ -21,9 +22,29 @@ const extractResults = <T>(payload: PaginatedResponse<T> | T[]): T[] => {
 };
 
 const toMessage = (error: unknown, fallback: string): string => {
-  const responseData = (error as { response?: { data?: ApiError } })?.response?.data;
+  const response = (error as { response?: { status?: number; data?: ApiError & { detail?: string; non_field_errors?: string[] } } })?.response;
+  const responseData = response?.data;
   if (!responseData) {
-    return fallback;
+    const genericMessage = (error as { message?: string })?.message;
+    return typeof genericMessage === "string" && genericMessage.trim() ? genericMessage : fallback;
+  }
+  if (typeof responseData.detail === "string" && responseData.detail.trim()) {
+    return responseData.detail;
+  }
+  if (Array.isArray(responseData.non_field_errors) && responseData.non_field_errors.length > 0) {
+    return responseData.non_field_errors.join(" ");
+  }
+  if (response?.status === 401) {
+    return "Session expired or unauthorized. Please sign in again.";
+  }
+  if (response?.status === 403 && fallback.toLowerCase().includes("reminder health")) {
+    return "Reminder runtime is available to admin accounts only.";
+  }
+  if (response?.status === 403) {
+    return "You do not have permission to view this resource.";
+  }
+  if (response?.status === 404 && fallback.toLowerCase().includes("reminder health")) {
+    return "Reminder health endpoint unavailable. Restart backend services to load latest routes.";
   }
   return (
     responseData.message ||
@@ -205,6 +226,15 @@ export const videoCallService = {
       await api.post(`/video-calls/meetings/${meetingId}/leave/`, {});
     } catch (error) {
       throw new Error(toMessage(error, "Failed to leave meeting."));
+    }
+  },
+
+  async getReminderHealth(): Promise<VideoMeetingReminderHealth> {
+    try {
+      const response = await api.get<VideoMeetingReminderHealth>("/video-calls/meetings/reminder-health/");
+      return response.data;
+    } catch (error) {
+      throw new Error(toMessage(error, "Failed to fetch reminder health."));
     }
   },
 };

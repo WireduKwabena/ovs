@@ -12,6 +12,7 @@ import {
 import Modal from "@/components/common/Modal";
 import { DOCUMENT_TYPES } from "@/utils/constants";
 import { useApplications } from "@/hooks/useApplications";
+import { FieldLabel, HelpTooltip } from "@/components/common/FieldHelp";
 
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Loader } from "@/components/common/Loader";
@@ -108,8 +109,9 @@ export const ApplicationDetailPage: React.FC = () => {
           <div className="lg:col-span-2 space-y-6">
             {/* Application Details */}
             <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-xl font-semibold mb-4">
+              <h2 className="mb-4 inline-flex items-center gap-1.5 text-xl font-semibold">
                 Application Details
+                <HelpTooltip text="Overview of core case metadata used in vetting and review decisions." />
               </h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -148,7 +150,10 @@ export const ApplicationDetailPage: React.FC = () => {
             {/* Documents */}
             <div className="bg-white rounded-lg shadow-sm p-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Documents</h2>
+                <h2 className="inline-flex items-center gap-1.5 text-xl font-semibold">
+                  Documents
+                  <HelpTooltip text="Uploaded files, verification status, and AI confidence metrics for this case." />
+                </h2>
                 <button
                   onClick={() => {
                     setShowUploadModal(true);
@@ -185,12 +190,13 @@ export const ApplicationDetailPage: React.FC = () => {
               >
                 <div className="space-y-4">
                   <div>
-                    <label
+                    <FieldLabel
                       htmlFor="detail-upload-file"
-                      className="mb-1 block text-sm text-slate-700"
-                    >
-                      Select file
-                    </label>
+                      label="Select file"
+                      help="Choose a PDF or image document to attach to this application."
+                      className="mb-1 flex items-center gap-1.5"
+                      textClassName="block text-sm text-slate-700"
+                    />
                     <input
                       id="detail-upload-file"
                       type="file"
@@ -211,12 +217,13 @@ export const ApplicationDetailPage: React.FC = () => {
                     )}
                   </div>
                   <div>
-                    <label
+                    <FieldLabel
                       htmlFor="detail-upload-type"
-                      className="mb-1 block text-sm text-slate-700"
-                    >
-                      Document type
-                    </label>
+                      label="Document type"
+                      help="Classify the uploaded file so verification rules and scoring are applied correctly."
+                      className="mb-1 flex items-center gap-1.5"
+                      textClassName="block text-sm text-slate-700"
+                    />
                     <select
                       id="detail-upload-type"
                       aria-label="Document type"
@@ -273,8 +280,9 @@ export const ApplicationDetailPage: React.FC = () => {
             {/* Verification Results */}
             {currentCase.documents && currentCase.documents.length > 0 && (
               <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-semibold mb-4">
+                <h2 className="mb-4 inline-flex items-center gap-1.5 text-xl font-semibold">
                   Verification Status
+                  <HelpTooltip text="Per-document verification state plus aggregate AI consistency and fraud signals." />
                 </h2>
 
                 {currentCase.documents.map((doc) => (
@@ -333,7 +341,10 @@ export const ApplicationDetailPage: React.FC = () => {
           <div className="space-y-6">
             {/* Status Timeline */}
             <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="font-semibold mb-4">Status Timeline</h3>
+              <h3 className="mb-4 inline-flex items-center gap-1.5 font-semibold">
+                Status Timeline
+                <HelpTooltip text="Chronological progression of the application through submission, review, and outcome." />
+              </h3>
               <div className="space-y-4">
                 <div className="flex gap-3">
                   <div className="flex flex-col items-center">
@@ -390,7 +401,10 @@ export const ApplicationDetailPage: React.FC = () => {
 
             {/* Quick Actions */}
             <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="font-semibold mb-4">Quick Actions</h3>
+              <h3 className="mb-4 inline-flex items-center gap-1.5 font-semibold">
+                Quick Actions
+                <HelpTooltip text="Operational shortcuts for this application. Some actions may depend on your role permissions." />
+              </h3>
               <div className="space-y-2">
                 <button className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 rounded-lg transition-colors">
                   Download All Documents

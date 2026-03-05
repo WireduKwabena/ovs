@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { KeyRound, LogOut, RefreshCw, FileCheck2, ShieldAlert } from 'lucide-react';
+import { KeyRound, LogOut, RefreshCw, FileCheck2, ShieldAlert, Info } from 'lucide-react';
 import { invitationService } from '@/services/invitation.service';
 import type { CandidateAccessContext, CandidateAccessResults } from '@/types';
 import { formatDateTime } from '@/utils/helper';
+import { FieldLabel, HelpTooltip } from '@/components/common/FieldHelp';
 
 const terminalStatuses = new Set(['approved', 'rejected', 'escalated']);
 
@@ -170,7 +171,7 @@ const CandidateAccessPage: React.FC = () => {
     <main className="max-w-4xl mx-auto px-4 py-10 space-y-5">
       <section className="rounded-2xl bg-slate-900 text-white p-6">
         <h1 className="text-2xl font-semibold">Candidate Access Portal</h1>
-        <p className="text-slate-700 mt-1">
+        <p className="mt-1 text-slate-200">
           Use your tokenized URL to start vetting and return to view your results.
         </p>
       </section>
@@ -188,6 +189,9 @@ const CandidateAccessPage: React.FC = () => {
             <KeyRound className="w-5 h-5 text-indigo-600" />
             Enter Access Token
           </h2>
+          <div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+            Hover or focus the <Info className="mx-1 inline h-4 w-4 align-text-bottom" /> icons beside labels for guidance.
+          </div>
           <form
             className="mt-4 space-y-3"
             onSubmit={(event) => {
@@ -199,9 +203,14 @@ const CandidateAccessPage: React.FC = () => {
               void consumeToken(tokenInput.trim());
             }}
           >
-            <label htmlFor="candidate-access-token" className="sr-only">
-              Candidate access token
-            </label>
+            <FieldLabel
+              htmlFor="candidate-access-token"
+              label="Candidate Access Token"
+              required
+              help="Paste the token from your email/SMS access link to open your candidate session."
+              className="mb-1 flex items-center gap-1.5"
+              textClassName="block text-sm text-slate-700"
+            />
             <input
               id="candidate-access-token"
               value={tokenInput}
@@ -224,7 +233,10 @@ const CandidateAccessPage: React.FC = () => {
         <>
           <section className="rounded-xl border border-slate-200 bg-white p-5 space-y-2">
             <div className="flex flex-wrap gap-3 items-center justify-between">
-              <h2 className="font-semibold text-lg">Session Context</h2>
+              <h2 className="font-semibold text-lg inline-flex items-center gap-1.5">
+                Session Context
+                <HelpTooltip text="Shows your active candidate identity, campaign, and enrollment state for this access token." />
+              </h2>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -258,7 +270,10 @@ const CandidateAccessPage: React.FC = () => {
 
           <section className="rounded-xl border border-slate-200 bg-white p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="font-semibold text-lg">Vetting Progress</h2>
+              <h2 className="font-semibold text-lg inline-flex items-center gap-1.5">
+                Vetting Progress
+                <HelpTooltip text="Tracks your current step from invitation through final decision." />
+              </h2>
               <span className="text-xs rounded-full bg-indigo-50 text-indigo-700 px-2.5 py-1">
                 {timelinePercent}% complete
               </span>
@@ -303,6 +318,7 @@ const CandidateAccessPage: React.FC = () => {
               <h2 className="font-semibold text-lg inline-flex items-center gap-2">
                 <FileCheck2 className="w-5 h-5 text-indigo-600" />
                 Results
+                <HelpTooltip text="Check whether your vetting results are released and view the final outcome details." />
               </h2>
               <button
                 type="button"

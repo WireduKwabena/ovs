@@ -9,10 +9,10 @@ interface StartInterviewResponse {
 }
 
 interface InterviewSessionRecord {
-  id: number;
+  id: string;
   session_id: string;
   status: string;
-  case: number;
+  case: string;
   interrogation_flags?: Array<{
     id?: string | number;
     type?: string;
@@ -45,7 +45,7 @@ interface AvatarSessionResponse {
 }
 
 interface InterviewQuestionRecord {
-  id: number;
+  id: string;
   question_text: string;
   question_type: string;
   difficulty: string;
@@ -53,17 +53,17 @@ interface InterviewQuestionRecord {
 }
 
 interface InterviewResponseRecord {
-  id: number;
-  session: number;
+  id: string;
+  session: string;
   sequence_number: number;
   transcript: string;
   sentiment: string;
 }
 
 interface InterviewFeedbackRecord {
-  id: number;
-  session: number;
-  reviewer: number;
+  id: string;
+  session: string;
+  reviewer: string;
   overall_rating: number;
   recommendation: string;
   notes: string;
@@ -142,7 +142,7 @@ const toStartResponse = (session: InterviewSessionRecord): StartInterviewRespons
   websocket_url: buildSessionWebsocketUrl(session.session_id),
 });
 
-const getLatestSessionForCase = async (caseIdentifier: string | number): Promise<InterviewSessionRecord | null> => {
+const getLatestSessionForCase = async (caseIdentifier: string): Promise<InterviewSessionRecord | null> => {
   const response = await api.get<PaginatedResponse<InterviewSessionRecord> | InterviewSessionRecord[]>(
     '/interviews/sessions/',
     { params: { case: caseIdentifier } }
@@ -151,8 +151,8 @@ const getLatestSessionForCase = async (caseIdentifier: string | number): Promise
   return sessions.length > 0 ? sessions[0] : null;
 };
 
-const resolveCasePrimaryKey = async (caseIdentifier: string): Promise<number> => {
-  const response = await api.get<{ id: number }>(`/applications/cases/${caseIdentifier}/`);
+const resolveCasePrimaryKey = async (caseIdentifier: string): Promise<string> => {
+  const response = await api.get<{ id: string }>(`/applications/cases/${caseIdentifier}/`);
   return response.data.id;
 };
 
@@ -298,14 +298,14 @@ export const interviewService = {
     return response.data;
   },
 
-  async compareSessions(sessionIds: Array<number | string>): Promise<Record<string, unknown>> {
+  async compareSessions(sessionIds: string[]): Promise<Record<string, unknown>> {
     const response = await api.post<Record<string, unknown>>("/interviews/sessions/compare/", {
       session_ids: sessionIds,
     });
     return response.data;
   },
 
-  async generateFlags(caseId: number | string, persist = true, replacePending = false): Promise<Record<string, unknown>> {
+  async generateFlags(caseId: string, persist = true, replacePending = false): Promise<Record<string, unknown>> {
     const response = await api.post<Record<string, unknown>>("/interviews/sessions/generate-flags/", {
       case: caseId,
       persist,
@@ -326,12 +326,12 @@ export const interviewService = {
     return Array.isArray(response.data) ? response.data : response.data.results || [];
   },
 
-  async getQuestionById(questionId: number | string): Promise<InterviewQuestionRecord> {
+  async getQuestionById(questionId: string): Promise<InterviewQuestionRecord> {
     const response = await api.get<InterviewQuestionRecord>(`/interviews/questions/${questionId}/`);
     return response.data;
   },
 
-  async listResponses(params?: { session?: number | string }): Promise<InterviewResponseRecord[]> {
+  async listResponses(params?: { session?: string }): Promise<InterviewResponseRecord[]> {
     const response = await api.get<PaginatedResponse<InterviewResponseRecord> | InterviewResponseRecord[]>(
       "/interviews/responses/",
       { params },
@@ -339,17 +339,17 @@ export const interviewService = {
     return Array.isArray(response.data) ? response.data : response.data.results || [];
   },
 
-  async getResponseById(responseId: number | string): Promise<InterviewResponseRecord> {
+  async getResponseById(responseId: string): Promise<InterviewResponseRecord> {
     const response = await api.get<InterviewResponseRecord>(`/interviews/responses/${responseId}/`);
     return response.data;
   },
 
-  async analyzeResponse(responseId: number | string): Promise<{ message: string }> {
+  async analyzeResponse(responseId: string): Promise<{ message: string }> {
     const response = await api.post<{ message: string }>(`/interviews/responses/${responseId}/analyze/`, {});
     return response.data;
   },
 
-  async listFeedback(params?: { session?: number | string }): Promise<InterviewFeedbackRecord[]> {
+  async listFeedback(params?: { session?: string }): Promise<InterviewFeedbackRecord[]> {
     const response = await api.get<PaginatedResponse<InterviewFeedbackRecord> | InterviewFeedbackRecord[]>(
       "/interviews/feedback/",
       { params },
@@ -357,7 +357,7 @@ export const interviewService = {
     return Array.isArray(response.data) ? response.data : response.data.results || [];
   },
 
-  async getFeedbackById(feedbackId: number | string): Promise<InterviewFeedbackRecord> {
+  async getFeedbackById(feedbackId: string): Promise<InterviewFeedbackRecord> {
     const response = await api.get<InterviewFeedbackRecord>(`/interviews/feedback/${feedbackId}/`);
     return response.data;
   },

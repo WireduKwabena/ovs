@@ -1,28 +1,59 @@
 // src/types/index.ts - ALL TYPE DEFINITIONS (Redux-Aligned, Expanded)
 
 export interface User {
-  id: number;
+  id: string | number;
   email: string;
+  first_name?: string;
+  last_name?: string;
   full_name: string;
   user_type?: 'applicant' | 'hr_manager' | 'admin';
   phone_number: string;
+  organization?: string;
+  department?: string;
   profile_picture_url:string;
   avatar_url:string;
   date_of_birth: string;
+  profile?: ExtendedUserProfile | null;
   is_active: boolean;
+  is_staff?: boolean;
+  is_superuser?: boolean;
   created_at: string;
 }
 
 export interface AdminUser {
-  id: number;
+  id: string | number;
   email: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+  phone_number?: string;
+  organization?: string;
+  department?: string;
   user_type?: 'applicant' | 'hr_manager' | 'admin';
   role_display?: string;
   username?: string;
   role?: 'admin' | 'reviewer' | 'hr_manager' | 'super_admin';
+  profile?: ExtendedUserProfile | null;
   is_active: boolean;
+  is_staff?: boolean;
+  is_superuser?: boolean;
   avatar_url?:string;
   created_at: string;
+}
+
+export interface ExtendedUserProfile {
+  date_of_birth?: string | null;
+  nationality?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  postal_code?: string;
+  current_job_title?: string;
+  years_of_experience?: number | null;
+  linkedin_url?: string;
+  bio?: string;
+  profile_completion_percentage?: number;
+  avatar_url?: string;
 }
 
 export interface AuthTokens {
@@ -52,7 +83,7 @@ export type ApplicationType = 'employment' | 'background' | 'credential' | 'educ
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
 
 export interface VettingCase {
-  id: number;
+  id: string;
   case_id: string;
   applicant: User;
   status: ApplicationStatus;
@@ -78,7 +109,7 @@ export type DocumentType =
 export type VerificationStatusType = 'pending' | 'processing' | 'verified' | 'failed' | 'rejected';
 
 export interface Document {
-  id: number;
+  id: string;
   document_type: DocumentType;
   file_name: string;
   file_path: string;
@@ -92,7 +123,7 @@ export interface Document {
 }
 
 export interface VerificationResult {
-  id: number;
+  id: string;
   ocr_text: string;
   ocr_confidence: number;
   ocr_method: string;
@@ -112,7 +143,7 @@ export interface ApplicationWithDocuments extends VettingCase {
 }
 
 export interface FraudDetectionResult {
-  id: number;
+  id: string;
   application: VettingCase;
   is_fraud: boolean;
   fraud_probability: number;
@@ -125,7 +156,7 @@ export interface FraudDetectionResult {
 
 export interface FraudDetectionApiResult {
   id: string;
-  application: number | string;
+  application: string;
   application_case_id: string;
   is_fraud: boolean;
   fraud_probability: number;
@@ -150,7 +181,7 @@ export interface FraudStatistics {
 }
 
 export interface ConsistencyCheckResult {
-  id: number;
+  id: string;
   application: VettingCase;
   overall_consistent: boolean;
   overall_score: number;
@@ -163,7 +194,7 @@ export interface ConsistencyCheckResult {
 
 export interface ConsistencyCheckApiResult {
   id: string;
-  application: number | string;
+  application: string;
   application_case_id: string;
   overall_consistent: boolean;
   overall_score: number;
@@ -184,7 +215,7 @@ export interface ConsistencyStatistics {
 
 export interface SocialProfileCheckApiResult {
   id: string;
-  application: number | string;
+  application: string;
   application_case_id: string;
   consent_provided: boolean;
   profiles_checked: number;
@@ -233,7 +264,7 @@ export type BackgroundCheckRecommendation = "clear" | "review" | "reject" | "una
 
 export interface BackgroundCheck {
   id: string;
-  case: number;
+  case: string;
   case_id: string;
   applicant_email: string;
   check_type: BackgroundCheckType;
@@ -247,7 +278,7 @@ export interface BackgroundCheck {
   response_payload: Record<string, unknown>;
   result_summary: Record<string, unknown>;
   consent_evidence: Record<string, unknown>;
-  submitted_by: number | null;
+  submitted_by: string | null;
   submitted_by_email: string;
   error_code: string;
   error_message: string;
@@ -261,7 +292,7 @@ export interface BackgroundCheck {
 }
 
 export interface BackgroundCheckEvent {
-  id: number;
+  id: string;
   event_type: "submitted" | "provider_update" | "webhook" | "manual" | "error";
   status_before: string;
   status_after: string;
@@ -271,7 +302,7 @@ export interface BackgroundCheckEvent {
 }
 
 export interface RubricEvaluation {
-  id: number;
+  id: string;
   application: VettingCase;
   rubric: VettingRubric;
   overall_score: number;
@@ -293,7 +324,7 @@ export type NotificationType =
   | 'review_required';
 
 export interface Notification {
-  id: number;
+  id: string;
   notification_type: NotificationType;
   title: string;
   message: string;
@@ -304,28 +335,27 @@ export interface Notification {
   read_at?: string;
 }
 
-export type CriteriaType = 
-  | 'document_authenticity' 
-  | 'ocr_confidence' 
-  | 'data_consistency' 
-  | 'fraud_score' 
-  | 'credential_validity' 
-  | 'background_check' 
-  | 'experience_years' 
-  | 'education_level' 
-  | 'reference_check' 
-  | 'custom_field';
+export type RubricType = "general" | "technical" | "executive" | "sensitive" | "custom";
+export type RubricCriteriaType = "document" | "consistency" | "interview" | "behavioral" | "technical" | "custom";
+export type RubricScoringMethod = "ai_score" | "manual_rating" | "binary" | "calculated";
 
 export interface RubricCriteria {
-  id: number;
+  id: string;
+  rubric?: string;
   name: string;
-  description?: string;
-  criteria_type: CriteriaType;
+  description: string;
+  criteria_type: RubricCriteriaType;
+  criteria_type_display?: string;
+  scoring_method: RubricScoringMethod;
+  scoring_method_display?: string;
   weight: number;
-  minimum_score: number;
+  minimum_score?: number | null;
   is_mandatory: boolean;
-  scoring_rules: Record<string, any>;
-  order: number;
+  evaluation_guidelines?: string;
+  display_order: number;
+  // Backward-compat fields kept optional for existing UI helpers.
+  scoring_rules?: Record<string, any>;
+  order?: number;
 }
 
 // src/types/index.ts (Updated - Add uploadedDoc to FileItem)
@@ -339,18 +369,33 @@ export interface FileItem {
 }
 
 export interface VettingRubric {
-  id: number;
-  rubric_id?: string;
+  id: string;
   name: string;
-  description?: string;
-  rubric_type: ApplicationType;
+  description: string;
+  rubric_type: RubricType;
+  rubric_type_display?: string;
+  document_authenticity_weight: number;
+  consistency_weight: number;
+  fraud_detection_weight: number;
+  interview_weight: number;
+  manual_review_weight: number;
+  passing_score: number;
+  auto_approve_threshold: number;
+  auto_reject_threshold: number;
+  minimum_document_score: number;
+  maximum_fraud_score: number;
+  require_interview: boolean;
+  critical_flags_auto_fail: boolean;
+  max_unresolved_flags: number;
+  is_active: boolean;
+  status?: "active" | "archived";
+  is_default: boolean;
+  created_by?: string | null;
+  criteria: RubricCriteria[];
+  total_weight?: number;
+  // Optional legacy UI fields (not persisted by backend)
   department?: string;
   position_level?: string;
-  status?: 'draft' | 'active' | 'archived';
-  passing_score: number;
-  auto_approve_threshold?: number;
-  auto_reject_threshold?: number;
-  criteria: RubricCriteria[];
   created_at?: string;
   updated_at?: string;
 }
@@ -460,14 +505,14 @@ export interface AdminUserUpdatePayload {
 export type CampaignStatus = 'draft' | 'active' | 'closed' | 'archived';
 
 export interface VettingCampaign {
-  id: number;
+  id: string;
   name: string;
   description: string;
   status: CampaignStatus;
   starts_at: string | null;
   ends_at: string | null;
   settings_json: Record<string, unknown>;
-  initiated_by: number;
+  initiated_by: string;
   initiated_by_email?: string;
   created_at: string;
   updated_at: string;
@@ -486,7 +531,7 @@ export interface CampaignDashboard {
 }
 
 export interface CandidateProfile {
-  id: number;
+  id: string;
   first_name: string;
   last_name: string;
   full_name?: string;
@@ -500,8 +545,8 @@ export interface CandidateProfile {
 }
 
 export interface CandidateSocialProfile {
-  id: number;
-  candidate: number;
+  id: string;
+  candidate: string;
   platform: string;
   platform_display?: string;
   url: string;
@@ -524,10 +569,10 @@ export type CandidateEnrollmentStatus =
   | 'escalated';
 
 export interface CandidateEnrollment {
-  id: number;
-  campaign: number;
+  id: string;
+  campaign: string;
   campaign_name?: string;
-  candidate: number;
+  candidate: string;
   candidate_email?: string;
   status: CandidateEnrollmentStatus;
   invited_at: string | null;
@@ -535,7 +580,7 @@ export interface CandidateEnrollment {
   completed_at: string | null;
   reviewed_at: string | null;
   review_notes: string;
-  decision_by: number | null;
+  decision_by: string | null;
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
@@ -545,8 +590,8 @@ export type InvitationChannel = 'email' | 'sms';
 export type InvitationStatus = 'pending' | 'sent' | 'failed' | 'accepted' | 'expired';
 
 export interface Invitation {
-  id: number;
-  enrollment: number;
+  id: string;
+  enrollment: string;
   token: string;
   channel: InvitationChannel;
   status: InvitationStatus;
@@ -556,7 +601,7 @@ export interface Invitation {
   accepted_at: string | null;
   attempts: number;
   last_error: string;
-  created_by: number | null;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
   accept_url?: string;
@@ -571,7 +616,7 @@ export interface CandidateImportRow {
 }
 
 export interface CandidateImportResult {
-  campaign_id: number;
+  campaign_id: string;
   created_candidates: number;
   created_enrollments: number;
   created_invitations: number;
@@ -581,15 +626,15 @@ export interface CandidateImportResult {
 export interface CandidateAccessContext {
   session_key: string;
   session_expires_at: string;
-  enrollment_id: number;
+  enrollment_id: string;
   enrollment_status: CandidateEnrollmentStatus;
   campaign: {
-    id: number;
+    id: string;
     name: string;
     status: CampaignStatus;
   };
   candidate: {
-    id: number;
+    id: string;
     first_name: string;
     last_name: string;
     email: string;
@@ -605,7 +650,7 @@ export interface CandidateAccessConsumeResponse extends CandidateAccessContext {
 
 export interface CandidateAccessResults {
   available: boolean;
-  enrollment_id: number;
+  enrollment_id: string;
   enrollment_status: CandidateEnrollmentStatus;
   decision: 'approved' | 'rejected' | 'escalated' | null;
   review_notes: string;
@@ -655,7 +700,26 @@ export interface ChangePasswordData {
   new_password_confirm: string;
 }
 
-export type CreateRubricData = Omit<VettingRubric, 'id' | 'created_at' | 'updated_at'>;
+export interface CreateRubricData {
+  name: string;
+  description: string;
+  rubric_type: RubricType;
+  document_authenticity_weight: number;
+  consistency_weight: number;
+  fraud_detection_weight: number;
+  interview_weight: number;
+  manual_review_weight: number;
+  passing_score: number;
+  auto_approve_threshold: number;
+  auto_reject_threshold: number;
+  minimum_document_score: number;
+  maximum_fraud_score: number;
+  require_interview: boolean;
+  critical_flags_auto_fail: boolean;
+  max_unresolved_flags: number;
+  is_active?: boolean;
+  is_default?: boolean;
+}
 
 // API Response Interfaces
 export interface LoginResponse {
@@ -734,9 +798,9 @@ export interface AnalyticsData {
 
 // Criteria Override Interface
 export interface CriteriaOverride {
-  id?: number;
-  evaluation_id: number;
-  criteria_id: number;
+  id?: string;
+  evaluation_id: string;
+  criteria_id: string;
   original_score: number;
   override_score: number;
   reason: string;
@@ -915,7 +979,17 @@ export interface VideoMeeting {
   reminder_before_minutes: number;
   cancellation_reason?: string;
   reminder_before_sent_at: string | null;
+  reminder_before_failure_count: number;
+  reminder_before_last_failure_at: string | null;
+  reminder_before_next_retry_at: string | null;
   reminder_start_sent_at: string | null;
+  reminder_start_failure_count: number;
+  reminder_start_last_failure_at: string | null;
+  reminder_start_next_retry_at: string | null;
+  reminder_time_up_sent_at: string | null;
+  reminder_time_up_failure_count: number;
+  reminder_time_up_last_failure_at: string | null;
+  reminder_time_up_next_retry_at: string | null;
   created_at: string;
   updated_at: string;
   participants: VideoMeetingParticipant[];
@@ -994,6 +1068,17 @@ export interface VideoMeetingEvent {
   detail: string;
   metadata: Record<string, unknown>;
   created_at: string;
+}
+
+export interface VideoMeetingReminderHealth {
+  generated_at: string;
+  max_retries: number;
+  soon_retry_pending: number;
+  soon_retry_exhausted: number;
+  start_now_retry_pending: number;
+  start_now_retry_exhausted: number;
+  time_up_retry_pending: number;
+  time_up_retry_exhausted: number;
 }
 
 

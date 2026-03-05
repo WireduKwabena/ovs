@@ -29,7 +29,7 @@ export const candidateService = {
     }
   },
 
-  async getCandidateById(candidateId: number | string): Promise<CandidateProfile> {
+  async getCandidateById(candidateId: string): Promise<CandidateProfile> {
     try {
       const response = await api.get<CandidateProfile>(`/candidates/${candidateId}/`);
       return response.data;
@@ -47,7 +47,7 @@ export const candidateService = {
     }
   },
 
-  async updateCandidate(candidateId: number | string, payload: Partial<CandidateProfile>): Promise<CandidateProfile> {
+  async updateCandidate(candidateId: string, payload: Partial<CandidateProfile>): Promise<CandidateProfile> {
     try {
       const response = await api.patch<CandidateProfile>(`/candidates/${candidateId}/`, payload);
       return response.data;
@@ -56,7 +56,7 @@ export const candidateService = {
     }
   },
 
-  async deleteCandidate(candidateId: number | string): Promise<void> {
+  async deleteCandidate(candidateId: string): Promise<void> {
     try {
       await api.delete(`/candidates/${candidateId}/`);
     } catch (error) {
@@ -65,7 +65,7 @@ export const candidateService = {
   },
 
   async listSocialProfiles(params?: {
-    candidate?: number | string;
+    candidate?: string;
     platform?: string;
   }): Promise<CandidateSocialProfile[]> {
     try {
@@ -79,7 +79,7 @@ export const candidateService = {
     }
   },
 
-  async getSocialProfileById(profileId: number | string): Promise<CandidateSocialProfile> {
+  async getSocialProfileById(profileId: string): Promise<CandidateSocialProfile> {
     try {
       const response = await api.get<CandidateSocialProfile>(`/social-profiles/${profileId}/`);
       return response.data;
@@ -98,7 +98,7 @@ export const candidateService = {
   },
 
   async updateSocialProfile(
-    profileId: number | string,
+    profileId: string,
     payload: Partial<CandidateSocialProfile>,
   ): Promise<CandidateSocialProfile> {
     try {
@@ -109,7 +109,7 @@ export const candidateService = {
     }
   },
 
-  async deleteSocialProfile(profileId: number | string): Promise<void> {
+  async deleteSocialProfile(profileId: string): Promise<void> {
     try {
       await api.delete(`/social-profiles/${profileId}/`);
     } catch (error) {
@@ -118,7 +118,7 @@ export const candidateService = {
   },
 
   async listEnrollments(params?: {
-    campaign?: number | string;
+    campaign?: string;
     status?: string;
   }): Promise<CandidateEnrollment[]> {
     try {
@@ -132,7 +132,7 @@ export const candidateService = {
     }
   },
 
-  async getEnrollmentById(enrollmentId: number | string): Promise<CandidateEnrollment> {
+  async getEnrollmentById(enrollmentId: string): Promise<CandidateEnrollment> {
     try {
       const response = await api.get<CandidateEnrollment>(`/enrollments/${enrollmentId}/`);
       return response.data;
@@ -150,7 +150,7 @@ export const candidateService = {
     }
   },
 
-  async markEnrollmentComplete(enrollmentId: number | string): Promise<CandidateEnrollment> {
+  async markEnrollmentComplete(enrollmentId: string): Promise<CandidateEnrollment> {
     try {
       const response = await api.post<CandidateEnrollment>(`/enrollments/${enrollmentId}/mark-complete/`, {});
       return response.data;

@@ -10,7 +10,7 @@ interface Inconsistency {
 }
 
 interface Exchange {
-  id: number;
+  id: string;
   question_intent: string;
   question_text: string;
   response_quality_score: number;

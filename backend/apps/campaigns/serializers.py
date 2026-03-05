@@ -22,7 +22,7 @@ class CampaignRubricVersionSerializer(serializers.ModelSerializer):
             "created_by",
             "created_at",
         ]
-        read_only_fields = ["id", "version", "created_by", "created_at"]
+        read_only_fields = ["id", "campaign", "version", "created_by", "created_at"]
 
 
 class VettingCampaignSerializer(serializers.ModelSerializer):

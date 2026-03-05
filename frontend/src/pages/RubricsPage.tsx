@@ -1,9 +1,10 @@
 // src/pages/RubricsPage.tsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, Filter, Edit, Trash2, Copy } from "lucide-react";
+import { Plus, Search, Filter, Edit, Trash2, Copy, Info } from "lucide-react";
 
 import { Loader } from "@/components/common/Loader";
+import { HelpTooltip } from "@/components/common/FieldHelp";
 import { rubricService } from "@/services/rubric.service";
 import { toast } from "react-toastify";
 import type { VettingRubric } from "@/types";
@@ -32,7 +33,7 @@ export const RubricsPage: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this rubric?")) return;
 
     try {
@@ -44,7 +45,7 @@ export const RubricsPage: React.FC = () => {
     }
   };
 
-  const handleDuplicate = async (id: number) => {
+  const handleDuplicate = async (id: string) => {
     try {
       await rubricService.duplicate(id);
       toast.success("Rubric duplicated successfully");
@@ -54,7 +55,7 @@ export const RubricsPage: React.FC = () => {
     }
   };
 
-  const handleActivate = async (id: number) => {
+  const handleActivate = async (id: string) => {
     try {
       await rubricService.activate(id);
       toast.success("Rubric activated successfully");
@@ -110,31 +111,52 @@ export const RubricsPage: React.FC = () => {
 
         {/* Filters */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="mb-4 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+            Hover or focus the <Info className="mx-1 inline h-4 w-4 align-text-bottom" /> icons to learn what each control does.
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-700 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search rubrics..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+            <div>
+              <div className="mb-2 flex items-center gap-1.5">
+                <label htmlFor="rubrics-search" className="text-sm font-medium text-slate-800">
+                  Search Rubrics
+                </label>
+                <HelpTooltip text="Find rubrics by name. Use this to quickly locate existing templates before creating a new one." />
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-700 w-5 h-5" />
+                <input
+                  id="rubrics-search"
+                  type="text"
+                  placeholder="Search rubrics..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
             </div>
 
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-700 w-5 h-5" />
-              <select
-                aria-label="select"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none"
-              >
-                <option value="all">All Statuses</option>
-                <option value="active">Active</option>
-                <option value="draft">Draft</option>
-                <option value="archived">Archived</option>
-              </select>
+            <div>
+              <div className="mb-2 flex items-center gap-1.5">
+                <label htmlFor="rubrics-status-filter" className="text-sm font-medium text-slate-800">
+                  Status Filter
+                </label>
+                <HelpTooltip text="Filter rubrics by lifecycle status. Active rubrics are available for campaign use." />
+              </div>
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-700 w-5 h-5" />
+                <select
+                  id="rubrics-status-filter"
+                  aria-label="Filter rubrics by status"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="active">Active</option>
+                  <option value="draft">Draft</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -182,11 +204,11 @@ export const RubricsPage: React.FC = () => {
                   </div>
 
                   <div className="flex gap-2 ml-4">
-                    {rubric.status === "draft" && (
+                    {rubric.status !== "active" && (
                       <button
                         onClick={() => handleActivate(rubric.id!)}
                         className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                        title="Activate"
+                        title="Activate rubric for campaign use"
                       >
                         <Plus className="w-5 h-5" />
                       </button>
@@ -194,21 +216,21 @@ export const RubricsPage: React.FC = () => {
                     <button
                       onClick={() => navigate(`/rubrics/${rubric.id}/edit`)}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Edit"
+                      title="Edit rubric details and criteria"
                     >
                       <Edit className="w-5 h-5" />
                     </button>
                     <button
                       onClick={() => handleDuplicate(rubric.id!)}
                       className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                      title="Duplicate"
+                      title="Duplicate rubric as a starting template"
                     >
                       <Copy className="w-5 h-5" />
                     </button>
                     <button
                       onClick={() => handleDelete(rubric.id!)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Delete"
+                      title="Delete rubric permanently"
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>

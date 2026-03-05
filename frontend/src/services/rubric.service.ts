@@ -1,5 +1,4 @@
-// src/services/rubric.service.ts (Tweaked)
-import api from './api';
+import api from "./api";
 import type {
   VettingRubric,
   RubricCriteria,
@@ -7,7 +6,7 @@ import type {
   ApiError,
   CreateRubricData,
   PaginatedResponse,
-} from '@/types';
+} from "@/types";
 
 const extractResults = <T>(payload: PaginatedResponse<T> | T[]): T[] => {
   if (Array.isArray(payload)) {
@@ -19,146 +18,167 @@ const extractResults = <T>(payload: PaginatedResponse<T> | T[]): T[] => {
 export const rubricService = {
   async getAll(params?: { status?: string; rubric_type?: string }): Promise<VettingRubric[]> {
     try {
+      const queryParams: Record<string, string> = {};
+      if (params?.rubric_type) {
+        queryParams.rubric_type = params.rubric_type;
+      }
+      if (params?.status === "active") {
+        queryParams.is_active = "true";
+      } else if (params?.status === "archived" || params?.status === "draft") {
+        queryParams.is_active = "false";
+      }
+
       const response = await api.get<PaginatedResponse<VettingRubric> | VettingRubric[]>(
-        '/rubrics/vetting-rubrics/',
-        { params }
+        "/rubrics/vetting-rubrics/",
+        { params: queryParams },
       );
       return extractResults(response.data);
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Failed to fetch rubrics');
+      throw new Error((error.response?.data as ApiError)?.message || "Failed to fetch rubrics");
     }
   },
 
-  async getById(id: number): Promise<VettingRubric> {
+  async getById(id: string): Promise<VettingRubric> {
     try {
       const response = await api.get<VettingRubric>(`/rubrics/vetting-rubrics/${id}/`);
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Failed to fetch rubric');
+      throw new Error((error.response?.data as ApiError)?.message || "Failed to fetch rubric");
     }
   },
 
   async create(data: CreateRubricData): Promise<VettingRubric> {
     try {
-      const response = await api.post<VettingRubric>('/rubrics/vetting-rubrics/', data);
+      const response = await api.post<VettingRubric>("/rubrics/vetting-rubrics/", data);
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Creation failed');
+      throw new Error((error.response?.data as ApiError)?.message || "Creation failed");
     }
   },
 
-  async update(id: number, data: Partial<VettingRubric>): Promise<VettingRubric> {
+  async update(id: string, data: Partial<VettingRubric>): Promise<VettingRubric> {
     try {
       const response = await api.patch<VettingRubric>(`/rubrics/vetting-rubrics/${id}/`, data);
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Update failed');
+      throw new Error((error.response?.data as ApiError)?.message || "Update failed");
     }
   },
 
-  async delete(id: number): Promise<void> {
+  async delete(id: string): Promise<void> {
     try {
       await api.delete(`/rubrics/vetting-rubrics/${id}/`);
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Deletion failed');
+      throw new Error((error.response?.data as ApiError)?.message || "Deletion failed");
     }
   },
 
-  async activate(id: number): Promise<{ message: string; rubric: VettingRubric }> {
+  async activate(id: string): Promise<{ message: string; rubric: VettingRubric }> {
     try {
       const response = await api.post(`/rubrics/vetting-rubrics/${id}/activate/`);
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Activation failed');
+      throw new Error((error.response?.data as ApiError)?.message || "Activation failed");
     }
   },
 
-  async duplicate(id: number): Promise<VettingRubric> {
+  async duplicate(id: string): Promise<VettingRubric> {
     try {
       const response = await api.post<VettingRubric>(`/rubrics/vetting-rubrics/${id}/duplicate/`);
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Duplication failed');
+      throw new Error((error.response?.data as ApiError)?.message || "Duplication failed");
     }
   },
 
-  async evaluateApplication(
-    rubricId: number,
-    applicationId: string
-  ): Promise<RubricEvaluation> {
+  async evaluateApplication(rubricId: string, applicationId: string): Promise<RubricEvaluation> {
     try {
       const response = await api.post<RubricEvaluation>(
         `/rubrics/vetting-rubrics/${rubricId}/evaluate_application/`,
-        { application_id: applicationId }
+        { application_id: applicationId },
       );
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Evaluation failed');
+      throw new Error((error.response?.data as ApiError)?.message || "Evaluation failed");
     }
   },
 
-  async getTemplates(): Promise<VettingRubric[]> {  // Typed as rubrics
+  async getTemplates(): Promise<VettingRubric[]> {
     try {
       const response = await api.get<PaginatedResponse<VettingRubric> | VettingRubric[]>(
-        '/rubrics/vetting-rubrics/templates/'
+        "/rubrics/vetting-rubrics/templates/",
       );
       return extractResults(response.data);
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Templates fetch failed');
+      throw new Error((error.response?.data as ApiError)?.message || "Templates fetch failed");
     }
   },
 
-  async createFromTemplate(
-    templateKey: string,
-    overrides?: Record<string, any>
-  ): Promise<VettingRubric> {
+  async createFromTemplate(templateKey: string, overrides?: Record<string, any>): Promise<VettingRubric> {
     try {
-      const response = await api.post<VettingRubric>('/rubrics/vetting-rubrics/create_from_template/', {
+      const response = await api.post<VettingRubric>("/rubrics/vetting-rubrics/create_from_template/", {
         template_key: templateKey,
         overrides,
       });
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Template creation failed');
+      throw new Error((error.response?.data as ApiError)?.message || "Template creation failed");
     }
   },
 
   async addCriteria(
-    rubricId: number,
-    payload: Omit<RubricCriteria, 'id'>,
+    rubricId: string,
+    payload: Omit<RubricCriteria, "id" | "criteria_type_display" | "scoring_method_display">,
   ): Promise<RubricCriteria> {
     try {
       const response = await api.post<RubricCriteria>(`/rubrics/vetting-rubrics/${rubricId}/criteria/`, payload);
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Add criteria failed');
+      throw new Error((error.response?.data as ApiError)?.message || "Add criteria failed");
     }
   },
 
-  async listCriteria(params?: { rubric?: number | string }): Promise<RubricCriteria[]> {
+  async listCriteria(params?: { rubric?: string }): Promise<RubricCriteria[]> {
     try {
       const response = await api.get<PaginatedResponse<RubricCriteria> | RubricCriteria[]>(
-        '/rubrics/criteria/',
+        "/rubrics/criteria/",
         { params },
       );
       return extractResults(response.data);
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Criteria list fetch failed');
+      throw new Error((error.response?.data as ApiError)?.message || "Criteria list fetch failed");
     }
   },
 
-  async getCriteriaById(criteriaId: number | string): Promise<RubricCriteria> {
+  async getCriteriaById(criteriaId: string): Promise<RubricCriteria> {
     try {
       const response = await api.get<RubricCriteria>(`/rubrics/criteria/${criteriaId}/`);
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Criteria detail fetch failed');
+      throw new Error((error.response?.data as ApiError)?.message || "Criteria detail fetch failed");
+    }
+  },
+
+  async updateCriteria(criteriaId: string, payload: Partial<RubricCriteria>): Promise<RubricCriteria> {
+    try {
+      const response = await api.patch<RubricCriteria>(`/rubrics/criteria/${criteriaId}/`, payload);
+      return response.data;
+    } catch (error: any) {
+      throw new Error((error.response?.data as ApiError)?.message || "Update criteria failed");
+    }
+  },
+
+  async deleteCriteria(criteriaId: string): Promise<void> {
+    try {
+      await api.delete(`/rubrics/criteria/${criteriaId}/`);
+    } catch (error: any) {
+      throw new Error((error.response?.data as ApiError)?.message || "Delete criteria failed");
     }
   },
 
   async evaluateCase(
-    rubricId: number,
-    caseId: number | string,
+    rubricId: string,
+    caseId: string,
     runAsync = false,
   ): Promise<RubricEvaluation | { message: string }> {
     try {
@@ -168,44 +188,44 @@ export const rubricService = {
       );
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Evaluate case failed');
+      throw new Error((error.response?.data as ApiError)?.message || "Evaluate case failed");
     }
   },
 
-  async listEvaluations(params?: { case?: number | string; rubric?: number | string }): Promise<RubricEvaluation[]> {
+  async listEvaluations(params?: { case?: string; rubric?: string }): Promise<RubricEvaluation[]> {
     try {
       const response = await api.get<PaginatedResponse<RubricEvaluation> | RubricEvaluation[]>(
-        '/rubrics/evaluations/',
+        "/rubrics/evaluations/",
         { params },
       );
       return extractResults(response.data);
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Evaluation list fetch failed');
+      throw new Error((error.response?.data as ApiError)?.message || "Evaluation list fetch failed");
     }
   },
 
-  async getEvaluationById(evaluationId: number | string): Promise<RubricEvaluation> {
+  async getEvaluationById(evaluationId: string): Promise<RubricEvaluation> {
     try {
       const response = await api.get<RubricEvaluation>(`/rubrics/evaluations/${evaluationId}/`);
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Evaluation detail fetch failed');
+      throw new Error((error.response?.data as ApiError)?.message || "Evaluation detail fetch failed");
     }
   },
 
-  async rerunEvaluation(evaluationId: number | string): Promise<RubricEvaluation> {
+  async rerunEvaluation(evaluationId: string): Promise<RubricEvaluation> {
     try {
       const response = await api.post<RubricEvaluation>(`/rubrics/evaluations/${evaluationId}/rerun/`, {});
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Evaluation rerun failed');
+      throw new Error((error.response?.data as ApiError)?.message || "Evaluation rerun failed");
     }
   },
 
   async overrideCriterion(
-    evaluationId: number | string,
+    evaluationId: string,
     payload: {
-      criterion_id: number | string;
+      criterion_id: string;
       overridden_score: number;
       justification: string;
     },
@@ -217,7 +237,7 @@ export const rubricService = {
       );
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Override criterion failed');
+      throw new Error((error.response?.data as ApiError)?.message || "Override criterion failed");
     }
   },
 };

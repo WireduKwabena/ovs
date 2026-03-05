@@ -82,6 +82,13 @@ class FraudApiTests(APITestCase):
             user_type="admin",
             is_staff=True,
         )
+        self.hr_user = User.objects.create_user(
+            email="fraud-hr@example.com",
+            password="Pass1234!",
+            first_name="Fraud",
+            last_name="HR",
+            user_type="hr_manager",
+        )
         self.user = User.objects.create_user(
             email="fraud-api-user@example.com",
             password="Pass1234!",
@@ -173,13 +180,16 @@ class FraudApiTests(APITestCase):
             profiles=[],
         )
 
-    def test_regular_user_sees_only_own_fraud_results(self):
+    def test_applicant_cannot_access_fraud_results(self):
         self.client.force_authenticate(self.user)
         response = self.client.get("/api/fraud/results/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_hr_manager_sees_all_fraud_results(self):
+        self.client.force_authenticate(self.hr_user)
+        response = self.client.get("/api/fraud/results/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["count"], 1)
-        self.assertEqual(response.data["results"][0]["id"], str(self.user_fraud_result.id))
+        self.assertEqual(response.data["count"], 2)
 
     def test_admin_sees_all_fraud_results(self):
         self.client.force_authenticate(self.admin_user)
@@ -204,14 +214,10 @@ class FraudApiTests(APITestCase):
         self.assertEqual(response.data["count"], 1)
         self.assertEqual(response.data["results"][0]["application_case_id"], self.case.case_id)
 
-    def test_fraud_statistics_for_regular_user_uses_scoped_queryset(self):
+    def test_applicant_cannot_access_fraud_statistics(self):
         self.client.force_authenticate(self.user)
         response = self.client.get("/api/fraud/results/statistics/")
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["total_scans"], 1)
-        self.assertEqual(response.data["fraud_detected"], 1)
-        self.assertEqual(response.data["risk_distribution"]["HIGH"], 1)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_consistency_invalid_boolean_filter_returns_empty_list(self):
         self.client.force_authenticate(self.admin_user)
@@ -235,28 +241,17 @@ class FraudApiTests(APITestCase):
         self.assertEqual(response.data["limit"], 200)
         self.assertEqual(len(response.data["history"]), 2)
 
-    def test_consistency_statistics_for_regular_user_uses_scoped_queryset(self):
+    def test_applicant_cannot_access_consistency_statistics(self):
         self.client.force_authenticate(self.user)
         response = self.client.get("/api/fraud/consistency/statistics/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["total_checks"], 1)
-        self.assertEqual(response.data["consistent_count"], 0)
-        self.assertEqual(response.data["average_score"], 48.0)
-
-    def test_regular_user_sees_only_own_social_profile_results(self):
+    def test_applicant_cannot_access_social_profile_results(self):
         self.client.force_authenticate(self.user)
         response = self.client.get("/api/fraud/social-profiles/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["count"], 1)
-        self.assertEqual(response.data["results"][0]["id"], str(self.user_social_result.id))
-
-    def test_social_profile_statistics_for_regular_user_uses_scoped_queryset(self):
+    def test_applicant_cannot_access_social_profile_statistics(self):
         self.client.force_authenticate(self.user)
         response = self.client.get("/api/fraud/social-profiles/statistics/")
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["total_checks"], 1)
-        self.assertEqual(response.data["manual_review_count"], 1)
-        self.assertEqual(response.data["risk_distribution"]["LOW"], 1)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

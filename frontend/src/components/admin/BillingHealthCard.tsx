@@ -19,11 +19,12 @@ const badgeClass = (isGood: boolean): string => {
 };
 
 const deriveHealthStatus = (health: BillingHealthResponse): BillingHealthStatus => {
-  const configured =
-    health.status === 'ok' &&
+  const stripeConfigured =
     health.stripe.sdk_installed &&
     health.stripe.secret_key_configured &&
     health.stripe.webhook_secret_configured;
+  const paystackConfigured = Boolean(health.paystack?.secret_key_configured);
+  const configured = health.status === 'ok' && (stripeConfigured || paystackConfigured);
 
   return configured ? 'healthy' : 'attention';
 };
@@ -185,6 +186,18 @@ export const BillingHealthCard: React.FC<BillingHealthCardProps> = ({ onStatusCh
                 <span className='text-slate-800'>Stripe Webhook Secret</span>
                 <span className={badgeClass(health.stripe.webhook_secret_configured)}>
                   {health.stripe.webhook_secret_configured ? 'Configured' : 'Not Configured'}
+                </span>
+              </div>
+              <div className='flex items-center justify-between'>
+                <span className='text-slate-800'>Paystack Secret Key</span>
+                <span className={badgeClass(Boolean(health.paystack?.secret_key_configured))}>
+                  {health.paystack?.secret_key_configured ? 'Configured' : 'Not Configured'}
+                </span>
+              </div>
+              <div className='flex items-center justify-between'>
+                <span className='text-slate-800'>Paystack Currency</span>
+                <span className='inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700'>
+                  {health.paystack?.currency || 'N/A'}
                 </span>
               </div>
               <div className='flex items-center justify-between'>

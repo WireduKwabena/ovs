@@ -256,7 +256,7 @@ const AppShell: React.FC = () => {
           <Route
             path="/applications"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute disallowUserTypes={["admin"]}>
                 <ApplicationsPage />
               </ProtectedRoute>
             }
@@ -264,7 +264,7 @@ const AppShell: React.FC = () => {
           <Route
             path="/applications/new"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute disallowUserTypes={["hr_manager", "admin"]}>
                 <NewApplicationPage />
               </ProtectedRoute>
             }
@@ -272,7 +272,7 @@ const AppShell: React.FC = () => {
           <Route
             path="/applications/:caseId"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute disallowUserTypes={["admin"]}>
                 <ApplicationDetailPage />
               </ProtectedRoute>
             }
@@ -280,7 +280,7 @@ const AppShell: React.FC = () => {
           <Route
             path="/applications/:caseId/upload"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute disallowUserTypes={["admin"]}>
                 <UploadDocumentsPage />
               </ProtectedRoute>
             }
@@ -296,7 +296,7 @@ const AppShell: React.FC = () => {
           <Route
             path="/campaigns"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
                 <CampaignsPage />
               </ProtectedRoute>
             }
@@ -304,7 +304,7 @@ const AppShell: React.FC = () => {
           <Route
             path="/campaigns/:campaignId"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
                 <CampaignWorkspacePage />
               </ProtectedRoute>
             }
@@ -320,7 +320,7 @@ const AppShell: React.FC = () => {
           <Route
             path="/rubrics"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
                 <RubricsPage />
               </ProtectedRoute>
             }
@@ -329,7 +329,7 @@ const AppShell: React.FC = () => {
           <Route
             path="/rubrics/new"
             element={
-              <ProtectedRoute adminOnly>
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
                 <RubricBuilderPage />
               </ProtectedRoute>
             }
@@ -337,7 +337,7 @@ const AppShell: React.FC = () => {
           <Route
             path="/rubrics/:rubricId/edit"
             element={
-              <ProtectedRoute adminOnly>
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
                 <RubricBuilderPage />
               </ProtectedRoute>
             }

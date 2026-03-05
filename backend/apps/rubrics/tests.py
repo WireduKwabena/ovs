@@ -1,4 +1,5 @@
 from unittest.mock import patch
+from uuid import UUID
 
 from django.test import TestCase
 from rest_framework.test import APITestCase
@@ -25,6 +26,15 @@ class RubricsApiTests(APITestCase):
             first_name="Applicant",
             last_name="Rubrics",
             user_type="applicant",
+        )
+        self.admin = User.objects.create_user(
+            email="admin_rubrics_test@example.com",
+            password="Pass1234!",
+            first_name="Admin",
+            last_name="Rubrics",
+            user_type="admin",
+            is_staff=True,
+            is_superuser=True,
         )
         self.case = VettingCase.objects.create(
             applicant=self.applicant,
@@ -162,7 +172,7 @@ class RubricsApiTests(APITestCase):
 
         self.assertEqual(response.status_code, 202)
         self.assertEqual(response.json()["message"], "Evaluation queued.")
-        mock_delay.assert_called_once_with(self.case.id, rubric_id, self.hr.id)
+        mock_delay.assert_called_once_with(self.case.id, UUID(str(rubric_id)), self.hr.id)
 
     @patch("apps.rubrics.views.evaluate_case_with_rubric.delay")
     def test_evaluate_case_async_string_false_runs_synchronously(self, mock_delay):
@@ -177,6 +187,40 @@ class RubricsApiTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("id", response.json())
         mock_delay.assert_not_called()
+
+    def test_hr_manager_can_list_rubrics(self):
+        self._create_rubric("HR Access Rubric")
+        response = self.client.get("/api/rubrics/vetting-rubrics/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        if isinstance(payload, list):
+            self.assertGreaterEqual(len(payload), 1)
+        else:
+            self.assertIn("results", payload)
+            self.assertGreaterEqual(len(payload["results"]), 1)
+
+    def test_admin_can_create_rubric(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(
+            "/api/rubrics/vetting-rubrics/",
+            self._rubric_payload("Admin Access Rubric"),
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["name"], "Admin Access Rubric")
+
+    def test_applicant_cannot_access_rubrics_api(self):
+        self.client.force_authenticate(self.applicant)
+
+        list_response = self.client.get("/api/rubrics/vetting-rubrics/")
+        self.assertEqual(list_response.status_code, 403)
+
+        create_response = self.client.post(
+            "/api/rubrics/vetting-rubrics/",
+            self._rubric_payload("Applicant Forbidden Rubric"),
+            format="json",
+        )
+        self.assertEqual(create_response.status_code, 403)
 
 
 class RubricTaskTests(TestCase):

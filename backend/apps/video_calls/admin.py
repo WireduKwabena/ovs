@@ -12,11 +12,29 @@ class VideoMeetingAdmin(admin.ModelAdmin):
         "scheduled_start",
         "scheduled_end",
         "reminder_before_minutes",
+        "reminder_before_failure_count",
+        "reminder_start_failure_count",
+        "reminder_time_up_failure_count",
         "livekit_room_name",
     )
     list_filter = ("status", "scheduled_start", "timezone")
     search_fields = ("title", "organizer__email", "livekit_room_name")
-    readonly_fields = ("id", "livekit_room_name", "created_at", "updated_at")
+    readonly_fields = (
+        "id",
+        "livekit_room_name",
+        "created_at",
+        "updated_at",
+        "reminder_before_failure_count",
+        "reminder_before_last_failure_at",
+        "reminder_before_next_retry_at",
+        "reminder_start_failure_count",
+        "reminder_start_last_failure_at",
+        "reminder_start_next_retry_at",
+        "reminder_time_up_sent_at",
+        "reminder_time_up_failure_count",
+        "reminder_time_up_last_failure_at",
+        "reminder_time_up_next_retry_at",
+    )
 
 
 @admin.register(VideoMeetingParticipant)

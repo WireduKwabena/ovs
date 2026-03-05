@@ -7,6 +7,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
 from apps.audit.events import log_event
+from apps.billing.quotas import enforce_candidate_quota
 from apps.invitations.permissions import IsAuthenticatedOrCandidateAccessSession
 
 from .models import Document, VettingCase
@@ -110,8 +111,27 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
             serializer.save(applicant=user)
         else:
             applicant = serializer.validated_data.get("applicant")
+            candidate_enrollment = serializer.validated_data.get("candidate_enrollment")
             if applicant is None:
                 raise ValidationError({"applicant": "This field is required for non-applicant creators."})
+
+            is_admin = bool(
+                getattr(user, "is_staff", False)
+                or getattr(user, "is_superuser", False)
+                or getattr(user, "user_type", None) == "admin"
+            )
+            is_hr_manager = getattr(user, "user_type", None) == "hr_manager"
+
+            if is_hr_manager and candidate_enrollment is not None:
+                campaign_owner_id = getattr(candidate_enrollment.campaign, "initiated_by_id", None)
+                if campaign_owner_id != user.id:
+                    raise PermissionDenied("You cannot create cases for enrollments outside your campaigns.")
+
+            # Legacy/manual case creation path can bypass enrollment quota checks,
+            # so enforce subscription plan quota here when no enrollment linkage exists.
+            if is_hr_manager and candidate_enrollment is None:
+                enforce_candidate_quota(user=user, additional=1)
+
             serializer.save()
 
     @action(detail=True, methods=["post"], url_path="upload-document")

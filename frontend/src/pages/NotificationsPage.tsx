@@ -15,8 +15,8 @@ export const NotificationsPage: React.FC = () => {
   const { notifications, isLoading, markAsRead, markAllAsRead, archiveAsync, refresh } = useNotifications();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
-  const [loadingDetailId, setLoadingDetailId] = useState<number | null>(null);
-  const [archivingId, setArchivingId] = useState<number | null>(null);
+  const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
+  const [archivingId, setArchivingId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const notificationsArray = useMemo(() => {
@@ -89,7 +89,7 @@ export const NotificationsPage: React.FC = () => {
     navigate(`/video-calls?${params.toString()}`);
   };
 
-  const handleViewDetail = async (notificationId: number) => {
+  const handleViewDetail = async (notificationId: string) => {
     setLoadingDetailId(notificationId);
     try {
       const detail = await notificationService.getById(notificationId);
@@ -105,7 +105,7 @@ export const NotificationsPage: React.FC = () => {
     }
   };
 
-  const handleArchive = async (notificationId: number) => {
+  const handleArchive = async (notificationId: string) => {
     setArchivingId(notificationId);
     try {
       await archiveAsync(notificationId);

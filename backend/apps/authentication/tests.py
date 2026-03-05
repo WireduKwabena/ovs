@@ -11,7 +11,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.authentication.models import User
+from apps.authentication.models import User, UserProfile
 from apps.billing.models import BillingSubscription
 
 
@@ -481,6 +481,54 @@ class EmailAuthEndpointTests(APITestCase):
 
         self.assertEqual(google.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(github.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_profile_view_includes_extended_profile(self):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.get("/api/auth/profile/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("profile", response.data["user"])
+        self.assertIsNotNone(response.data["user"]["profile"])
+        self.assertEqual(
+            response.data["user"]["profile"]["profile_completion_percentage"],
+            0,
+        )
+
+    def test_profile_update_updates_user_and_extended_profile_fields(self):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.put(
+            "/api/auth/profile/update/",
+            {
+                "first_name": "Updated",
+                "last_name": "Manager",
+                "organization": "OVS Labs",
+                "department": "Vetting",
+                "phone_number": "+12345678911",
+                "date_of_birth": "1990-03-10",
+                "nationality": "Ghanaian",
+                "city": "Accra",
+                "country": "Ghana",
+                "postal_code": "GA-001",
+                "current_job_title": "Lead HR",
+                "years_of_experience": 8,
+                "linkedin_url": "https://www.linkedin.com/in/example",
+                "bio": "Profile update integration test",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        profile = UserProfile.objects.get(user=self.user)
+
+        self.assertEqual(self.user.first_name, "Updated")
+        self.assertEqual(self.user.department, "Vetting")
+        self.assertEqual(profile.city, "Accra")
+        self.assertEqual(profile.years_of_experience, 8)
+        self.assertGreater(profile.profile_completion_percentage, 0)
+        self.assertEqual(response.data["profile"]["city"], "Accra")
 
     def test_password_reset_confirm_with_signed_token_changes_password(self):
         raw_token = default_token_generator.make_token(self.user)

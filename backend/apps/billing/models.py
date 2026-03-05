@@ -8,6 +8,7 @@ class BillingSubscription(models.Model):
 
     PROVIDER_CHOICES = (
         ("stripe", "Stripe"),
+        ("paystack", "Paystack"),
         ("sandbox", "Sandbox"),
     )
 

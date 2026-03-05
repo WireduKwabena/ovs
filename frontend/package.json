@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
+    "test:ux-guards": "vitest src/components/common/FieldHelp.test.tsx src/pages/campaignWorkspaceQuota.test.ts src/pages/CampaignWorkspacePage.test.tsx --run",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

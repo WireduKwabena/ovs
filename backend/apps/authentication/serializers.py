@@ -2,21 +2,28 @@
 from django.contrib.auth import authenticate
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-from apps.authentication.models import User
+from apps.authentication.models import User, UserProfile
 
 USER_TYPE_CHOICES = User.USER_TYPE_CHOICES
 
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for regular users (applicants)"""
     full_name = serializers.CharField(source='get_full_name', read_only=True)
+    profile = serializers.SerializerMethodField(read_only=True)
     
     class Meta:
         model = User
         fields = [
-            'id', 'email', 'full_name', 'phone_number',
-            'user_type', 'is_active', 'created_at'
+            'id', 'email', 'first_name', 'last_name', 'full_name', 'phone_number',
+            'organization', 'department', 'user_type', 'is_active', 'is_staff', 'is_superuser', 'created_at', 'profile'
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'created_at', 'user_type', 'is_active', 'is_staff', 'is_superuser']
+
+    def get_profile(self, obj):
+        profile = getattr(obj, "profile", None)
+        if profile is None:
+            return None
+        return UserProfileSerializer(profile, context=self.context).data
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -54,14 +61,74 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 class AdminUserSerializer(serializers.ModelSerializer):
     """Serializer for admin users"""
     role_display = serializers.CharField(source='get_user_type_display', read_only=True)
+    full_name = serializers.CharField(source='get_full_name', read_only=True)
+    profile = serializers.SerializerMethodField(read_only=True)
     
     class Meta:
         model = User
         fields = [
-            'id', 'email', 'user_type', 'role_display',
-            'is_active', 'created_at'
+            'id', 'email', 'first_name', 'last_name', 'full_name', 'phone_number',
+            'organization', 'department', 'user_type', 'role_display', 'is_active', 'is_staff', 'is_superuser', 'created_at', 'profile'
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'created_at', 'user_type', 'is_active', 'is_staff', 'is_superuser']
+
+    def get_profile(self, obj):
+        profile = getattr(obj, "profile", None)
+        if profile is None:
+            return None
+        return UserProfileSerializer(profile, context=self.context).data
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    """Read serializer for extended user profile fields."""
+    avatar_url = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = UserProfile
+        fields = [
+            "date_of_birth",
+            "nationality",
+            "address",
+            "city",
+            "country",
+            "postal_code",
+            "current_job_title",
+            "years_of_experience",
+            "linkedin_url",
+            "bio",
+            "profile_completion_percentage",
+            "avatar_url",
+        ]
+        read_only_fields = ["profile_completion_percentage", "avatar_url"]
+
+    def get_avatar_url(self, obj):
+        if not obj.avatar:
+            return ""
+        request = self.context.get("request")
+        if request is not None:
+            return request.build_absolute_uri(obj.avatar.url)
+        return obj.avatar.url
+
+
+class ProfileUpdateSerializer(serializers.Serializer):
+    """Serializer for user + extended profile update payload."""
+    email = serializers.EmailField(required=False)
+    first_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    last_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    phone_number = serializers.CharField(required=False, allow_blank=True, max_length=20)
+    organization = serializers.CharField(required=False, allow_blank=True, max_length=200)
+    department = serializers.CharField(required=False, allow_blank=True, max_length=100)
+
+    date_of_birth = serializers.DateField(required=False, allow_null=True)
+    nationality = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    address = serializers.CharField(required=False, allow_blank=True)
+    city = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    country = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    postal_code = serializers.CharField(required=False, allow_blank=True, max_length=20)
+    current_job_title = serializers.CharField(required=False, allow_blank=True, max_length=200)
+    years_of_experience = serializers.IntegerField(required=False, allow_null=True, min_value=0)
+    linkedin_url = serializers.URLField(required=False, allow_blank=True)
+    bio = serializers.CharField(required=False, allow_blank=True, max_length=500)
 
 
 class ChangePasswordSerializer(serializers.Serializer):

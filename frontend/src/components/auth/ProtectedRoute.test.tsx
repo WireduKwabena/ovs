@@ -10,6 +10,7 @@ import { ProtectedRoute } from "./ProtectedRoute";
 type GuardAuthState = {
   isAuthenticated: boolean;
   userType: "applicant" | "hr_manager" | "admin" | null;
+  user: { is_staff?: boolean; is_superuser?: boolean } | null;
   twoFactorRequired: boolean;
   twoFactorToken: string | null;
 };
@@ -23,6 +24,7 @@ const createGuardState = (auth: Partial<GuardAuthState> = {}): GuardState => ({
   auth: {
     isAuthenticated: false,
     userType: null,
+    user: null,
     twoFactorRequired: false,
     twoFactorToken: null,
     ...auth,
@@ -32,7 +34,18 @@ const createGuardState = (auth: Partial<GuardAuthState> = {}): GuardState => ({
 
 const renderWithState = (
   state: GuardState,
-  route: "/private" | "/admin-private" | "/no-applicant" = "/private",
+  route:
+    | "/private"
+    | "/admin-private"
+    | "/no-applicant"
+    | "/applications"
+    | "/applications/new"
+    | "/applications/case-001"
+    | "/applications/case-001/upload"
+    | "/campaigns"
+    | "/campaigns/campaign-001"
+    | "/rubrics"
+    | "/rubrics/new" = "/private",
 ) => {
   const store = configureStore({
     reducer: (currentState: GuardState = state) => currentState,
@@ -67,6 +80,70 @@ const renderWithState = (
             element={
               <ProtectedRoute disallowUserTypes={["applicant"]}>
                 <div>No applicant page</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/applications"
+            element={
+              <ProtectedRoute disallowUserTypes={["admin"]}>
+                <div>Applications page</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/applications/new"
+            element={
+              <ProtectedRoute disallowUserTypes={["hr_manager", "admin"]}>
+                <div>New application page</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/applications/:caseId"
+            element={
+              <ProtectedRoute disallowUserTypes={["admin"]}>
+                <div>Application detail page</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/applications/:caseId/upload"
+            element={
+              <ProtectedRoute disallowUserTypes={["admin"]}>
+                <div>Upload document page</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/campaigns"
+            element={
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
+                <div>Campaigns page</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/campaigns/:campaignId"
+            element={
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
+                <div>Campaign workspace page</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/rubrics"
+            element={
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
+                <div>Rubrics page</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/rubrics/new"
+            element={
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
+                <div>Rubric builder page</div>
               </ProtectedRoute>
             }
           />
@@ -119,6 +196,18 @@ describe("ProtectedRoute integration", () => {
     expect(screen.getByText("Dashboard page")).toBeTruthy();
   });
 
+  it("allows staff users on admin-only routes even when user_type is not admin", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "hr_manager",
+        user: { is_staff: true, is_superuser: false },
+      }),
+      "/admin-private",
+    );
+    expect(screen.getByText("Admin private page")).toBeTruthy();
+  });
+
   it("redirects disallowed user types to dashboard", () => {
     renderWithState(
       createGuardState({
@@ -141,5 +230,126 @@ describe("ProtectedRoute integration", () => {
     expect(screen.queryByText("Private page")).toBeNull();
     expect(screen.queryByText("Login page")).toBeNull();
     expect(screen.queryByText("2FA page")).toBeNull();
+  });
+
+  it("redirects admin users away from /applications to dashboard", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "admin",
+      }),
+      "/applications",
+    );
+    expect(screen.getByText("Dashboard page")).toBeTruthy();
+  });
+
+  it("blocks hr_manager from /applications/new", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "hr_manager",
+      }),
+      "/applications/new",
+    );
+    expect(screen.getByText("Dashboard page")).toBeTruthy();
+  });
+
+  it("allows applicants to access /applications/new", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "applicant",
+      }),
+      "/applications/new",
+    );
+    expect(screen.getByText("New application page")).toBeTruthy();
+  });
+
+  it("redirects admin users away from /applications/:caseId routes", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "admin",
+      }),
+      "/applications/case-001",
+    );
+    expect(screen.getByText("Dashboard page")).toBeTruthy();
+  });
+
+  it("redirects admin users away from /applications/:caseId/upload", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "admin",
+      }),
+      "/applications/case-001/upload",
+    );
+    expect(screen.getByText("Dashboard page")).toBeTruthy();
+  });
+
+  it("redirects applicants away from /campaigns", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "applicant",
+      }),
+      "/campaigns",
+    );
+    expect(screen.getByText("Dashboard page")).toBeTruthy();
+  });
+
+  it("redirects applicants away from /campaigns/:campaignId", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "applicant",
+      }),
+      "/campaigns/campaign-001",
+    );
+    expect(screen.getByText("Dashboard page")).toBeTruthy();
+  });
+
+  it("allows hr_manager on /campaigns", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "hr_manager",
+      }),
+      "/campaigns",
+    );
+    expect(screen.getByText("Campaigns page")).toBeTruthy();
+  });
+
+  it("allows admin on /campaigns", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "admin",
+      }),
+      "/campaigns",
+    );
+    expect(screen.getByText("Campaigns page")).toBeTruthy();
+  });
+
+  it("redirects applicants away from /rubrics", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "applicant",
+      }),
+      "/rubrics",
+    );
+    expect(screen.getByText("Dashboard page")).toBeTruthy();
+  });
+
+  it("redirects applicants away from /rubrics/new", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "applicant",
+      }),
+      "/rubrics/new",
+    );
+    expect(screen.getByText("Dashboard page")).toBeTruthy();
   });
 });

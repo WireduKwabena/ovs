@@ -4,8 +4,9 @@ from statistics import mean, median
 
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+from apps.core.permissions import IsHRManagerOrAdmin
 
 from .models import ConsistencyCheckResult, FraudDetectionResult, SocialProfileCheckResult
 from .serializers import (
@@ -13,14 +14,6 @@ from .serializers import (
     FraudDetectionResultSerializer,
     SocialProfileCheckResultSerializer,
 )
-
-
-def _is_privileged(user) -> bool:
-    return bool(
-        getattr(user, "is_staff", False)
-        or getattr(user, "is_superuser", False)
-        or getattr(user, "user_type", None) in {"admin", "hr_manager"}
-    )
 
 
 class FraudDetectionResultViewSet(viewsets.ReadOnlyModelViewSet):
@@ -34,16 +27,13 @@ class FraudDetectionResultViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = FraudDetectionResult.objects.select_related("application", "application__applicant").all()
     serializer_class = FraudDetectionResultSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsHRManagerOrAdmin]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return FraudDetectionResult.objects.none()
 
         queryset = super().get_queryset()
-        user = self.request.user
-        if not _is_privileged(user):
-            queryset = queryset.filter(application__applicant=user)
 
         case_id = self.request.query_params.get("case_id")
         if case_id:
@@ -87,16 +77,13 @@ class ConsistencyCheckResultViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = ConsistencyCheckResult.objects.select_related("application", "application__applicant").all()
     serializer_class = ConsistencyCheckResultSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsHRManagerOrAdmin]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return ConsistencyCheckResult.objects.none()
 
         queryset = super().get_queryset()
-        user = self.request.user
-        if not _is_privileged(user):
-            queryset = queryset.filter(application__applicant=user)
 
         case_id = self.request.query_params.get("case_id")
         if case_id:
@@ -159,16 +146,13 @@ class SocialProfileCheckResultViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = SocialProfileCheckResult.objects.select_related("application", "application__applicant").all()
     serializer_class = SocialProfileCheckResultSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsHRManagerOrAdmin]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return SocialProfileCheckResult.objects.none()
 
         queryset = super().get_queryset()
-        user = self.request.user
-        if not _is_privileged(user):
-            queryset = queryset.filter(application__applicant=user)
 
         case_id = self.request.query_params.get("case_id")
         if case_id:

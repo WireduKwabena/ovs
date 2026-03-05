@@ -110,7 +110,7 @@ export const authService = {
     }
   },
 
-  async updateProfile(data: Partial<User | AdminUser>): Promise<User | AdminUser> {
+  async updateProfile(data: Record<string, unknown>): Promise<User | AdminUser> {
     try {
       const response = await api.put<User | AdminUser>("/auth/profile/update/", data);
       return response.data;

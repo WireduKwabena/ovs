@@ -25,8 +25,8 @@ export const useNotifications = () => {
   }, [notificationsData, dispatch]);
 
   const markAsReadMutation = useMutation({
-    mutationFn: (ids: number[]) => notificationService.markAsRead(ids),
-    onSuccess: (_, variables: number[]) => {  // Use variables (ids) from mutation arg
+    mutationFn: (ids: string[]) => notificationService.markAsRead(ids),
+    onSuccess: (_, variables: string[]) => {  // Use variables (ids) from mutation arg
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       dispatch(markAsRead(variables));  // Pass ids via variables
     },
@@ -43,7 +43,7 @@ export const useNotifications = () => {
   });
 
   const archiveMutation = useMutation({
-    mutationFn: (id: number) => notificationService.archive(id),
+    mutationFn: (id: string) => notificationService.archive(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       void refetch();

@@ -10,6 +10,10 @@ interface ApplicationState {
   error: ApiError | null;
 }
 
+export interface FetchApplicationsOptions {
+  scope?: 'all' | 'assigned' | 'mine';
+}
+
 const initialState: ApplicationState = {
   applications: [],
   currentCase: null,
@@ -18,11 +22,15 @@ const initialState: ApplicationState = {
 };
 
 // Async Thunks
-export const fetchApplications = createAsyncThunk<ApplicationWithDocuments[], void, { rejectValue: ApiError }>(
+export const fetchApplications = createAsyncThunk<
+  ApplicationWithDocuments[],
+  FetchApplicationsOptions | void,
+  { rejectValue: ApiError }
+>(
   'applications/fetchAll',
-  async (_, { rejectWithValue }) => {
+  async (options, { rejectWithValue }) => {
     try {
-      return await applicationService.getAll();
+      return await applicationService.getAll(options || undefined);
     } catch (error: any) {
       return rejectWithValue(error.response?.data || { message: 'Failed to fetch' });
     }

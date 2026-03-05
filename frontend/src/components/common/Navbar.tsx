@@ -1,15 +1,16 @@
 // src/components/common/Navbar.tsx (Fixed - Type-Safe User Display)
 import React, { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Bell, LogOut, Menu, X, ChevronDown, KeyRound, Settings2, Shield, ShieldCheck } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Bell, LogOut, Menu, X, ChevronDown, KeyRound, Settings2, Shield, ShieldCheck, RefreshCw } from 'lucide-react';
 import { Button } from '../ui/button';
 import type { AppDispatch, RootState } from '@/app/store';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchNotifications } from '@/store/notificationSlice';
-import type { User } from '@/types';
+import type { User, VideoMeetingReminderHealth } from '@/types';
 import { createSelector } from '@reduxjs/toolkit';
 import { useAuth } from '@/hooks/useAuth';
 import { getUserDisplayName, getUserInitial } from '@/utils/userDisplay';
+import { videoCallService } from '@/services/videoCall.service';
 
 // ✅ CRITICAL: Define selectors OUTSIDE the component
 const selectAuthState = (state: RootState) => state.auth;
@@ -30,12 +31,16 @@ const selectUnreadCount = createSelector(
   (notifications) => notifications.unreadCount || 0
 );
 
+type ReminderRuntimeStatus = 'unknown' | 'healthy' | 'attention' | 'unavailable';
+
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileMenuMounted, setMobileMenuMounted] = useState(false);
   const [adminMoreMenuOpen, setAdminMoreMenuOpen] = useState(false);
+  const [runtimePopoverOpen, setRuntimePopoverOpen] = useState(false);
   const dispatch = useDispatch<AppDispatch>();
 
   
@@ -43,8 +48,14 @@ export const Navbar: React.FC = () => {
   const { user, isAuthenticated, userType } = useSelector(selectUserData);
   const unreadCount = useSelector(selectUnreadCount);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [reminderRuntimeStatus, setReminderRuntimeStatus] = useState<ReminderRuntimeStatus>('unknown');
+  const [reminderRuntimeSnapshot, setReminderRuntimeSnapshot] = useState<VideoMeetingReminderHealth | null>(null);
+  const [reminderRuntimeCheckedAt, setReminderRuntimeCheckedAt] = useState<string | null>(null);
+  const [reminderRuntimeError, setReminderRuntimeError] = useState<string | null>(null);
+  const [reminderRuntimeRefreshing, setReminderRuntimeRefreshing] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const adminMoreMenuRef = useRef<HTMLDivElement>(null);
+  const runtimePopoverRef = useRef<HTMLDivElement>(null);
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const mobileDrawerRef = useRef<HTMLDivElement>(null);
 
@@ -54,6 +65,73 @@ export const Navbar: React.FC = () => {
     }
   }, [dispatch, isAuthenticated]);
 
+  const applyReminderHealthPayload = (payload: VideoMeetingReminderHealth) => {
+    const hasRetryIssues =
+      payload.soon_retry_pending > 0 ||
+      payload.soon_retry_exhausted > 0 ||
+      payload.start_now_retry_pending > 0 ||
+      payload.start_now_retry_exhausted > 0 ||
+      payload.time_up_retry_pending > 0 ||
+      payload.time_up_retry_exhausted > 0;
+    setReminderRuntimeStatus(hasRetryIssues ? 'attention' : 'healthy');
+    setReminderRuntimeSnapshot(payload);
+    setReminderRuntimeCheckedAt(new Date().toISOString());
+    setReminderRuntimeError(null);
+  };
+
+  const refreshReminderRuntime = async (options?: { silent?: boolean }) => {
+    if (!options?.silent) {
+      setReminderRuntimeRefreshing(true);
+    }
+    try {
+      const payload = await videoCallService.getReminderHealth();
+      applyReminderHealthPayload(payload);
+    } catch (error) {
+      setReminderRuntimeStatus('unavailable');
+      const message = error instanceof Error ? error.message : 'Reminder runtime unavailable.';
+      setReminderRuntimeError(message);
+    } finally {
+      if (!options?.silent) {
+        setReminderRuntimeRefreshing(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated || userType !== 'admin') {
+      return;
+    }
+
+    let mounted = true;
+
+    const pollReminderHealth = async () => {
+      try {
+        const payload = await videoCallService.getReminderHealth();
+        if (!mounted) {
+          return;
+        }
+        applyReminderHealthPayload(payload);
+      } catch (error) {
+        if (!mounted) {
+          return;
+        }
+        setReminderRuntimeStatus('unavailable');
+        const message = error instanceof Error ? error.message : 'Reminder runtime unavailable.';
+        setReminderRuntimeError(message);
+      }
+    };
+
+    void pollReminderHealth();
+    const interval = window.setInterval(() => {
+      void pollReminderHealth();
+    }, 60_000);
+
+    return () => {
+      mounted = false;
+      window.clearInterval(interval);
+    };
+  }, [isAuthenticated, userType]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
@@ -61,6 +139,9 @@ export const Navbar: React.FC = () => {
       }
       if (adminMoreMenuRef.current && !adminMoreMenuRef.current.contains(event.target as Node)) {
         setAdminMoreMenuOpen(false);
+      }
+      if (runtimePopoverRef.current && !runtimePopoverRef.current.contains(event.target as Node)) {
+        setRuntimePopoverOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -176,13 +257,148 @@ export const Navbar: React.FC = () => {
 
   const roleLabel = userType === 'admin' ? 'Admin' : userType === 'hr_manager' ? 'HR Manager' : userType === 'applicant' ? 'Applicant' : 'User';
   const canManageTwoFactor = userType !== 'applicant';
+  const canViewReminderRuntime = userType === 'admin';
+  const reminderStatusMeta: Record<ReminderRuntimeStatus, { dotClass: string; label: string }> = {
+    unknown: { dotClass: 'bg-slate-500', label: 'Unknown' },
+    healthy: { dotClass: 'bg-emerald-500', label: 'Healthy' },
+    attention: { dotClass: 'bg-amber-500', label: 'Attention needed' },
+    unavailable: { dotClass: 'bg-rose-500', label: 'Unavailable' },
+  };
+  const runtimeMeta = reminderStatusMeta[reminderRuntimeStatus];
+  const runtimeLastChecked = reminderRuntimeCheckedAt
+    ? new Date(reminderRuntimeCheckedAt).toLocaleTimeString()
+    : 'Not checked yet';
+
+  const isRouteActive = (to: string): boolean => {
+    if (location.pathname === to) {
+      return true;
+    }
+    return location.pathname.startsWith(`${to}/`);
+  };
+
+  const desktopNavClass = (to: string): string =>
+    [
+      'text-sm font-semibold px-2 py-1 rounded transition-colors',
+      isRouteActive(to)
+        ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
+        : 'text-slate-800 hover:text-indigo-700 hover:bg-indigo-50',
+    ].join(' ');
+
+  const overflowNavClass = (to: string): string =>
+    [
+      'block px-4 py-2 text-sm font-medium transition-colors',
+      isRouteActive(to)
+        ? 'bg-indigo-100 text-indigo-900'
+        : 'text-slate-800 hover:bg-indigo-50 hover:text-indigo-700',
+    ].join(' ');
+
+  const mobileNavClass = (to: string): string =>
+    [
+      'flex items-center px-3 py-2 rounded-lg transition-colors',
+      isRouteActive(to)
+        ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
+        : 'text-slate-800 hover:bg-indigo-50',
+    ].join(' ');
+
+  const renderNavLabel = (navItem: { to: string; label: string }) => {
+    if (!canViewReminderRuntime || navItem.to !== '/video-calls') {
+      return navItem.label;
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        <span>{navItem.label}</span>
+        <span
+          className={`inline-block h-2 w-2 rounded-full ${runtimeMeta.dotClass}`}
+          title={`Reminder runtime: ${runtimeMeta.label}`}
+          aria-label={`Reminder runtime ${runtimeMeta.label}`}
+        />
+      </span>
+    );
+  };
+
+  const renderRuntimePopover = () => {
+    if (!canViewReminderRuntime) {
+      return null;
+    }
+
+    return (
+      <div className="relative" ref={runtimePopoverRef}>
+        <Button
+          type="button"
+          onClick={() => setRuntimePopoverOpen((previous) => !previous)}
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-50"
+          aria-expanded={runtimePopoverOpen ? 'true' : 'false'}
+          aria-haspopup="dialog"
+        >
+          <span className={`h-2.5 w-2.5 rounded-full ${runtimeMeta.dotClass}`} />
+          Runtime
+        </Button>
+        {runtimePopoverOpen && (
+          <div className="absolute right-0 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-slate-900">Reminder Runtime</p>
+              <span className="text-[11px] font-semibold text-slate-700">{runtimeMeta.label}</span>
+            </div>
+            <p className="mt-1 text-[11px] text-slate-700">Last checked: {runtimeLastChecked}</p>
+
+            {reminderRuntimeSnapshot ? (
+              <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-slate-800">
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
+                  <p className="font-semibold text-slate-700">Soon Pending</p>
+                  <p className="text-sm font-bold text-slate-900">{reminderRuntimeSnapshot.soon_retry_pending}</p>
+                </div>
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
+                  <p className="font-semibold text-slate-700">Soon Exhausted</p>
+                  <p className="text-sm font-bold text-slate-900">{reminderRuntimeSnapshot.soon_retry_exhausted}</p>
+                </div>
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
+                  <p className="font-semibold text-slate-700">Start Pending</p>
+                  <p className="text-sm font-bold text-slate-900">{reminderRuntimeSnapshot.start_now_retry_pending}</p>
+                </div>
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
+                  <p className="font-semibold text-slate-700">Start Exhausted</p>
+                  <p className="text-sm font-bold text-slate-900">{reminderRuntimeSnapshot.start_now_retry_exhausted}</p>
+                </div>
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
+                  <p className="font-semibold text-slate-700">Time-up Pending</p>
+                  <p className="text-sm font-bold text-slate-900">{reminderRuntimeSnapshot.time_up_retry_pending}</p>
+                </div>
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
+                  <p className="font-semibold text-slate-700">Time-up Exhausted</p>
+                  <p className="text-sm font-bold text-slate-900">{reminderRuntimeSnapshot.time_up_retry_exhausted}</p>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-3 text-xs text-slate-700">No runtime snapshot available yet.</p>
+            )}
+
+            {reminderRuntimeError ? (
+              <p className="mt-2 text-xs text-rose-700">{reminderRuntimeError}</p>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => void refreshReminderRuntime()}
+              disabled={reminderRuntimeRefreshing}
+              className="mt-3 inline-flex items-center gap-2 rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${reminderRuntimeRefreshing ? 'animate-spin' : ''}`} />
+              {reminderRuntimeRefreshing ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const navLinks =
     userType === 'admin'
       ? [
           { to: '/admin/dashboard', label: 'Dashboard' },
           { to: '/admin/cases', label: 'Cases' },
           { to: '/admin/users', label: 'Users' },
-          { to: '/admin/rubrics', label: 'Rubrics' },
+          { to: '/rubrics', label: 'Rubrics' },
           { to: '/video-calls', label: 'Video Calls' },
           { to: '/admin/control-center', label: 'Admin Control' },
           { to: '/fraud-insights', label: 'Fraud' },
@@ -195,13 +411,14 @@ export const Navbar: React.FC = () => {
       : userType === 'applicant'
         ? [
             { to: '/dashboard', label: 'Dashboard' },
-            { to: '/applications', label: 'Applications' },
+            { to: '/applications', label: 'My Cases' },
             { to: '/video-calls', label: 'Video Calls' },
           ]
         : [
             { to: '/dashboard', label: 'Dashboard' },
             { to: '/campaigns', label: 'Campaigns' },
             { to: '/applications', label: 'Cases' },
+            { to: '/rubrics', label: 'Rubrics' },
             { to: '/video-calls', label: 'Video Calls' },
             { to: '/fraud-insights', label: 'Fraud' },
             { to: '/background-checks', label: 'Checks' },
@@ -213,13 +430,14 @@ export const Navbar: React.FC = () => {
           { to: '/admin/dashboard', label: 'Dashboard' },
           { to: '/admin/cases', label: 'Cases' },
           { to: '/admin/users', label: 'Users' },
-          { to: '/admin/rubrics', label: 'Rubrics' },
+          { to: '/rubrics', label: 'Rubrics' },
         ]
       : userType === 'hr_manager'
         ? [
             { to: '/dashboard', label: 'Dashboard' },
             { to: '/campaigns', label: 'Campaigns' },
             { to: '/applications', label: 'Cases' },
+            { to: '/rubrics', label: 'Rubrics' },
             { to: '/video-calls', label: 'Video Calls' },
           ]
         : navLinks;
@@ -242,6 +460,7 @@ export const Navbar: React.FC = () => {
             { to: '/background-checks', label: 'Checks' },
           ]
         : [];
+  const hasActiveOverflowLink = desktopOverflowLinks.some((item) => isRouteActive(item.to));
   
   const initial = getUserInitial(user, '?');
 
@@ -269,9 +488,9 @@ export const Navbar: React.FC = () => {
               <Link
                 key={navItem.to}
                 to={navItem.to}
-                className="text-sm font-semibold text-slate-800 hover:text-indigo-700 hover:bg-indigo-50 px-2 py-1 rounded"
+                className={desktopNavClass(navItem.to)}
               >
-                {navItem.label}
+                {renderNavLabel(navItem)}
               </Link>
             ))}
             {desktopOverflowLinks.length > 0 && (
@@ -282,8 +501,13 @@ export const Navbar: React.FC = () => {
                   onClick={() => {
                     setAdminMoreMenuOpen(!adminMoreMenuOpen);
                     setProfileMenuOpen(false);
+                    setRuntimePopoverOpen(false);
                   }}
-                  className="inline-flex items-center gap-1 text-sm font-semibold text-slate-800 hover:text-indigo-700 hover:bg-indigo-50 px-2 py-1 rounded"
+                  className={`inline-flex items-center gap-1 px-2 py-1 text-sm font-semibold rounded ${
+                    hasActiveOverflowLink
+                      ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
+                      : 'text-slate-800 hover:text-indigo-700 hover:bg-indigo-50'
+                  }`}
                 >
                   More
                   <ChevronDown className="w-4 h-4 text-slate-700" />
@@ -294,19 +518,24 @@ export const Navbar: React.FC = () => {
                       <Link
                         key={navItem.to}
                         to={navItem.to}
-                        className="block px-4 py-2 text-sm font-medium text-slate-800 hover:bg-indigo-50 hover:text-indigo-700"
+                        className={overflowNavClass(navItem.to)}
                         onClick={() => setAdminMoreMenuOpen(false)}
                       >
-                        {navItem.label}
+                        {renderNavLabel(navItem)}
                       </Link>
                     ))}
                   </div>
                 )}
               </div>
             )}
+            {renderRuntimePopover()}
             <Link
               to="/notifications"
-              className="relative p-2 text-slate-800 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg"
+              className={`relative rounded-lg p-2 ${
+                isRouteActive('/notifications')
+                  ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
+                  : 'text-slate-800 hover:text-indigo-700 hover:bg-indigo-50'
+              }`}
             >
               <Bell className="w-6 h-6" />
               {unreadCount > 0 && (
@@ -323,6 +552,7 @@ export const Navbar: React.FC = () => {
                 onClick={() => {
                   setProfileMenuOpen(!profileMenuOpen);
                   setAdminMoreMenuOpen(false);
+                  setRuntimePopoverOpen(false);
                 }}
                 aria-expanded={profileMenuOpen ? "true" : "false"}
                 aria-haspopup="true"
@@ -395,6 +625,7 @@ export const Navbar: React.FC = () => {
               onClick={() => {
                 setProfileMenuOpen(false);
                 setAdminMoreMenuOpen(false);
+                setRuntimePopoverOpen(false);
                 if (!mobileMenuOpen) {
                   setMobileMenuMounted(true);
                 }
@@ -457,15 +688,19 @@ export const Navbar: React.FC = () => {
                 <Link
                   key={navItem.to}
                   to={navItem.to}
-                  className="flex items-center px-3 py-2 rounded-lg hover:bg-indigo-50 text-slate-800"
+                  className={mobileNavClass(navItem.to)}
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  {navItem.label}
+                  {renderNavLabel(navItem)}
                 </Link>
               ))}
               <Link
                 to="/notifications"
-                className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-indigo-50"
+                className={`flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
+                  isRouteActive('/notifications')
+                    ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
+                    : 'hover:bg-indigo-50 text-slate-800'
+                }`}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 <span className="text-slate-800">Notifications</span>
@@ -475,10 +710,51 @@ export const Navbar: React.FC = () => {
                   </span>
                 )}
               </Link>
+              {canViewReminderRuntime ? (
+                <button
+                  type="button"
+                  onClick={() => setRuntimePopoverOpen((previous) => !previous)}
+                  className="flex w-full items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-left"
+                >
+                  <span className="inline-flex items-center gap-2 text-slate-800">
+                    <span className={`h-2.5 w-2.5 rounded-full ${runtimeMeta.dotClass}`} />
+                    Reminder Runtime
+                  </span>
+                  <span className="text-xs font-semibold text-slate-700">{runtimeMeta.label}</span>
+                </button>
+              ) : null}
+              {canViewReminderRuntime && runtimePopoverOpen ? (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800">
+                  <p className="font-semibold text-slate-900">Last checked: {runtimeLastChecked}</p>
+                  {reminderRuntimeSnapshot ? (
+                    <ul className="mt-2 space-y-1">
+                      <li>Soon: {reminderRuntimeSnapshot.soon_retry_pending} pending / {reminderRuntimeSnapshot.soon_retry_exhausted} exhausted</li>
+                      <li>Start: {reminderRuntimeSnapshot.start_now_retry_pending} pending / {reminderRuntimeSnapshot.start_now_retry_exhausted} exhausted</li>
+                      <li>Time-up: {reminderRuntimeSnapshot.time_up_retry_pending} pending / {reminderRuntimeSnapshot.time_up_retry_exhausted} exhausted</li>
+                    </ul>
+                  ) : (
+                    <p className="mt-2">No runtime snapshot available yet.</p>
+                  )}
+                  {reminderRuntimeError ? <p className="mt-2 text-rose-700">{reminderRuntimeError}</p> : null}
+                  <button
+                    type="button"
+                    onClick={() => void refreshReminderRuntime()}
+                    disabled={reminderRuntimeRefreshing}
+                    className="mt-3 inline-flex items-center gap-2 rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-800 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${reminderRuntimeRefreshing ? 'animate-spin' : ''}`} />
+                    {reminderRuntimeRefreshing ? 'Refreshing...' : 'Refresh'}
+                  </button>
+                </div>
+              ) : null}
               {canManageTwoFactor && (
                 <Link
                   to="/security"
-                  className="flex items-center px-3 py-2 rounded-lg hover:bg-indigo-50"
+                  className={`flex items-center px-3 py-2 rounded-lg transition-colors ${
+                    isRouteActive('/security')
+                      ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
+                      : 'hover:bg-indigo-50'
+                  }`}
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <ShieldCheck className="w-5 h-5 mr-2 text-slate-700" />
@@ -487,7 +763,11 @@ export const Navbar: React.FC = () => {
               )}
               <Link
                 to="/settings"
-                className="flex items-center px-3 py-2 rounded-lg hover:bg-indigo-50"
+                className={`flex items-center px-3 py-2 rounded-lg transition-colors ${
+                  isRouteActive('/settings')
+                    ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
+                    : 'hover:bg-indigo-50'
+                }`}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 <Settings2 className="w-5 h-5 mr-2 text-slate-700" />
@@ -495,7 +775,11 @@ export const Navbar: React.FC = () => {
               </Link>
               <Link
                 to="/change-password"
-                className="flex items-center px-3 py-2 rounded-lg hover:bg-indigo-50"
+                className={`flex items-center px-3 py-2 rounded-lg transition-colors ${
+                  isRouteActive('/change-password')
+                    ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
+                    : 'hover:bg-indigo-50'
+                }`}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 <KeyRound className="w-5 h-5 mr-2 text-slate-700" />
