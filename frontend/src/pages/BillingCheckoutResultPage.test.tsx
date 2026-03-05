@@ -131,4 +131,20 @@ describe("BillingCheckoutResultPage", () => {
     expect(mocks.confirmPaystackReference).toHaveBeenCalledWith("OVS-PAYSTACK-REF");
     expect(mocks.confirmStripeSession).not.toHaveBeenCalled();
   });
+
+  it("renders paystack list error message from DRF response payload", async () => {
+    mocks.confirmPaystackReference.mockRejectedValue({
+      response: {
+        data: ["Paystack transaction is not successful yet (status: abandoned)."],
+      },
+    });
+
+    renderAt("/billing/success?reference=OVS-PAYSTACK-ABANDONED");
+
+    expect(await screen.findByText(/verification failed/i)).toBeTruthy();
+    expect(
+      await screen.findByText(/paystack transaction is not successful yet \(status: abandoned\)\./i),
+    ).toBeTruthy();
+    expect(mocks.confirmPaystackReference).toHaveBeenCalledTimes(1);
+  });
 });

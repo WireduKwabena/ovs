@@ -782,6 +782,10 @@ def _persist_paystack_transaction(transaction_data: dict, *, checkout_url: str |
         .order_by("-created_at")
         .first()
     )
+    if existing_subscription is not None:
+        merged_metadata = dict(existing_subscription.metadata or {})
+        merged_metadata.update(metadata)
+        metadata = merged_metadata
 
     plan_id = str(metadata.get("plan_id") or "").strip() or str(getattr(existing_subscription, "plan_id", "") or "").strip()
     plan_name = str(metadata.get("plan_name") or "").strip() or str(getattr(existing_subscription, "plan_name", "") or "").strip()
@@ -844,7 +848,10 @@ def _persist_paystack_transaction(transaction_data: dict, *, checkout_url: str |
         "checkout_url": _fit_model_field_value(
             BillingSubscription,
             "checkout_url",
-            checkout_url or metadata.get("authorization_url") or "",
+            checkout_url
+            or metadata.get("authorization_url")
+            or getattr(existing_subscription, "checkout_url", "")
+            or "",
         ),
         "reference": _fit_model_field_value(BillingSubscription, "reference", reference),
         "ticket_confirmed_at": ticket_confirmed_at,
@@ -1605,13 +1612,21 @@ class PaystackCheckoutSessionConfirmAPIView(APIView):
 
         reference = serializer.validated_data["reference"]
         transaction_data = _paystack_verify_transaction(reference)
+        subscription = _persist_paystack_transaction(transaction_data)
         transaction_status = str(transaction_data.get("status") or "").strip().lower()
         if transaction_status != "success":
+            gateway_response = str(transaction_data.get("gateway_response") or "").strip()
+            detail = f"Paystack transaction is not successful yet (status: {transaction_status or 'unknown'})."
+            if gateway_response:
+                detail = f"{detail} Gateway response: {gateway_response}"
             raise ValidationError(
-                f"Paystack transaction is not successful yet (status: {transaction_status or 'unknown'})."
+                {
+                    "detail": detail,
+                    "status": transaction_status or "unknown",
+                    "reference": reference,
+                    "checkout_url": subscription.checkout_url,
+                }
             )
-
-        subscription = _persist_paystack_transaction(transaction_data)
 
         ticket = _build_subscription_ticket(
             plan_id=subscription.plan_id,
