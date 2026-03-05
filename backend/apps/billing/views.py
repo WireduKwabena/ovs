@@ -35,6 +35,7 @@ from .quotas import (
 )
 from .serializers import (
     BillingActionErrorSerializer,
+    BillingExchangeRateResponseSerializer,
     BillingHealthResponseSerializer,
     BillingPaymentMethodUpdateSerializer,
     BillingPortalSessionResponseSerializer,
@@ -397,6 +398,11 @@ def _fetch_exchange_rate(base_currency: str, target_currency: str) -> Decimal | 
 
 
 def _paystack_usd_exchange_rate() -> Decimal:
+    rate, _ = _paystack_usd_exchange_rate_with_source()
+    return rate
+
+
+def _paystack_usd_exchange_rate_with_source() -> tuple[Decimal, str]:
     fallback_raw = getattr(settings, "PAYSTACK_USD_EXCHANGE_RATE", 1.0)
     fallback_rate = _to_decimal(fallback_raw, fallback="1.0")
     if fallback_rate <= 0:
@@ -404,11 +410,11 @@ def _paystack_usd_exchange_rate() -> Decimal:
 
     target_currency = _paystack_currency()
     if target_currency == "USD":
-        return Decimal("1.0")
+        return Decimal("1.0"), "identity"
 
     api_url = _exchange_rate_api_url("USD", target_currency)
     if not api_url:
-        return fallback_rate
+        return fallback_rate, "fallback"
 
     cache_key_hash = hashlib.sha256(api_url.encode("utf-8")).hexdigest()[:16]
     cache_key = f"billing:fx:USD:{target_currency}:{cache_key_hash}"
@@ -416,15 +422,15 @@ def _paystack_usd_exchange_rate() -> Decimal:
     if cached_value is not None:
         cached_rate = _to_decimal(cached_value, fallback="0")
         if cached_rate > 0:
-            return cached_rate
+            return cached_rate, "api_cache"
 
     live_rate = _fetch_exchange_rate("USD", target_currency)
     if live_rate is not None and live_rate > 0:
         cache_ttl = max(60, int(getattr(settings, "EXCHANGE_RATE_CACHE_TTL_SECONDS", 3600)))
         cache.set(cache_key, str(live_rate), cache_ttl)
-        return live_rate
+        return live_rate, "api_live"
 
-    return fallback_rate
+    return fallback_rate, "fallback"
 
 
 def _paystack_exchange_rate_health() -> dict:
@@ -1143,6 +1149,31 @@ class BillingHealthAPIView(APIView):
                     "enabled": _verify_rate_limit_enabled(),
                     "per_minute": _verify_rate_limit_per_minute(),
                 },
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class BillingExchangeRateAPIView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    @extend_schema(
+        request=None,
+        responses={
+            200: BillingExchangeRateResponseSerializer,
+        },
+    )
+    def get(self, request):
+        target_currency = _paystack_currency()
+        rate, source = _paystack_usd_exchange_rate_with_source()
+        return Response(
+            {
+                "status": "ok",
+                "base": "USD",
+                "target": target_currency,
+                "rate": float(rate),
+                "source": source,
             },
             status=status.HTTP_200_OK,
         )

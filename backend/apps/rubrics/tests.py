@@ -81,6 +81,70 @@ class RubricsApiTests(APITestCase):
         self.assertEqual(response.status_code, 201)
         return response.json()["id"]
 
+    def test_create_rubric_with_nested_criteria_is_atomic_success(self):
+        payload = self._rubric_payload("Atomic Nested Rubric")
+        payload["criteria"] = [
+            {
+                "name": "Document Confidence",
+                "description": "Document integrity confidence signal",
+                "criteria_type": "document",
+                "scoring_method": "ai_score",
+                "weight": 55,
+                "minimum_score": 65,
+                "is_mandatory": True,
+                "display_order": 0,
+            },
+            {
+                "name": "Interview Coherence",
+                "description": "Interview answer consistency and coherence",
+                "criteria_type": "interview",
+                "scoring_method": "manual_rating",
+                "weight": 45,
+                "minimum_score": 60,
+                "is_mandatory": False,
+                "display_order": 1,
+            },
+        ]
+
+        response = self.client.post("/api/rubrics/vetting-rubrics/", payload, format="json")
+        self.assertEqual(response.status_code, 201)
+        rubric_id = response.json()["id"]
+        self.assertEqual(len(response.json().get("criteria", [])), 2)
+        self.assertEqual(
+            VettingRubric.objects.get(id=rubric_id).criteria.count(),
+            2,
+        )
+
+    def test_create_rubric_with_duplicate_nested_criteria_names_rolls_back(self):
+        payload = self._rubric_payload("Atomic Duplicate Rubric")
+        payload["criteria"] = [
+            {
+                "name": "Integrity Check",
+                "description": "First criterion",
+                "criteria_type": "document",
+                "scoring_method": "ai_score",
+                "weight": 50,
+                "minimum_score": 60,
+                "is_mandatory": True,
+                "display_order": 0,
+            },
+            {
+                "name": " integrity check ",
+                "description": "Duplicate by normalization",
+                "criteria_type": "consistency",
+                "scoring_method": "ai_score",
+                "weight": 50,
+                "minimum_score": 60,
+                "is_mandatory": False,
+                "display_order": 1,
+            },
+        ]
+
+        response = self.client.post("/api/rubrics/vetting-rubrics/", payload, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("criteria", response.json())
+        self.assertFalse(VettingRubric.objects.filter(name="Atomic Duplicate Rubric").exists())
+
     def test_create_rubric_evaluate_case_and_override_criterion(self):
         rubric_id = self._create_rubric("Test Rubric")
 

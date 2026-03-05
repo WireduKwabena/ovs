@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    BillingExchangeRateAPIView,
     BillingHealthAPIView,
     BillingPaymentMethodUpdateSessionAPIView,
     BillingQuotaAPIView,
@@ -20,6 +21,7 @@ app_name = "billing"
 
 urlpatterns = [
     path("health/", BillingHealthAPIView.as_view(), name="billing-health"),
+    path("exchange-rate/", BillingExchangeRateAPIView.as_view(), name="billing-exchange-rate"),
     path("quotas/", BillingQuotaAPIView.as_view(), name="billing-quotas"),
     path("subscriptions/manage/", BillingSubscriptionManageAPIView.as_view(), name="billing-subscription-manage"),
     path(

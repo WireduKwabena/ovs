@@ -1,0 +1,189 @@
+name: Release Gate
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: release-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Test
+        run: npm run test
+
+      - name: Build + bundle budgets
+        run: npm run build:ci
+
+      - name: Endpoint coverage (strict)
+        run: npm run coverage:endpoints -- --strict
+
+      - name: Prepare frontend artifacts
+        if: always()
+        run: |
+          mkdir -p ../ci-artifacts/frontend
+          if [ -d dist ]; then
+            cp -r dist ../ci-artifacts/frontend/dist
+          fi
+
+      - name: Upload frontend artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-ci-artifacts-${{ github.run_id }}
+          path: ci-artifacts/frontend
+          if-no-files-found: warn
+          retention-days: 7
+
+  backend:
+    name: Backend Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare backend env for CI
+        run: |
+          cp backend/.env.example backend/.env
+          {
+            echo ""
+            echo "DEBUG=false"
+            echo "POSTGRES_HOST=db"
+            echo "POSTGRES_PORT=5432"
+            echo "POSTGRES_DB=vetai_db"
+            echo "POSTGRES_USER=postgres"
+            echo "POSTGRES_PASSWORD=postgres"
+            echo "CELERY_EAGER=true"
+            echo "ENABLE_REALTIME=false"
+            echo "USE_REDIS=true"
+          } >> backend/.env
+
+      - name: Build backend image
+        run: docker compose build backend
+
+      - name: Start database + redis
+        run: docker compose up -d db redis
+
+      - name: Wait for service health
+        run: |
+          timeout 180 sh -c 'until [ "$(docker inspect --format="{{.State.Health.Status}}" ovs_db)" = "healthy" ]; do sleep 2; done'
+          timeout 120 sh -c 'until [ "$(docker inspect --format="{{.State.Health.Status}}" ovs_redis)" = "healthy" ]; do sleep 2; done'
+
+      - name: Backend tests
+        run: |
+          set -o pipefail
+          mkdir -p ci-artifacts/backend
+          docker compose run --rm --no-deps \
+            -e DJANGO_SETTINGS_MODULE=config.settings.development \
+            -e DEBUG=false \
+            -e POSTGRES_HOST=db \
+            -e POSTGRES_PORT=5432 \
+            -e POSTGRES_DB=vetai_db \
+            -e POSTGRES_USER=postgres \
+            -e POSTGRES_PASSWORD=postgres \
+            -e CELERY_EAGER=true \
+            -e SENTRY_DSN="" \
+            backend python manage.py test --keepdb 2>&1 | tee ci-artifacts/backend/backend-tests.log
+
+      - name: Django production deploy checks
+        run: |
+          set -o pipefail
+          docker compose run --rm --no-deps \
+            -e DJANGO_SETTINGS_MODULE=config.settings.production \
+            -e DEBUG=false \
+            -e SECRET_KEY="prod-ci-secret-key-1234567890-prod-ci-secret-key-1234567890" \
+            -e ALLOWED_HOSTS="api.example.com" \
+            -e CORS_ALLOWED_ORIGINS="https://app.example.com" \
+            -e CSRF_TRUSTED_ORIGINS="https://app.example.com" \
+            -e DATABASE_URL="postgresql://postgres:postgres@db:5432/vetai_db" \
+            -e BACKGROUND_CHECK_DEFAULT_PROVIDER="http" \
+            -e BACKGROUND_CHECK_WEBHOOK_TOKEN="ci-background-webhook-token" \
+            -e BACKGROUND_CHECK_HTTP_BASE_URL="https://provider.example.com" \
+            -e BACKGROUND_CHECK_HTTP_API_KEY="ci-provider-api-key" \
+            -e AI_ML_MODEL_MANIFEST_REQUIRED=true \
+            -e SENTRY_DSN="" \
+            backend python manage.py check --deploy --settings=config.settings.production 2>&1 | tee ci-artifacts/backend/deploy-check.log
+
+      - name: OpenAPI validation + drift check
+        run: |
+          set -o pipefail
+          docker compose run --rm --no-deps \
+            -e DJANGO_SETTINGS_MODULE=config.settings.production \
+            -e DEBUG=false \
+            -e SECRET_KEY="prod-ci-secret-key-1234567890-prod-ci-secret-key-1234567890" \
+            -e ALLOWED_HOSTS="api.example.com" \
+            -e CORS_ALLOWED_ORIGINS="https://app.example.com" \
+            -e CSRF_TRUSTED_ORIGINS="https://app.example.com" \
+            -e DATABASE_URL="postgresql://postgres:postgres@db:5432/vetai_db" \
+            -e BACKGROUND_CHECK_DEFAULT_PROVIDER="http" \
+            -e BACKGROUND_CHECK_WEBHOOK_TOKEN="ci-background-webhook-token" \
+            -e BACKGROUND_CHECK_HTTP_BASE_URL="https://provider.example.com" \
+            -e BACKGROUND_CHECK_HTTP_API_KEY="ci-provider-api-key" \
+            -e AI_ML_MODEL_MANIFEST_REQUIRED=true \
+            -e SENTRY_DSN="" \
+            backend sh -lc "python manage.py spectacular --file /app/openapi.generated.yaml --validate --settings=config.settings.production && diff -u /app/openapi.yaml /app/openapi.generated.yaml" 2>&1 | tee ci-artifacts/backend/openapi-check.log
+
+      - name: Dump backend logs on failure
+        if: failure()
+        run: |
+          mkdir -p ci-artifacts/backend
+          docker compose logs backend 2>&1 | tee ci-artifacts/backend/backend-service.log || true
+          docker compose logs db 2>&1 | tee ci-artifacts/backend/db-service.log || true
+          docker compose logs redis 2>&1 | tee ci-artifacts/backend/redis-service.log || true
+
+      - name: Upload backend artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-ci-artifacts-${{ github.run_id }}
+          path: |
+            ci-artifacts/backend
+            backend/openapi.generated.yaml
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Cleanup generated OpenAPI file
+        if: always()
+        run: rm -f backend/openapi.generated.yaml
+
+      - name: Teardown
+        if: always()
+        run: docker compose down -v --remove-orphans

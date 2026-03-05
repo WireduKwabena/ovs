@@ -26,6 +26,7 @@ class BillingApiTests(APITestCase):
     paystack_confirm_endpoint = "/api/billing/subscriptions/paystack/confirm/"
     paystack_webhook_endpoint = "/api/billing/subscriptions/paystack/webhook/"
     billing_health_endpoint = "/api/billing/health/"
+    billing_exchange_rate_endpoint = "/api/billing/exchange-rate/"
     billing_quotas_endpoint = "/api/billing/quotas/"
     billing_manage_endpoint = "/api/billing/subscriptions/manage/"
     billing_manage_update_session_endpoint = "/api/billing/subscriptions/manage/payment-method/update-session/"
@@ -341,6 +342,91 @@ class BillingApiTests(APITestCase):
         self.assertEqual(response.data["exchange_rate"]["fallback_rate"], 1.0)
         self.assertEqual(response.data["subscription_verify_rate_limit"]["enabled"], True)
         self.assertEqual(response.data["subscription_verify_rate_limit"]["per_minute"], 30)
+
+    @override_settings(
+        PAYSTACK_CURRENCY="USD",
+        PAYSTACK_USD_EXCHANGE_RATE=15.0,
+        EXCHANGE_RATE_API_URL="https://fx.example.com/latest/{base}?target={target}",
+    )
+    def test_billing_exchange_rate_identity_when_target_is_usd(self):
+        response = self.client.get(self.billing_exchange_rate_endpoint)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "ok")
+        self.assertEqual(response.data["base"], "USD")
+        self.assertEqual(response.data["target"], "USD")
+        self.assertEqual(response.data["rate"], 1.0)
+        self.assertEqual(response.data["source"], "identity")
+
+    @override_settings(
+        PAYSTACK_CURRENCY="GHS",
+        PAYSTACK_USD_EXCHANGE_RATE=15.0,
+        EXCHANGE_RATE_API_URL="",
+    )
+    def test_billing_exchange_rate_fallback_when_api_not_configured(self):
+        response = self.client.get(self.billing_exchange_rate_endpoint)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "ok")
+        self.assertEqual(response.data["base"], "USD")
+        self.assertEqual(response.data["target"], "GHS")
+        self.assertEqual(response.data["rate"], 15.0)
+        self.assertEqual(response.data["source"], "fallback")
+
+    @override_settings(
+        PAYSTACK_CURRENCY="GHS",
+        PAYSTACK_USD_EXCHANGE_RATE=15.0,
+        EXCHANGE_RATE_API_URL="https://fx.example.com/latest/{base}?target={target}",
+    )
+    @patch("apps.billing.views.requests.get")
+    def test_billing_exchange_rate_uses_configured_api(self, mock_get):
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "conversion_rates": {
+                "GHS": 20.0,
+            },
+        }
+        mock_get.return_value = mock_response
+
+        response = self.client.get(self.billing_exchange_rate_endpoint)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "ok")
+        self.assertEqual(response.data["base"], "USD")
+        self.assertEqual(response.data["target"], "GHS")
+        self.assertEqual(response.data["rate"], 20.0)
+        self.assertEqual(response.data["source"], "api_live")
+        mock_get.assert_called_once()
+
+    @override_settings(
+        PAYSTACK_CURRENCY="GHS",
+        PAYSTACK_USD_EXCHANGE_RATE=15.0,
+        EXCHANGE_RATE_API_URL="https://fx.example.com/latest/{base}?target={target}",
+    )
+    @patch("apps.billing.views.requests.get")
+    def test_billing_exchange_rate_uses_cache_after_live_fetch(self, mock_get):
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "conversion_rates": {
+                "GHS": 19.5,
+            },
+        }
+        mock_get.return_value = mock_response
+
+        first_response = self.client.get(self.billing_exchange_rate_endpoint)
+        second_response = self.client.get(self.billing_exchange_rate_endpoint)
+
+        self.assertEqual(first_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(first_response.data["rate"], 19.5)
+        self.assertEqual(first_response.data["source"], "api_live")
+
+        self.assertEqual(second_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(second_response.data["rate"], 19.5)
+        self.assertEqual(second_response.data["source"], "api_cache")
+
+        mock_get.assert_called_once()
 
     @override_settings(
         STRIPE_SECRET_KEY="sk_test_123",

@@ -120,10 +120,6 @@ const PAYSTACK_CURRENCY = (() => {
   return "USD";
 })();
 
-const EXCHANGE_RATE_API_URL = String(
-  env?.VITE_EXCHANGE_RATE_API_URL || env?.EXCHANGE_RATE_API_URL || "",
-).trim();
-
 const PAYSTACK_USD_EXCHANGE_RATE = (() => {
   const raw = Number(env?.VITE_PAYSTACK_USD_EXCHANGE_RATE || "1");
   if (Number.isFinite(raw) && raw > 0) return raw;
@@ -137,73 +133,13 @@ const getDisplayCurrency = (provider: HostedCheckoutProvider | null): string => 
   return "USD";
 };
 
-const buildExchangeRateApiUrl = (
-  baseCurrency: string,
-  targetCurrency: string,
-): string | null => {
-  if (!EXCHANGE_RATE_API_URL) return null;
-
-  if (
-    EXCHANGE_RATE_API_URL.includes("{base}") ||
-    EXCHANGE_RATE_API_URL.includes("{target}") ||
-    EXCHANGE_RATE_API_URL.includes("{from}") ||
-    EXCHANGE_RATE_API_URL.includes("{to}")
-  ) {
-    return EXCHANGE_RATE_API_URL.replace("{base}", baseCurrency)
-      .replace("{target}", targetCurrency)
-      .replace("{from}", baseCurrency)
-      .replace("{to}", targetCurrency);
-  }
-
-  try {
-    const apiUrl = new URL(EXCHANGE_RATE_API_URL);
-    if (!apiUrl.searchParams.has("base")) {
-      apiUrl.searchParams.set("base", baseCurrency);
-    }
-    if (!apiUrl.searchParams.has("symbols")) {
-      apiUrl.searchParams.set("symbols", targetCurrency);
-    }
-    return apiUrl.toString();
-  } catch {
-    return EXCHANGE_RATE_API_URL;
-  }
-};
-
-const extractExchangeRate = (payload: unknown, targetCurrency: string): number | null => {
-  if (!payload || typeof payload !== "object") return null;
-  const target = targetCurrency.trim().toUpperCase();
-  if (!target) return null;
-  const payloadRecord = payload as Record<string, unknown>;
-
-  const toPositiveNumber = (value: unknown): number | null => {
-    const num = Number(value);
-    if (Number.isFinite(num) && num > 0) return num;
-    return null;
-  };
-
-  const fromMap = (source: unknown): number | null => {
-    if (!source || typeof source !== "object") return null;
-    const map = source as Record<string, unknown>;
-    const direct = toPositiveNumber(map[target] ?? map[target.toLowerCase()]);
-    if (direct !== null) return direct;
-    return null;
-  };
-
-  for (const key of ["conversion_rates", "rates", "data"]) {
-    const rate = fromMap(payloadRecord[key]);
-    if (rate !== null) return rate;
-  }
-
-  for (const key of ["rate", "exchange_rate", "conversion_rate", "price", "value"]) {
-    const rate = toPositiveNumber(payloadRecord[key]);
-    if (rate !== null) return rate;
-  }
-
-  const resultMap = payloadRecord.result;
-  const resultRate = fromMap(resultMap);
-  if (resultRate !== null) return resultRate;
-
-  return null;
+const rateSourceLabel = (source: string): string => {
+  const normalized = source.trim().toLowerCase();
+  if (normalized === "api_live") return "live provider API";
+  if (normalized === "api_cache") return "backend cache";
+  if (normalized === "identity") return "USD identity rate";
+  if (normalized === "fallback") return "backend fallback";
+  return "configured fallback";
 };
 
 const convertUsdToDisplayAmount = (
@@ -258,6 +194,7 @@ export const SubscriptionPlansPage: React.FC = () => {
   const [customerEmail, setCustomerEmail] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [paystackUsdExchangeRate, setPaystackUsdExchangeRate] = useState(PAYSTACK_USD_EXCHANGE_RATE);
+  const [paystackRateSource, setPaystackRateSource] = useState("configured_fallback");
 
   const checkoutMode = subscriptionService.getCheckoutMode();
   const hostedProviders = subscriptionService.getHostedCheckoutProviders();
@@ -287,27 +224,24 @@ export const SubscriptionPlansPage: React.FC = () => {
   useEffect(() => {
     if (isTestMode) return undefined;
     if (PAYSTACK_CURRENCY === "USD") return undefined;
-    const rateApiUrl = buildExchangeRateApiUrl("USD", PAYSTACK_CURRENCY);
-    if (!rateApiUrl) return undefined;
 
     let isActive = true;
-    const abortController = new AbortController();
 
     const fetchExchangeRate = async () => {
       try {
-        const response = await fetch(rateApiUrl, {
-          method: "GET",
-          signal: abortController.signal,
-        });
-        if (!response.ok) return;
-
-        const payload = (await response.json()) as unknown;
-        const liveRate = extractExchangeRate(payload, PAYSTACK_CURRENCY);
-        if (isActive && liveRate && liveRate > 0) {
-          setPaystackUsdExchangeRate(liveRate);
+        const response = await subscriptionService.getPaystackExchangeRate();
+        if (!isActive) return;
+        if (
+          response.base === "USD" &&
+          response.target === PAYSTACK_CURRENCY &&
+          Number.isFinite(response.rate) &&
+          response.rate > 0
+        ) {
+          setPaystackUsdExchangeRate(response.rate);
+          setPaystackRateSource(response.source || "configured_fallback");
         }
       } catch {
-        // Ignore API failures and keep configured fallback rate.
+        // Keep configured fallback rate.
       }
     };
 
@@ -315,7 +249,6 @@ export const SubscriptionPlansPage: React.FC = () => {
 
     return () => {
       isActive = false;
-      abortController.abort();
     };
   }, []);
 
@@ -743,7 +676,8 @@ export const SubscriptionPlansPage: React.FC = () => {
             </p>
             {selectedHostedProvider === "paystack" && displayCurrency !== "USD" ? (
               <p className="mt-1 text-xs text-slate-700">
-                Paystack conversion rate: 1 USD = {paystackUsdExchangeRate} {displayCurrency}.
+                Paystack conversion rate: 1 USD = {paystackUsdExchangeRate} {displayCurrency} (source:{" "}
+                {rateSourceLabel(paystackRateSource)}).
               </p>
             ) : null}
           </aside>

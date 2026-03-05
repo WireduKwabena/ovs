@@ -36,3 +36,24 @@ class SystemHealthApiTests(TestCase):
         self.assertEqual(payload["status"], "degraded")
         self.assertTrue(payload["strict_runtime_checks"])
         self.assertIn("redis", payload["failures"])
+
+
+class SystemHealthSchemaTests(TestCase):
+    def test_system_health_endpoint_schema_contract(self):
+        try:
+            from drf_spectacular.generators import SchemaGenerator
+        except ModuleNotFoundError:
+            self.skipTest("drf-spectacular is not installed.")
+
+        schema = SchemaGenerator().get_schema(request=None, public=True)
+        self.assertIsNotNone(schema)
+
+        path_item = schema["paths"]["/api/system/health/"]["get"]
+        response_200 = path_item["responses"]["200"]["content"]["application/json"]["schema"]
+        self.assertEqual(response_200["$ref"], "#/components/schemas/SystemHealthResponse")
+
+        health_component = schema["components"]["schemas"]["SystemHealthResponse"]
+        required_fields = set(health_component.get("required", []))
+        self.assertTrue(
+            {"status", "timestamp", "strict_runtime_checks", "checks", "failures"}.issubset(required_fields)
+        )

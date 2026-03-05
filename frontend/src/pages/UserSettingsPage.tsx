@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { CheckCircle2, CreditCard, Loader2, RefreshCw, ShieldCheck, Trash2, UserCog } from "lucide-react";
 import { useDispatch } from "react-redux";
@@ -100,6 +100,27 @@ const UserSettingsPage: React.FC = () => {
   const isSandboxManaged = managedSubscription?.provider === "sandbox";
   const isPaystackManaged = managedSubscription?.provider === "paystack";
 
+  const fetchBillingManagement = useCallback(async () => {
+    if (!canManageBilling) {
+      setBillingData(null);
+      return;
+    }
+    setBillingLoading(true);
+    try {
+      const response = await billingService.getSubscriptionManagement();
+      setBillingData(response);
+      const method = response.subscription?.payment_method?.type;
+      if (method === "card" || method === "bank_transfer" || method === "mobile_money") {
+        setSandboxPaymentMethod(method);
+      }
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to load billing details."));
+      setBillingData(null);
+    } finally {
+      setBillingLoading(false);
+    }
+  }, [canManageBilling]);
+
   useEffect(() => {
     setEmail(user?.email || "");
     setFirstName(user?.first_name || "");
@@ -127,7 +148,7 @@ const UserSettingsPage: React.FC = () => {
 
   useEffect(() => {
     void fetchBillingManagement();
-  }, [canManageBilling, user?.email]);
+  }, [fetchBillingManagement, user?.email]);
 
   const handleRefreshProfile = async () => {
     setRefreshing(true);
@@ -140,27 +161,6 @@ const UserSettingsPage: React.FC = () => {
       toast.error(message);
     } finally {
       setRefreshing(false);
-    }
-  };
-
-  const fetchBillingManagement = async () => {
-    if (!canManageBilling) {
-      setBillingData(null);
-      return;
-    }
-    setBillingLoading(true);
-    try {
-      const response = await billingService.getSubscriptionManagement();
-      setBillingData(response);
-      const method = response.subscription?.payment_method?.type;
-      if (method === "card" || method === "bank_transfer" || method === "mobile_money") {
-        setSandboxPaymentMethod(method);
-      }
-    } catch (error) {
-      toast.error(getErrorMessage(error, "Failed to load billing details."));
-      setBillingData(null);
-    } finally {
-      setBillingLoading(false);
     }
   };
 

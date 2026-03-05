@@ -3,7 +3,6 @@ import type {
   VettingRubric,
   RubricCriteria,
   RubricEvaluation,
-  ApiError,
   CreateRubricData,
   PaginatedResponse,
 } from "@/types";
@@ -13,6 +12,51 @@ const extractResults = <T>(payload: PaginatedResponse<T> | T[]): T[] => {
     return payload;
   }
   return Array.isArray(payload.results) ? payload.results : [];
+};
+
+const toErrorMessage = (error: any, fallback: string): string => {
+  const data = error?.response?.data;
+  if (!data) return fallback;
+
+  if (typeof data === "string" && data.trim()) {
+    return data;
+  }
+
+  if (Array.isArray(data)) {
+    const first = data.find((item) => typeof item === "string" && item.trim());
+    if (first) return first as string;
+  }
+
+  if (typeof data === "object") {
+    if (typeof data.message === "string" && data.message.trim()) {
+      return data.message;
+    }
+    if (typeof data.detail === "string" && data.detail.trim()) {
+      return data.detail;
+    }
+    if (typeof data.error === "string" && data.error.trim()) {
+      return data.error;
+    }
+
+    const fieldMessages: string[] = [];
+    for (const [field, value] of Object.entries(data as Record<string, unknown>)) {
+      if (typeof value === "string" && value.trim()) {
+        fieldMessages.push(`${field}: ${value}`);
+        continue;
+      }
+      if (Array.isArray(value)) {
+        const firstText = value.find((item) => typeof item === "string" && item.trim());
+        if (typeof firstText === "string") {
+          fieldMessages.push(`${field}: ${firstText}`);
+        }
+      }
+    }
+    if (fieldMessages.length > 0) {
+      return fieldMessages.join(" | ");
+    }
+  }
+
+  return fallback;
 };
 
 export const rubricService = {
@@ -34,7 +78,7 @@ export const rubricService = {
       );
       return extractResults(response.data);
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || "Failed to fetch rubrics");
+      throw new Error(toErrorMessage(error, "Failed to fetch rubrics"));
     }
   },
 
@@ -43,7 +87,7 @@ export const rubricService = {
       const response = await api.get<VettingRubric>(`/rubrics/vetting-rubrics/${id}/`);
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || "Failed to fetch rubric");
+      throw new Error(toErrorMessage(error, "Failed to fetch rubric"));
     }
   },
 
@@ -52,7 +96,7 @@ export const rubricService = {
       const response = await api.post<VettingRubric>("/rubrics/vetting-rubrics/", data);
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || "Creation failed");
+      throw new Error(toErrorMessage(error, "Rubric creation failed"));
     }
   },
 
@@ -61,7 +105,7 @@ export const rubricService = {
       const response = await api.patch<VettingRubric>(`/rubrics/vetting-rubrics/${id}/`, data);
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || "Update failed");
+      throw new Error(toErrorMessage(error, "Rubric update failed"));
     }
   },
 
@@ -69,7 +113,7 @@ export const rubricService = {
     try {
       await api.delete(`/rubrics/vetting-rubrics/${id}/`);
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || "Deletion failed");
+      throw new Error(toErrorMessage(error, "Rubric deletion failed"));
     }
   },
 
@@ -78,7 +122,7 @@ export const rubricService = {
       const response = await api.post(`/rubrics/vetting-rubrics/${id}/activate/`);
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || "Activation failed");
+      throw new Error(toErrorMessage(error, "Rubric activation failed"));
     }
   },
 
@@ -87,7 +131,7 @@ export const rubricService = {
       const response = await api.post<VettingRubric>(`/rubrics/vetting-rubrics/${id}/duplicate/`);
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || "Duplication failed");
+      throw new Error(toErrorMessage(error, "Rubric duplication failed"));
     }
   },
 
@@ -99,7 +143,7 @@ export const rubricService = {
       );
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || "Evaluation failed");
+      throw new Error(toErrorMessage(error, "Rubric evaluation failed"));
     }
   },
 
@@ -110,7 +154,7 @@ export const rubricService = {
       );
       return extractResults(response.data);
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || "Templates fetch failed");
+      throw new Error(toErrorMessage(error, "Templates fetch failed"));
     }
   },
 
@@ -122,7 +166,7 @@ export const rubricService = {
       });
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || "Template creation failed");
+      throw new Error(toErrorMessage(error, "Template creation failed"));
     }
   },
 
@@ -134,7 +178,7 @@ export const rubricService = {
       const response = await api.post<RubricCriteria>(`/rubrics/vetting-rubrics/${rubricId}/criteria/`, payload);
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || "Add criteria failed");
+      throw new Error(toErrorMessage(error, "Add criteria failed"));
     }
   },
 
@@ -146,7 +190,7 @@ export const rubricService = {
       );
       return extractResults(response.data);
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || "Criteria list fetch failed");
+      throw new Error(toErrorMessage(error, "Criteria list fetch failed"));
     }
   },
 
@@ -155,7 +199,7 @@ export const rubricService = {
       const response = await api.get<RubricCriteria>(`/rubrics/criteria/${criteriaId}/`);
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || "Criteria detail fetch failed");
+      throw new Error(toErrorMessage(error, "Criteria detail fetch failed"));
     }
   },
 
@@ -164,7 +208,7 @@ export const rubricService = {
       const response = await api.patch<RubricCriteria>(`/rubrics/criteria/${criteriaId}/`, payload);
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || "Update criteria failed");
+      throw new Error(toErrorMessage(error, "Update criteria failed"));
     }
   },
 
@@ -172,7 +216,7 @@ export const rubricService = {
     try {
       await api.delete(`/rubrics/criteria/${criteriaId}/`);
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || "Delete criteria failed");
+      throw new Error(toErrorMessage(error, "Delete criteria failed"));
     }
   },
 
@@ -188,7 +232,7 @@ export const rubricService = {
       );
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || "Evaluate case failed");
+      throw new Error(toErrorMessage(error, "Evaluate case failed"));
     }
   },
 
@@ -200,7 +244,7 @@ export const rubricService = {
       );
       return extractResults(response.data);
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || "Evaluation list fetch failed");
+      throw new Error(toErrorMessage(error, "Evaluation list fetch failed"));
     }
   },
 
@@ -209,7 +253,7 @@ export const rubricService = {
       const response = await api.get<RubricEvaluation>(`/rubrics/evaluations/${evaluationId}/`);
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || "Evaluation detail fetch failed");
+      throw new Error(toErrorMessage(error, "Evaluation detail fetch failed"));
     }
   },
 
@@ -218,7 +262,7 @@ export const rubricService = {
       const response = await api.post<RubricEvaluation>(`/rubrics/evaluations/${evaluationId}/rerun/`, {});
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || "Evaluation rerun failed");
+      throw new Error(toErrorMessage(error, "Evaluation rerun failed"));
     }
   },
 
@@ -237,7 +281,7 @@ export const rubricService = {
       );
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || "Override criterion failed");
+      throw new Error(toErrorMessage(error, "Override criterion failed"));
     }
   },
 };

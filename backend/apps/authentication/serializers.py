@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 # backend/apps/authentication/serializers.py
 from django.contrib.auth import authenticate
 from rest_framework import serializers
@@ -19,7 +23,7 @@ class UserSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at', 'user_type', 'is_active', 'is_staff', 'is_superuser']
 
-    def get_profile(self, obj):
+    def get_profile(self, obj) -> dict[str, Any] | None:
         profile = getattr(obj, "profile", None)
         if profile is None:
             return None
@@ -72,7 +76,7 @@ class AdminUserSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at', 'user_type', 'is_active', 'is_staff', 'is_superuser']
 
-    def get_profile(self, obj):
+    def get_profile(self, obj) -> dict[str, Any] | None:
         profile = getattr(obj, "profile", None)
         if profile is None:
             return None
