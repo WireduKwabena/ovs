@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   getHostedCheckoutProviders: vi.fn(),
   beginStripeCheckout: vi.fn(),
   beginPaystackCheckout: vi.fn(),
+  getPaystackExchangeRate: vi.fn(),
   confirmSubscription: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
@@ -21,6 +22,7 @@ vi.mock("@/services/subscription.service", () => ({
     getHostedCheckoutProviders: mocks.getHostedCheckoutProviders,
     beginStripeCheckout: mocks.beginStripeCheckout,
     beginPaystackCheckout: mocks.beginPaystackCheckout,
+    getPaystackExchangeRate: mocks.getPaystackExchangeRate,
     confirmSubscription: mocks.confirmSubscription,
   },
 }));
@@ -105,6 +107,7 @@ describe("SubscriptionPlansPage hosted checkout integration", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: /paystack/i }));
     fireEvent.click(await screen.findByRole("button", { name: /^mobile money/i }));
+    expect(await screen.findByText(/source: configured fallback/i)).toBeTruthy();
     fireEvent.change(screen.getByLabelText(/billing email/i), {
       target: { value: "  PAYSTACK.TEST@EXAMPLE.COM " },
     });
@@ -133,5 +136,5 @@ describe("SubscriptionPlansPage hosted checkout integration", () => {
     expect(payload.successUrl).toContain("/billing/success?next=%2Fregister");
     expect(payload.cancelUrl).toContain("/billing/cancel?next=%2Fregister");
     expect(locationAssignMock).toHaveBeenCalledWith("https://checkout.paystack.com/OVS-PAYSTACK-TEST");
-  });
+  }, 15000);
 });

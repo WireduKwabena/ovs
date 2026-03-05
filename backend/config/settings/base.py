@@ -292,6 +292,8 @@ SPECTACULAR_SETTINGS = {
         "BackgroundCheckStatusEnum": "apps.background_checks.models.BackgroundCheck.STATUS_CHOICES",
         "BackgroundCheckRiskLevelEnum": "apps.background_checks.models.BackgroundCheck.RISK_LEVEL_CHOICES",
         "FraudRiskLevelEnum": "apps.fraud.models.FraudDetectionResult.RISK_LEVELS",
+        "VideoMeetingEventScopeEnum": "apps.video_calls.models.VideoMeetingEvent.SCOPE_CHOICES",
+        "VideoMeetingSeriesScopeEnum": "apps.video_calls.serializers.VIDEO_MEETING_SERIES_SCOPE_CHOICES",
     },
 }
 
@@ -413,9 +415,10 @@ if USE_S3:
     MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
 
 # Email Configuration
+# Environment-specific settings can override this in development/production modules.
 EMAIL_BACKEND = config(
-    'EMAIL_BACKEND',
-    default='django.core.mail.backends.console.EmailBackend'
+    "EMAIL_BACKEND",
+    default="django.core.mail.backends.smtp.EmailBackend",
 )
 EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
 EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)

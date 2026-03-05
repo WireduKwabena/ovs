@@ -10,6 +10,8 @@ from apps.video_calls.models import VideoMeeting, VideoMeetingEvent, VideoMeetin
 
 User = get_user_model()
 
+VIDEO_MEETING_SERIES_SCOPE_CHOICES = [("future", "Future"), ("all", "All")]
+
 
 class VideoMeetingParticipantSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source="user.email", read_only=True)
@@ -326,7 +328,7 @@ class VideoMeetingSeriesRescheduleSerializer(serializers.Serializer):
     scheduled_start = serializers.DateTimeField()
     scheduled_end = serializers.DateTimeField()
     timezone = serializers.CharField(required=False, allow_blank=True, max_length=64)
-    scope = serializers.ChoiceField(choices=[("future", "Future"), ("all", "All")], default="future")
+    scope = serializers.ChoiceField(choices=VIDEO_MEETING_SERIES_SCOPE_CHOICES, default="future")
 
     def validate(self, attrs):
         if attrs["scheduled_end"] <= attrs["scheduled_start"]:
@@ -340,7 +342,7 @@ class VideoMeetingSeriesRescheduleSerializer(serializers.Serializer):
 
 class VideoMeetingSeriesCancelSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, allow_blank=True, max_length=2000)
-    scope = serializers.ChoiceField(choices=[("future", "Future"), ("all", "All")], default="future")
+    scope = serializers.ChoiceField(choices=VIDEO_MEETING_SERIES_SCOPE_CHOICES, default="future")
 
 
 class VideoMeetingEventSerializer(serializers.ModelSerializer):

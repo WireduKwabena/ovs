@@ -438,6 +438,61 @@ npm run test:ux-guards
 - Integration tests: >60%
 - ML model accuracy: >85%
 
+### Release Gate (CI + Local)
+
+The repository now includes a strict full-stack release gate workflow:
+
+- Workflow file: `.github/workflows/release-gate.yml`
+- Frontend checks:
+  - `npm run lint`
+  - `npm run type-check`
+  - `npm run test`
+  - `npm run build:ci`
+  - `npm run coverage:endpoints -- --strict`
+- Backend checks:
+  - Full Django test suite
+  - `python manage.py check --deploy --settings=config.settings.production`
+  - OpenAPI validation + drift check:
+    - `python manage.py spectacular --file /tmp/openapi.generated.yaml --validate --settings=config.settings.production`
+    - `diff -u backend/openapi.yaml /tmp/openapi.generated.yaml`
+
+Recommended local pre-push gate run:
+
+```bash
+# frontend
+cd frontend
+npm run lint
+npm run type-check
+npm run test
+npm run build:ci
+npm run coverage:endpoints -- --strict
+
+# backend
+cd ../backend
+python manage.py test --keepdb
+python manage.py check --deploy --settings=config.settings.production
+python manage.py spectacular --file openapi.yaml --validate --settings=config.settings.production
+```
+
+### GitHub Actions Artifacts (Release Gate)
+
+When `.github/workflows/release-gate.yml` runs, it uploads artifacts to the workflow run summary:
+
+- `frontend-ci-artifacts-<run_id>`
+  - `dist/` bundle output (when build succeeds)
+- `backend-ci-artifacts-<run_id>`
+  - `backend-tests.log`
+  - `deploy-check.log`
+  - `openapi-check.log`
+  - service logs on failure (`backend-service.log`, `db-service.log`, `redis-service.log`)
+  - `openapi.generated.yaml` (schema generated during CI)
+
+How to access:
+
+1. Open the repository **Actions** tab.
+2. Open a **Release Gate** run.
+3. Download artifacts from the **Artifacts** panel at the bottom of the run page.
+
 ---
 
 ## 📊 Performance Benchmarks
@@ -484,6 +539,12 @@ npm run test:ux-guards
 - **[API Documentation](docs/API.md)**: REST API endpoints (auto-generated)
 - **[User Manual](docs/USER_MANUAL.md)**: How to use the system
 - **[Development Guide](docs/DEVELOPMENT.md)**: Contributing guidelines
+
+User manual export (PDF/DOCX/HTML) via Pandoc:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File docs/scripts/export_user_manual.ps1 -Formats pdf,docx,html
+```
 
 ---
 

@@ -94,6 +94,14 @@ class BillingHealthResponseSerializer(serializers.Serializer):
     subscription_verify_rate_limit = BillingHealthRateLimitSerializer()
 
 
+class BillingExchangeRateResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    base = serializers.CharField()
+    target = serializers.CharField()
+    rate = serializers.FloatField()
+    source = serializers.CharField()
+
+
 class BillingQuotaCandidateSerializer(serializers.Serializer):
     enforced = serializers.BooleanField()
     scope = serializers.CharField()

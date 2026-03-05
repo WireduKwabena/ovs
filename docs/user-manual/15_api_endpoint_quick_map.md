@@ -1,0 +1,203 @@
+# 15) API Endpoint Quick Map
+
+This is a quick operational map of the active backend API groups.  
+Base prefix: `/api/`
+
+## 15.1 System and Core
+
+- `/api/system/health/`
+
+## 15.2 Authentication
+
+- `/api/auth/register/`
+- `/api/auth/login/`
+- `/api/auth/logout/`
+- `/api/auth/admin/login/`
+- `/api/auth/login/verify/`
+- `/api/auth/admin/login/verify/`
+- `/api/auth/change-password/`
+- `/api/auth/password-reset/`
+- `/api/auth/password-reset-confirm/`
+- `/api/auth/profile/`
+- `/api/auth/profile/update/`
+- `/api/auth/2fa/status/`
+- `/api/auth/2fa/backup-codes/regenerate/`
+- `/api/auth/admin/2fa/setup/`
+- `/api/auth/admin/2fa/enable/`
+- `/api/auth/token/refresh/` (optional when enabled)
+
+## 15.3 Campaigns, Candidates, Enrollments, Invitations
+
+- `/api/campaigns/`
+- `/api/campaigns/{id}/`
+- `/api/campaigns/{id}/candidates/import/`
+- `/api/campaigns/{id}/dashboard/`
+- `/api/campaigns/{id}/rubrics/versions/`
+- `/api/campaigns/{id}/rubrics/versions/activate/`
+
+- `/api/candidates/`
+- `/api/candidates/{id}/`
+- `/api/enrollments/`
+- `/api/enrollments/{id}/`
+- `/api/enrollments/{id}/mark-complete/`
+
+- `/api/invitations/`
+- `/api/invitations/{id}/`
+- `/api/invitations/{id}/send/`
+- `/api/invitations/accept/`
+- `/api/invitations/access/consume/`
+- `/api/invitations/access/me/`
+- `/api/invitations/access/results/`
+- `/api/invitations/access/logout/`
+
+- `/api/social-profiles/`
+- `/api/social-profiles/{id}/`
+
+## 15.4 Applications and Documents
+
+- `/api/applications/cases/`
+- `/api/applications/cases/{id}/`
+- `/api/applications/cases/{id}/upload-document/`
+- `/api/applications/cases/{id}/verification-status/`
+- `/api/applications/cases/{id}/recheck-social-profiles/`
+- `/api/applications/documents/`
+- `/api/applications/documents/{id}/`
+
+## 15.5 Interviews and Video Calls
+
+Interviews:
+
+- `/api/interviews/interrogation/start/`
+- `/api/interviews/upload-response/`
+- `/api/interviews/sessions/`
+- `/api/interviews/sessions/{id}/`
+- `/api/interviews/sessions/{id}/start/`
+- `/api/interviews/sessions/{id}/complete/`
+- `/api/interviews/sessions/{id}/avatar-session/`
+- `/api/interviews/sessions/{id}/playback/`
+- `/api/interviews/sessions/{id}/save-exchange/`
+- `/api/interviews/sessions/{id}/update-exchange/`
+- `/api/interviews/sessions/analytics-dashboard/`
+- `/api/interviews/sessions/compare/`
+- `/api/interviews/sessions/generate-flags/`
+- `/api/interviews/questions/`
+- `/api/interviews/questions/{id}/`
+- `/api/interviews/responses/`
+- `/api/interviews/responses/{id}/`
+- `/api/interviews/responses/{id}/analyze/`
+- `/api/interviews/feedback/`
+- `/api/interviews/feedback/{id}/`
+
+Video calls:
+
+- `/api/video-calls/meetings/`
+- `/api/video-calls/meetings/{id}/`
+- `/api/video-calls/meetings/upcoming/`
+- `/api/video-calls/meetings/reminder-health/`
+- `/api/video-calls/meetings/schedule-series/`
+- `/api/video-calls/meetings/{id}/start/`
+- `/api/video-calls/meetings/{id}/complete/`
+- `/api/video-calls/meetings/{id}/cancel/`
+- `/api/video-calls/meetings/{id}/reschedule/`
+- `/api/video-calls/meetings/{id}/extend/`
+- `/api/video-calls/meetings/{id}/leave/`
+- `/api/video-calls/meetings/{id}/join-token/`
+- `/api/video-calls/meetings/{id}/events/`
+- `/api/video-calls/meetings/{id}/calendar-ics/`
+- `/api/video-calls/meetings/{id}/cancel-series/`
+- `/api/video-calls/meetings/{id}/reschedule-series/`
+
+## 15.6 Rubrics and Scoring
+
+- `/api/rubrics/vetting-rubrics/`
+- `/api/rubrics/vetting-rubrics/{id}/`
+- `/api/rubrics/vetting-rubrics/{id}/activate/`
+- `/api/rubrics/vetting-rubrics/{id}/criteria/`
+- `/api/rubrics/vetting-rubrics/{id}/duplicate/`
+- `/api/rubrics/vetting-rubrics/{id}/evaluate-case/`
+- `/api/rubrics/vetting-rubrics/{id}/evaluate_application/`
+- `/api/rubrics/vetting-rubrics/create_from_template/`
+- `/api/rubrics/vetting-rubrics/templates/`
+
+- `/api/rubrics/criteria/`
+- `/api/rubrics/criteria/{id}/`
+- `/api/rubrics/evaluations/`
+- `/api/rubrics/evaluations/{id}/`
+- `/api/rubrics/evaluations/{id}/rerun/`
+- `/api/rubrics/evaluations/{id}/override-criterion/`
+
+## 15.7 Notifications, Audit, Fraud, Monitoring
+
+Notifications:
+
+- `/api/notifications/`
+- `/api/notifications/{id}/`
+- `/api/notifications/{id}/mark_read/`
+- `/api/notifications/{id}/archive/`
+- `/api/notifications/mark-as-read/`
+- `/api/notifications/mark-all-as-read/`
+- `/api/notifications/unread-count/`
+
+Audit:
+
+- `/api/audit/logs/`
+- `/api/audit/logs/{id}/`
+- `/api/audit/logs/by_entity/`
+- `/api/audit/logs/recent_activity/`
+- `/api/audit/logs/statistics/`
+
+Fraud:
+
+- `/api/fraud/results/`
+- `/api/fraud/results/{id}/`
+- `/api/fraud/results/statistics/`
+- `/api/fraud/consistency/`
+- `/api/fraud/consistency/{id}/`
+- `/api/fraud/consistency/history/`
+- `/api/fraud/consistency/statistics/`
+- `/api/fraud/social-profiles/`
+- `/api/fraud/social-profiles/{id}/`
+- `/api/fraud/social-profiles/statistics/`
+
+ML Monitoring:
+
+- `/api/ml-monitoring/`
+- `/api/ml-monitoring/{id}/`
+- `/api/ml-monitoring/latest/`
+- `/api/ml-monitoring/history/`
+- `/api/ml-monitoring/performance-summary/`
+- Legacy alias group: `/api/ml-monitoring/metrics/...`
+
+AI Monitor:
+
+- `/api/ai-monitor/health/`
+- `/api/ai-monitor/classify-document/`
+- `/api/ai-monitor/check-social-profiles/`
+
+## 15.8 Billing and Background Checks
+
+Billing:
+
+- `/api/billing/health/`
+- `/api/billing/exchange-rate/`
+- `/api/billing/quotas/`
+- `/api/billing/subscriptions/manage/`
+- `/api/billing/subscriptions/manage/payment-method/update-session/`
+- `/api/billing/subscriptions/manage/retry/`
+- `/api/billing/subscriptions/confirm/`
+- `/api/billing/subscriptions/access/verify/`
+- `/api/billing/subscriptions/stripe/checkout-session/`
+- `/api/billing/subscriptions/stripe/confirm/`
+- `/api/billing/subscriptions/stripe/webhook/`
+- `/api/billing/subscriptions/paystack/checkout-session/`
+- `/api/billing/subscriptions/paystack/confirm/`
+- `/api/billing/subscriptions/paystack/webhook/`
+
+Background checks:
+
+- `/api/background-checks/checks/`
+- `/api/background-checks/checks/{id}/`
+- `/api/background-checks/checks/{id}/events/`
+- `/api/background-checks/checks/{id}/refresh/`
+- `/api/background-checks/providers/{provider_key}/webhook/`
+

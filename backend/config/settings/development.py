@@ -42,8 +42,8 @@ SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 
-# Use console email backend
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# Always print emails to terminal in development/debug.
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # CORS - allow all origins in development
 CORS_ALLOW_ALL_ORIGINS = True

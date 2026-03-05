@@ -719,6 +719,17 @@ export interface CreateRubricData {
   max_unresolved_flags: number;
   is_active?: boolean;
   is_default?: boolean;
+  criteria?: Array<{
+    name: string;
+    description: string;
+    criteria_type: RubricCriteriaType;
+    scoring_method: RubricScoringMethod;
+    weight: number;
+    minimum_score?: number | null;
+    is_mandatory: boolean;
+    evaluation_guidelines?: string;
+    display_order: number;
+  }>;
 }
 
 // API Response Interfaces

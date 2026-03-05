@@ -324,6 +324,13 @@ export function RubricBuilder() {
       nextErrors.criteria_detail = 'Each criterion needs a name and valid weight/minimum score.';
     }
 
+    const normalizedNames = rubric.criteria
+      .map((criterion) => criterion.name.trim().toLowerCase())
+      .filter((name) => name.length > 0);
+    if (new Set(normalizedNames).size !== normalizedNames.length) {
+      nextErrors.criteria_duplicate = 'Criterion names must be unique within a rubric.';
+    }
+
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   }, [rubric]);
@@ -332,6 +339,7 @@ export function RubricBuilder() {
     if (!validateRubric()) return;
 
     setSaving(true);
+    let newlyCreatedRubricId: string | null = null;
     try {
       const payload: CreateRubricData = {
         name: rubric.name.trim(),
@@ -354,9 +362,27 @@ export function RubricBuilder() {
         is_default: rubric.is_default,
       };
 
-      const savedRubric = rubricId
-        ? await rubricService.update(rubricId, payload)
-        : await rubricService.create(payload);
+      if (!rubricId) {
+        await rubricService.create({
+          ...payload,
+          criteria: rubric.criteria.map((criterion, index) => ({
+            name: criterion.name.trim(),
+            description: criterion.description.trim(),
+            criteria_type: criterion.criteria_type,
+            scoring_method: criterion.scoring_method,
+            weight: criterion.weight,
+            minimum_score: criterion.minimum_score,
+            is_mandatory: criterion.is_mandatory,
+            evaluation_guidelines: criterion.evaluation_guidelines.trim(),
+            display_order: index,
+          })),
+        });
+        toast.success('Rubric saved successfully.');
+        navigate('/rubrics');
+        return;
+      }
+
+      const savedRubric = await rubricService.update(rubricId, payload);
 
       const existingCriteria = rubricId
         ? await rubricService.listCriteria({ rubric: rubricId })
@@ -393,10 +419,18 @@ export function RubricBuilder() {
         }
       }
 
-      toast.success(isEditMode ? 'Rubric updated successfully.' : 'Rubric saved successfully.');
+      toast.success('Rubric updated successfully.');
       navigate('/rubrics');
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to save rubric');
+      const message = error?.message || 'Failed to save rubric';
+      if (newlyCreatedRubricId) {
+        try {
+          await rubricService.delete(newlyCreatedRubricId);
+        } catch {
+          // Keep original error surface; rollback best-effort.
+        }
+      }
+      toast.error(message);
     } finally {
       setSaving(false);
     }

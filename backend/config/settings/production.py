@@ -241,8 +241,8 @@ if background_provider == "http":
             "BACKGROUND_CHECK_HTTP_API_KEY is required for http background check provider."
         )
 
-# Email - use real SMTP
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# Always use SMTP backend in production.
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
 # Logging - log to file and external service
 LOGGING = copy.deepcopy(LOGGING)

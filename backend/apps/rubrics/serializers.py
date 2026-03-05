@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import serializers
 
 from .models import CriteriaOverride, RubricCriteria, RubricEvaluation, VettingRubric
@@ -28,7 +29,7 @@ class RubricCriteriaSerializer(serializers.ModelSerializer):
 
 
 class VettingRubricSerializer(serializers.ModelSerializer):
-    criteria = RubricCriteriaSerializer(many=True, read_only=True)
+    criteria = RubricCriteriaSerializer(many=True, required=False)
     rubric_type_display = serializers.CharField(source="get_rubric_type_display", read_only=True)
     total_weight = serializers.SerializerMethodField(read_only=True)
     status = serializers.SerializerMethodField(read_only=True)
@@ -63,7 +64,43 @@ class VettingRubricSerializer(serializers.ModelSerializer):
             "criteria",
             "total_weight",
         ]
-        read_only_fields = ["id", "created_by", "created_at", "updated_at", "criteria", "total_weight"]
+        read_only_fields = ["id", "created_by", "created_at", "updated_at", "total_weight"]
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        criteria = attrs.get("criteria", [])
+        if criteria:
+            names = [str(item.get("name", "")).strip().lower() for item in criteria]
+            names = [name for name in names if name]
+            if len(names) != len(set(names)):
+                raise serializers.ValidationError(
+                    {"criteria": "Criterion names must be unique within a rubric."}
+                )
+        return attrs
+
+    def create(self, validated_data):
+        criteria_payload = validated_data.pop("criteria", [])
+        with transaction.atomic():
+            rubric = VettingRubric.objects.create(**validated_data)
+            for index, criterion in enumerate(criteria_payload):
+                RubricCriteria.objects.create(
+                    rubric=rubric,
+                    name=criterion.get("name", ""),
+                    description=criterion.get("description", ""),
+                    criteria_type=criterion.get("criteria_type", "custom"),
+                    scoring_method=criterion.get("scoring_method", "ai_score"),
+                    weight=criterion.get("weight", 0),
+                    minimum_score=criterion.get("minimum_score"),
+                    is_mandatory=criterion.get("is_mandatory", False),
+                    evaluation_guidelines=criterion.get("evaluation_guidelines", ""),
+                    display_order=criterion.get("display_order", index),
+                )
+        return rubric
+
+    def update(self, instance, validated_data):
+        # Criteria mutations are handled via dedicated criteria endpoints.
+        validated_data.pop("criteria", None)
+        return super().update(instance, validated_data)
 
     def get_total_weight(self, obj) -> int:
         return (

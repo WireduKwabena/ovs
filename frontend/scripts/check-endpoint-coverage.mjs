@@ -73,7 +73,7 @@ const parseOpenApiPaths = () => {
 
 const parseServiceEndpointsFromSource = (source) => {
   const endpoints = [];
-  const methodPattern = /api\.(?:get|post|put|patch|delete)\b/g;
+  const methodPattern = /(?:api|publicApi)\.(?:get|post|put|patch|delete)\b/g;
   const length = source.length;
 
   const skipWhitespace = (start) => {

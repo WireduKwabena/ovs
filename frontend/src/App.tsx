@@ -10,12 +10,14 @@ import {
 import { Loader } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { Navbar } from "./components/common/Navbar";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { UnauthenticatedRoute } from "./components/auth/UnauthenticatedRoute";
 import { fetchProfile } from "./store/authSlice";
 import { type AppDispatch, type RootState } from "./app/store";
 
+const Navbar = React.lazy(() =>
+  import("./components/common/Navbar").then((module) => ({ default: module.Navbar })),
+);
 const HomePage = React.lazy(() => import("./pages/HomePage"));
 const SubscriptionPlansPage = React.lazy(() => import("./pages/SubscriptionPlansPage"));
 const LoginPage = React.lazy(() => import("./pages/LoginPage"));
@@ -105,7 +107,11 @@ const AppShell: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {isAuthenticated && !hideNavbar && <Navbar />}
+      {isAuthenticated && !hideNavbar ? (
+        <Suspense fallback={<div className="h-16 border-b border-slate-200 bg-slate-50" />}>
+          <Navbar />
+        </Suspense>
+      ) : null}
 
       <Suspense
         fallback={

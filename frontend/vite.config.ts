@@ -67,11 +67,16 @@ export default defineConfig({
           if (
             normalizedId.includes('/node_modules/@reduxjs/toolkit/') ||
             normalizedId.includes('/node_modules/react-redux/') ||
-            normalizedId.includes('/node_modules/redux-persist/') ||
-            normalizedId.includes('/node_modules/@tanstack/react-query/') ||
-            normalizedId.includes('/node_modules/axios/')
+            normalizedId.includes('/node_modules/redux-persist/')
           ) {
             return 'state-data'
+          }
+          if (
+            normalizedId.includes('/node_modules/@tanstack/react-query/') ||
+            normalizedId.includes('/node_modules/@tanstack/query-core/') ||
+            normalizedId.includes('/node_modules/axios/')
+          ) {
+            return 'query-data'
           }
           if (
             normalizedId.includes('/node_modules/@radix-ui/') ||

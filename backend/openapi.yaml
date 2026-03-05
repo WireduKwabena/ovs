@@ -117,7 +117,7 @@ paths:
   /api/ai-monitor/check-social-profiles/:
     post:
       operationId: ai_monitor_check_social_profiles_create
-      description: Run advisory social profile checks for a case. Admin access required.
+      description: Run advisory social profile checks for a case.
       tags:
       - ai-monitor
       requestBody:
@@ -1195,13 +1195,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProfileUpdateRequest'
+              $ref: '#/components/schemas/ProfileUpdate'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/ProfileUpdateRequest'
+              $ref: '#/components/schemas/ProfileUpdate'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ProfileUpdateRequest'
+              $ref: '#/components/schemas/ProfileUpdate'
       security:
       - jwtAuth: []
       - cookieAuth: []
@@ -1229,13 +1229,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedProfileUpdateRequest'
+              $ref: '#/components/schemas/PatchedProfileUpdate'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedProfileUpdateRequest'
+              $ref: '#/components/schemas/PatchedProfileUpdate'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedProfileUpdateRequest'
+              $ref: '#/components/schemas/PatchedProfileUpdate'
       security:
       - jwtAuth: []
       - cookieAuth: []
@@ -1569,6 +1569,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProviderWebhook'
           description: ''
+  /api/billing/exchange-rate/:
+    get:
+      operationId: billing_exchange_rate_retrieve
+      tags:
+      - billing
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingExchangeRateResponse'
+          description: ''
   /api/billing/health/:
     get:
       operationId: billing_health_retrieve
@@ -1590,6 +1604,27 @@ paths:
                 $ref: '#/components/schemas/BillingActionError'
           description: ''
         '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingActionError'
+          description: ''
+  /api/billing/quotas/:
+    get:
+      operationId: billing_quotas_retrieve
+      tags:
+      - billing
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingQuotaResponse'
+          description: ''
+        '401':
           content:
             application/json:
               schema:
@@ -1650,6 +1685,220 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SubscriptionConfirm'
+          description: ''
+  /api/billing/subscriptions/manage/:
+    get:
+      operationId: billing_subscriptions_manage_retrieve
+      tags:
+      - billing
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingSubscriptionManageResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingActionError'
+          description: ''
+    patch:
+      operationId: billing_subscriptions_manage_partial_update
+      tags:
+      - billing
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedBillingPaymentMethodUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedBillingPaymentMethodUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedBillingPaymentMethodUpdate'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingSubscriptionManageResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingActionError'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingActionError'
+          description: ''
+    delete:
+      operationId: billing_subscriptions_manage_destroy
+      tags:
+      - billing
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingSubscriptionManageResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingActionError'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingActionError'
+          description: ''
+  /api/billing/subscriptions/manage/payment-method/update-session/:
+    post:
+      operationId: billing_subscriptions_manage_payment_method_update_session_create
+      tags:
+      - billing
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingPortalSessionResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingActionError'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingActionError'
+          description: ''
+  /api/billing/subscriptions/manage/retry/:
+    post:
+      operationId: billing_subscriptions_manage_retry_create
+      tags:
+      - billing
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingSubscriptionRetryResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingActionError'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingActionError'
+          description: ''
+  /api/billing/subscriptions/paystack/checkout-session/:
+    post:
+      operationId: billing_subscriptions_paystack_checkout_session_create
+      tags:
+      - billing
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaystackCheckoutSessionCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PaystackCheckoutSessionCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PaystackCheckoutSessionCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaystackCheckoutSessionCreate'
+          description: ''
+  /api/billing/subscriptions/paystack/confirm/:
+    post:
+      operationId: billing_subscriptions_paystack_confirm_create
+      tags:
+      - billing
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaystackCheckoutSessionConfirm'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PaystackCheckoutSessionConfirm'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PaystackCheckoutSessionConfirm'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaystackCheckoutSessionConfirm'
+          description: ''
+  /api/billing/subscriptions/paystack/webhook/:
+    post:
+      operationId: billing_subscriptions_paystack_webhook_create
+      tags:
+      - billing
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingWebhookResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingActionError'
           description: ''
   /api/billing/subscriptions/stripe/checkout-session/:
     post:
@@ -1954,8 +2203,65 @@ paths:
                 $ref: '#/components/schemas/VettingCampaign'
           description: ''
   /api/campaigns/{id}/rubrics/versions/:
+    get:
+      operationId: campaigns_rubrics_versions_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this vetting campaign.
+        required: true
+      tags:
+      - campaigns
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingCampaign'
+          description: ''
     post:
       operationId: campaigns_rubrics_versions_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this vetting campaign.
+        required: true
+      tags:
+      - campaigns
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VettingCampaign'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VettingCampaign'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VettingCampaign'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VettingCampaign'
+          description: ''
+  /api/campaigns/{id}/rubrics/versions/activate/:
+    post:
+      operationId: campaigns_rubrics_versions_activate_create
       parameters:
       - in: path
         name: id
@@ -5386,6 +5692,21 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/system/health/:
+    get:
+      operationId: system_health_retrieve
+      description: Lightweight runtime health endpoint for platform dependencies.
+      tags:
+      - system
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemHealthResponse'
+          description: ''
   /api/video-calls/meetings/:
     get:
       operationId: video_calls_meetings_list
@@ -5920,6 +6241,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/VideoMeeting'
           description: ''
+  /api/video-calls/meetings/reminder-health/:
+    get:
+      operationId: video_calls_meetings_reminder_health_retrieve
+      tags:
+      - video-calls
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoMeeting'
+          description: ''
   /api/video-calls/meetings/schedule-series/:
     post:
       operationId: video_calls_meetings_schedule_series_create
@@ -6164,25 +6500,69 @@ components:
           format: email
           title: Email address
           maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        full_name:
+          type: string
+          readOnly: true
+        phone_number:
+          type: string
+          pattern: ^\+?1?\d{9,15}$
+          maxLength: 20
+        organization:
+          type: string
+          maxLength: 200
+        department:
+          type: string
+          maxLength: 100
         user_type:
-          $ref: '#/components/schemas/UserTypeEnum'
+          allOf:
+          - $ref: '#/components/schemas/UserTypeEnum'
+          readOnly: true
         role_display:
           type: string
           readOnly: true
         is_active:
           type: boolean
+          readOnly: true
           title: Active
           description: Designates whether this user should be treated as active. Unselect
             this instead of deleting accounts.
+        is_staff:
+          type: boolean
+          readOnly: true
+          title: Staff status
+          description: Designates whether the user can log into this admin site.
+        is_superuser:
+          type: boolean
+          readOnly: true
+          title: Superuser status
+          description: Designates that this user has all permissions without explicitly
+            assigning them.
         created_at:
           type: string
           format: date-time
           readOnly: true
+        profile:
+          type: object
+          additionalProperties: {}
+          nullable: true
+          readOnly: true
       required:
       - created_at
       - email
+      - full_name
       - id
+      - is_active
+      - is_staff
+      - is_superuser
+      - profile
       - role_display
+      - user_type
     AdminUsersResponse:
       type: object
       properties:
@@ -6463,6 +6843,26 @@ components:
       description: |-
         * `monthly` - monthly
         * `annual` - annual
+    BillingExchangeRateResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        base:
+          type: string
+        target:
+          type: string
+        rate:
+          type: number
+          format: double
+        source:
+          type: string
+      required:
+      - base
+      - rate
+      - source
+      - status
+      - target
     BillingHealthAccess:
       type: object
       properties:
@@ -6473,6 +6873,36 @@ components:
       required:
       - requester_is_staff
       - staff_required
+    BillingHealthExchangeRate:
+      type: object
+      properties:
+        api_url_configured:
+          type: boolean
+        fallback_rate:
+          type: number
+          format: double
+        timeout_seconds:
+          type: integer
+        cache_ttl_seconds:
+          type: integer
+      required:
+      - api_url_configured
+      - cache_ttl_seconds
+      - fallback_rate
+      - timeout_seconds
+    BillingHealthPaystack:
+      type: object
+      properties:
+        secret_key_configured:
+          type: boolean
+        base_url:
+          type: string
+        currency:
+          type: string
+      required:
+      - base_url
+      - currency
+      - secret_key_configured
     BillingHealthRateLimit:
       type: object
       properties:
@@ -6492,10 +6922,16 @@ components:
           $ref: '#/components/schemas/BillingHealthAccess'
         stripe:
           $ref: '#/components/schemas/BillingHealthStripe'
+        paystack:
+          $ref: '#/components/schemas/BillingHealthPaystack'
+        exchange_rate:
+          $ref: '#/components/schemas/BillingHealthExchangeRate'
         subscription_verify_rate_limit:
           $ref: '#/components/schemas/BillingHealthRateLimit'
       required:
       - access
+      - exchange_rate
+      - paystack
       - status
       - stripe
       - subscription_verify_rate_limit
@@ -6512,6 +6948,208 @@ components:
       - sdk_installed
       - secret_key_configured
       - webhook_secret_configured
+    BillingManagedSubscription:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        provider:
+          type: string
+        status:
+          type: string
+        payment_status:
+          type: string
+        plan_id:
+          type: string
+        plan_name:
+          type: string
+        billing_cycle:
+          type: string
+        amount_usd:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        payment_method:
+          $ref: '#/components/schemas/BillingPaymentMethodSummary'
+        checkout_url:
+          type: string
+          nullable: true
+        current_period_start:
+          type: string
+          format: date-time
+          nullable: true
+        current_period_end:
+          type: string
+          format: date-time
+          nullable: true
+        cancel_at_period_end:
+          type: boolean
+        cancellation_requested_at:
+          type: string
+          format: date-time
+          nullable: true
+        cancellation_effective_at:
+          type: string
+          format: date-time
+          nullable: true
+        can_update_payment_method:
+          type: boolean
+        can_delete_payment_method:
+          type: boolean
+        retry_available:
+          type: boolean
+        retry_reason:
+          type: string
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+      required:
+      - amount_usd
+      - billing_cycle
+      - can_delete_payment_method
+      - can_update_payment_method
+      - cancel_at_period_end
+      - cancellation_effective_at
+      - cancellation_requested_at
+      - checkout_url
+      - current_period_end
+      - current_period_start
+      - id
+      - payment_method
+      - payment_status
+      - plan_id
+      - plan_name
+      - provider
+      - retry_available
+      - retry_reason
+      - status
+      - updated_at
+    BillingPaymentMethodSummary:
+      type: object
+      properties:
+        type:
+          type: string
+          nullable: true
+        display:
+          type: string
+          nullable: true
+        brand:
+          type: string
+          nullable: true
+        last4:
+          type: string
+          nullable: true
+        exp_month:
+          type: integer
+          nullable: true
+        exp_year:
+          type: integer
+          nullable: true
+      required:
+      - brand
+      - display
+      - exp_month
+      - exp_year
+      - last4
+      - type
+    BillingPortalSessionResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        provider:
+          type: string
+        url:
+          type: string
+          format: uri
+      required:
+      - provider
+      - status
+      - url
+    BillingQuotaCandidate:
+      type: object
+      properties:
+        enforced:
+          type: boolean
+        scope:
+          type: string
+        reason:
+          type: string
+          nullable: true
+        plan_id:
+          type: string
+          nullable: true
+        plan_name:
+          type: string
+          nullable: true
+        limit:
+          type: integer
+          nullable: true
+        used:
+          type: integer
+        remaining:
+          type: integer
+          nullable: true
+        period_start:
+          type: string
+          format: date-time
+        period_end:
+          type: string
+          format: date-time
+      required:
+      - enforced
+      - limit
+      - period_end
+      - period_start
+      - plan_id
+      - plan_name
+      - reason
+      - remaining
+      - scope
+      - used
+    BillingQuotaResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        candidate:
+          $ref: '#/components/schemas/BillingQuotaCandidate'
+      required:
+      - candidate
+      - status
+    BillingSubscriptionManageResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        message:
+          type: string
+        subscription:
+          allOf:
+          - $ref: '#/components/schemas/BillingManagedSubscription'
+          nullable: true
+      required:
+      - status
+      - subscription
+    BillingSubscriptionRetryResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        provider:
+          type: string
+        message:
+          type: string
+        session_id:
+          type: string
+        checkout_url:
+          type: string
+          format: uri
+      required:
+      - provider
+      - status
     BillingWebhookResponse:
       type: object
       properties:
@@ -8532,33 +9170,6 @@ components:
           format: email
       required:
       - email
-    PatchedAdminUser:
-      type: object
-      description: Serializer for admin users
-      properties:
-        id:
-          type: string
-          format: uuid
-          readOnly: true
-        email:
-          type: string
-          format: email
-          title: Email address
-          maxLength: 254
-        user_type:
-          $ref: '#/components/schemas/UserTypeEnum'
-        role_display:
-          type: string
-          readOnly: true
-        is_active:
-          type: boolean
-          title: Active
-          description: Designates whether this user should be treated as active. Unselect
-            this instead of deleting accounts.
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
     PatchedAdminUserUpdateRequest:
       type: object
       properties:
@@ -8661,6 +9272,11 @@ components:
           type: string
           format: date-time
           readOnly: true
+    PatchedBillingPaymentMethodUpdate:
+      type: object
+      properties:
+        payment_method:
+          $ref: '#/components/schemas/PaymentMethodEnum'
     PatchedCandidate:
       type: object
       properties:
@@ -9150,10 +9766,59 @@ components:
         accept_url:
           type: string
           readOnly: true
-    PatchedProfileUpdateRequest:
-      oneOf:
-      - $ref: '#/components/schemas/PatchedUser'
-      - $ref: '#/components/schemas/PatchedAdminUser'
+    PatchedProfileUpdate:
+      type: object
+      description: Serializer for user + extended profile update payload.
+      properties:
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        phone_number:
+          type: string
+          maxLength: 20
+        organization:
+          type: string
+          maxLength: 200
+        department:
+          type: string
+          maxLength: 100
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        nationality:
+          type: string
+          maxLength: 100
+        address:
+          type: string
+        city:
+          type: string
+          maxLength: 100
+        country:
+          type: string
+          maxLength: 100
+        postal_code:
+          type: string
+          maxLength: 20
+        current_job_title:
+          type: string
+          maxLength: 200
+        years_of_experience:
+          type: integer
+          minimum: 0
+          nullable: true
+        linkedin_url:
+          type: string
+          format: uri
+        bio:
+          type: string
+          maxLength: 500
     PatchedRubricCriteria:
       type: object
       properties:
@@ -9200,37 +9865,6 @@ components:
           type: integer
           maximum: 2147483647
           minimum: -2147483648
-    PatchedUser:
-      type: object
-      description: Serializer for regular users (applicants)
-      properties:
-        id:
-          type: string
-          format: uuid
-          readOnly: true
-        email:
-          type: string
-          format: email
-          title: Email address
-          maxLength: 254
-        full_name:
-          type: string
-          readOnly: true
-        phone_number:
-          type: string
-          pattern: ^\+?1?\d{9,15}$
-          maxLength: 20
-        user_type:
-          $ref: '#/components/schemas/UserTypeEnum'
-        is_active:
-          type: boolean
-          title: Active
-          description: Designates whether this user should be treated as active. Unselect
-            this instead of deleting accounts.
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
     PatchedVettingCampaign:
       type: object
       properties:
@@ -9575,7 +10209,51 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+        reminder_before_failure_count:
+          type: integer
+          readOnly: true
+        reminder_before_last_failure_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reminder_before_next_retry_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
         reminder_start_sent_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reminder_start_failure_count:
+          type: integer
+          readOnly: true
+        reminder_start_last_failure_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reminder_start_next_retry_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reminder_time_up_sent_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reminder_time_up_failure_count:
+          type: integer
+          readOnly: true
+        reminder_time_up_last_failure_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reminder_time_up_next_retry_at:
           type: string
           format: date-time
           readOnly: true
@@ -9615,6 +10293,47 @@ components:
         * `card` - card
         * `bank_transfer` - bank_transfer
         * `mobile_money` - mobile_money
+    PaystackCheckoutSessionConfirm:
+      type: object
+      properties:
+        reference:
+          type: string
+          maxLength: 255
+      required:
+      - reference
+    PaystackCheckoutSessionCreate:
+      type: object
+      properties:
+        plan_id:
+          type: string
+          maxLength: 64
+        plan_name:
+          type: string
+          maxLength: 128
+        billing_cycle:
+          $ref: '#/components/schemas/BillingCycleEnum'
+        payment_method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          default: card
+        amount_usd:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        success_url:
+          type: string
+          format: uri
+        cancel_url:
+          type: string
+          format: uri
+        customer_email:
+          type: string
+          format: email
+      required:
+      - amount_usd
+      - billing_cycle
+      - plan_id
+      - plan_name
     PlatformEnum:
       enum:
       - linkedin
@@ -9644,10 +10363,59 @@ components:
       required:
       - user
       - user_type
-    ProfileUpdateRequest:
-      oneOf:
-      - $ref: '#/components/schemas/User'
-      - $ref: '#/components/schemas/AdminUser'
+    ProfileUpdate:
+      type: object
+      description: Serializer for user + extended profile update payload.
+      properties:
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        phone_number:
+          type: string
+          maxLength: 20
+        organization:
+          type: string
+          maxLength: 200
+        department:
+          type: string
+          maxLength: 100
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        nationality:
+          type: string
+          maxLength: 100
+        address:
+          type: string
+        city:
+          type: string
+          maxLength: 100
+        country:
+          type: string
+          maxLength: 100
+        postal_code:
+          type: string
+          maxLength: 20
+        current_job_title:
+          type: string
+          maxLength: 200
+        years_of_experience:
+          type: integer
+          minimum: 0
+          nullable: true
+        linkedin_url:
+          type: string
+          format: uri
+        bio:
+          type: string
+          maxLength: 500
     ProfileUpdateResponse:
       oneOf:
       - $ref: '#/components/schemas/User'
@@ -9968,14 +10736,6 @@ components:
         * `executive` - Executive Level
         * `sensitive` - High-Security Position
         * `custom` - Custom
-    Scope482Enum:
-      enum:
-      - future
-      - all
-      type: string
-      description: |-
-        * `future` - Future
-        * `all` - All
     ScoringMethodEnum:
       enum:
       - ai_score
@@ -10133,6 +10893,53 @@ components:
       - payment_method
       - plan_id
       - plan_name
+    SystemHealthCheck:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          nullable: true
+        configured:
+          type: boolean
+        error:
+          type: string
+      required:
+      - ok
+    SystemHealthChecks:
+      type: object
+      properties:
+        database:
+          $ref: '#/components/schemas/SystemHealthCheck'
+        redis:
+          $ref: '#/components/schemas/SystemHealthCheck'
+        celery_broker:
+          $ref: '#/components/schemas/SystemHealthCheck'
+      required:
+      - celery_broker
+      - database
+      - redis
+    SystemHealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        strict_runtime_checks:
+          type: boolean
+        checks:
+          $ref: '#/components/schemas/SystemHealthChecks'
+        failures:
+          type: array
+          items:
+            type: string
+      required:
+      - checks
+      - failures
+      - status
+      - strict_runtime_checks
+      - timestamp
     TokenPair:
       type: object
       properties:
@@ -10257,6 +11064,12 @@ components:
           format: email
           title: Email address
           maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
         full_name:
           type: string
           readOnly: true
@@ -10264,22 +11077,52 @@ components:
           type: string
           pattern: ^\+?1?\d{9,15}$
           maxLength: 20
+        organization:
+          type: string
+          maxLength: 200
+        department:
+          type: string
+          maxLength: 100
         user_type:
-          $ref: '#/components/schemas/UserTypeEnum'
+          allOf:
+          - $ref: '#/components/schemas/UserTypeEnum'
+          readOnly: true
         is_active:
           type: boolean
+          readOnly: true
           title: Active
           description: Designates whether this user should be treated as active. Unselect
             this instead of deleting accounts.
+        is_staff:
+          type: boolean
+          readOnly: true
+          title: Staff status
+          description: Designates whether the user can log into this admin site.
+        is_superuser:
+          type: boolean
+          readOnly: true
+          title: Superuser status
+          description: Designates that this user has all permissions without explicitly
+            assigning them.
         created_at:
           type: string
           format: date-time
+          readOnly: true
+        profile:
+          type: object
+          additionalProperties: {}
+          nullable: true
           readOnly: true
       required:
       - created_at
       - email
       - full_name
       - id
+      - is_active
+      - is_staff
+      - is_superuser
+      - profile
+      - user_type
     UserAuthResponse:
       type: object
       properties:
@@ -10984,7 +11827,51 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+        reminder_before_failure_count:
+          type: integer
+          readOnly: true
+        reminder_before_last_failure_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reminder_before_next_retry_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
         reminder_start_sent_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reminder_start_failure_count:
+          type: integer
+          readOnly: true
+        reminder_start_last_failure_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reminder_start_next_retry_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reminder_time_up_sent_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reminder_time_up_failure_count:
+          type: integer
+          readOnly: true
+        reminder_time_up_last_failure_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reminder_time_up_next_retry_at:
           type: string
           format: date-time
           readOnly: true
@@ -11022,8 +11909,18 @@ components:
       - organizer_email
       - organizer_name
       - participants
+      - reminder_before_failure_count
+      - reminder_before_last_failure_at
+      - reminder_before_next_retry_at
       - reminder_before_sent_at
+      - reminder_start_failure_count
+      - reminder_start_last_failure_at
+      - reminder_start_next_retry_at
       - reminder_start_sent_at
+      - reminder_time_up_failure_count
+      - reminder_time_up_last_failure_at
+      - reminder_time_up_next_retry_at
+      - reminder_time_up_sent_at
       - scheduled_end
       - scheduled_start
       - series_id
@@ -11183,7 +12080,7 @@ components:
           maxLength: 2000
         scope:
           allOf:
-          - $ref: '#/components/schemas/Scope482Enum'
+          - $ref: '#/components/schemas/VideoMeetingSeriesScopeEnum'
           default: future
     VideoMeetingSeriesRequest:
       type: object
@@ -11255,7 +12152,7 @@ components:
           maxLength: 64
         scope:
           allOf:
-          - $ref: '#/components/schemas/Scope482Enum'
+          - $ref: '#/components/schemas/VideoMeetingSeriesScopeEnum'
           default: future
       required:
       - scheduled_end
@@ -11272,6 +12169,14 @@ components:
       required:
       - count
       - results
+    VideoMeetingSeriesScopeEnum:
+      enum:
+      - future
+      - all
+      type: string
+      description: |-
+        * `future` - Future
+        * `all` - All
     VideoMeetingStatusEnum:
       enum:
       - scheduled

@@ -10,6 +10,17 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .serializers import SystemHealthResponseSerializer
+
+try:
+    from drf_spectacular.utils import extend_schema
+except ModuleNotFoundError:  # pragma: no cover - optional in lightweight envs
+    def extend_schema(*args, **kwargs):
+        def decorator(func):
+            return func
+
+        return decorator
+
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -57,6 +68,10 @@ class SystemHealthAPIView(APIView):
     permission_classes = [AllowAny]
     authentication_classes: list[type] = []
 
+    @extend_schema(
+        responses=SystemHealthResponseSerializer,
+        tags=["system"],
+    )
     def get(self, request, *args, **kwargs):
         strict_runtime_checks = not bool(getattr(settings, "DEBUG", False))
 

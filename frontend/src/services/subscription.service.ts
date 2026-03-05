@@ -42,6 +42,14 @@ export interface VerifySubscriptionAccessResult {
   registrationConsumedAt?: number | null;
 }
 
+export interface PaystackExchangeRateResult {
+  status: "ok" | string;
+  base: string;
+  target: string;
+  rate: number;
+  source: string;
+}
+
 interface ApiConfirmSubscriptionRequest {
   plan_id: string;
   plan_name: string;
@@ -361,6 +369,11 @@ const verifySubscriptionAccess = async (
   return response.data;
 };
 
+const getPaystackExchangeRate = async (): Promise<PaystackExchangeRateResult> => {
+  const response = await publicApi.get<PaystackExchangeRateResult>("/billing/exchange-rate/");
+  return response.data;
+};
+
 export const subscriptionService = {
   getCheckoutMode(): CheckoutMode {
     return CHECKOUT_MODE;
@@ -390,6 +403,10 @@ export const subscriptionService = {
 
   async verifySubscriptionAccess(reference: string): Promise<VerifySubscriptionAccessResult> {
     return verifySubscriptionAccess(reference);
+  },
+
+  async getPaystackExchangeRate(): Promise<PaystackExchangeRateResult> {
+    return getPaystackExchangeRate();
   },
 
   async confirmSubscription(input: ConfirmSubscriptionInput): Promise<ConfirmSubscriptionResult> {
