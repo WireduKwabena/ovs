@@ -100,7 +100,7 @@ export const rubricService = {
     }
   },
 
-  async update(id: string, data: Partial<VettingRubric>): Promise<VettingRubric> {
+  async update(id: string, data: Partial<CreateRubricData>): Promise<VettingRubric> {
     try {
       const response = await api.patch<VettingRubric>(`/rubrics/vetting-rubrics/${id}/`, data);
       return response.data;

@@ -26,6 +26,9 @@ class RubricCriteriaSerializer(serializers.ModelSerializer):
             "display_order",
         ]
         read_only_fields = ["id"]
+        extra_kwargs = {
+            "rubric": {"required": False},
+        }
 
 
 class VettingRubricSerializer(serializers.ModelSerializer):
