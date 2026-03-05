@@ -339,7 +339,6 @@ export function RubricBuilder() {
     if (!validateRubric()) return;
 
     setSaving(true);
-    let newlyCreatedRubricId: string | null = null;
     try {
       const payload: CreateRubricData = {
         name: rubric.name.trim(),
@@ -423,18 +422,11 @@ export function RubricBuilder() {
       navigate('/rubrics');
     } catch (error: any) {
       const message = error?.message || 'Failed to save rubric';
-      if (newlyCreatedRubricId) {
-        try {
-          await rubricService.delete(newlyCreatedRubricId);
-        } catch {
-          // Keep original error surface; rollback best-effort.
-        }
-      }
       toast.error(message);
     } finally {
       setSaving(false);
     }
-  }, [rubric, validateRubric, navigate, rubricId, isEditMode]);
+  }, [rubric, validateRubric, navigate, rubricId]);
 
   const weightValid =
     rubric.document_authenticity_weight +
