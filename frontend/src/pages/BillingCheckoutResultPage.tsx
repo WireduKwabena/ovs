@@ -54,14 +54,36 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
 
 type ConfirmationStatus = "idle" | "processing" | "success" | "error";
 
-// Prevent duplicate confirmation requests in React StrictMode double-effect runs.
-const inFlightConfirmationAttempts = new Set<string>();
-
 const normalizeNextPath = (value: string | null, fallback: string): string => {
   if (!value) return fallback;
   if (!value.startsWith("/") || value.startsWith("//")) return fallback;
   if (value.startsWith("/billing/")) return fallback;
   return value;
+};
+
+const getCheckoutResumeUrl = (error: unknown): string | null => {
+  if (!error || typeof error !== "object") return null;
+
+  const candidate = error as { response?: { data?: unknown } };
+  const responseData = candidate.response?.data;
+  if (!responseData || typeof responseData !== "object" || Array.isArray(responseData)) {
+    return null;
+  }
+
+  const value = (responseData as { checkout_url?: unknown }).checkout_url;
+  if (typeof value !== "string") return null;
+  const url = value.trim();
+  if (!url) return null;
+
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+    return url;
+  } catch {
+    return null;
+  }
 };
 
 const BillingCheckoutResultPage: React.FC = () => {
@@ -84,6 +106,7 @@ const BillingCheckoutResultPage: React.FC = () => {
 
   const [status, setStatus] = useState<ConfirmationStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [resumeCheckoutUrl, setResumeCheckoutUrl] = useState<string | null>(null);
   const [retryCycle, setRetryCycle] = useState(0);
 
   const normalizedPath = location.pathname.replace(/\/+$/, "") || "/";
@@ -93,6 +116,7 @@ const BillingCheckoutResultPage: React.FC = () => {
   const confirmHostedCheckout = useCallback(async (provider: "stripe" | "paystack", identifier: string) => {
     setStatus("processing");
     setErrorMessage(null);
+    setResumeCheckoutUrl(null);
 
     try {
       if (provider === "stripe") {
@@ -111,6 +135,7 @@ const BillingCheckoutResultPage: React.FC = () => {
           ? "Unable to confirm Stripe checkout session."
           : "Unable to confirm Paystack checkout session.",
       );
+      setResumeCheckoutUrl(getCheckoutResumeUrl(error));
       setErrorMessage(message);
       setStatus("error");
       toast.error(message, { toastId: "billing-checkout-error" });
@@ -120,22 +145,16 @@ const BillingCheckoutResultPage: React.FC = () => {
   useEffect(() => {
     if (!isSuccessRoute) return undefined;
     if (!checkoutProvider || !checkoutIdentifier) return undefined;
-    const attemptKey = `${checkoutProvider}:${checkoutIdentifier}:${retryCycle}`;
-    if (inFlightConfirmationAttempts.has(attemptKey)) return undefined;
 
     let isActive = true;
-    inFlightConfirmationAttempts.add(attemptKey);
-    queueMicrotask(() => {
-      if (!isActive) {
-        inFlightConfirmationAttempts.delete(attemptKey);
-        return;
-      }
-      void confirmHostedCheckout(checkoutProvider, checkoutIdentifier).finally(() => {
-        inFlightConfirmationAttempts.delete(attemptKey);
-      });
-    });
+    const timerId = window.setTimeout(() => {
+      if (!isActive) return;
+      void confirmHostedCheckout(checkoutProvider, checkoutIdentifier);
+    }, 0);
+
     return () => {
       isActive = false;
+      window.clearTimeout(timerId);
     };
   }, [checkoutIdentifier, checkoutProvider, confirmHostedCheckout, isSuccessRoute, retryCycle]);
 
@@ -186,6 +205,14 @@ const BillingCheckoutResultPage: React.FC = () => {
               : errorMessage || "Unable to confirm payment at the moment."}
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            {resumeCheckoutUrl ? (
+              <a
+                href={resumeCheckoutUrl}
+                className="rounded-lg border border-cyan-600 px-4 py-2 text-sm font-semibold text-cyan-700 hover:bg-cyan-50"
+              >
+                Resume Checkout
+              </a>
+            ) : null}
             {!hasMissingSession ? (
               <button
                 type="button"

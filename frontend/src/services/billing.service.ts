@@ -18,6 +18,12 @@ export interface BillingHealthResponse {
     base_url: string;
     currency: string;
   };
+  exchange_rate?: {
+    api_url_configured: boolean;
+    fallback_rate: number;
+    timeout_seconds: number;
+    cache_ttl_seconds: number;
+  };
   subscription_verify_rate_limit: {
     enabled: boolean;
     per_minute: number;

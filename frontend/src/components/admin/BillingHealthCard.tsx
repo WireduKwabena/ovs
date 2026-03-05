@@ -201,6 +201,18 @@ export const BillingHealthCard: React.FC<BillingHealthCardProps> = ({ onStatusCh
                 </span>
               </div>
               <div className='flex items-center justify-between'>
+                <span className='text-slate-800'>Live FX API</span>
+                <span className={badgeClass(Boolean(health.exchange_rate?.api_url_configured))}>
+                  {health.exchange_rate?.api_url_configured ? 'Enabled' : 'Fallback only'}
+                </span>
+              </div>
+              {health.exchange_rate ? (
+                <p className='text-xs text-slate-800'>
+                  Fallback rate: {health.exchange_rate.fallback_rate}. Timeout: {health.exchange_rate.timeout_seconds}s.
+                  Cache TTL: {health.exchange_rate.cache_ttl_seconds}s.
+                </p>
+              ) : null}
+              <div className='flex items-center justify-between'>
                 <span className='text-slate-800'>Verify Rate Limit</span>
                 <span className={badgeClass(health.subscription_verify_rate_limit.enabled)}>
                   {health.subscription_verify_rate_limit.enabled ? 'Enabled' : 'Disabled'}

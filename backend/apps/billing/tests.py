@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 import hashlib
 import hmac
 import json
@@ -173,6 +173,56 @@ class BillingApiTests(APITestCase):
             1,
         )
 
+    @override_settings(
+        PAYSTACK_SECRET_KEY="sk_test_paystack",
+        PAYSTACK_CURRENCY="GHS",
+        PAYSTACK_USD_EXCHANGE_RATE=15.0,
+        EXCHANGE_RATE_API_URL="",
+    )
+    @patch("apps.billing.views._paystack_initialize_transaction")
+    def test_billing_retry_paystack_preserves_payment_method_and_converts_amount(self, mock_initialize):
+        mock_initialize.return_value = {
+            "authorization_url": "https://checkout.paystack.com/retry_mobile_money_123",
+            "access_code": "psk_retry_mobile_money_123",
+            "reference": "OVS-PAYSTACK-RETRY-TEST-123",
+        }
+
+        hr_user = self._create_hr_user(email="billing-retry-paystack@example.com")
+        BillingSubscription.objects.create(
+            provider="paystack",
+            status="failed",
+            payment_status="unpaid",
+            session_id="OVS-PAYSTACK-RETRY-FAILED-001",
+            plan_id="growth",
+            plan_name="Growth",
+            billing_cycle="monthly",
+            payment_method="mobile_money",
+            amount_usd="399.00",
+            reference="OVS-PAYSTACK-RETRY-FAILED-001",
+            registration_consumed_by_email=hr_user.email,
+        )
+
+        self.client.force_authenticate(user=hr_user)
+        response = self.client.post(self.billing_retry_endpoint, {}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["provider"], "paystack")
+        self.assertEqual(response.data["session_id"], "OVS-PAYSTACK-RETRY-TEST-123")
+        self.assertIn("checkout_url", response.data)
+        mock_initialize.assert_called_once()
+
+        initialize_payload = mock_initialize.call_args.args[0]
+        self.assertEqual(initialize_payload["currency"], "GHS")
+        self.assertEqual(initialize_payload["amount"], 598500)
+        self.assertEqual(initialize_payload["channels"], ["mobile_money"])
+        self.assertEqual(initialize_payload["metadata"]["payment_method"], "mobile_money")
+
+        persisted = BillingSubscription.objects.get(provider="paystack", session_id="OVS-PAYSTACK-RETRY-TEST-123")
+        self.assertEqual(persisted.status, "open")
+        self.assertEqual(persisted.payment_status, "pending")
+        self.assertEqual(persisted.payment_method, "mobile_money")
+        self.assertEqual(float(persisted.amount_usd), 399.0)
+
     @override_settings(STRIPE_SECRET_KEY="sk_test_123")
     @patch("apps.billing.views._ensure_stripe_ready")
     @patch("apps.billing.views._stripe_create_billing_portal_session")
@@ -272,6 +322,7 @@ class BillingApiTests(APITestCase):
     @override_settings(
         STRIPE_SECRET_KEY="",
         STRIPE_WEBHOOK_SECRET="",
+        EXCHANGE_RATE_API_URL="",
         BILLING_SUBSCRIPTION_VERIFY_RATE_LIMIT_ENABLED=True,
         BILLING_SUBSCRIPTION_VERIFY_RATE_LIMIT_PER_MINUTE=30,
     )
@@ -282,9 +333,12 @@ class BillingApiTests(APITestCase):
         self.assertEqual(response.data["status"], "ok")
         self.assertIn("stripe", response.data)
         self.assertIn("paystack", response.data)
+        self.assertIn("exchange_rate", response.data)
         self.assertIn("subscription_verify_rate_limit", response.data)
         self.assertIn("access", response.data)
         self.assertEqual(response.data["access"]["staff_required"], False)
+        self.assertEqual(response.data["exchange_rate"]["api_url_configured"], False)
+        self.assertEqual(response.data["exchange_rate"]["fallback_rate"], 1.0)
         self.assertEqual(response.data["subscription_verify_rate_limit"]["enabled"], True)
         self.assertEqual(response.data["subscription_verify_rate_limit"]["per_minute"], 30)
 
@@ -299,6 +353,22 @@ class BillingApiTests(APITestCase):
         self.assertEqual(response.data["stripe"]["secret_key_configured"], True)
         self.assertEqual(response.data["stripe"]["webhook_secret_configured"], True)
         self.assertIn("secret_key_configured", response.data["paystack"])
+
+    @override_settings(
+        PAYSTACK_CURRENCY="GHS",
+        PAYSTACK_USD_EXCHANGE_RATE=15.0,
+        EXCHANGE_RATE_API_URL="https://fx.example.com/latest/{base}?target={target}",
+        EXCHANGE_RATE_API_TIMEOUT_SECONDS=5,
+        EXCHANGE_RATE_CACHE_TTL_SECONDS=1200,
+    )
+    def test_billing_health_reports_exchange_rate_configuration(self):
+        response = self.client.get(self.billing_health_endpoint)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["exchange_rate"]["api_url_configured"], True)
+        self.assertEqual(response.data["exchange_rate"]["fallback_rate"], 15.0)
+        self.assertEqual(response.data["exchange_rate"]["timeout_seconds"], 5)
+        self.assertEqual(response.data["exchange_rate"]["cache_ttl_seconds"], 1200)
 
     @override_settings(BILLING_HEALTH_REQUIRE_STAFF=True)
     def test_billing_health_requires_staff_when_enabled(self):
@@ -598,10 +668,173 @@ class BillingApiTests(APITestCase):
         self.assertEqual(response.data["reference"], "OVS-PAYSTACK-TEST-123")
         self.assertIn("checkout_url", response.data)
         mock_initialize.assert_called_once()
+        initialize_payload = mock_initialize.call_args.args[0]
+        self.assertEqual(initialize_payload["channels"], ["card"])
+        self.assertEqual(initialize_payload["metadata"]["payment_method"], "card")
 
         persisted = BillingSubscription.objects.get(provider="paystack", session_id="OVS-PAYSTACK-TEST-123")
         self.assertEqual(persisted.status, "open")
         self.assertEqual(persisted.payment_status, "pending")
+        self.assertEqual(persisted.payment_method, "card")
+
+    @override_settings(PAYSTACK_SECRET_KEY="sk_test_paystack")
+    @patch("apps.billing.views._paystack_initialize_transaction")
+    def test_paystack_checkout_mobile_money_sets_channel_and_payment_method(self, mock_initialize):
+        mock_initialize.return_value = {
+            "authorization_url": "https://checkout.paystack.com/psk_mobile_money_123",
+            "access_code": "psk_access_mobile_money_123",
+            "reference": "OVS-PAYSTACK-MOMO-TEST-123",
+        }
+
+        response = self.client.post(
+            self.paystack_checkout_endpoint,
+            {
+                "plan_id": "growth",
+                "plan_name": "Growth",
+                "billing_cycle": "monthly",
+                "payment_method": "mobile_money",
+                "amount_usd": "399.00",
+                "customer_email": "billing-paystack@example.com",
+                "success_url": "http://localhost:3000/billing/success?next=%2Fregister",
+                "cancel_url": "http://localhost:3000/billing/cancel?next=%2Fregister",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["provider"], "paystack")
+        self.assertEqual(response.data["reference"], "OVS-PAYSTACK-MOMO-TEST-123")
+        mock_initialize.assert_called_once()
+
+        initialize_payload = mock_initialize.call_args.args[0]
+        self.assertEqual(initialize_payload["channels"], ["mobile_money"])
+        self.assertEqual(initialize_payload["metadata"]["payment_method"], "mobile_money")
+
+        persisted = BillingSubscription.objects.get(provider="paystack", session_id="OVS-PAYSTACK-MOMO-TEST-123")
+        self.assertEqual(persisted.payment_method, "mobile_money")
+        self.assertEqual(persisted.payment_status, "pending")
+
+    @override_settings(PAYSTACK_SECRET_KEY="sk_test_paystack")
+    @patch("apps.billing.views._paystack_initialize_transaction")
+    def test_paystack_checkout_bank_transfer_sets_channel_and_payment_method(self, mock_initialize):
+        mock_initialize.return_value = {
+            "authorization_url": "https://checkout.paystack.com/psk_bank_transfer_123",
+            "access_code": "psk_access_bank_transfer_123",
+            "reference": "OVS-PAYSTACK-BANK-TEST-123",
+        }
+
+        response = self.client.post(
+            self.paystack_checkout_endpoint,
+            {
+                "plan_id": "growth",
+                "plan_name": "Growth",
+                "billing_cycle": "monthly",
+                "payment_method": "bank_transfer",
+                "amount_usd": "399.00",
+                "customer_email": "billing-paystack@example.com",
+                "success_url": "http://localhost:3000/billing/success?next=%2Fregister",
+                "cancel_url": "http://localhost:3000/billing/cancel?next=%2Fregister",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["provider"], "paystack")
+        self.assertEqual(response.data["reference"], "OVS-PAYSTACK-BANK-TEST-123")
+        mock_initialize.assert_called_once()
+
+        initialize_payload = mock_initialize.call_args.args[0]
+        self.assertEqual(initialize_payload["channels"], ["bank_transfer"])
+        self.assertEqual(initialize_payload["metadata"]["payment_method"], "bank_transfer")
+
+        persisted = BillingSubscription.objects.get(provider="paystack", session_id="OVS-PAYSTACK-BANK-TEST-123")
+        self.assertEqual(persisted.payment_method, "bank_transfer")
+        self.assertEqual(persisted.payment_status, "pending")
+
+    @override_settings(
+        PAYSTACK_SECRET_KEY="sk_test_paystack",
+        PAYSTACK_CURRENCY="GHS",
+        PAYSTACK_USD_EXCHANGE_RATE=15.0,
+        EXCHANGE_RATE_API_URL="",
+    )
+    @patch("apps.billing.views._paystack_initialize_transaction")
+    def test_paystack_checkout_converts_usd_amount_when_currency_is_ghs(self, mock_initialize):
+        mock_initialize.return_value = {
+            "authorization_url": "https://checkout.paystack.com/psk_ghs_123",
+            "access_code": "psk_access_ghs_123",
+            "reference": "OVS-PAYSTACK-GHS-TEST-123",
+        }
+
+        response = self.client.post(
+            self.paystack_checkout_endpoint,
+            {
+                "plan_id": "growth",
+                "plan_name": "Growth",
+                "billing_cycle": "monthly",
+                "payment_method": "card",
+                "amount_usd": "399.00",
+                "customer_email": "billing-paystack@example.com",
+                "success_url": "http://localhost:3000/billing/success?next=%2Fregister",
+                "cancel_url": "http://localhost:3000/billing/cancel?next=%2Fregister",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        initialize_payload = mock_initialize.call_args.args[0]
+        self.assertEqual(initialize_payload["currency"], "GHS")
+        self.assertEqual(initialize_payload["amount"], 598500)
+        self.assertEqual(initialize_payload["metadata"]["amount_usd"], "399.00")
+
+        persisted = BillingSubscription.objects.get(provider="paystack", session_id="OVS-PAYSTACK-GHS-TEST-123")
+        self.assertEqual(float(persisted.amount_usd), 399.0)
+
+    @override_settings(
+        PAYSTACK_SECRET_KEY="sk_test_paystack",
+        PAYSTACK_CURRENCY="GHS",
+        PAYSTACK_USD_EXCHANGE_RATE=15.0,
+        EXCHANGE_RATE_API_URL="https://fx.example.com/latest/{base}?target={target}",
+    )
+    @patch("apps.billing.views.requests.get")
+    @patch("apps.billing.views._paystack_initialize_transaction")
+    def test_paystack_checkout_uses_exchange_rate_api_when_configured(self, mock_initialize, mock_get):
+        mock_initialize.return_value = {
+            "authorization_url": "https://checkout.paystack.com/psk_ghs_live_123",
+            "access_code": "psk_access_ghs_live_123",
+            "reference": "OVS-PAYSTACK-GHS-LIVE-TEST-123",
+        }
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "result": "success",
+            "conversion_rates": {
+                "GHS": 20.0,
+            },
+        }
+        mock_get.return_value = mock_response
+
+        response = self.client.post(
+            self.paystack_checkout_endpoint,
+            {
+                "plan_id": "growth",
+                "plan_name": "Growth",
+                "billing_cycle": "monthly",
+                "payment_method": "card",
+                "amount_usd": "399.00",
+                "customer_email": "billing-paystack@example.com",
+                "success_url": "http://localhost:3000/billing/success?next=%2Fregister",
+                "cancel_url": "http://localhost:3000/billing/cancel?next=%2Fregister",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        mock_get.assert_called_once()
+        initialize_payload = mock_initialize.call_args.args[0]
+        self.assertEqual(initialize_payload["currency"], "GHS")
+        self.assertEqual(initialize_payload["amount"], 798000)
+        self.assertEqual(initialize_payload["metadata"]["amount_usd"], "399.00")
 
     @override_settings(PAYSTACK_SECRET_KEY="sk_test_paystack")
     @patch("apps.billing.views._paystack_verify_transaction")
@@ -635,6 +868,90 @@ class BillingApiTests(APITestCase):
         persisted = BillingSubscription.objects.get(provider="paystack", session_id="OVS-PAYSTACK-VERIFY-123")
         self.assertEqual(persisted.status, "complete")
         self.assertEqual(persisted.payment_status, "paid")
+
+    @override_settings(PAYSTACK_SECRET_KEY="sk_test_paystack")
+    @patch("apps.billing.views._paystack_verify_transaction")
+    def test_paystack_confirm_preserves_mobile_money_payment_method(self, mock_verify):
+        mock_verify.return_value = {
+            "reference": "OVS-PAYSTACK-VERIFY-MOMO-123",
+            "status": "success",
+            "amount": 39900,
+            "channel": "mobile_money",
+            "customer": {"email": "billing-paystack@example.com"},
+            "metadata": {
+                "plan_id": "growth",
+                "plan_name": "Growth",
+                "billing_cycle": "monthly",
+                "amount_usd": "399.00",
+                "payment_method": "mobile_money",
+            },
+        }
+
+        response = self.client.post(
+            self.paystack_confirm_endpoint,
+            {"reference": "OVS-PAYSTACK-VERIFY-MOMO-123"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["ticket"]["paymentMethod"], "mobile_money")
+
+        persisted = BillingSubscription.objects.get(provider="paystack", session_id="OVS-PAYSTACK-VERIFY-MOMO-123")
+        self.assertEqual(persisted.status, "complete")
+        self.assertEqual(persisted.payment_status, "paid")
+        self.assertEqual(persisted.payment_method, "mobile_money")
+
+    @override_settings(PAYSTACK_SECRET_KEY="sk_test_paystack")
+    @patch("apps.billing.views._paystack_verify_transaction")
+    def test_paystack_confirm_returns_structured_failure_payload(self, mock_verify):
+        BillingSubscription.objects.create(
+            provider="paystack",
+            status="open",
+            payment_status="pending",
+            session_id="OVS-PAYSTACK-VERIFY-FAILED-123",
+            plan_id="growth",
+            plan_name="Growth",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="399.00",
+            reference="OVS-PAYSTACK-VERIFY-FAILED-123",
+            checkout_url="https://checkout.paystack.com/OVS-PAYSTACK-VERIFY-FAILED-123",
+        )
+
+        mock_verify.return_value = {
+            "reference": "OVS-PAYSTACK-VERIFY-FAILED-123",
+            "status": "abandoned",
+            "gateway_response": "The transaction was not completed",
+            "amount": 39900,
+            "channel": "card",
+            "customer": {"email": "billing-paystack@example.com"},
+            "metadata": {
+                "plan_id": "growth",
+                "plan_name": "Growth",
+                "billing_cycle": "monthly",
+                "amount_usd": "399.00",
+            },
+        }
+
+        response = self.client.post(
+            self.paystack_confirm_endpoint,
+            {"reference": "OVS-PAYSTACK-VERIFY-FAILED-123"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["status"], "abandoned")
+        self.assertEqual(response.data["reference"], "OVS-PAYSTACK-VERIFY-FAILED-123")
+        self.assertIn("Paystack transaction is not successful yet", response.data["detail"])
+        self.assertIn("Gateway response", response.data["detail"])
+        self.assertEqual(
+            response.data["checkout_url"],
+            "https://checkout.paystack.com/OVS-PAYSTACK-VERIFY-FAILED-123",
+        )
+
+        persisted = BillingSubscription.objects.get(provider="paystack", session_id="OVS-PAYSTACK-VERIFY-FAILED-123")
+        self.assertEqual(persisted.status, "open")
+        self.assertEqual(persisted.payment_status, "abandoned")
 
     @override_settings(PAYSTACK_SECRET_KEY="sk_test_paystack")
     def test_paystack_webhook_requires_signature_header(self):
@@ -703,6 +1020,51 @@ class BillingApiTests(APITestCase):
         webhook_event = BillingWebhookEvent.objects.get(provider="paystack", event_id="evt_paystack_success_123")
         self.assertEqual(webhook_event.processing_status, "processed")
         self.assertEqual(webhook_event.event_type, "charge.success")
+
+    @override_settings(PAYSTACK_SECRET_KEY="sk_test_paystack")
+    def test_paystack_webhook_charge_success_preserves_bank_transfer_payment_method(self):
+        payload_data = {
+            "id": "evt_paystack_success_bank_transfer_123",
+            "event": "charge.success",
+            "data": {
+                "reference": "OVS-PAYSTACK-WEBHOOK-SUCCESS-BANK-123",
+                "status": "success",
+                "amount": 39900,
+                "channel": "bank_transfer",
+                "customer": {"email": "billing-paystack-webhook@example.com"},
+                "metadata": {
+                    "plan_id": "growth",
+                    "plan_name": "Growth",
+                    "billing_cycle": "monthly",
+                    "amount_usd": "399.00",
+                    "payment_method": "bank_transfer",
+                },
+            },
+        }
+        payload = json.dumps(payload_data).encode("utf-8")
+        signature = self._paystack_signature(payload, "sk_test_paystack")
+
+        response = self.client.post(
+            self.paystack_webhook_endpoint,
+            payload,
+            content_type="application/json",
+            HTTP_X_PAYSTACK_SIGNATURE=signature,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["received"])
+        self.assertEqual(response.data["event_type"], "charge.success")
+
+        persisted = BillingSubscription.objects.get(
+            provider="paystack",
+            session_id="OVS-PAYSTACK-WEBHOOK-SUCCESS-BANK-123",
+        )
+        self.assertEqual(persisted.status, "complete")
+        self.assertEqual(persisted.payment_status, "paid")
+        self.assertEqual(persisted.payment_method, "bank_transfer")
+
+        payment_summary = dict((persisted.metadata or {}).get("payment_method_summary") or {})
+        self.assertEqual(payment_summary.get("type"), "bank_transfer")
 
     @override_settings(PAYSTACK_SECRET_KEY="sk_test_paystack")
     def test_paystack_webhook_marks_charge_failed(self):

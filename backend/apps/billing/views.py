@@ -4,6 +4,7 @@ from uuid import uuid4
 import hashlib
 import hmac
 import json
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from django.conf import settings
 from django.core.cache import cache
@@ -263,6 +264,17 @@ def _paystack_channel_to_payment_method(channel: str) -> str:
     return "card"
 
 
+def _paystack_channels_for_requested_method(payment_method: str) -> list[str] | None:
+    normalized = str(payment_method or "").strip().lower()
+    if normalized == "mobile_money":
+        return ["mobile_money"]
+    if normalized == "bank_transfer":
+        return ["bank_transfer"]
+    if normalized == "card":
+        return ["card"]
+    return None
+
+
 def _paystack_signature(payload: bytes) -> str:
     secret = _paystack_secret_key().encode("utf-8")
     return hmac.new(secret, payload, hashlib.sha512).hexdigest()
@@ -279,6 +291,182 @@ def _to_decimal(value, fallback: str = "0.00") -> Decimal:
         return Decimal(str(value))
     except Exception:
         return Decimal(fallback)
+
+
+def _exchange_rate_api_url(base_currency: str, target_currency: str) -> str:
+    raw_url = str(getattr(settings, "EXCHANGE_RATE_API_URL", "") or "").strip()
+    if not raw_url:
+        return ""
+
+    if any(token in raw_url for token in ("{base}", "{target}", "{from}", "{to}")):
+        return (
+            raw_url.replace("{base}", base_currency)
+            .replace("{target}", target_currency)
+            .replace("{from}", base_currency)
+            .replace("{to}", target_currency)
+        )
+
+    try:
+        parsed = urlparse(raw_url)
+        query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        query.setdefault("base", base_currency)
+        query.setdefault("symbols", target_currency)
+        return urlunparse(parsed._replace(query=urlencode(query)))
+    except Exception:
+        return raw_url
+
+
+def _extract_exchange_rate(payload: dict, base_currency: str, target_currency: str) -> Decimal | None:
+    target = str(target_currency or "").strip().upper()
+    base = str(base_currency or "").strip().upper()
+    if not target or not base:
+        return None
+
+    pair_key = f"{base}{target}"
+
+    def _positive_decimal(value) -> Decimal | None:
+        candidate = _to_decimal(value, fallback="0")
+        if candidate > 0:
+            return candidate
+        return None
+
+    def _from_mapping(mapping: dict) -> Decimal | None:
+        for key in (target, target.lower(), pair_key):
+            if key in mapping:
+                rate = _positive_decimal(mapping.get(key))
+                if rate is not None:
+                    return rate
+        return None
+
+    top_level_rate = _positive_decimal(payload.get("rate"))
+    if top_level_rate is not None:
+        return top_level_rate
+
+    for key in ("exchange_rate", "conversion_rate", "price", "value"):
+        rate = _positive_decimal(payload.get(key))
+        if rate is not None:
+            return rate
+
+    containers = [payload, payload.get("data"), payload.get("result"), payload.get("info")]
+    for container in containers:
+        if not isinstance(container, dict):
+            continue
+
+        direct_rate = _from_mapping(container)
+        if direct_rate is not None:
+            return direct_rate
+
+        for nested_key in ("rates", "conversion_rates", "quotes", "data"):
+            nested = container.get(nested_key)
+            if isinstance(nested, dict):
+                nested_rate = _from_mapping(nested)
+                if nested_rate is not None:
+                    return nested_rate
+
+        info = container.get("info")
+        if isinstance(info, dict):
+            info_rate = _positive_decimal(info.get("rate"))
+            if info_rate is not None:
+                return info_rate
+
+    return None
+
+
+def _fetch_exchange_rate(base_currency: str, target_currency: str) -> Decimal | None:
+    url = _exchange_rate_api_url(base_currency, target_currency)
+    if not url:
+        return None
+
+    timeout = max(1, int(getattr(settings, "EXCHANGE_RATE_API_TIMEOUT_SECONDS", 8)))
+    try:
+        response = requests.get(url, timeout=timeout)
+    except requests.RequestException:
+        return None
+
+    if response.status_code >= 400:
+        return None
+
+    try:
+        payload = response.json()
+    except ValueError:
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+    return _extract_exchange_rate(payload, base_currency, target_currency)
+
+
+def _paystack_usd_exchange_rate() -> Decimal:
+    fallback_raw = getattr(settings, "PAYSTACK_USD_EXCHANGE_RATE", 1.0)
+    fallback_rate = _to_decimal(fallback_raw, fallback="1.0")
+    if fallback_rate <= 0:
+        fallback_rate = Decimal("1.0")
+
+    target_currency = _paystack_currency()
+    if target_currency == "USD":
+        return Decimal("1.0")
+
+    api_url = _exchange_rate_api_url("USD", target_currency)
+    if not api_url:
+        return fallback_rate
+
+    cache_key_hash = hashlib.sha256(api_url.encode("utf-8")).hexdigest()[:16]
+    cache_key = f"billing:fx:USD:{target_currency}:{cache_key_hash}"
+    cached_value = cache.get(cache_key)
+    if cached_value is not None:
+        cached_rate = _to_decimal(cached_value, fallback="0")
+        if cached_rate > 0:
+            return cached_rate
+
+    live_rate = _fetch_exchange_rate("USD", target_currency)
+    if live_rate is not None and live_rate > 0:
+        cache_ttl = max(60, int(getattr(settings, "EXCHANGE_RATE_CACHE_TTL_SECONDS", 3600)))
+        cache.set(cache_key, str(live_rate), cache_ttl)
+        return live_rate
+
+    return fallback_rate
+
+
+def _paystack_exchange_rate_health() -> dict:
+    fallback_raw = getattr(settings, "PAYSTACK_USD_EXCHANGE_RATE", 1.0)
+    fallback_rate = _to_decimal(fallback_raw, fallback="1.0")
+    if fallback_rate <= 0:
+        fallback_rate = Decimal("1.0")
+
+    target_currency = _paystack_currency()
+    api_url_configured = False
+    if target_currency != "USD":
+        api_url_configured = bool(_exchange_rate_api_url("USD", target_currency))
+
+    timeout_seconds = max(1, int(getattr(settings, "EXCHANGE_RATE_API_TIMEOUT_SECONDS", 8)))
+    cache_ttl_seconds = max(60, int(getattr(settings, "EXCHANGE_RATE_CACHE_TTL_SECONDS", 3600)))
+
+    return {
+        "api_url_configured": api_url_configured,
+        "fallback_rate": float(fallback_rate),
+        "timeout_seconds": timeout_seconds,
+        "cache_ttl_seconds": cache_ttl_seconds,
+    }
+
+
+def _paystack_amount_minor_from_usd(amount_usd: Decimal) -> int:
+    usd_amount = _to_decimal(amount_usd, fallback="0.00")
+    currency = _paystack_currency()
+    local_amount = usd_amount
+    if currency != "USD":
+        local_amount = usd_amount * _paystack_usd_exchange_rate()
+    return int((local_amount * Decimal("100")).quantize(Decimal("1")))
+
+
+def _paystack_amount_usd_from_minor(amount_minor: Decimal) -> Decimal:
+    local_amount = _to_decimal(amount_minor, fallback="0") / Decimal("100")
+    currency = _paystack_currency()
+    if currency == "USD":
+        return local_amount
+    exchange_rate = _paystack_usd_exchange_rate()
+    if exchange_rate <= 0:
+        return local_amount
+    return local_amount / exchange_rate
 
 
 def _fit_model_field_value(model_cls, field_name: str, value: str | None) -> str:
@@ -772,10 +960,12 @@ def _persist_paystack_transaction(transaction_data: dict, *, checkout_url: str |
         payment_status_raw or "unpaid"
     )
 
-    amount_minor = transaction_data.get("amount")
-    amount_usd = _to_decimal(amount_minor) / Decimal("100")
-    if amount_usd <= 0:
-        amount_usd = _to_decimal(metadata.get("amount_usd"), fallback="0.00")
+    amount_minor = _to_decimal(transaction_data.get("amount"), fallback="0")
+    amount_usd_from_metadata = _to_decimal(metadata.get("amount_usd"), fallback="0.00")
+    if amount_usd_from_metadata > 0:
+        amount_usd = amount_usd_from_metadata
+    else:
+        amount_usd = _paystack_amount_usd_from_minor(amount_minor)
 
     existing_subscription = (
         BillingSubscription.objects.filter(provider="paystack", session_id=session_id)
@@ -948,6 +1138,7 @@ class BillingHealthAPIView(APIView):
                     "base_url": _paystack_base_url(),
                     "currency": _paystack_currency(),
                 },
+                "exchange_rate": _paystack_exchange_rate_health(),
                 "subscription_verify_rate_limit": {
                     "enabled": _verify_rate_limit_enabled(),
                     "per_minute": _verify_rate_limit_per_minute(),
@@ -1267,19 +1458,22 @@ class BillingSubscriptionRetryAPIView(APIView):
         if candidate.provider == "paystack":
             _ensure_paystack_ready()
             amount_usd = _to_decimal(candidate.amount_usd)
-            amount_minor = int((amount_usd * Decimal("100")).quantize(Decimal("1")))
+            amount_minor = _paystack_amount_minor_from_usd(amount_usd)
             reference = f"OVS-PAYSTACK-RETRY-{uuid4().hex[:10].upper()}"
             workspace_email = str(getattr(request.user, "email", "") or "").strip().lower()
             if not workspace_email:
                 raise ValidationError("A workspace email is required to retry Paystack checkout.")
             success_url = _default_success_url_no_provider_marker()
             cancel_url = _default_cancel_url()
+            requested_payment_method = str(candidate.payment_method or "card").strip().lower()
+            if requested_payment_method not in {"card", "bank_transfer", "mobile_money"}:
+                requested_payment_method = "card"
 
             metadata = {
                 "plan_id": candidate.plan_id,
                 "plan_name": candidate.plan_name,
                 "billing_cycle": candidate.billing_cycle or "monthly",
-                "payment_method": "card",
+                "payment_method": requested_payment_method,
                 "amount_usd": f"{amount_usd:.2f}",
                 "retry_of_subscription_id": str(candidate.id),
                 "workspace_email": workspace_email,
@@ -1294,6 +1488,9 @@ class BillingSubscriptionRetryAPIView(APIView):
                 "reference": reference,
                 "metadata": metadata,
             }
+            channels = _paystack_channels_for_requested_method(requested_payment_method)
+            if channels:
+                initialize_payload["channels"] = channels
             initialize_response = _paystack_initialize_transaction(initialize_payload)
             checkout_url = initialize_response.get("authorization_url")
             if not checkout_url:
@@ -1304,7 +1501,7 @@ class BillingSubscriptionRetryAPIView(APIView):
                     "reference": initialize_response.get("reference") or reference,
                     "status": "pending",
                     "amount": amount_minor,
-                    "channel": "card",
+                    "channel": requested_payment_method,
                     "metadata": metadata,
                     "customer": {"email": workspace_email},
                 },
@@ -1549,16 +1746,17 @@ class PaystackCheckoutSessionCreateAPIView(APIView):
             raise ValidationError("Customer email is required for Paystack checkout.")
 
         amount_usd = serializer.validated_data["amount_usd"]
-        amount_minor = int((amount_usd * Decimal("100")).quantize(Decimal("1")))
+        amount_minor = _paystack_amount_minor_from_usd(amount_usd)
         success_url = serializer.validated_data.get("success_url") or _default_success_url_no_provider_marker()
         cancel_url = serializer.validated_data.get("cancel_url") or _default_cancel_url()
         reference = f"OVS-PAYSTACK-{uuid4().hex[:12].upper()}"
+        requested_payment_method = serializer.validated_data.get("payment_method") or "card"
 
         metadata = {
             "plan_id": serializer.validated_data["plan_id"],
             "plan_name": serializer.validated_data["plan_name"],
             "billing_cycle": serializer.validated_data["billing_cycle"],
-            "payment_method": "card",
+            "payment_method": requested_payment_method,
             "amount_usd": f"{amount_usd:.2f}",
             "workspace_email": workspace_email,
             "cancel_url": cancel_url,
@@ -1572,6 +1770,9 @@ class PaystackCheckoutSessionCreateAPIView(APIView):
             "reference": reference,
             "metadata": metadata,
         }
+        channels = _paystack_channels_for_requested_method(requested_payment_method)
+        if channels:
+            payload["channels"] = channels
 
         session_data = _paystack_initialize_transaction(payload)
         checkout_url = session_data.get("authorization_url")
@@ -1583,7 +1784,7 @@ class PaystackCheckoutSessionCreateAPIView(APIView):
                 "reference": session_data.get("reference") or reference,
                 "status": "pending",
                 "amount": amount_minor,
-                "channel": "card",
+                "channel": requested_payment_method,
                 "metadata": metadata,
                 "customer": {"email": customer_email},
             },

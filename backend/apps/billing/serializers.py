@@ -31,10 +31,12 @@ class StripeCheckoutSessionConfirmSerializer(serializers.Serializer):
 
 class PaystackCheckoutSessionCreateSerializer(serializers.Serializer):
     BILLING_CYCLE_CHOICES = ("monthly", "annual")
+    PAYMENT_METHOD_CHOICES = ("card", "bank_transfer", "mobile_money")
 
     plan_id = serializers.CharField(max_length=64)
     plan_name = serializers.CharField(max_length=128)
     billing_cycle = serializers.ChoiceField(choices=BILLING_CYCLE_CHOICES)
+    payment_method = serializers.ChoiceField(choices=PAYMENT_METHOD_CHOICES, required=False, default="card")
     amount_usd = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0.01"))
     success_url = serializers.URLField(required=False)
     cancel_url = serializers.URLField(required=False)
@@ -71,6 +73,13 @@ class BillingHealthPaystackSerializer(serializers.Serializer):
     currency = serializers.CharField()
 
 
+class BillingHealthExchangeRateSerializer(serializers.Serializer):
+    api_url_configured = serializers.BooleanField()
+    fallback_rate = serializers.FloatField()
+    timeout_seconds = serializers.IntegerField()
+    cache_ttl_seconds = serializers.IntegerField()
+
+
 class BillingHealthRateLimitSerializer(serializers.Serializer):
     enabled = serializers.BooleanField()
     per_minute = serializers.IntegerField()
@@ -81,6 +90,7 @@ class BillingHealthResponseSerializer(serializers.Serializer):
     access = BillingHealthAccessSerializer()
     stripe = BillingHealthStripeSerializer()
     paystack = BillingHealthPaystackSerializer()
+    exchange_rate = BillingHealthExchangeRateSerializer()
     subscription_verify_rate_limit = BillingHealthRateLimitSerializer()
 
 

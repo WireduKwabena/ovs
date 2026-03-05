@@ -203,7 +203,7 @@ const UserSettingsPage: React.FC = () => {
   const handleRemovePaymentOption = async () => {
     if (!managedSubscription) return;
     const confirmed = window.confirm(
-      "This schedules subscription cancellation at the end of your active billing period. Continue?",
+      "This schedules unsubscription at the end of your active billing period. Continue?",
     );
     if (!confirmed) return;
 
@@ -616,7 +616,7 @@ const UserSettingsPage: React.FC = () => {
           {canManageBilling ? (
             <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold text-slate-900">Billing & Payment Method</h3>
+                <h3 className="text-sm font-semibold text-slate-900">Subscription Plan</h3>
                 <CreditCard className="h-4 w-4 text-cyan-700" />
               </div>
 
@@ -633,7 +633,7 @@ const UserSettingsPage: React.FC = () => {
                     className="w-full"
                     onClick={() => navigate("/subscribe?returnTo=/settings")}
                   >
-                    Add Subscription & Payment Method
+                    Add Subscription Plan
                   </Button>
                 </div>
               ) : (
@@ -701,7 +701,7 @@ const UserSettingsPage: React.FC = () => {
                       {billingActionLoading
                         ? "Please wait..."
                         : isStripeManaged
-                        ? "Update in Stripe"
+                        ? "Update Payment Method"
                         : isSandboxManaged
                         ? "Save Payment Option"
                         : "Update Payment Option"}
@@ -714,7 +714,7 @@ const UserSettingsPage: React.FC = () => {
                       onClick={() => void handleRemovePaymentOption()}
                     >
                       <Trash2 className="h-4 w-4" />
-                      Remove Payment Option
+                      Unsubscribe
                     </Button>
 
                     {managedSubscription.retry_available ? (
@@ -730,7 +730,7 @@ const UserSettingsPage: React.FC = () => {
                   </div>
 
                   <p className="text-[11px] text-slate-700">
-                    Removing payment option does not terminate access immediately. Service remains active through the current billing period.
+                    Unsubscribing does not terminate access immediately. Service remains active through the current billing period.
                   </p>
                 </div>
               )}

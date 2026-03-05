@@ -9,6 +9,7 @@ import {
 } from "@/utils/subscriptionAccess";
 
 export type CheckoutMode = "mock" | "api" | "stripe" | "paystack";
+export type HostedCheckoutProvider = "stripe" | "paystack";
 
 export interface ConfirmSubscriptionInput {
   planId: string;
@@ -72,6 +73,7 @@ interface PaystackCheckoutSessionRequest {
   plan_id: string;
   plan_name: string;
   billing_cycle: BillingCycle;
+  payment_method: PaymentMethod;
   amount_usd: number;
   success_url: string;
   cancel_url: string;
@@ -106,12 +108,36 @@ const parseCheckoutMode = (): CheckoutMode => {
   return "mock";
 };
 
+const parseHostedCheckoutProviders = (): HostedCheckoutProvider[] => {
+  const raw = (env?.VITE_HOSTED_CHECKOUT_PROVIDERS || "").trim();
+  if (raw) {
+    const supported = new Set<HostedCheckoutProvider>();
+    raw
+      .split(",")
+      .map((item) => item.trim().toLowerCase())
+      .forEach((item) => {
+        if (item === "stripe" || item === "paystack") {
+          supported.add(item);
+        }
+      });
+    if (supported.size > 0) {
+      return Array.from(supported);
+    }
+  }
+
+  if (CHECKOUT_MODE === "paystack" || CHECKOUT_MODE === "stripe") {
+    return ["stripe", "paystack"];
+  }
+  return [];
+};
+
 const parseBoolean = (value: string | undefined, fallback: boolean): boolean => {
   if (!value) return fallback;
   return value.toLowerCase() === "true";
 };
 
 const CHECKOUT_MODE = parseCheckoutMode();
+const HOSTED_CHECKOUT_PROVIDERS = parseHostedCheckoutProviders();
 const API_FALLBACK_TO_MOCK = parseBoolean(env?.VITE_SUBSCRIPTION_API_FALLBACK, true);
 
 const sleep = (ms: number): Promise<void> =>
@@ -271,6 +297,7 @@ const startPaystackCheckout = async (
     plan_id: input.planId,
     plan_name: input.planName,
     billing_cycle: input.billingCycle,
+    payment_method: input.paymentMethod,
     amount_usd: input.amountUsd,
     success_url: input.successUrl || buildPaystackSuccessUrl(),
     cancel_url: input.cancelUrl || buildPaystackCancelUrl(),
@@ -337,6 +364,10 @@ const verifySubscriptionAccess = async (
 export const subscriptionService = {
   getCheckoutMode(): CheckoutMode {
     return CHECKOUT_MODE;
+  },
+
+  getHostedCheckoutProviders(): HostedCheckoutProvider[] {
+    return HOSTED_CHECKOUT_PROVIDERS;
   },
 
   async beginStripeCheckout(input: ConfirmSubscriptionInput): Promise<StripeCheckoutSessionResponse> {
