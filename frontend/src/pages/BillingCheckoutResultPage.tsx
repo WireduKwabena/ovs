@@ -11,10 +11,45 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
   if (error instanceof Error && error.message) return error.message;
 
   const candidate = error as {
-    response?: { data?: { message?: string; detail?: string } };
+    response?: { data?: unknown };
   };
+  const responseData = candidate.response?.data;
 
-  return candidate.response?.data?.message || candidate.response?.data?.detail || fallback;
+  if (Array.isArray(responseData)) {
+    const first = responseData.find((item) => typeof item === "string");
+    if (first) return first;
+  }
+
+  if (responseData && typeof responseData === "object") {
+    const dataObject = responseData as {
+      message?: unknown;
+      detail?: unknown;
+      [key: string]: unknown;
+    };
+
+    if (typeof dataObject.message === "string" && dataObject.message.trim()) {
+      return dataObject.message;
+    }
+
+    if (typeof dataObject.detail === "string" && dataObject.detail.trim()) {
+      return dataObject.detail;
+    }
+
+    if (Array.isArray(dataObject.detail)) {
+      const detailItem = dataObject.detail.find((item) => typeof item === "string");
+      if (detailItem) return detailItem;
+    }
+
+    for (const value of Object.values(dataObject)) {
+      if (typeof value === "string" && value.trim()) return value;
+      if (Array.isArray(value)) {
+        const firstString = value.find((item) => typeof item === "string");
+        if (firstString) return firstString;
+      }
+    }
+  }
+
+  return fallback;
 };
 
 type ConfirmationStatus = "idle" | "processing" | "success" | "error";
