@@ -1,15 +1,6 @@
 from rest_framework.permissions import BasePermission
 
-
-def is_hr_or_admin_user(user) -> bool:
-    return bool(
-        getattr(user, "is_authenticated", False)
-        and (
-            getattr(user, "is_staff", False)
-            or getattr(user, "is_superuser", False)
-            or getattr(user, "user_type", None) in {"admin", "hr_manager"}
-        )
-    )
+from apps.core.permissions import is_admin_user, is_hr_or_admin_user
 
 
 class IsMeetingCreatorOrReadOnly(BasePermission):
@@ -32,4 +23,3 @@ class IsMeetingCreatorOrReadOnly(BasePermission):
         return is_hr_or_admin_user(user) and (
             obj.organizer_id == getattr(user, "id", None) or getattr(user, "is_superuser", False)
         )
-

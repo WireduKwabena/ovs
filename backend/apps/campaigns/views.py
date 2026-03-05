@@ -5,20 +5,51 @@ from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.billing.quotas import enforce_candidate_quota
 from apps.candidates.models import Candidate, CandidateEnrollment
 from apps.invitations.models import Invitation
 from apps.invitations.tasks import send_invitation_task
 
-from .models import VettingCampaign
+from .models import CampaignRubricVersion, VettingCampaign
+from .permissions import IsHRManagerOrAdmin
 from .serializers import CampaignRubricVersionSerializer, VettingCampaignSerializer
+
+
+def _project_new_enrollment_count(campaign, candidates_data) -> int:
+    """Estimate how many enrollment rows would be newly created by bulk import."""
+    normalized_rows = []
+    for row in candidates_data:
+        email = (row.get("email") or "").strip().lower()
+        first_name = (row.get("first_name") or "").strip()
+        if not email or not first_name:
+            continue
+        normalized_rows.append(email)
+
+    if not normalized_rows:
+        return 0
+
+    existing_emails = {
+        value.strip().lower()
+        for value in CandidateEnrollment.objects.filter(
+            campaign=campaign,
+            candidate__email__in=set(normalized_rows),
+        ).values_list("candidate__email", flat=True)
+        if value
+    }
+
+    projected = set()
+    for email in normalized_rows:
+        if email in existing_emails or email in projected:
+            continue
+        projected.add(email)
+    return len(projected)
 
 
 class VettingCampaignViewSet(viewsets.ModelViewSet):
     serializer_class = VettingCampaignSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsHRManagerOrAdmin]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
@@ -34,9 +65,14 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Only HR managers/admins can create campaigns.")
         serializer.save(initiated_by=self.request.user)
 
-    @action(detail=True, methods=["post"], url_path="rubrics/versions")
+    @action(detail=True, methods=["get", "post"], url_path="rubrics/versions")
     def add_rubric_version(self, request, pk=None):
         campaign = self.get_object()
+        if request.method.lower() == "get":
+            versions = campaign.rubric_versions.all().order_by("-version", "-created_at")
+            serializer = CampaignRubricVersionSerializer(versions, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
         next_version = (campaign.rubric_versions.aggregate(max_v=Max("version"))["max_v"] or 0) + 1
 
         serializer = CampaignRubricVersionSerializer(data=request.data)
@@ -44,6 +80,23 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
         serializer.save(campaign=campaign, version=next_version, created_by=request.user)
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="rubrics/versions/activate")
+    def activate_rubric_version(self, request, pk=None):
+        campaign = self.get_object()
+        version_id = request.data.get("version_id")
+        if not version_id:
+            return Response({"error": "version_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            version = CampaignRubricVersion.objects.get(id=version_id, campaign=campaign)
+        except CampaignRubricVersion.DoesNotExist:
+            return Response({"error": "Rubric version not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        version.is_active = True
+        version.save()
+        serializer = CampaignRubricVersionSerializer(version)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["get"], url_path="dashboard")
     def dashboard(self, request, pk=None):
@@ -74,6 +127,17 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
                 {"error": "Payload must include a non-empty 'candidates' list."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        user = request.user
+        is_admin = bool(
+            getattr(user, "is_staff", False)
+            or getattr(user, "is_superuser", False)
+            or getattr(user, "user_type", None) == "admin"
+        )
+        if not is_admin:
+            projected_new_enrollments = _project_new_enrollment_count(campaign, candidates_data)
+            if projected_new_enrollments > 0:
+                enforce_candidate_quota(user=user, additional=projected_new_enrollments)
 
         created_candidates = 0
         created_enrollments = 0

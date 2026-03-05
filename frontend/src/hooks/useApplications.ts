@@ -1,10 +1,12 @@
 // src/hooks/useApplications.ts (New - Redux Wrapper)
 import { useSelector, useDispatch } from 'react-redux';
-import { 
+import {
   fetchApplications,
   fetchCaseById,
   createApplication,
-  updateApplication, } from '../store/applicationSlice';
+  updateApplication,
+} from '../store/applicationSlice';
+import type { FetchApplicationsOptions } from '../store/applicationSlice';
 import type { AppDispatch, RootState } from '@/app/store';
 import { useCallback } from 'react';
 import { createSelector } from '@reduxjs/toolkit';
@@ -26,8 +28,8 @@ export const useApplications = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { applications, loading, error, currentCase } = useSelector(selectApplications);
 
-  const refetch = useCallback(() => {
-    dispatch(fetchApplications());
+  const refetch = useCallback((options?: FetchApplicationsOptions) => {
+    dispatch(fetchApplications(options));
   }, [dispatch]);
 
   const loadApplication = useCallback(
@@ -59,15 +61,7 @@ export const useApplications = () => {
     loadApplication,
     createApplication: create,
     updateApplication: update,
-     refetch ,
+    refetch,
   };
 };
-
-
-
-
-
-
-
-
 

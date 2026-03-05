@@ -1,10 +1,11 @@
 // src/pages/UploadDocumentPage.tsx
 import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Info } from "lucide-react";
 
 import { FileUpload } from "@/components/common/FileUpload";
 import Modal from "@/components/common/Modal";
+import { FieldLabel } from "@/components/common/FieldHelp";
 import { toast } from "react-toastify";
 
 export const UploadDocumentPage: React.FC = () => {
@@ -37,13 +38,20 @@ export const UploadDocumentPage: React.FC = () => {
           <p className="text-slate-700 mb-8">
             Add additional documents to your application
           </p>
+          <div className="mb-6 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+            Hover or focus the <Info className="mx-1 inline h-4 w-4 align-text-bottom" /> icons beside labels for quick guidance.
+          </div>
 
           <div className="space-y-6">
             {/* File Upload */}
             <div>
-              <p className="block text-sm font-medium text-slate-800 mb-2">
-                Files (PDF, JPG, PNG - Max 10MB each)
-              </p>
+              <FieldLabel
+                label="Files (PDF, JPG, PNG)"
+                required
+                help="Upload one or more files. Maximum file size is 10MB per document."
+                className="mb-2 flex items-center gap-1.5"
+                textClassName="block text-sm font-medium text-slate-800"
+              />
               {caseId ? (
                 <>
                   <FileUpload

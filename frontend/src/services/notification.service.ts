@@ -27,7 +27,7 @@ export const notificationService = {
     }
   },
 
-  async getById(id: number): Promise<Notification> {
+  async getById(id: string): Promise<Notification> {
     try {
       const response = await api.get<Notification>(`/notifications/${id}/`);
       return response.data;
@@ -45,7 +45,7 @@ export const notificationService = {
     }
   },
 
-  async markAsRead(notificationIds: number[]): Promise<void> {
+  async markAsRead(notificationIds: string[]): Promise<void> {
     try {
       console.log('Marking as read:', notificationIds);
       await api.post('/notifications/mark-as-read/', {
@@ -65,7 +65,7 @@ export const notificationService = {
     }
   },
 
-  async markSingleAsRead(id: number): Promise<void> {
+  async markSingleAsRead(id: string): Promise<void> {
     try {
       await api.post(`/notifications/${id}/mark_read/`);
     } catch (error: any) {
@@ -73,7 +73,7 @@ export const notificationService = {
     }
   },
 
-  async archive(id: number): Promise<void> {
+  async archive(id: string): Promise<void> {
     try {
       await api.delete(`/notifications/${id}/archive/`);
     } catch (error: any) {

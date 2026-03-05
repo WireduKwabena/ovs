@@ -1,16 +1,32 @@
 from django.conf import settings
 from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 from rest_framework.test import APITestCase
 
 from apps.applications.models import Document, VettingCase
 from apps.applications.tasks import verify_document_async
 from apps.authentication.models import User
+from apps.billing.models import BillingSubscription
 from apps.campaigns.models import VettingCampaign
 from apps.candidates.models import Candidate, CandidateEnrollment, CandidateSocialProfile
 
 
 class ApplicationsApiTests(APITestCase):
+    def _seed_subscription(self, user, *, plan_id="starter", plan_name="Starter"):
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            status="complete",
+            payment_status="paid",
+            plan_id=plan_id,
+            plan_name=plan_name,
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference=f"OVS-{plan_id.upper()}-{user.id.hex[:6]}",
+            registration_consumed_by_email=user.email,
+        )
+
     def setUp(self):
         self.hr = User.objects.create_user(
             email="hr_apps_test@example.com",
@@ -27,6 +43,7 @@ class ApplicationsApiTests(APITestCase):
             last_name="Tester",
             user_type="applicant",
         )
+        self._seed_subscription(self.hr, plan_id="growth", plan_name="Growth")
         self.client.force_authenticate(self.hr)
 
     def test_create_case_upload_document_and_get_verification_status(self):
@@ -78,6 +95,85 @@ class ApplicationsApiTests(APITestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn("applicant", response.json())
+
+    @override_settings(
+        BILLING_QUOTA_ENFORCEMENT_ENABLED=True,
+        BILLING_PLAN_STARTER_CANDIDATES_PER_MONTH=0,
+        BILLING_PLAN_DEFAULT_CANDIDATES_PER_MONTH=0,
+    )
+    def test_hr_create_case_requires_active_subscription_when_not_admin(self):
+        hr_without_subscription = User.objects.create_user(
+            email="hr_no_sub_apps@example.com",
+            password="Pass1234!",
+            first_name="No",
+            last_name="Subscription",
+            user_type="hr_manager",
+        )
+        self.client.force_authenticate(hr_without_subscription)
+
+        response = self.client.post(
+            "/api/applications/cases/",
+            {
+                "applicant": self.applicant.id,
+                "position_applied": "Analyst",
+                "department": "Operations",
+                "job_description": "Data validation and reporting",
+                "priority": "medium",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertEqual(payload.get("code"), "subscription_required")
+        self.assertIn("quota", payload)
+        self.assertIn("period_start", payload["quota"])
+        self.assertIn("period_end", payload["quota"])
+        self.assertTrue(str(payload["quota"].get("period_start")))
+        self.assertTrue(str(payload["quota"].get("period_end")))
+
+    def test_hr_cannot_create_case_for_enrollment_outside_owned_campaign(self):
+        other_hr = User.objects.create_user(
+            email="hr_other_apps@example.com",
+            password="Pass1234!",
+            first_name="Other",
+            last_name="Manager",
+            user_type="hr_manager",
+        )
+        campaign = VettingCampaign.objects.create(
+            name="Other HR Campaign",
+            description="Owned by other HR",
+            status="active",
+            initiated_by=other_hr,
+        )
+        candidate = Candidate.objects.create(
+            first_name="Owned",
+            last_name="Elsewhere",
+            email="candidate_elsewhere@example.com",
+            consent_ai_processing=True,
+        )
+        enrollment = CandidateEnrollment.objects.create(
+            campaign=campaign,
+            candidate=candidate,
+            status="in_progress",
+            metadata={},
+        )
+
+        self.client.force_authenticate(self.hr)
+        response = self.client.post(
+            "/api/applications/cases/",
+            {
+                "applicant": self.applicant.id,
+                "candidate_enrollment": str(enrollment.id),
+                "position_applied": "Analyst",
+                "department": "Operations",
+                "job_description": "Data validation and reporting",
+                "priority": "medium",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
 
     def test_verify_document_task_persists_social_profile_result_when_candidate_data_present(self):
         if "apps.fraud" not in settings.INSTALLED_APPS:

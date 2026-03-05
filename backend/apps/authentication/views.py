@@ -17,7 +17,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.authentication.models import User
+from apps.authentication.models import User, UserProfile
 from apps.authentication.serializers import (
     AdminAuthResponseSerializer,
     AdminLoginSerializer,
@@ -30,6 +30,7 @@ from apps.authentication.serializers import (
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
     ProfileResponseSerializer,
+    ProfileUpdateSerializer,
     RegisterResponseSerializer,
     TwoFactorChallengeSerializer,
     TwoFactorBackupCodesRegenerateSerializer,
@@ -524,11 +525,13 @@ def profile_view(request):
     Get current user profile
     GET /api/auth/profile/
     """
+    UserProfile.objects.get_or_create(user=request.user)
+
     if request.user.is_staff or request.user.user_type in {"admin", "hr_manager"}:
-        serializer = AdminUserSerializer(request.user)
+        serializer = AdminUserSerializer(request.user, context={"request": request})
         user_type = request.user.user_type
     else:
-        serializer = UserSerializer(request.user)
+        serializer = UserSerializer(request.user, context={"request": request})
         user_type = request.user.user_type
     
     return Response({
@@ -538,11 +541,7 @@ def profile_view(request):
 
 
 @extend_schema(
-    request=PolymorphicProxySerializer(
-        component_name="ProfileUpdateRequest",
-        serializers=[UserSerializer, AdminUserSerializer],
-        resource_type_field_name=None,
-    ),
+    request=ProfileUpdateSerializer,
     responses={
         200: PolymorphicProxySerializer(
             component_name="ProfileUpdateResponse",
@@ -560,18 +559,62 @@ def update_profile_view(request):
     PUT/PATCH /api/auth/profile/
     """
     user = request.user
-    
-    # Check if admin or regular user
-    if request.user.is_staff:
-        serializer = AdminUserSerializer(user, data=request.data, partial=True)
+    serializer = ProfileUpdateSerializer(data=request.data, partial=True)
+    serializer.is_valid(raise_exception=True)
+
+    validated = serializer.validated_data
+    user_fields = {
+        "email",
+        "first_name",
+        "last_name",
+        "phone_number",
+        "organization",
+        "department",
+    }
+    profile_fields = {
+        "date_of_birth",
+        "nationality",
+        "address",
+        "city",
+        "country",
+        "postal_code",
+        "current_job_title",
+        "years_of_experience",
+        "linkedin_url",
+        "bio",
+    }
+
+    update_user_fields = [field for field in user_fields if field in validated]
+    update_profile_fields = [field for field in profile_fields if field in validated]
+
+    with transaction.atomic():
+        if "email" in validated:
+            user.email = str(validated["email"]).strip().lower()
+        for field in update_user_fields:
+            if field == "email":
+                continue
+            setattr(user, field, validated[field])
+        if update_user_fields:
+            user.save(update_fields=sorted(set(update_user_fields + ["updated_at"])))
+
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        for field in update_profile_fields:
+            setattr(profile, field, validated[field])
+        if update_profile_fields:
+            profile.calculate_completion()
+            profile.save(
+                update_fields=sorted(
+                    set(update_profile_fields + ["profile_completion_percentage", "updated_at"])
+                )
+            )
+
+    user.refresh_from_db()
+
+    if request.user.is_staff or request.user.user_type in {"admin", "hr_manager"}:
+        response_serializer = AdminUserSerializer(user, context={"request": request})
     else:
-        serializer = UserSerializer(user, data=request.data, partial=True)
-    
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data)
-    
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        response_serializer = UserSerializer(user, context={"request": request})
+    return Response(response_serializer.data)
 
 
 @extend_schema(

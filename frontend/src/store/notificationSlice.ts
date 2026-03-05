@@ -28,7 +28,7 @@ export const fetchNotifications = createAsyncThunk<Notification[], void, { rejec
   }
 );
 
-export const markAsRead = createAsyncThunk<void, number[], { rejectValue: ApiError }>(
+export const markAsRead = createAsyncThunk<void, string[], { rejectValue: ApiError }>(
   'notifications/markAsRead',
   async (ids, { rejectWithValue }) => {
     try {

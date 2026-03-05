@@ -12,6 +12,7 @@ import { adminService } from '@/services/admin.service';
 import type { ApplicationStatus, DashboardStats } from '@/types';
 import { formatDate } from '@/utils/helper';
 import BillingHealthCard from '@/components/admin/BillingHealthCard';
+import ReminderHealthCard from '@/components/admin/ReminderHealthCard';
 
 
 interface StatCardProps {
@@ -130,7 +131,10 @@ export const AdminDashboard: React.FC = () => {
           </p>
         </div>
 
-        <BillingHealthCard />
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <BillingHealthCard />
+          <ReminderHealthCard />
+        </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -281,7 +285,7 @@ export const AdminDashboard: React.FC = () => {
           </button>
 
           <button
-            onClick={() => navigate('/admin/rubrics')}
+            onClick={() => navigate('/rubrics')}
             className="group p-6 bg-linear-to-br from-violet-100 to-violet-200 rounded-lg border-2 border-violet-300 hover:border-violet-400 hover:shadow-md transition-all text-left"
           >
             <TrendingUp className="w-10 h-10 text-violet-900 mb-3 group-hover:scale-110 transition-transform" />

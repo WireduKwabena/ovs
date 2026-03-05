@@ -6,6 +6,7 @@ import {
   Clock3,
   Download,
   History,
+  Info,
   Loader2,
   PlayCircle,
   RefreshCcw,
@@ -16,6 +17,8 @@ import { toast } from "react-toastify";
 import { useSearchParams } from "react-router-dom";
 
 import Modal from "@/components/common/Modal";
+import { FieldLabel, HelpTooltip } from "@/components/common/FieldHelp";
+import ReminderHealthCard from "@/components/admin/ReminderHealthCard";
 import { useAuth } from "@/hooks/useAuth";
 import { applicationService } from "@/services/application.service";
 import { videoCallService } from "@/services/videoCall.service";
@@ -952,12 +955,25 @@ const VideoCallsPage: React.FC = () => {
           </div>
         </div>
 
+        {isAdmin && <ReminderHealthCard />}
+
         {isHrOrAdmin && (
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">Schedule a meeting</h2>
+            <h2 className="text-lg font-semibold text-slate-900 inline-flex items-center gap-1.5">
+              Schedule a meeting
+              <HelpTooltip text="Create 1v1 or panel sessions, optionally link to a case, and apply recurrence for multi-round interviews." />
+            </h2>
+            <div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+              Hover or focus the <Info className="mx-1 inline h-4 w-4 align-text-bottom" /> icons beside labels for guidance.
+            </div>
             <form className="mt-4 grid gap-4 md:grid-cols-2" onSubmit={handleCreate}>
-              <label className="space-y-1 text-sm text-slate-700">
-                <span>Template</span>
+              <div className="space-y-1 text-sm text-slate-700">
+                <FieldLabel
+                  label="Template"
+                  help="Use presets to prefill title, description, meeting duration, and reminder lead-time."
+                  className="mb-1 flex items-center gap-1.5"
+                  textClassName="block text-sm text-slate-700"
+                />
                 <select
                   value={form.template}
                   onChange={(event) => applyTemplatePreset(event.target.value as MeetingTemplate)}
@@ -968,10 +984,15 @@ const VideoCallsPage: React.FC = () => {
                   <option value="panel_screening">Panel Screening (1vMany)</option>
                   <option value="final_panel">Final Panel (1vMany)</option>
                 </select>
-              </label>
+              </div>
 
-              <label className="space-y-1 text-sm text-slate-700">
-                <span>Reminder lead-time (minutes)</span>
+              <div className="space-y-1 text-sm text-slate-700">
+                <FieldLabel
+                  label="Reminder lead-time (minutes)"
+                  help="When reminders should be sent before start time. Allowed range is 1 to 120 minutes."
+                  className="mb-1 flex items-center gap-1.5"
+                  textClassName="block text-sm text-slate-700"
+                />
                 <input
                   type="number"
                   min={1}
@@ -980,20 +1001,31 @@ const VideoCallsPage: React.FC = () => {
                   onChange={(event) => setForm((prev) => ({ ...prev, reminderBeforeMinutes: event.target.value }))}
                   className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 placeholder:opacity-100 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
-              </label>
+              </div>
 
-              <label className="space-y-1 text-sm text-slate-700">
-                <span>Title</span>
+              <div className="space-y-1 text-sm text-slate-700">
+                <FieldLabel
+                  label="Title"
+                  required
+                  help="Meeting title shown to organizers and participants."
+                  className="mb-1 flex items-center gap-1.5"
+                  textClassName="block text-sm text-slate-700"
+                />
                 <input
                   required
                   value={form.title}
                   onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
                   className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
-              </label>
+              </div>
 
-              <label className="space-y-1 text-sm text-slate-700">
-                <span>Linked Vetting Case (optional)</span>
+              <div className="space-y-1 text-sm text-slate-700">
+                <FieldLabel
+                  label="Linked Vetting Case (optional)"
+                  help="Associates the meeting with an existing case so interview activity stays tied to the case lifecycle."
+                  className="mb-1 flex items-center gap-1.5"
+                  textClassName="block text-sm text-slate-700"
+                />
                 <select
                   value={form.caseId}
                   onChange={(event) => setForm((prev) => ({ ...prev, caseId: event.target.value }))}
@@ -1012,19 +1044,30 @@ const VideoCallsPage: React.FC = () => {
                     No vetting cases available yet. Create a case first or invite explicit participants by email.
                   </p>
                 )}
-              </label>
+              </div>
 
-              <label className="space-y-1 text-sm text-slate-700 md:col-span-2">
-                <span>Description</span>
+              <div className="space-y-1 text-sm text-slate-700 md:col-span-2">
+                <FieldLabel
+                  label="Description"
+                  help="Optional meeting context or agenda for interviewers and participants."
+                  className="mb-1 flex items-center gap-1.5"
+                  textClassName="block text-sm text-slate-700"
+                />
                 <textarea
                   value={form.description}
                   onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
                   className="min-h-24 w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
-              </label>
+              </div>
 
-              <label className="space-y-1 text-sm text-slate-700">
-                <span>Start</span>
+              <div className="space-y-1 text-sm text-slate-700">
+                <FieldLabel
+                  label="Start"
+                  required
+                  help="Meeting start datetime in your selected timezone."
+                  className="mb-1 flex items-center gap-1.5"
+                  textClassName="block text-sm text-slate-700"
+                />
                 <input
                   required
                   type="datetime-local"
@@ -1032,10 +1075,16 @@ const VideoCallsPage: React.FC = () => {
                   onChange={(event) => setForm((prev) => ({ ...prev, start: event.target.value }))}
                   className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
-              </label>
+              </div>
 
-              <label className="space-y-1 text-sm text-slate-700">
-                <span>End</span>
+              <div className="space-y-1 text-sm text-slate-700">
+                <FieldLabel
+                  label="End"
+                  required
+                  help="Meeting end datetime. Must be later than start."
+                  className="mb-1 flex items-center gap-1.5"
+                  textClassName="block text-sm text-slate-700"
+                />
                 <input
                   required
                   type="datetime-local"
@@ -1043,10 +1092,15 @@ const VideoCallsPage: React.FC = () => {
                   onChange={(event) => setForm((prev) => ({ ...prev, end: event.target.value }))}
                   className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
-              </label>
+              </div>
 
               <div className="space-y-1 text-sm text-slate-700">
-                <span>Quick duration presets</span>
+                <FieldLabel
+                  label="Quick duration presets"
+                  help="Automatically sets end time relative to the selected start."
+                  className="mb-1 flex items-center gap-1.5"
+                  textClassName="block text-sm text-slate-700"
+                />
                 <div className="flex flex-wrap gap-2">
                   {[30, 45, 60, 90].map((minutes) => (
                     <button
@@ -1061,8 +1115,13 @@ const VideoCallsPage: React.FC = () => {
                 </div>
               </div>
 
-              <label className="space-y-1 text-sm text-slate-700">
-                <span>Recurrence</span>
+              <div className="space-y-1 text-sm text-slate-700">
+                <FieldLabel
+                  label="Recurrence"
+                  help="Use daily/weekly recurrence to schedule a series of related meetings."
+                  className="mb-1 flex items-center gap-1.5"
+                  textClassName="block text-sm text-slate-700"
+                />
                 <select
                   value={form.recurrence}
                   onChange={(event) =>
@@ -1078,11 +1137,16 @@ const VideoCallsPage: React.FC = () => {
                   <option value="daily">Daily</option>
                   <option value="weekly">Weekly</option>
                 </select>
-              </label>
+              </div>
 
               {form.recurrence !== "none" && (
-                <label className="space-y-1 text-sm text-slate-700">
-                  <span>Occurrences</span>
+                <div className="space-y-1 text-sm text-slate-700">
+                  <FieldLabel
+                    label="Occurrences"
+                    help="Number of meetings to generate in the recurrence series (up to 12)."
+                    className="mb-1 flex items-center gap-1.5"
+                    textClassName="block text-sm text-slate-700"
+                  />
                   <input
                     type="number"
                     min={1}
@@ -1091,27 +1155,37 @@ const VideoCallsPage: React.FC = () => {
                     onChange={(event) => setForm((prev) => ({ ...prev, recurrenceCount: event.target.value }))}
                     className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                   />
-                </label>
+                </div>
               )}
 
-              <label className="space-y-1 text-sm text-slate-700">
-                <span>Timezone</span>
+              <div className="space-y-1 text-sm text-slate-700">
+                <FieldLabel
+                  label="Timezone"
+                  help="IANA timezone (for example UTC or Africa/Accra) used for schedule interpretation."
+                  className="mb-1 flex items-center gap-1.5"
+                  textClassName="block text-sm text-slate-700"
+                />
                 <input
                   value={form.timezone}
                   onChange={(event) => setForm((prev) => ({ ...prev, timezone: event.target.value }))}
                   className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
-              </label>
+              </div>
 
-              <label className="space-y-1 text-sm text-slate-700">
-                <span>Extra participant emails (comma-separated)</span>
+              <div className="space-y-1 text-sm text-slate-700">
+                <FieldLabel
+                  label="Extra participant emails (comma-separated)"
+                  help="Optional attendees to include in addition to linked case participants."
+                  className="mb-1 flex items-center gap-1.5"
+                  textClassName="block text-sm text-slate-700"
+                />
                 <input
                   value={form.participantEmails}
                   onChange={(event) => setForm((prev) => ({ ...prev, participantEmails: event.target.value }))}
                   placeholder="candidate1@example.com,candidate2@example.com"
                   className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 placeholder:opacity-100 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
-              </label>
+              </div>
 
               <div className="md:col-span-2">
                 <button
@@ -1129,11 +1203,15 @@ const VideoCallsPage: React.FC = () => {
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-slate-900">Meetings</h2>
+            <h2 className="text-lg font-semibold text-slate-900 inline-flex items-center gap-1.5">
+              Meetings
+              <HelpTooltip text="Use this section to join live calls, update schedules, and manage meeting history exports." />
+            </h2>
             <div className="flex flex-wrap items-center gap-2">
               <label className="inline-flex items-center gap-2 text-xs text-slate-700">
                 <Clock3 className="h-3.5 w-3.5" />
                 Status
+                <HelpTooltip text="Filter meetings by lifecycle state (scheduled, ongoing, completed, cancelled)." />
                 <select
                   value={statusFilter}
                   onChange={(event) => setStatusFilter(event.target.value as "all" | VideoMeeting["status"])}
@@ -1431,6 +1509,7 @@ const VideoCallsPage: React.FC = () => {
                         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end max-[420px]:grid max-[420px]:grid-cols-1 *:w-full sm:*:w-auto">
                           <label className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-white px-2 py-1 text-xs text-slate-700">
                             <span>View</span>
+                            <HelpTooltip text="Choose whether to display history for this meeting only, the whole series, or both." />
                             <select
                               value={getTimelineFilterMode(meeting)}
                               onChange={(event) => void updateTimelineFilterMode(meeting, event.target.value as TimelineFilterMode)}
@@ -1443,6 +1522,7 @@ const VideoCallsPage: React.FC = () => {
                           </label>
                           <label className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-white px-2 py-1 text-xs text-slate-700">
                             <span>Range</span>
+                            <HelpTooltip text="Limit history to recent periods for quicker audit review." />
                             <select
                               value={getTimelineTimeRange(meeting)}
                               onChange={(event) => updateTimelineTimeRange(meeting, event.target.value as TimelineTimeRange)}

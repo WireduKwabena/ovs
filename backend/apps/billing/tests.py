@@ -1,4 +1,7 @@
 from unittest.mock import patch
+import hashlib
+import hmac
+import json
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -6,6 +9,9 @@ from django.test import override_settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
+
+from apps.campaigns.models import VettingCampaign
+from apps.candidates.models import Candidate, CandidateEnrollment
 
 from .models import BillingSubscription, BillingWebhookEvent
 
@@ -16,10 +22,251 @@ class BillingApiTests(APITestCase):
     stripe_checkout_endpoint = "/api/billing/subscriptions/stripe/checkout-session/"
     stripe_confirm_endpoint = "/api/billing/subscriptions/stripe/confirm/"
     stripe_webhook_endpoint = "/api/billing/subscriptions/stripe/webhook/"
+    paystack_checkout_endpoint = "/api/billing/subscriptions/paystack/checkout-session/"
+    paystack_confirm_endpoint = "/api/billing/subscriptions/paystack/confirm/"
+    paystack_webhook_endpoint = "/api/billing/subscriptions/paystack/webhook/"
     billing_health_endpoint = "/api/billing/health/"
+    billing_quotas_endpoint = "/api/billing/quotas/"
+    billing_manage_endpoint = "/api/billing/subscriptions/manage/"
+    billing_manage_update_session_endpoint = "/api/billing/subscriptions/manage/payment-method/update-session/"
+    billing_retry_endpoint = "/api/billing/subscriptions/manage/retry/"
 
     def setUp(self):
         cache.clear()
+
+    def _create_hr_user(self, email: str = "billing-hr@example.com"):
+        user_model = get_user_model()
+        return user_model.objects.create_user(
+            email=email,
+            password="StrongPass123!",
+            first_name="Billing",
+            last_name="Manager",
+            user_type="hr_manager",
+        )
+
+    @staticmethod
+    def _paystack_signature(payload: bytes, secret: str) -> str:
+        return hmac.new(secret.encode("utf-8"), payload, hashlib.sha512).hexdigest()
+
+    def test_billing_quota_requires_authentication(self):
+        response = self.client.get(self.billing_quotas_endpoint)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_billing_manage_requires_authentication(self):
+        response = self.client.get(self.billing_manage_endpoint)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_billing_manage_returns_active_subscription_summary(self):
+        hr_user = self._create_hr_user()
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            status="complete",
+            payment_status="paid",
+            plan_id="growth",
+            plan_name="Growth",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="399.00",
+            reference="OVS-MANAGE-SUMMARY",
+            registration_consumed_by_email=hr_user.email,
+            metadata={
+                "payment_method_summary": {
+                    "type": "card",
+                    "display": "Card",
+                    "brand": None,
+                    "last4": None,
+                    "exp_month": None,
+                    "exp_year": None,
+                }
+            },
+        )
+
+        self.client.force_authenticate(user=hr_user)
+        response = self.client.get(self.billing_manage_endpoint)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "ok")
+        self.assertIsNotNone(response.data["subscription"])
+        self.assertEqual(response.data["subscription"]["plan_id"], "growth")
+        self.assertEqual(response.data["subscription"]["payment_method"]["type"], "card")
+        self.assertEqual(response.data["subscription"]["payment_method"]["display"], "Card")
+
+    def test_billing_manage_patch_updates_sandbox_payment_method(self):
+        hr_user = self._create_hr_user(email="billing-update@example.com")
+        subscription = BillingSubscription.objects.create(
+            provider="sandbox",
+            status="complete",
+            payment_status="paid",
+            plan_id="starter",
+            plan_name="Starter",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference="OVS-MANAGE-UPDATE",
+            registration_consumed_by_email=hr_user.email,
+        )
+
+        self.client.force_authenticate(user=hr_user)
+        response = self.client.patch(
+            self.billing_manage_endpoint,
+            {"payment_method": "bank_transfer"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        subscription.refresh_from_db()
+        self.assertEqual(subscription.payment_method, "bank_transfer")
+        self.assertEqual(response.data["subscription"]["payment_method"]["type"], "bank_transfer")
+
+    def test_billing_manage_delete_schedules_end_of_period_cancellation(self):
+        hr_user = self._create_hr_user(email="billing-delete@example.com")
+        subscription = BillingSubscription.objects.create(
+            provider="sandbox",
+            status="complete",
+            payment_status="paid",
+            plan_id="starter",
+            plan_name="Starter",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference="OVS-MANAGE-DELETE",
+            registration_consumed_by_email=hr_user.email,
+        )
+
+        self.client.force_authenticate(user=hr_user)
+        response = self.client.delete(self.billing_manage_endpoint)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        subscription.refresh_from_db()
+        self.assertEqual(subscription.status, "complete")
+        self.assertEqual(bool(subscription.metadata.get("cancel_at_period_end")), True)
+        self.assertIn("cancellation_effective_at", subscription.metadata)
+        self.assertIn("end of current billing period", response.data.get("message", "").lower())
+
+    def test_billing_retry_creates_new_sandbox_subscription_for_failed_payment(self):
+        hr_user = self._create_hr_user(email="billing-retry@example.com")
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            status="failed",
+            payment_status="unpaid",
+            plan_id="growth",
+            plan_name="Growth",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="399.00",
+            reference="OVS-MANAGE-RETRY-FAILED",
+            registration_consumed_by_email=hr_user.email,
+        )
+
+        self.client.force_authenticate(user=hr_user)
+        response = self.client.post(self.billing_retry_endpoint, {}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["provider"], "sandbox")
+        self.assertEqual(response.data["status"], "ok")
+        self.assertEqual(
+            BillingSubscription.objects.filter(
+                registration_consumed_by_email=hr_user.email,
+                status="complete",
+                payment_status="paid",
+            ).count(),
+            1,
+        )
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_123")
+    @patch("apps.billing.views._ensure_stripe_ready")
+    @patch("apps.billing.views._stripe_create_billing_portal_session")
+    def test_billing_manage_update_session_returns_stripe_portal_url(self, mock_create_portal, mock_ready):
+        mock_ready.return_value = None
+        mock_create_portal.return_value = {"url": "https://billing.stripe.com/session/test"}
+
+        hr_user = self._create_hr_user(email="billing-portal@example.com")
+        BillingSubscription.objects.create(
+            provider="stripe",
+            status="complete",
+            payment_status="paid",
+            session_id="cs_portal_test",
+            plan_id="growth",
+            plan_name="Growth",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="399.00",
+            reference="OVS-MANAGE-PORTAL",
+            registration_consumed_by_email=hr_user.email,
+            metadata={
+                "stripe_customer_id": "cus_portal_123",
+                "stripe_subscription_id": "sub_portal_123",
+            },
+        )
+
+        self.client.force_authenticate(user=hr_user)
+        response = self.client.post(self.billing_manage_update_session_endpoint, {}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["provider"], "stripe")
+        self.assertEqual(response.data["status"], "ok")
+        self.assertIn("billing.stripe.com", response.data["url"])
+        mock_ready.assert_called_once()
+        mock_create_portal.assert_called_once()
+
+    @override_settings(
+        BILLING_QUOTA_ENFORCEMENT_ENABLED=True,
+        BILLING_PLAN_STARTER_CANDIDATES_PER_MONTH=2,
+    )
+    def test_billing_quota_returns_candidate_usage_snapshot(self):
+        user_model = get_user_model()
+        hr_user = user_model.objects.create_user(
+            email="hr-quota-check@example.com",
+            password="StrongPass123!",
+            first_name="Quota",
+            last_name="Owner",
+            user_type="hr_manager",
+        )
+
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            status="complete",
+            payment_status="paid",
+            plan_id="starter",
+            plan_name="Starter",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference="OVS-QUOTA-SNAPSHOT",
+            registration_consumed_by_email=hr_user.email,
+        )
+
+        campaign = VettingCampaign.objects.create(
+            name="Quota Campaign",
+            description="Quota visibility",
+            status="active",
+            initiated_by=hr_user,
+        )
+
+        candidate_one = Candidate.objects.create(
+            first_name="Cand",
+            last_name="One",
+            email="quota-cand-1@example.com",
+        )
+        candidate_two = Candidate.objects.create(
+            first_name="Cand",
+            last_name="Two",
+            email="quota-cand-2@example.com",
+        )
+        CandidateEnrollment.objects.create(campaign=campaign, candidate=candidate_one, status="invited")
+        CandidateEnrollment.objects.create(campaign=campaign, candidate=candidate_two, status="invited")
+
+        self.client.force_authenticate(user=hr_user)
+        response = self.client.get(self.billing_quotas_endpoint)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "ok")
+        candidate_quota = response.data["candidate"]
+        self.assertEqual(candidate_quota["plan_id"], "starter")
+        self.assertEqual(candidate_quota["limit"], 2)
+        self.assertEqual(candidate_quota["used"], 2)
+        self.assertEqual(candidate_quota["remaining"], 0)
+        self.assertEqual(candidate_quota["reason"], None)
 
 
     @override_settings(
@@ -34,6 +281,7 @@ class BillingApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["status"], "ok")
         self.assertIn("stripe", response.data)
+        self.assertIn("paystack", response.data)
         self.assertIn("subscription_verify_rate_limit", response.data)
         self.assertIn("access", response.data)
         self.assertEqual(response.data["access"]["staff_required"], False)
@@ -50,6 +298,7 @@ class BillingApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["stripe"]["secret_key_configured"], True)
         self.assertEqual(response.data["stripe"]["webhook_secret_configured"], True)
+        self.assertIn("secret_key_configured", response.data["paystack"])
 
     @override_settings(BILLING_HEALTH_REQUIRE_STAFF=True)
     def test_billing_health_requires_staff_when_enabled(self):
@@ -105,6 +354,28 @@ class BillingApiTests(APITestCase):
         persisted = BillingSubscription.objects.get(provider="sandbox", reference=ticket["reference"])
         self.assertEqual(persisted.status, "complete")
         self.assertEqual(float(persisted.amount_usd), 399.0)
+
+    def test_confirm_subscription_binds_authenticated_workspace_email(self):
+        hr_user = self._create_hr_user(email="billing-auth-confirm@example.com")
+        self.client.force_authenticate(user=hr_user)
+
+        response = self.client.post(
+            self.sandbox_endpoint,
+            {
+                "plan_id": "starter",
+                "plan_name": "Starter",
+                "billing_cycle": "monthly",
+                "payment_method": "card",
+                "amount_usd": "149.00",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        ticket = response.data["ticket"]
+        persisted = BillingSubscription.objects.get(provider="sandbox", reference=ticket["reference"])
+        self.assertEqual(persisted.registration_consumed_by_email, hr_user.email)
+        self.assertIsNotNone(persisted.registration_consumed_at)
 
     def test_confirm_subscription_validates_payment_method(self):
         response = self.client.post(
@@ -283,6 +554,199 @@ class BillingApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    @override_settings(PAYSTACK_SECRET_KEY="")
+    def test_paystack_checkout_requires_secret_key(self):
+        response = self.client.post(
+            self.paystack_checkout_endpoint,
+            {
+                "plan_id": "growth",
+                "plan_name": "Growth",
+                "billing_cycle": "monthly",
+                "amount_usd": "399.00",
+                "customer_email": "billing-paystack@example.com",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @override_settings(PAYSTACK_SECRET_KEY="sk_test_paystack")
+    @patch("apps.billing.views._paystack_initialize_transaction")
+    def test_paystack_checkout_session_create(self, mock_initialize):
+        mock_initialize.return_value = {
+            "authorization_url": "https://checkout.paystack.com/psk_test_123",
+            "access_code": "psk_access_123",
+            "reference": "OVS-PAYSTACK-TEST-123",
+        }
+
+        response = self.client.post(
+            self.paystack_checkout_endpoint,
+            {
+                "plan_id": "growth",
+                "plan_name": "Growth",
+                "billing_cycle": "monthly",
+                "amount_usd": "399.00",
+                "customer_email": "billing-paystack@example.com",
+                "success_url": "http://localhost:3000/billing/success?next=%2Fregister",
+                "cancel_url": "http://localhost:3000/billing/cancel?next=%2Fregister",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["provider"], "paystack")
+        self.assertEqual(response.data["reference"], "OVS-PAYSTACK-TEST-123")
+        self.assertIn("checkout_url", response.data)
+        mock_initialize.assert_called_once()
+
+        persisted = BillingSubscription.objects.get(provider="paystack", session_id="OVS-PAYSTACK-TEST-123")
+        self.assertEqual(persisted.status, "open")
+        self.assertEqual(persisted.payment_status, "pending")
+
+    @override_settings(PAYSTACK_SECRET_KEY="sk_test_paystack")
+    @patch("apps.billing.views._paystack_verify_transaction")
+    def test_paystack_confirm_issues_ticket(self, mock_verify):
+        mock_verify.return_value = {
+            "reference": "OVS-PAYSTACK-VERIFY-123",
+            "status": "success",
+            "amount": 39900,
+            "channel": "card",
+            "customer": {"email": "billing-paystack@example.com"},
+            "metadata": {
+                "plan_id": "growth",
+                "plan_name": "Growth",
+                "billing_cycle": "monthly",
+                "amount_usd": "399.00",
+            },
+        }
+
+        response = self.client.post(
+            self.paystack_confirm_endpoint,
+            {"reference": "OVS-PAYSTACK-VERIFY-123"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["provider"], "paystack")
+        self.assertEqual(response.data["paystack_reference"], "OVS-PAYSTACK-VERIFY-123")
+        self.assertIn("ticket", response.data)
+        self.assertEqual(response.data["ticket"]["amountUsd"], 399.0)
+
+        persisted = BillingSubscription.objects.get(provider="paystack", session_id="OVS-PAYSTACK-VERIFY-123")
+        self.assertEqual(persisted.status, "complete")
+        self.assertEqual(persisted.payment_status, "paid")
+
+    @override_settings(PAYSTACK_SECRET_KEY="sk_test_paystack")
+    def test_paystack_webhook_requires_signature_header(self):
+        response = self.client.post(
+            self.paystack_webhook_endpoint,
+            "{}",
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @override_settings(PAYSTACK_SECRET_KEY="sk_test_paystack")
+    def test_paystack_webhook_rejects_invalid_signature(self):
+        payload = b'{"event":"charge.success","data":{"reference":"OVS-PAYSTACK-WEBHOOK-1"}}'
+        response = self.client.post(
+            self.paystack_webhook_endpoint,
+            payload,
+            content_type="application/json",
+            HTTP_X_PAYSTACK_SIGNATURE="invalid",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @override_settings(PAYSTACK_SECRET_KEY="sk_test_paystack")
+    def test_paystack_webhook_accepts_charge_success(self):
+        payload_data = {
+            "id": "evt_paystack_success_123",
+            "event": "charge.success",
+            "data": {
+                "reference": "OVS-PAYSTACK-WEBHOOK-SUCCESS-123",
+                "status": "success",
+                "amount": 39900,
+                "channel": "card",
+                "customer": {"email": "billing-paystack-webhook@example.com"},
+                "metadata": {
+                    "plan_id": "growth",
+                    "plan_name": "Growth",
+                    "billing_cycle": "monthly",
+                    "amount_usd": "399.00",
+                },
+            },
+        }
+        payload = json.dumps(payload_data).encode("utf-8")
+        signature = self._paystack_signature(payload, "sk_test_paystack")
+
+        response = self.client.post(
+            self.paystack_webhook_endpoint,
+            payload,
+            content_type="application/json",
+            HTTP_X_PAYSTACK_SIGNATURE=signature,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["received"])
+        self.assertEqual(response.data["event_type"], "charge.success")
+        self.assertEqual(response.data["session_id"], "OVS-PAYSTACK-WEBHOOK-SUCCESS-123")
+        self.assertEqual(response.data["payment_status"], "paid")
+
+        persisted = BillingSubscription.objects.get(
+            provider="paystack",
+            session_id="OVS-PAYSTACK-WEBHOOK-SUCCESS-123",
+        )
+        self.assertEqual(persisted.status, "complete")
+        self.assertEqual(persisted.payment_status, "paid")
+
+        webhook_event = BillingWebhookEvent.objects.get(provider="paystack", event_id="evt_paystack_success_123")
+        self.assertEqual(webhook_event.processing_status, "processed")
+        self.assertEqual(webhook_event.event_type, "charge.success")
+
+    @override_settings(PAYSTACK_SECRET_KEY="sk_test_paystack")
+    def test_paystack_webhook_marks_charge_failed(self):
+        BillingSubscription.objects.create(
+            provider="paystack",
+            status="open",
+            payment_status="pending",
+            session_id="OVS-PAYSTACK-WEBHOOK-FAILED-123",
+            plan_id="growth",
+            plan_name="Growth",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="399.00",
+            reference="OVS-PAYSTACK-WEBHOOK-FAILED-123",
+        )
+
+        payload_data = {
+            "id": "evt_paystack_failed_123",
+            "event": "charge.failed",
+            "data": {
+                "reference": "OVS-PAYSTACK-WEBHOOK-FAILED-123",
+                "status": "failed",
+            },
+        }
+        payload = json.dumps(payload_data).encode("utf-8")
+        signature = self._paystack_signature(payload, "sk_test_paystack")
+
+        response = self.client.post(
+            self.paystack_webhook_endpoint,
+            payload,
+            content_type="application/json",
+            HTTP_X_PAYSTACK_SIGNATURE=signature,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["event_type"], "charge.failed")
+
+        persisted = BillingSubscription.objects.get(
+            provider="paystack",
+            session_id="OVS-PAYSTACK-WEBHOOK-FAILED-123",
+        )
+        self.assertEqual(persisted.status, "failed")
+        self.assertEqual(persisted.payment_status, "unpaid")
+
     @override_settings(STRIPE_SECRET_KEY="sk_test_123")
     @patch("apps.billing.views._ensure_stripe_ready")
     @patch("apps.billing.views._stripe_create_checkout_session")
@@ -326,6 +790,50 @@ class BillingApiTests(APITestCase):
         persisted = BillingSubscription.objects.get(provider="stripe", session_id="cs_test_123")
         self.assertEqual(persisted.status, "open")
         self.assertEqual(persisted.payment_status, "unpaid")
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_123")
+    @patch("apps.billing.views._ensure_stripe_ready")
+    @patch("apps.billing.views._stripe_create_checkout_session")
+    def test_stripe_checkout_session_create_binds_authenticated_workspace_email(self, mock_create, mock_ready):
+        mock_ready.return_value = None
+        mock_create.return_value = {
+            "id": "cs_test_auth_123",
+            "url": "https://checkout.stripe.com/c/pay/cs_test_auth_123",
+            "status": "open",
+            "payment_status": "unpaid",
+            "metadata": {
+                "plan_id": "growth",
+                "plan_name": "Growth",
+                "billing_cycle": "monthly",
+                "payment_method": "card",
+                "amount_usd": "399.00",
+                "workspace_email": "billing-auth-checkout@example.com",
+            },
+            "amount_total": 39900,
+        }
+
+        hr_user = self._create_hr_user(email="billing-auth-checkout@example.com")
+        self.client.force_authenticate(user=hr_user)
+
+        response = self.client.post(
+            self.stripe_checkout_endpoint,
+            {
+                "plan_id": "growth",
+                "plan_name": "Growth",
+                "billing_cycle": "monthly",
+                "amount_usd": "399.00",
+                "success_url": "http://localhost:3000/subscribe?returnTo=%2Fsettings",
+                "cancel_url": "http://localhost:3000/billing/cancel?next=%2Fsettings",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["provider"], "stripe")
+        self.assertEqual(response.data["session_id"], "cs_test_auth_123")
+        self.assertEqual(mock_create.call_count, 1)
+        create_kwargs = mock_create.call_args.kwargs
+        self.assertEqual(create_kwargs["metadata"]["workspace_email"], hr_user.email)
 
     @override_settings(STRIPE_SECRET_KEY="sk_test_123")
     @patch("apps.billing.views._ensure_stripe_ready")
@@ -476,6 +984,91 @@ class BillingApiTests(APITestCase):
         webhook_event = BillingWebhookEvent.objects.get(provider="stripe", event_id="evt_test_123")
         self.assertEqual(webhook_event.processing_status, "processed")
         self.assertEqual(webhook_event.event_type, "checkout.session.completed")
+
+    @override_settings(STRIPE_WEBHOOK_SECRET="whsec_test_123")
+    @patch("apps.billing.views._ensure_stripe_webhook_ready")
+    @patch("apps.billing.views._stripe_construct_event")
+    def test_stripe_webhook_marks_invoice_payment_failed_for_subscription(self, mock_construct, mock_ready):
+        mock_ready.return_value = None
+        subscription = BillingSubscription.objects.create(
+            provider="stripe",
+            status="complete",
+            payment_status="paid",
+            session_id="cs_failed_invoice",
+            plan_id="growth",
+            plan_name="Growth",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="399.00",
+            reference="OVS-WEBHOOK-FAILED",
+            metadata={"stripe_subscription_id": "sub_failed_123"},
+        )
+        mock_construct.return_value = {
+            "id": "evt_invoice_failed_123",
+            "type": "invoice.payment_failed",
+            "data": {
+                "object": {
+                    "id": "in_failed_123",
+                    "subscription": "sub_failed_123",
+                }
+            },
+        }
+
+        response = self.client.post(
+            self.stripe_webhook_endpoint,
+            "{}",
+            content_type="application/json",
+            HTTP_STRIPE_SIGNATURE="sig_test",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        subscription.refresh_from_db()
+        self.assertEqual(subscription.status, "failed")
+        self.assertEqual(subscription.payment_status, "unpaid")
+        self.assertIn("last_invoice_payment_failed_at", subscription.metadata)
+
+    @override_settings(STRIPE_WEBHOOK_SECRET="whsec_test_123")
+    @patch("apps.billing.views._ensure_stripe_webhook_ready")
+    @patch("apps.billing.views._stripe_construct_event")
+    def test_stripe_webhook_marks_subscription_deleted_as_canceled(self, mock_construct, mock_ready):
+        mock_ready.return_value = None
+        subscription = BillingSubscription.objects.create(
+            provider="stripe",
+            status="complete",
+            payment_status="paid",
+            session_id="cs_deleted_subscription",
+            plan_id="growth",
+            plan_name="Growth",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="399.00",
+            reference="OVS-WEBHOOK-DELETED",
+            metadata={"stripe_subscription_id": "sub_deleted_123"},
+        )
+        mock_construct.return_value = {
+            "id": "evt_subscription_deleted_123",
+            "type": "customer.subscription.deleted",
+            "data": {
+                "object": {
+                    "id": "sub_deleted_123",
+                    "cancel_at_period_end": False,
+                    "current_period_end": 1760000000,
+                }
+            },
+        }
+
+        response = self.client.post(
+            self.stripe_webhook_endpoint,
+            "{}",
+            content_type="application/json",
+            HTTP_STRIPE_SIGNATURE="sig_test",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        subscription.refresh_from_db()
+        self.assertEqual(subscription.status, "canceled")
+        self.assertEqual(subscription.payment_status, "unpaid")
+        self.assertIn("cancellation_effective_at", subscription.metadata)
 
 
 

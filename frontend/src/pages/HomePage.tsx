@@ -1,9 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { useSelector } from "react-redux";
 import { ArrowRight, CheckCircle2, Fingerprint, ScanLine, Shield, UserCheck } from "lucide-react";
-
-import type { RootState } from "@/app/store";
 
 const capabilityCards = [
   {
@@ -41,7 +38,6 @@ const processSteps = [
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
-  const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -53,10 +49,10 @@ export const HomePage: React.FC = () => {
           </div>
           <button
             type="button"
-            onClick={() => navigate(isAuthenticated ? "/dashboard" : "/subscribe")}
+            onClick={() => navigate("/subscribe")}
             className="rounded-lg bg-cyan-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-cyan-800"
           >
-            {isAuthenticated ? "Go to Dashboard" : "Get Started"}
+            Get Started
           </button>
         </div>
       </header>
@@ -80,10 +76,10 @@ export const HomePage: React.FC = () => {
             <div className="mt-8 flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={() => navigate(isAuthenticated ? "/dashboard" : "/subscribe")}
+                onClick={() => navigate("/subscribe")}
                 className="inline-flex items-center gap-2 rounded-lg bg-cyan-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-cyan-800"
               >
-                {isAuthenticated ? "Go to Dashboard" : "Get Started"}
+                Get Started
                 <ArrowRight className="h-4 w-4" />
               </button>
             </div>

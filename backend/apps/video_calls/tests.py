@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
@@ -17,6 +17,14 @@ from apps.video_calls.tasks import process_video_meeting_reminders
 
 class VideoMeetingApiTests(APITestCase):
     def setUp(self):
+        self.admin_user = User.objects.create_user(
+            email="admin-video-tests@example.com",
+            password="SecurePass123!",
+            first_name="Platform",
+            last_name="Admin",
+            user_type="admin",
+            is_staff=True,
+        )
         self.hr_user = User.objects.create_user(
             email="hr-video-tests@example.com",
             password="SecurePass123!",
@@ -310,6 +318,170 @@ class VideoMeetingApiTests(APITestCase):
         self.assertIsNone(starts_in_ten.reminder_before_sent_at)
         self.assertIsNotNone(starts_in_four.reminder_before_sent_at)
 
+    def test_reminder_task_resets_claim_when_soon_notification_fails(self):
+        meeting = VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Soon reminder failure retry",
+            scheduled_start=timezone.now() + timedelta(minutes=4),
+            scheduled_end=timezone.now() + timedelta(minutes=34),
+            timezone="UTC",
+            reminder_before_minutes=5,
+        )
+        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.candidate, role="candidate")
+
+        with patch("apps.video_calls.tasks.notify_meeting_starting_soon", side_effect=RuntimeError("delivery failed")):
+            stats = process_video_meeting_reminders()
+
+        meeting.refresh_from_db()
+        self.assertEqual(stats["soon"], 0)
+        self.assertEqual(stats["soon_failed"], 1)
+        self.assertIsNone(meeting.reminder_before_sent_at)
+        self.assertEqual(meeting.reminder_before_failure_count, 1)
+        self.assertIsNotNone(meeting.reminder_before_last_failure_at)
+        self.assertIsNotNone(meeting.reminder_before_next_retry_at)
+
+    @override_settings(VIDEO_CALLS_REMINDER_RETRY_MAX_ATTEMPTS=2)
+    def test_reminder_task_skips_soon_notification_after_max_failures(self):
+        meeting = VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Skip after max failures",
+            scheduled_start=timezone.now() + timedelta(minutes=4),
+            scheduled_end=timezone.now() + timedelta(minutes=34),
+            timezone="UTC",
+            reminder_before_minutes=5,
+            reminder_before_failure_count=2,
+        )
+        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.candidate, role="candidate")
+
+        with patch("apps.video_calls.tasks.notify_meeting_starting_soon") as notify_mock:
+            stats = process_video_meeting_reminders()
+
+        meeting.refresh_from_db()
+        self.assertEqual(stats["soon"], 0)
+        notify_mock.assert_not_called()
+        self.assertIsNone(meeting.reminder_before_sent_at)
+
+    def test_reminder_task_skips_soon_notification_before_retry_window(self):
+        meeting = VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Skip before retry window",
+            scheduled_start=timezone.now() + timedelta(minutes=4),
+            scheduled_end=timezone.now() + timedelta(minutes=34),
+            timezone="UTC",
+            reminder_before_minutes=5,
+            reminder_before_failure_count=1,
+            reminder_before_next_retry_at=timezone.now() + timedelta(minutes=2),
+        )
+        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.candidate, role="candidate")
+
+        with patch("apps.video_calls.tasks.notify_meeting_starting_soon") as notify_mock:
+            stats = process_video_meeting_reminders()
+
+        meeting.refresh_from_db()
+        self.assertEqual(stats["soon"], 0)
+        notify_mock.assert_not_called()
+        self.assertIsNone(meeting.reminder_before_sent_at)
+
+    def test_start_now_notification_failure_records_retry_state(self):
+        meeting = VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Start now failure retry",
+            status=VideoMeeting.STATUS_ONGOING,
+            scheduled_start=timezone.now() - timedelta(minutes=1),
+            scheduled_end=timezone.now() + timedelta(minutes=29),
+            timezone="UTC",
+        )
+        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.candidate, role="candidate")
+
+        with patch("apps.video_calls.tasks.notify_meeting_start_now", side_effect=RuntimeError("start delivery failed")):
+            stats = process_video_meeting_reminders()
+
+        meeting.refresh_from_db()
+        self.assertEqual(stats["start_now"], 0)
+        self.assertEqual(stats["start_now_failed"], 1)
+        self.assertIsNone(meeting.reminder_start_sent_at)
+        self.assertEqual(meeting.reminder_start_failure_count, 1)
+        self.assertIsNotNone(meeting.reminder_start_last_failure_at)
+        self.assertIsNotNone(meeting.reminder_start_next_retry_at)
+
+    @override_settings(VIDEO_CALLS_REMINDER_RETRY_MAX_ATTEMPTS=1)
+    def test_start_now_notification_skipped_after_max_failures(self):
+        meeting = VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Start now max failures",
+            status=VideoMeeting.STATUS_ONGOING,
+            scheduled_start=timezone.now() - timedelta(minutes=1),
+            scheduled_end=timezone.now() + timedelta(minutes=29),
+            timezone="UTC",
+            reminder_start_failure_count=1,
+        )
+        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.candidate, role="candidate")
+
+        with patch("apps.video_calls.tasks.notify_meeting_start_now") as notify_mock:
+            stats = process_video_meeting_reminders()
+
+        meeting.refresh_from_db()
+        self.assertEqual(stats["start_now"], 0)
+        notify_mock.assert_not_called()
+        self.assertIsNone(meeting.reminder_start_sent_at)
+
+    def test_time_up_notification_failure_records_retry_state(self):
+        meeting = VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Time up failure retry",
+            status=VideoMeeting.STATUS_COMPLETED,
+            scheduled_start=timezone.now() - timedelta(hours=1),
+            scheduled_end=timezone.now() - timedelta(minutes=1),
+            timezone="UTC",
+        )
+        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.candidate, role="candidate")
+
+        with patch("apps.video_calls.tasks.notify_meeting_time_up", side_effect=RuntimeError("time up delivery failed")):
+            stats = process_video_meeting_reminders()
+
+        meeting.refresh_from_db()
+        self.assertEqual(stats["completed"], 0)
+        self.assertEqual(stats["completed_failed"], 1)
+        self.assertIsNone(meeting.reminder_time_up_sent_at)
+        self.assertEqual(meeting.reminder_time_up_failure_count, 1)
+        self.assertIsNotNone(meeting.reminder_time_up_last_failure_at)
+        self.assertIsNotNone(meeting.reminder_time_up_next_retry_at)
+
+    @override_settings(VIDEO_CALLS_REMINDER_RETRY_MAX_ATTEMPTS=1)
+    def test_time_up_notification_skipped_after_max_failures(self):
+        meeting = VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Time up max failures",
+            status=VideoMeeting.STATUS_COMPLETED,
+            scheduled_start=timezone.now() - timedelta(hours=1),
+            scheduled_end=timezone.now() - timedelta(minutes=1),
+            timezone="UTC",
+            reminder_time_up_failure_count=1,
+        )
+        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.candidate, role="candidate")
+
+        with patch("apps.video_calls.tasks.notify_meeting_time_up") as notify_mock:
+            stats = process_video_meeting_reminders()
+
+        meeting.refresh_from_db()
+        self.assertEqual(stats["completed"], 0)
+        notify_mock.assert_not_called()
+        self.assertIsNone(meeting.reminder_time_up_sent_at)
+
     def test_reschedule_rejects_duration_over_eight_hours(self):
         meeting = VideoMeeting.objects.create(
             organizer=self.hr_user,
@@ -481,6 +653,300 @@ class VideoMeetingApiTests(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_reschedule_resets_all_reminder_retry_state(self):
+        meeting = VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Reset reminder state on reschedule",
+            status=VideoMeeting.STATUS_SCHEDULED,
+            scheduled_start=timezone.now() + timedelta(hours=1),
+            scheduled_end=timezone.now() + timedelta(hours=2),
+            timezone="UTC",
+            reminder_before_sent_at=timezone.now(),
+            reminder_before_failure_count=2,
+            reminder_before_last_failure_at=timezone.now(),
+            reminder_before_next_retry_at=timezone.now() + timedelta(minutes=5),
+            reminder_start_sent_at=timezone.now(),
+            reminder_start_failure_count=1,
+            reminder_start_last_failure_at=timezone.now(),
+            reminder_start_next_retry_at=timezone.now() + timedelta(minutes=5),
+            reminder_time_up_sent_at=timezone.now(),
+            reminder_time_up_failure_count=1,
+            reminder_time_up_last_failure_at=timezone.now(),
+            reminder_time_up_next_retry_at=timezone.now() + timedelta(minutes=5),
+        )
+        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.candidate, role="candidate")
+
+        response = self.client.post(
+            reverse("video-meeting-reschedule", kwargs={"pk": meeting.pk}),
+            data={
+                "scheduled_start": (timezone.now() + timedelta(hours=3)).isoformat(),
+                "scheduled_end": (timezone.now() + timedelta(hours=4)).isoformat(),
+                "timezone": "UTC",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        meeting.refresh_from_db()
+        self.assertIsNone(meeting.reminder_before_sent_at)
+        self.assertEqual(meeting.reminder_before_failure_count, 0)
+        self.assertIsNone(meeting.reminder_before_last_failure_at)
+        self.assertIsNone(meeting.reminder_before_next_retry_at)
+        self.assertIsNone(meeting.reminder_start_sent_at)
+        self.assertEqual(meeting.reminder_start_failure_count, 0)
+        self.assertIsNone(meeting.reminder_start_last_failure_at)
+        self.assertIsNone(meeting.reminder_start_next_retry_at)
+        self.assertIsNone(meeting.reminder_time_up_sent_at)
+        self.assertEqual(meeting.reminder_time_up_failure_count, 0)
+        self.assertIsNone(meeting.reminder_time_up_last_failure_at)
+        self.assertIsNone(meeting.reminder_time_up_next_retry_at)
+
+    def test_reschedule_series_resets_all_reminder_retry_state(self):
+        base_start = timezone.now() + timedelta(hours=2)
+        response = self.client.post(
+            reverse("video-meeting-schedule-series"),
+            data={
+                "title": "Series reminder reset",
+                "description": "Series reset checks.",
+                "case": str(self.case.id),
+                "scheduled_start": base_start.isoformat(),
+                "scheduled_end": (base_start + timedelta(hours=1)).isoformat(),
+                "timezone": "UTC",
+                "recurrence": "daily",
+                "occurrences": 2,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        anchor_id = response.data["results"][0]["id"]
+
+        meetings = list(VideoMeeting.objects.filter(title="Series reminder reset").order_by("scheduled_start"))
+        self.assertEqual(len(meetings), 2)
+        for item in meetings:
+            item.reminder_before_sent_at = timezone.now()
+            item.reminder_before_failure_count = 1
+            item.reminder_before_last_failure_at = timezone.now()
+            item.reminder_before_next_retry_at = timezone.now() + timedelta(minutes=2)
+            item.reminder_start_sent_at = timezone.now()
+            item.reminder_start_failure_count = 1
+            item.reminder_start_last_failure_at = timezone.now()
+            item.reminder_start_next_retry_at = timezone.now() + timedelta(minutes=2)
+            item.reminder_time_up_sent_at = timezone.now()
+            item.reminder_time_up_failure_count = 1
+            item.reminder_time_up_last_failure_at = timezone.now()
+            item.reminder_time_up_next_retry_at = timezone.now() + timedelta(minutes=2)
+            item.save(
+                update_fields=[
+                    "reminder_before_sent_at",
+                    "reminder_before_failure_count",
+                    "reminder_before_last_failure_at",
+                    "reminder_before_next_retry_at",
+                    "reminder_start_sent_at",
+                    "reminder_start_failure_count",
+                    "reminder_start_last_failure_at",
+                    "reminder_start_next_retry_at",
+                    "reminder_time_up_sent_at",
+                    "reminder_time_up_failure_count",
+                    "reminder_time_up_last_failure_at",
+                    "reminder_time_up_next_retry_at",
+                    "updated_at",
+                ]
+            )
+
+        new_anchor_start = base_start + timedelta(days=1, minutes=20)
+        reschedule_response = self.client.post(
+            reverse("video-meeting-reschedule-series", kwargs={"pk": anchor_id}),
+            data={
+                "scheduled_start": new_anchor_start.isoformat(),
+                "scheduled_end": (new_anchor_start + timedelta(hours=1)).isoformat(),
+                "timezone": "UTC",
+                "scope": "all",
+            },
+            format="json",
+        )
+        self.assertEqual(reschedule_response.status_code, status.HTTP_200_OK)
+
+        for item in VideoMeeting.objects.filter(title="Series reminder reset"):
+            self.assertIsNone(item.reminder_before_sent_at)
+            self.assertEqual(item.reminder_before_failure_count, 0)
+            self.assertIsNone(item.reminder_before_last_failure_at)
+            self.assertIsNone(item.reminder_before_next_retry_at)
+            self.assertIsNone(item.reminder_start_sent_at)
+            self.assertEqual(item.reminder_start_failure_count, 0)
+            self.assertIsNone(item.reminder_start_last_failure_at)
+            self.assertIsNone(item.reminder_start_next_retry_at)
+            self.assertIsNone(item.reminder_time_up_sent_at)
+            self.assertEqual(item.reminder_time_up_failure_count, 0)
+            self.assertIsNone(item.reminder_time_up_last_failure_at)
+            self.assertIsNone(item.reminder_time_up_next_retry_at)
+
+    def test_reminder_health_requires_admin_user(self):
+        self.client.force_authenticate(self.candidate)
+        response = self.client.get(reverse("video-meeting-reminder-health"))
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("Only admin users", str(response.data.get("error", "")))
+
+        self.client.force_authenticate(self.hr_user)
+        response = self.client.get(reverse("video-meeting-reminder-health"))
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("Only admin users", str(response.data.get("error", "")))
+
+        self.client.force_authenticate(self.admin_user)
+        response = self.client.get(reverse("video-meeting-reminder-health"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @override_settings(VIDEO_CALLS_REMINDER_RETRY_MAX_ATTEMPTS=3)
+    def test_reminder_health_returns_retry_counts(self):
+        self.client.force_authenticate(self.admin_user)
+        now = timezone.now()
+
+        VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Soon pending",
+            status=VideoMeeting.STATUS_SCHEDULED,
+            scheduled_start=now + timedelta(minutes=10),
+            scheduled_end=now + timedelta(minutes=40),
+            timezone="UTC",
+            reminder_before_failure_count=1,
+            reminder_before_next_retry_at=now - timedelta(minutes=1),
+        )
+        VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Soon exhausted",
+            status=VideoMeeting.STATUS_SCHEDULED,
+            scheduled_start=now + timedelta(minutes=20),
+            scheduled_end=now + timedelta(minutes=50),
+            timezone="UTC",
+            reminder_before_failure_count=3,
+        )
+        VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Start pending",
+            status=VideoMeeting.STATUS_ONGOING,
+            scheduled_start=now - timedelta(minutes=5),
+            scheduled_end=now + timedelta(minutes=25),
+            timezone="UTC",
+            reminder_start_failure_count=2,
+            reminder_start_next_retry_at=now - timedelta(seconds=30),
+        )
+        VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Start exhausted",
+            status=VideoMeeting.STATUS_ONGOING,
+            scheduled_start=now - timedelta(minutes=10),
+            scheduled_end=now + timedelta(minutes=10),
+            timezone="UTC",
+            reminder_start_failure_count=3,
+        )
+        VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Time up pending",
+            status=VideoMeeting.STATUS_COMPLETED,
+            scheduled_start=now - timedelta(hours=1),
+            scheduled_end=now - timedelta(minutes=20),
+            timezone="UTC",
+            reminder_time_up_failure_count=1,
+            reminder_time_up_next_retry_at=now - timedelta(minutes=2),
+        )
+        VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Time up exhausted",
+            status=VideoMeeting.STATUS_COMPLETED,
+            scheduled_start=now - timedelta(hours=2),
+            scheduled_end=now - timedelta(hours=1, minutes=30),
+            timezone="UTC",
+            reminder_time_up_failure_count=3,
+        )
+
+        response = self.client.get(reverse("video-meeting-reminder-health"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["soon_retry_pending"], 1)
+        self.assertEqual(response.data["soon_retry_exhausted"], 1)
+        self.assertEqual(response.data["start_now_retry_pending"], 1)
+        self.assertEqual(response.data["start_now_retry_exhausted"], 1)
+        self.assertEqual(response.data["time_up_retry_pending"], 1)
+        self.assertEqual(response.data["time_up_retry_exhausted"], 1)
+
+    @override_settings(VIDEO_CALLS_REMINDER_RETRY_MAX_ATTEMPTS=5)
+    def test_reminder_health_contract_payload_contains_required_fields(self):
+        self.client.force_authenticate(self.admin_user)
+        response = self.client.get(reverse("video-meeting-reminder-health"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        expected_keys = {
+            "generated_at",
+            "max_retries",
+            "soon_retry_pending",
+            "soon_retry_exhausted",
+            "start_now_retry_pending",
+            "start_now_retry_exhausted",
+            "time_up_retry_pending",
+            "time_up_retry_exhausted",
+        }
+        self.assertEqual(set(response.data.keys()), expected_keys)
+        self.assertEqual(response.data["max_retries"], 5)
+        self.assertIsNotNone(datetime.fromisoformat(response.data["generated_at"]))
+
+        for key in expected_keys - {"generated_at", "max_retries"}:
+            self.assertIsInstance(response.data[key], int)
+            self.assertGreaterEqual(response.data[key], 0)
+
+    @override_settings(VIDEO_CALLS_REMINDER_RETRY_MAX_ATTEMPTS=0)
+    def test_reminder_health_enforces_retry_floor_when_setting_invalid(self):
+        self.client.force_authenticate(self.admin_user)
+        now = timezone.now()
+        VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Soon exhausted via floor",
+            status=VideoMeeting.STATUS_SCHEDULED,
+            scheduled_start=now + timedelta(minutes=15),
+            scheduled_end=now + timedelta(minutes=45),
+            timezone="UTC",
+            reminder_before_failure_count=1,
+            reminder_before_next_retry_at=now - timedelta(minutes=1),
+        )
+        VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Start exhausted via floor",
+            status=VideoMeeting.STATUS_ONGOING,
+            scheduled_start=now - timedelta(minutes=5),
+            scheduled_end=now + timedelta(minutes=20),
+            timezone="UTC",
+            reminder_start_failure_count=1,
+            reminder_start_next_retry_at=now - timedelta(minutes=1),
+        )
+        VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Time up exhausted via floor",
+            status=VideoMeeting.STATUS_COMPLETED,
+            scheduled_start=now - timedelta(hours=1),
+            scheduled_end=now - timedelta(minutes=10),
+            timezone="UTC",
+            reminder_time_up_failure_count=1,
+            reminder_time_up_next_retry_at=now - timedelta(minutes=1),
+        )
+
+        response = self.client.get(reverse("video-meeting-reminder-health"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["max_retries"], 1)
+        self.assertEqual(response.data["soon_retry_pending"], 0)
+        self.assertEqual(response.data["soon_retry_exhausted"], 1)
+        self.assertEqual(response.data["start_now_retry_pending"], 0)
+        self.assertEqual(response.data["start_now_retry_exhausted"], 1)
+        self.assertEqual(response.data["time_up_retry_pending"], 0)
+        self.assertEqual(response.data["time_up_retry_exhausted"], 1)
 
     def test_joinability_respects_configured_join_grace_minutes(self):
         meeting = VideoMeeting.objects.create(

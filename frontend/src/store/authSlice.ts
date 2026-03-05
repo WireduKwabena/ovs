@@ -172,7 +172,7 @@ export const refreshToken = createAsyncThunk<
 
 export const updateUserProfile = createAsyncThunk(
   "/auth/profile/update/",
-  async (data: Partial<User | AdminUser>, { rejectWithValue }) => {
+  async (data: Record<string, unknown>, { rejectWithValue }) => {
     try {
       return await authService.updateProfile(data);
     } catch (error: unknown) {

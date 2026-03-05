@@ -427,6 +427,9 @@ coverage report
 # Frontend tests
 cd frontend
 npm test
+
+# Focused UX + quota guard tests
+npm run test:ux-guards
 ```
 
 ### Test Coverage Goals

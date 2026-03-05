@@ -40,12 +40,12 @@ export const invitationService = {
     return response.data;
   },
 
-  async sendNow(invitationId: number | string): Promise<{ message: string }> {
+  async sendNow(invitationId: string): Promise<{ message: string }> {
     const response = await api.post<{ message: string }>(`/invitations/${invitationId}/send/`, {});
     return response.data;
   },
 
-  async getById(invitationId: number | string): Promise<Invitation> {
+  async getById(invitationId: string): Promise<Invitation> {
     const response = await api.get<Invitation>(`/invitations/${invitationId}/`);
     return response.data;
   },

@@ -22,8 +22,8 @@ export interface CampaignRubricVersionPayload {
 }
 
 export interface CampaignRubricVersion {
-  id: number;
-  campaign: number;
+  id: string;
+  campaign: string;
   version: number;
   name: string;
   description: string;
@@ -34,7 +34,7 @@ export interface CampaignRubricVersion {
   auto_reject_threshold: number;
   rubric_payload: Record<string, unknown>;
   is_active: boolean;
-  created_by: number;
+  created_by: string | null;
   created_at: string;
 }
 
@@ -60,7 +60,7 @@ export const campaignService = {
     return extractResults(response.data);
   },
 
-  async getById(campaignId: number | string): Promise<VettingCampaign> {
+  async getById(campaignId: string): Promise<VettingCampaign> {
     const response = await api.get<VettingCampaign>(`/campaigns/${campaignId}/`);
     return response.data;
   },
@@ -70,13 +70,13 @@ export const campaignService = {
     return response.data;
   },
 
-  async getDashboard(campaignId: number | string): Promise<CampaignDashboard> {
+  async getDashboard(campaignId: string): Promise<CampaignDashboard> {
     const response = await api.get<CampaignDashboard>(`/campaigns/${campaignId}/dashboard/`);
     return response.data;
   },
 
   async importCandidates(
-    campaignId: number | string,
+    campaignId: string,
     payload: {
       candidates: CandidateImportRow[];
       send_invites?: boolean;
@@ -89,7 +89,7 @@ export const campaignService = {
     return response.data;
   },
 
-  async getEnrollments(campaignId: number | string): Promise<CandidateEnrollment[]> {
+  async getEnrollments(campaignId: string): Promise<CandidateEnrollment[]> {
     const response = await api.get<PaginatedResponse<CandidateEnrollment> | CandidateEnrollment[]>(
       '/enrollments/',
       { params: { campaign: campaignId } }
@@ -97,7 +97,7 @@ export const campaignService = {
     return extractResults(response.data);
   },
 
-  async getInvitations(campaignId: number | string): Promise<Invitation[]> {
+  async getInvitations(campaignId: string): Promise<Invitation[]> {
     const response = await api.get<PaginatedResponse<Invitation> | Invitation[]>(
       '/invitations/',
       { params: { campaign: campaignId } }
@@ -106,12 +106,28 @@ export const campaignService = {
   },
 
   async addRubricVersion(
-    campaignId: number | string,
+    campaignId: string,
     payload: CampaignRubricVersionPayload,
   ): Promise<CampaignRubricVersion> {
     const response = await api.post<CampaignRubricVersion>(
       `/campaigns/${campaignId}/rubrics/versions/`,
       payload,
+    );
+    return response.data;
+  },
+
+  async listRubricVersions(campaignId: string): Promise<CampaignRubricVersion[]> {
+    const response = await api.get<CampaignRubricVersion[]>(`/campaigns/${campaignId}/rubrics/versions/`);
+    return Array.isArray(response.data) ? response.data : [];
+  },
+
+  async activateRubricVersion(
+    campaignId: string,
+    versionId: string,
+  ): Promise<CampaignRubricVersion> {
+    const response = await api.post<CampaignRubricVersion>(
+      `/campaigns/${campaignId}/rubrics/versions/activate/`,
+      { version_id: versionId },
     );
     return response.data;
   },

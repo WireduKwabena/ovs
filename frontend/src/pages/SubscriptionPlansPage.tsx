@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -115,15 +115,26 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
   return candidate.response?.data?.message || candidate.response?.data?.detail || fallback;
 };
 
+const normalizeReturnPath = (value: string | null | undefined, fallback: string): string => {
+  if (!value) return fallback;
+  if (!value.startsWith("/") || value.startsWith("//")) return fallback;
+  if (value.startsWith("/billing/")) return fallback;
+  return value;
+};
+
 export const SubscriptionPlansPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [selectedPlanId, setSelectedPlanId] = useState<string>("growth");
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
+  const [customerEmail, setCustomerEmail] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
   const checkoutMode = subscriptionService.getCheckoutMode();
+  const defaultReturnPath = "/register";
+  const returnToPath = normalizeReturnPath(searchParams.get("returnTo"), defaultReturnPath);
 
   const selectedPlan = useMemo(
     () => plans.find((plan) => plan.id === selectedPlanId) ?? plans[0],
@@ -142,7 +153,7 @@ export const SubscriptionPlansPage: React.FC = () => {
   }, [billingCycle, selectedPlan]);
 
   const effectivePaymentMethod: PaymentMethod =
-    checkoutMode === "stripe" ? "card" : paymentMethod;
+    checkoutMode === "stripe" || checkoutMode === "paystack" ? "card" : paymentMethod;
 
   const selectedPaymentMethodLabel =
     paymentMethods.find((method) => method.id === effectivePaymentMethod)?.label ?? "N/A";
@@ -154,12 +165,42 @@ export const SubscriptionPlansPage: React.FC = () => {
 
     try {
       if (checkoutMode === "stripe") {
+        const origin =
+          typeof window !== "undefined" && window.location?.origin
+            ? window.location.origin
+            : "http://localhost:3000";
+        const encodedReturnPath = encodeURIComponent(returnToPath);
         const session = await subscriptionService.beginStripeCheckout({
           planId: selectedPlan.id,
           planName: selectedPlan.name,
           billingCycle,
           paymentMethod: "card",
           amountUsd,
+          successUrl: `${origin}/billing/success?next=${encodedReturnPath}`,
+          cancelUrl: `${origin}/billing/cancel?next=${encodedReturnPath}`,
+        });
+
+        window.location.assign(session.checkout_url);
+        return;
+      }
+
+      if (checkoutMode === "paystack") {
+        const normalizedCustomerEmail = customerEmail.trim().toLowerCase();
+
+        const origin =
+          typeof window !== "undefined" && window.location?.origin
+            ? window.location.origin
+            : "http://localhost:3000";
+        const encodedReturnPath = encodeURIComponent(returnToPath);
+        const session = await subscriptionService.beginPaystackCheckout({
+          planId: selectedPlan.id,
+          planName: selectedPlan.name,
+          billingCycle,
+          paymentMethod: "card",
+          amountUsd,
+          customerEmail: normalizedCustomerEmail || undefined,
+          successUrl: `${origin}/billing/success?next=${encodedReturnPath}`,
+          cancelUrl: `${origin}/billing/cancel?next=${encodedReturnPath}`,
         });
 
         window.location.assign(session.checkout_url);
@@ -180,7 +221,7 @@ export const SubscriptionPlansPage: React.FC = () => {
         toast.success("Subscription confirmed. Continue with organization registration.");
       }
 
-      navigate("/register", { replace: true });
+      navigate(returnToPath, { replace: true });
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, "Subscription confirmation failed."), {
         toastId: "subscription-confirm-error",
@@ -220,6 +261,9 @@ export const SubscriptionPlansPage: React.FC = () => {
               <p className="mt-3 max-w-2xl text-sm text-slate-700 sm:text-base">
                 Registration stays locked until subscription is confirmed. Choose a plan,
                 confirm payment mode, then continue to organization account setup.
+              </p>
+              <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-700">
+                Next step after payment: {returnToPath}
               </p>
             </div>
 
@@ -317,7 +361,8 @@ export const SubscriptionPlansPage: React.FC = () => {
             <div className="mt-4 space-y-3">
               {paymentMethods.map((method) => {
                 const selected = method.id === effectivePaymentMethod;
-                const disabled = checkoutMode === "stripe" && method.id !== "card";
+                const disabled =
+                  (checkoutMode === "stripe" || checkoutMode === "paystack") && method.id !== "card";
 
                 return (
                   <button
@@ -349,6 +394,27 @@ export const SubscriptionPlansPage: React.FC = () => {
               <p className="mt-3 text-xs text-amber-700">
                 Stripe checkout currently supports card payments in this flow.
               </p>
+            )}
+            {checkoutMode === "paystack" && (
+              <div className="mt-3 space-y-2">
+                <label
+                  htmlFor="paystack-customer-email"
+                  className="block text-xs font-semibold uppercase tracking-wide text-slate-700"
+                >
+                  Billing Email
+                </label>
+                <input
+                  id="paystack-customer-email"
+                  type="email"
+                  value={customerEmail}
+                  onChange={(event) => setCustomerEmail(event.target.value)}
+                  placeholder="billing@company.com"
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-cyan-400"
+                />
+                <p className="text-xs text-slate-700">
+                  Paystack requires an email for payment authorization and receipt. If signed in, your workspace email is used automatically.
+                </p>
+              </div>
             )}
           </div>
 
@@ -392,14 +458,26 @@ export const SubscriptionPlansPage: React.FC = () => {
               {isProcessing
                 ? checkoutMode === "stripe"
                   ? "Preparing Stripe checkout..."
+                  : checkoutMode === "paystack"
+                  ? "Preparing Paystack checkout..."
                   : "Confirming subscription..."
                 : checkoutMode === "stripe"
                 ? "Continue to Stripe"
+                : checkoutMode === "paystack"
+                ? "Continue to Paystack"
                 : "Confirm and continue"}
             </Button>
 
             <p className="mt-3 text-xs text-slate-700">
-              Checkout mode: {checkoutMode === "api" ? "API" : checkoutMode === "stripe" ? "Stripe" : "Sandbox"}.
+              Checkout mode:{" "}
+              {checkoutMode === "api"
+                ? "API"
+                : checkoutMode === "stripe"
+                ? "Stripe"
+                : checkoutMode === "paystack"
+                ? "Paystack"
+                : "Sandbox"}
+              .
             </p>
           </aside>
         </section>

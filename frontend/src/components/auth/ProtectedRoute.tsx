@@ -17,7 +17,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   adminOnly = false,
   disallowUserTypes = [],
 }) => {
-  const { isAuthenticated, userType, twoFactorRequired, twoFactorToken } = useSelector(
+  const { isAuthenticated, userType, user, twoFactorRequired, twoFactorToken } = useSelector(
     (state: RootState) => state.auth,
   );
   const location = useLocation();
@@ -39,7 +39,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to={routeRedirect} state={{ from: location }} replace />;
   }
 
-  if (adminOnly && userType !== 'admin') {
+  const hasAdminAccess = userType === 'admin' || Boolean(user && (user.is_staff || user.is_superuser));
+
+  if (adminOnly && !hasAdminAccess) {
     return <Navigate to="/dashboard" replace />;
   }
 

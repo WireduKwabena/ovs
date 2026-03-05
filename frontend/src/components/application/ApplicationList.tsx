@@ -14,7 +14,7 @@ export function ApplicationList() {
   const [filterStatus, setFilterStatus] = useState('all');
   
   useEffect(() => {
-    refetch();  // Initial fetch
+    refetch({ scope: 'mine' });  // Initial fetch
   }, [refetch]);
 
   const filteredApplications: ApplicationWithDocuments[] = applications

@@ -1,10 +1,12 @@
 from django.conf import settings
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied, ValidationError
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from apps.core.permissions import IsHRManagerOrAdmin
 
 from .models import BackgroundCheck
 from .serializers import (
@@ -17,17 +19,9 @@ from .services import apply_webhook_update, refresh_background_check, submit_bac
 from .tasks import refresh_background_check_task
 
 
-def _is_privileged(user) -> bool:
-    return bool(
-        getattr(user, "is_staff", False)
-        or getattr(user, "is_superuser", False)
-        or getattr(user, "user_type", None) in {"admin", "hr_manager"}
-    )
-
-
 class BackgroundCheckViewSet(viewsets.ModelViewSet):
     queryset = BackgroundCheck.objects.select_related("case", "case__applicant", "submitted_by").all()
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsHRManagerOrAdmin]
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -39,9 +33,6 @@ class BackgroundCheckViewSet(viewsets.ModelViewSet):
             return BackgroundCheck.objects.none()
 
         queryset = super().get_queryset()
-        user = self.request.user
-        if not _is_privileged(user):
-            queryset = queryset.filter(case__applicant=user)
 
         case_id = self.request.query_params.get("case_id")
         if case_id:
@@ -62,8 +53,6 @@ class BackgroundCheckViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         case = serializer.validated_data["case"]
-        if not _is_privileged(request.user) and case.applicant_id != request.user.id:
-            raise PermissionDenied("You can only submit background checks for your own case.")
 
         run_async = serializer.validated_data.get("run_async", False)
 
@@ -92,9 +81,6 @@ class BackgroundCheckViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def refresh(self, request, pk=None):
         check = self.get_object()
-
-        if not _is_privileged(request.user) and check.case.applicant_id != request.user.id:
-            raise PermissionDenied("You do not have access to refresh this check.")
 
         updated = refresh_background_check(check, request=request)
         serializer = BackgroundCheckSerializer(updated, context=self.get_serializer_context())

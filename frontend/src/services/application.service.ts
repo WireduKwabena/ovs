@@ -152,7 +152,7 @@ export const applicationService = {
     }
   },
 
-  async getDocumentById(documentId: number | string): Promise<Document> {
+  async getDocumentById(documentId: string): Promise<Document> {
     try {
       const response = await api.get<Document>(`/applications/documents/${documentId}/`);
       return response.data;

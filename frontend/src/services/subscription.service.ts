@@ -1,3 +1,4 @@
+import axios from "axios";
 import api from "./api";
 import {
   grantSubscriptionAccess,
@@ -7,7 +8,7 @@ import {
   type SubscriptionAccessTicket,
 } from "@/utils/subscriptionAccess";
 
-export type CheckoutMode = "mock" | "api" | "stripe";
+export type CheckoutMode = "mock" | "api" | "stripe" | "paystack";
 
 export interface ConfirmSubscriptionInput {
   planId: string;
@@ -15,6 +16,8 @@ export interface ConfirmSubscriptionInput {
   billingCycle: BillingCycle;
   paymentMethod: PaymentMethod;
   amountUsd: number;
+  successUrl?: string;
+  cancelUrl?: string;
 }
 
 export interface ConfirmSubscriptionResult {
@@ -65,11 +68,41 @@ interface StripeConfirmRequest {
   session_id: string;
 }
 
+interface PaystackCheckoutSessionRequest {
+  plan_id: string;
+  plan_name: string;
+  billing_cycle: BillingCycle;
+  amount_usd: number;
+  success_url: string;
+  cancel_url: string;
+  customer_email?: string;
+}
+
+interface PaystackCheckoutSessionResponse {
+  provider: "paystack";
+  reference: string;
+  checkout_url: string;
+}
+
+interface PaystackConfirmRequest {
+  reference: string;
+}
+
 const env = (import.meta as { env?: Record<string, string | undefined> }).env;
+const API_URL = env?.VITE_API_URL || "http://localhost:8000/api";
+
+const publicApi = axios.create({
+  baseURL: API_URL,
+  withCredentials: false,
+  headers: {
+    "Content-Type": "application/json",
+  },
+  timeout: 15000,
+});
 
 const parseCheckoutMode = (): CheckoutMode => {
   const raw = (env?.VITE_SUBSCRIPTION_MODE || "mock").toLowerCase();
-  if (raw === "api" || raw === "stripe") return raw;
+  if (raw === "api" || raw === "stripe" || raw === "paystack") return raw;
   return "mock";
 };
 
@@ -194,6 +227,18 @@ const buildStripeCancelUrl = (): string => {
   return `${getFrontendUrl()}/billing/cancel`;
 };
 
+const buildPaystackSuccessUrl = (): string => {
+  const configured = env?.VITE_SUBSCRIPTION_SUCCESS_URL;
+  if (configured) return configured;
+  return `${getFrontendUrl()}/billing/success`;
+};
+
+const buildPaystackCancelUrl = (): string => {
+  const configured = env?.VITE_SUBSCRIPTION_CANCEL_URL;
+  if (configured) return configured;
+  return `${getFrontendUrl()}/billing/cancel`;
+};
+
 const startStripeCheckout = async (
   input: ConfirmSubscriptionInput,
 ): Promise<StripeCheckoutSessionResponse> => {
@@ -202,8 +247,8 @@ const startStripeCheckout = async (
     plan_name: input.planName,
     billing_cycle: input.billingCycle,
     amount_usd: input.amountUsd,
-    success_url: buildStripeSuccessUrl(),
-    cancel_url: buildStripeCancelUrl(),
+    success_url: input.successUrl || buildStripeSuccessUrl(),
+    cancel_url: input.cancelUrl || buildStripeCancelUrl(),
   };
 
   const response = await api.post<StripeCheckoutSessionResponse>(
@@ -219,12 +264,39 @@ const startStripeCheckout = async (
   return session;
 };
 
+const startPaystackCheckout = async (
+  input: ConfirmSubscriptionInput & { customerEmail?: string },
+): Promise<PaystackCheckoutSessionResponse> => {
+  const payload: PaystackCheckoutSessionRequest = {
+    plan_id: input.planId,
+    plan_name: input.planName,
+    billing_cycle: input.billingCycle,
+    amount_usd: input.amountUsd,
+    success_url: input.successUrl || buildPaystackSuccessUrl(),
+    cancel_url: input.cancelUrl || buildPaystackCancelUrl(),
+    customer_email: input.customerEmail,
+  };
+
+  const response = await api.post<PaystackCheckoutSessionResponse>(
+    "/billing/subscriptions/paystack/checkout-session/",
+    payload,
+  );
+
+  const session = response.data;
+  if (!session?.checkout_url || !session?.reference) {
+    throw new Error("Paystack checkout session response is invalid.");
+  }
+
+  return session;
+};
+
 const confirmStripeSession = async (
   sessionId: string,
 ): Promise<SubscriptionAccessTicket> => {
   const payload: StripeConfirmRequest = { session_id: sessionId };
 
-  const response = await api.post("/billing/subscriptions/stripe/confirm/", payload);
+  // Use a public client (without auth interceptors) to avoid session refresh loops on callback pages.
+  const response = await publicApi.post("/billing/subscriptions/stripe/confirm/", payload);
   const responseData = response.data as Record<string, unknown>;
 
   const ticket = normalizeTicket(responseData.ticket ?? responseData);
@@ -235,10 +307,26 @@ const confirmStripeSession = async (
   return setSubscriptionAccessTicket(ticket);
 };
 
+const confirmPaystackReference = async (
+  reference: string,
+): Promise<SubscriptionAccessTicket> => {
+  const payload: PaystackConfirmRequest = { reference };
+
+  const response = await publicApi.post("/billing/subscriptions/paystack/confirm/", payload);
+  const responseData = response.data as Record<string, unknown>;
+
+  const ticket = normalizeTicket(responseData.ticket ?? responseData);
+  if (!ticket) {
+    throw new Error("Paystack confirmation response is invalid.");
+  }
+
+  return setSubscriptionAccessTicket(ticket);
+};
+
 const verifySubscriptionAccess = async (
   reference: string,
 ): Promise<VerifySubscriptionAccessResult> => {
-  const response = await api.post<VerifySubscriptionAccessResult>(
+  const response = await publicApi.post<VerifySubscriptionAccessResult>(
     "/billing/subscriptions/access/verify/",
     { reference },
   );
@@ -255,8 +343,18 @@ export const subscriptionService = {
     return startStripeCheckout(input);
   },
 
+  async beginPaystackCheckout(
+    input: ConfirmSubscriptionInput & { customerEmail?: string },
+  ): Promise<PaystackCheckoutSessionResponse> {
+    return startPaystackCheckout(input);
+  },
+
   async confirmStripeSession(sessionId: string): Promise<SubscriptionAccessTicket> {
     return confirmStripeSession(sessionId);
+  },
+
+  async confirmPaystackReference(reference: string): Promise<SubscriptionAccessTicket> {
+    return confirmPaystackReference(reference);
   },
 
   async verifySubscriptionAccess(reference: string): Promise<VerifySubscriptionAccessResult> {
@@ -265,12 +363,20 @@ export const subscriptionService = {
 
   async confirmSubscription(input: ConfirmSubscriptionInput): Promise<ConfirmSubscriptionResult> {
     if (CHECKOUT_MODE === "mock") {
-      const ticket = await buildMockTicket(input);
-      return { ticket, source: "mock" };
+      try {
+        const ticket = await confirmViaApi(input);
+        return { ticket, source: "api" };
+      } catch (error) {
+        if (!API_FALLBACK_TO_MOCK) {
+          throw error;
+        }
+        const ticket = await buildMockTicket(input);
+        return { ticket, source: "mock" };
+      }
     }
 
-    if (CHECKOUT_MODE === "stripe") {
-      throw new Error("Stripe mode requires checkout session flow.");
+    if (CHECKOUT_MODE === "stripe" || CHECKOUT_MODE === "paystack") {
+      throw new Error("Hosted checkout mode requires checkout session flow.");
     }
 
     try {

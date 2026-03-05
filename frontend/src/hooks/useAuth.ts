@@ -9,7 +9,8 @@ export const useAuth = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { user, tokens, isAuthenticated, userType, loading, error } = useSelector((state: RootState) => state.auth);
 
-  const isAdmin = userType === 'admin';
+  const hasAdminFlags = Boolean(user && (user.is_staff || user.is_superuser));
+  const isAdmin = userType === 'admin' || hasAdminFlags;
   const isHrOrAdmin = userType === 'admin' || userType === 'hr_manager';
   const isApplicant = userType === 'applicant';
 
@@ -53,7 +54,7 @@ export const useAuth = () => {
     isAuthenticated,
     userType,
     isAdmin,
-    isHrOrAdmin,
+    isHrOrAdmin: isHrOrAdmin || hasAdminFlags,
     isApplicant,
     loading,
     error,
