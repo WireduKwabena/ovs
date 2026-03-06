@@ -391,6 +391,17 @@ class CandidateAccessVettingEndpointsTests(APITestCase):
         self.enrollment.refresh_from_db()
         self.assertEqual(self.enrollment.status, "completed")
 
+    def test_candidate_session_can_start_legacy_interview_for_own_case(self):
+        response = self.client.post(
+            "/api/interviews/interrogation/start/",
+            {"application_id": self.case.case_id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("session_id", payload)
+        self.assertIn("websocket_url", payload)
+
     def test_candidate_session_is_scoped_and_cannot_create_cases_or_sessions(self):
         other_applicant = User.objects.create_user(
             email="other_candidate_user@example.com",
@@ -467,6 +478,13 @@ class CandidateAccessVettingEndpointsTests(APITestCase):
             format="json",
         )
         self.assertEqual(wrong_response.status_code, 403)
+
+        wrong_start = self.client.post(
+            "/api/interviews/interrogation/start/",
+            {"application_id": other_case.case_id},
+            format="json",
+        )
+        self.assertEqual(wrong_start.status_code, 403)
 
 
 class ServiceTokenPermissionTests(SimpleTestCase):

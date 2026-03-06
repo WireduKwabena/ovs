@@ -10,6 +10,7 @@ from apps.authentication.models import User
 from apps.billing.models import BillingSubscription
 from apps.campaigns.models import VettingCampaign
 from apps.candidates.models import Candidate, CandidateEnrollment, CandidateSocialProfile
+from apps.interviews.models import InterviewSession
 
 
 class ApplicationsApiTests(APITestCase):
@@ -81,6 +82,58 @@ class ApplicationsApiTests(APITestCase):
         payload = status_response.json()
         self.assertEqual(payload["case_id"], case.case_id)
         self.assertGreaterEqual(payload["documents_total"], 1)
+
+    @patch("apps.applications.views.verify_document_async.delay")
+    def test_upload_document_rejects_non_required_campaign_type(self, _mock_verify_delay):
+        campaign = VettingCampaign.objects.create(
+            name="Strict Docs Campaign",
+            initiated_by=self.hr,
+            settings_json={"required_document_types": ["id_card", "passport"]},
+        )
+        candidate = Candidate.objects.create(
+            first_name="Doc",
+            last_name="Restricted",
+            email="doc.restricted@example.com",
+            consent_ai_processing=True,
+        )
+        enrollment = CandidateEnrollment.objects.create(
+            campaign=campaign,
+            candidate=candidate,
+            status="in_progress",
+        )
+        case = VettingCase.objects.create(
+            applicant=self.applicant,
+            candidate_enrollment=enrollment,
+            assigned_to=self.hr,
+            position_applied="Analyst",
+            department="Operations",
+            priority="medium",
+            status="document_upload",
+        )
+
+        forbidden_upload = self.client.post(
+            f"/api/applications/cases/{case.id}/upload-document/",
+            {
+                "document_type": "degree",
+                "file": SimpleUploadedFile("degree.pdf", b"%PDF-1.4 test", content_type="application/pdf"),
+            },
+            format="multipart",
+        )
+        self.assertEqual(forbidden_upload.status_code, 400)
+        error_payload = forbidden_upload.json()
+        self.assertIn("document_type", error_payload)
+        self.assertIn("required_document_types", error_payload)
+        self.assertEqual(error_payload["required_document_types"], ["id_card", "passport"])
+
+        allowed_upload = self.client.post(
+            f"/api/applications/cases/{case.id}/upload-document/",
+            {
+                "document_type": "id_card",
+                "file": SimpleUploadedFile("id-card.pdf", b"%PDF-1.4 test", content_type="application/pdf"),
+            },
+            format="multipart",
+        )
+        self.assertEqual(allowed_upload.status_code, 201)
 
     def test_hr_create_case_without_applicant_returns_400(self):
         response = self.client.post(
@@ -248,6 +301,52 @@ class ApplicationsApiTests(APITestCase):
         status_response = self.client.get(f"/api/applications/cases/{case.id}/verification-status/")
         self.assertEqual(status_response.status_code, 200)
         self.assertIsNotNone(status_response.json().get("social_profile_result"))
+
+    def test_verify_document_task_auto_schedules_interview_session_when_documents_verified(self):
+        campaign = VettingCampaign.objects.create(
+            name="Auto Interview Campaign",
+            description="Auto schedule candidate interview",
+            status="active",
+            initiated_by=self.hr,
+        )
+        candidate = Candidate.objects.create(
+            first_name="John",
+            last_name="Doe",
+            email="candidate_auto_interview@example.com",
+            consent_ai_processing=True,
+        )
+        enrollment = CandidateEnrollment.objects.create(
+            campaign=campaign,
+            candidate=candidate,
+            status="in_progress",
+            metadata={},
+        )
+        case = VettingCase.objects.create(
+            applicant=self.applicant,
+            candidate_enrollment=enrollment,
+            assigned_to=self.hr,
+            position_applied="Analyst",
+            department="Operations",
+            priority="medium",
+            status="document_analysis",
+        )
+        file_obj = SimpleUploadedFile("id_card.pdf", b"%PDF-1.4 test", content_type="application/pdf")
+        document = Document.objects.create(
+            case=case,
+            document_type="id_card",
+            file=file_obj,
+            original_filename="id_card.pdf",
+            file_size=file_obj.size,
+            mime_type="application/pdf",
+            status="uploaded",
+        )
+
+        result = verify_document_async.run(document.id)
+
+        self.assertTrue(result["success"])
+        case.refresh_from_db()
+        self.assertEqual(case.status, "interview_scheduled")
+        self.assertTrue(InterviewSession.objects.filter(case=case).exists())
 
     def test_verify_document_task_skips_social_profile_result_when_no_profiles(self):
         if "apps.fraud" not in settings.INSTALLED_APPS:

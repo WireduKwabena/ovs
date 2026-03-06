@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { BarChart3, Brain, RefreshCw } from "lucide-react";
 import { toast } from "react-toastify";
+import { useSearchParams } from "react-router-dom";
 
 import ExportActions from "@/components/common/ExportActions";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import type { MLModelMetrics, MLPerformanceSummary } from "@/types";
 import { downloadCsvFile, isoDateStamp } from "@/utils/csv";
 import { downloadJsonFile } from "@/utils/json";
 import { formatDate } from "@/utils/helper";
+import { applyQueryUpdates, normalizeQueryValue } from "@/utils/queryParams";
 
 const defaultSummary: MLPerformanceSummary = {
   models: {},
@@ -25,11 +27,15 @@ const defaultSummary: MLPerformanceSummary = {
 const percentage = (value: number): string => `${(value * 100).toFixed(2)}%`;
 
 const MlMonitoringPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [latestMetrics, setLatestMetrics] = useState<MLModelMetrics[]>([]);
   const [history, setHistory] = useState<MLModelMetrics[]>([]);
   const [summary, setSummary] = useState<MLPerformanceSummary>(defaultSummary);
 
-  const [selectedModel, setSelectedModel] = useState("all");
+  const [selectedModel, setSelectedModel] = useState(() => {
+    const modelFromQuery = normalizeQueryValue(searchParams.get("model"));
+    return modelFromQuery ? modelFromQuery : "all";
+  });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -39,6 +45,25 @@ const MlMonitoringPage: React.FC = () => {
   }, [latestMetrics]);
 
   const activeModel = selectedModel === "all" ? modelOptions[0] : selectedModel;
+  const normalizedSelectedModel = selectedModel.trim();
+  const isModelFilterActive = normalizedSelectedModel !== "all" && normalizedSelectedModel.length > 0;
+
+  useEffect(() => {
+    const currentModelParam = normalizeQueryValue(searchParams.get("model"));
+    if (selectedModel === "all") {
+      if (!currentModelParam) {
+        return;
+      }
+      const nextParams = applyQueryUpdates(searchParams, { model: null }, { keepPage: true });
+      setSearchParams(nextParams, { replace: true });
+      return;
+    }
+    if (currentModelParam === selectedModel) {
+      return;
+    }
+    const nextParams = applyQueryUpdates(searchParams, { model: selectedModel }, { keepPage: true });
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, selectedModel, setSearchParams]);
 
   const loadMetrics = useCallback(async () => {
     setErrorMessage(null);
@@ -276,6 +301,29 @@ const MlMonitoringPage: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {isModelFilterActive ? (
+        <section className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-700">Active filters</span>
+            <button
+              type="button"
+              onClick={() => void handleModelChange("all")}
+              className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800 hover:bg-slate-200"
+            >
+              Model: {normalizedSelectedModel} x
+            </button>
+            <Button
+              type="button"
+              variant="outline"
+              className="ml-auto border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
+              onClick={() => void handleModelChange("all")}
+            >
+              Clear model filter
+            </Button>
+          </div>
+        </section>
+      ) : null}
 
       {loading ? (
         <section className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center text-slate-700 shadow-sm">

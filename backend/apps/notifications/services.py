@@ -16,6 +16,18 @@ from apps.notifications.models import Notification
 
 logger = logging.getLogger(__name__)
 
+try:
+    from twilio.rest import Client as TwilioClient
+except Exception:  # pragma: no cover - optional dependency
+    TwilioClient = None  # type: ignore[assignment]
+
+_twilio_client = None
+if TwilioClient and getattr(settings, "TWILIO_ACCOUNT_SID", None) and getattr(settings, "TWILIO_AUTH_TOKEN", None):
+    try:
+        _twilio_client = TwilioClient(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+    except Exception:
+        logger.exception("Failed to initialize Twilio client; SMS notifications will be unavailable.")
+
 
 class NotificationService:
     """Service methods used by workflow tasks to notify users."""
@@ -51,6 +63,48 @@ class NotificationService:
         return {"value": sanitized}
 
     @staticmethod
+    def _resolve_idempotency_key(
+        metadata: dict[str, Any],
+        idempotency_key: str | None = None,
+    ) -> str | None:
+        if idempotency_key:
+            return str(idempotency_key)
+        value = metadata.get("idempotency_key")
+        if value in (None, ""):
+            return None
+        return str(value)
+
+    @staticmethod
+    def _metadata_with_idempotency(
+        metadata: Any | None,
+        idempotency_key: str | None = None,
+    ) -> tuple[dict[str, Any], str | None]:
+        normalized = NotificationService._normalize_metadata(metadata)
+        resolved = NotificationService._resolve_idempotency_key(normalized, idempotency_key)
+        if resolved:
+            normalized["idempotency_key"] = resolved
+        return normalized, resolved
+
+    @staticmethod
+    def _find_existing_by_idempotency(
+        *,
+        recipient,
+        notification_type: str,
+        idempotency_key: str | None,
+    ) -> Notification | None:
+        if not idempotency_key:
+            return None
+        return (
+            Notification.objects.filter(
+                recipient=recipient,
+                notification_type=notification_type,
+                metadata__idempotency_key=idempotency_key,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+
+    @staticmethod
     def _create_in_app_notification(
         *,
         recipient,
@@ -60,7 +114,20 @@ class NotificationService:
         related_interview=None,
         metadata: Any | None = None,
         priority: str = "normal",
+        idempotency_key: str | None = None,
     ) -> Notification:
+        metadata_payload, resolved_key = NotificationService._metadata_with_idempotency(
+            metadata,
+            idempotency_key,
+        )
+        existing = NotificationService._find_existing_by_idempotency(
+            recipient=recipient,
+            notification_type="in_app",
+            idempotency_key=resolved_key,
+        )
+        if existing:
+            return existing
+
         return Notification.objects.create(
             recipient=recipient,
             subject=subject,
@@ -70,7 +137,7 @@ class NotificationService:
             priority=priority,
             related_case=related_case,
             related_interview=related_interview,
-            metadata=NotificationService._normalize_metadata(metadata),
+            metadata=metadata_payload,
         )
 
     @staticmethod
@@ -85,10 +152,23 @@ class NotificationService:
         related_interview=None,
         metadata: Any | None = None,
         priority: str = "normal",
+        idempotency_key: str | None = None,
     ) -> Notification | None:
         email = getattr(recipient, "email", "")
         if not email:
             return None
+
+        metadata_payload, resolved_key = NotificationService._metadata_with_idempotency(
+            metadata,
+            idempotency_key,
+        )
+        existing = NotificationService._find_existing_by_idempotency(
+            recipient=recipient,
+            notification_type="email",
+            idempotency_key=resolved_key,
+        )
+        if existing:
+            return existing
 
         email_notification = Notification.objects.create(
             recipient=recipient,
@@ -100,7 +180,7 @@ class NotificationService:
             related_case=related_case,
             related_interview=related_interview,
             email_to=email,
-            metadata=NotificationService._normalize_metadata(metadata),
+            metadata=metadata_payload,
         )
 
         html_message = None
@@ -128,6 +208,78 @@ class NotificationService:
             logger.exception("Failed to send email notification to %s", email)
 
         return email_notification
+
+
+    @staticmethod
+    def _send_sms_notification(phone_number: str, message: str) -> bool:
+        if not _twilio_client:
+            logger.warning("Twilio client not configured; cannot send SMS.")
+            return False
+        try:
+            _twilio_client.messages.create(
+                body=message,
+                from_=settings.TWILIO_PHONE_NUMBER,
+                to=phone_number,
+            )
+            logger.info("SMS notification sent to %s", phone_number)
+            return True
+        except Exception as exc:
+            logger.exception("Failed to send SMS notification to %s", phone_number)
+            return False
+
+    @staticmethod
+    def _send_sms_notification_record(
+        *,
+        recipient,
+        subject: str,
+        message: str,
+        related_case=None,
+        related_interview=None,
+        metadata: Any | None = None,
+        priority: str = "normal",
+        idempotency_key: str | None = None,
+    ) -> Notification | None:
+        if not bool(getattr(settings, "NOTIFICATIONS_SMS_ENABLED", False)):
+            return None
+
+        phone_number = str(getattr(recipient, "phone_number", "") or "").strip()
+        if not phone_number:
+            return None
+
+        metadata_payload, resolved_key = NotificationService._metadata_with_idempotency(
+            metadata,
+            idempotency_key,
+        )
+        existing = NotificationService._find_existing_by_idempotency(
+            recipient=recipient,
+            notification_type="sms",
+            idempotency_key=resolved_key,
+        )
+        if existing:
+            return existing
+
+        sms_notification = Notification.objects.create(
+            recipient=recipient,
+            subject=subject,
+            message=message,
+            notification_type="sms",
+            status="pending",
+            priority=priority,
+            related_case=related_case,
+            related_interview=related_interview,
+            metadata=metadata_payload,
+        )
+
+        delivery_successful = NotificationService._send_sms_notification(
+            phone_number,
+            message,
+        )
+        if delivery_successful:
+            sms_notification.mark_sent()
+        else:
+            sms_notification.mark_failed("SMS delivery failed")
+        return sms_notification
+
 
     @staticmethod
     def _get_case_and_recipient(application):
@@ -160,6 +312,13 @@ class NotificationService:
             fallback_message=message,
             template_name="emails/application_submitted.html",
             context={"user": recipient, "case_id": case.case_id},
+            related_case=case,
+            metadata=metadata,
+        )
+        NotificationService._send_sms_notification_record(
+            recipient=recipient,
+            subject=subject,
+            message=message,
             related_case=case,
             metadata=metadata,
         )
@@ -208,6 +367,13 @@ class NotificationService:
             related_case=case,
             metadata=metadata,
         )
+        NotificationService._send_sms_notification_record(
+            recipient=recipient,
+            subject=subject,
+            message=message,
+            related_case=case,
+            metadata=metadata,
+        )
         return True
 
     @staticmethod
@@ -249,6 +415,76 @@ class NotificationService:
             },
             related_case=case,
             metadata=metadata,
+        )
+        NotificationService._send_sms_notification_record(
+            recipient=recipient,
+            subject=subject,
+            message=message,
+            related_case=case,
+            metadata=metadata,
+        )
+        return True
+
+    @staticmethod
+    def send_interview_scheduled(session):
+        """Notify candidate when an interview session is created/scheduled."""
+        case = getattr(session, "case", None)
+        if case is None:
+            logger.warning("Skipping send_interview_scheduled: session has no case.")
+            return None
+
+        recipient = getattr(case, "applicant", None)
+        if recipient is None:
+            logger.warning("Skipping send_interview_scheduled: case has no applicant.")
+            return None
+
+        session_reference = getattr(session, "session_id", "") or str(getattr(session, "id", ""))
+        subject = "Interview Session Scheduled - Online Vetting System"
+        message = (
+            f"Your interview session for application {case.case_id} has been scheduled. "
+            f"Session reference: {session_reference}."
+        )
+        metadata = {
+            "case_id": case.case_id,
+            "event_type": "interview_scheduled",
+            "interview_session_id": str(getattr(session, "id", "")),
+            "interview_session_code": session_reference,
+            "interview_url": f"/interview/interrogation/{case.case_id}",
+            "case_url": f"/applications/{case.case_id}",
+        }
+        idempotency_key = (
+            f"interview_scheduled:{getattr(session, 'id', '')}:{case.case_id}"
+        )
+
+        NotificationService._create_in_app_notification(
+            recipient=recipient,
+            subject=subject,
+            message=message,
+            related_case=case,
+            related_interview=session,
+            metadata=metadata,
+            priority="high",
+            idempotency_key=idempotency_key,
+        )
+        NotificationService._send_email_notification(
+            recipient=recipient,
+            subject=subject,
+            fallback_message=message,
+            related_case=case,
+            related_interview=session,
+            metadata=metadata,
+            priority="high",
+            idempotency_key=idempotency_key,
+        )
+        NotificationService._send_sms_notification_record(
+            recipient=recipient,
+            subject=subject,
+            message=message,
+            related_case=case,
+            related_interview=session,
+            metadata=metadata,
+            priority="high",
+            idempotency_key=idempotency_key,
         )
         return True
 
@@ -298,6 +534,13 @@ class NotificationService:
             related_case=case,
             metadata=metadata,
         )
+        NotificationService._send_sms_notification_record(
+            recipient=recipient,
+            subject=subject,
+            message=message,
+            related_case=case,
+            metadata=metadata,
+        )
         return True
 
     @staticmethod
@@ -321,6 +564,13 @@ class NotificationService:
             recipient=admin_user,
             subject=f"[Admin] {title}",
             fallback_message=message,
+            metadata=payload,
+            priority="high",
+        )
+        NotificationService._send_sms_notification_record(
+            recipient=admin_user,
+            subject=f"[Admin] {title}",
+            message=message,
             metadata=payload,
             priority="high",
         )
@@ -352,6 +602,14 @@ class NotificationService:
             fallback_message=message,
             template_name="emails/application_approved.html",
             context={"user": recipient, "case_id": case.case_id},
+            related_case=case,
+            metadata=metadata,
+            priority="high",
+        )
+        NotificationService._send_sms_notification_record(
+            recipient=recipient,
+            subject=subject,
+            message=message,
             related_case=case,
             metadata=metadata,
             priority="high",
@@ -391,6 +649,14 @@ class NotificationService:
             fallback_message=message,
             template_name="emails/application_rejected.html",
             context={"user": recipient, "case_id": case.case_id, "reason": reason},
+            related_case=case,
+            metadata=metadata,
+            priority="high",
+        )
+        NotificationService._send_sms_notification_record(
+            recipient=recipient,
+            subject=subject,
+            message=message,
             related_case=case,
             metadata=metadata,
             priority="high",

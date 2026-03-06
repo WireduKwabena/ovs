@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { ClipboardCopy, Clock3, RefreshCw, Search, ShieldCheck } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -25,6 +25,7 @@ import type {
 import { downloadCsvFile, isoDateStamp } from "@/utils/csv";
 import { downloadJsonFile } from "@/utils/json";
 import { formatDate } from "@/utils/helper";
+import { applyQueryUpdates, normalizeQueryValue } from "@/utils/queryParams";
 
 type CheckTypeFilter = BackgroundCheckType | "all";
 type CheckStatusFilter = BackgroundCheckStatus | "all";
@@ -48,6 +49,24 @@ const STATUS_OPTIONS: Array<{ value: CheckStatusFilter; label: string }> = [
   { value: "cancelled", label: "Cancelled" },
 ];
 
+const CHECK_TYPE_FILTER_VALUES: CheckTypeFilter[] = ["all", ...CHECK_TYPE_OPTIONS.map((option) => option.value)];
+const STATUS_FILTER_VALUES: CheckStatusFilter[] = STATUS_OPTIONS.map((option) => option.value);
+
+const parseCaseFilter = (value: string | null): string => {
+  const normalized = normalizeQueryValue(value);
+  return normalized || "all";
+};
+
+const parseCheckTypeFilter = (value: string | null): CheckTypeFilter => {
+  const normalized = normalizeQueryValue(value);
+  return CHECK_TYPE_FILTER_VALUES.includes(normalized as CheckTypeFilter) ? (normalized as CheckTypeFilter) : "all";
+};
+
+const parseStatusFilter = (value: string | null): CheckStatusFilter => {
+  const normalized = normalizeQueryValue(value);
+  return STATUS_FILTER_VALUES.includes(normalized as CheckStatusFilter) ? (normalized as CheckStatusFilter) : "all";
+};
+
 const statusPillClass: Record<BackgroundCheckStatus, string> = {
   pending: "bg-slate-200 text-slate-800",
   submitted: "bg-indigo-100 text-indigo-700",
@@ -70,6 +89,7 @@ const buildProviderWebhookUrl = (provider: string): string => {
 };
 
 const BackgroundChecksPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [checks, setChecks] = useState<BackgroundCheck[]>([]);
   const [cases, setCases] = useState<ApplicationWithDocuments[]>([]);
   const [eventsByCheck, setEventsByCheck] = useState<Record<string, BackgroundCheckEvent[]>>({});
@@ -82,9 +102,13 @@ const BackgroundChecksPage: React.FC = () => {
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const [caseFilter, setCaseFilter] = useState<string>("all");
-  const [checkTypeFilter, setCheckTypeFilter] = useState<CheckTypeFilter>("all");
-  const [statusFilter, setStatusFilter] = useState<CheckStatusFilter>("all");
+  const [caseFilter, setCaseFilter] = useState<string>(() => parseCaseFilter(searchParams.get("case_id")));
+  const [checkTypeFilter, setCheckTypeFilter] = useState<CheckTypeFilter>(() =>
+    parseCheckTypeFilter(searchParams.get("check_type")),
+  );
+  const [statusFilter, setStatusFilter] = useState<CheckStatusFilter>(() =>
+    parseStatusFilter(searchParams.get("status")),
+  );
 
   const [selectedCase, setSelectedCase] = useState<string>("");
   const [selectedCheckType, setSelectedCheckType] = useState<BackgroundCheckType>("criminal");
@@ -104,6 +128,26 @@ const BackgroundChecksPage: React.FC = () => {
       })),
     [cases],
   );
+  const checkTypeLabelByValue = useMemo(
+    () =>
+      Object.fromEntries(CHECK_TYPE_OPTIONS.map((option) => [option.value, option.label])) as Record<
+        BackgroundCheckType,
+        string
+      >,
+    [],
+  );
+  const statusLabelByValue = useMemo(
+    () =>
+      Object.fromEntries(STATUS_OPTIONS.map((option) => [option.value, option.label])) as Record<
+        CheckStatusFilter,
+        string
+      >,
+    [],
+  );
+  const isCaseFilterActive = caseFilter !== "all";
+  const isCheckTypeFilterActive = checkTypeFilter !== "all";
+  const isStatusFilterActive = statusFilter !== "all";
+  const hasActiveFilters = isCaseFilterActive || isCheckTypeFilterActive || isStatusFilterActive;
 
   const loadChecks = useCallback(async () => {
     try {
@@ -119,6 +163,26 @@ const BackgroundChecksPage: React.FC = () => {
       setErrorMessage(message);
     }
   }, [caseFilter, checkTypeFilter, statusFilter]);
+
+  useEffect(() => {
+    const currentCase = parseCaseFilter(searchParams.get("case_id"));
+    const currentCheckType = parseCheckTypeFilter(searchParams.get("check_type"));
+    const currentStatus = parseStatusFilter(searchParams.get("status"));
+    if (currentCase === caseFilter && currentCheckType === checkTypeFilter && currentStatus === statusFilter) {
+      return;
+    }
+
+    const nextParams = applyQueryUpdates(
+      searchParams,
+      {
+        case_id: caseFilter,
+        check_type: checkTypeFilter,
+        status: statusFilter,
+      },
+      { keepPage: true },
+    );
+    setSearchParams(nextParams, { replace: true });
+  }, [caseFilter, checkTypeFilter, searchParams, setSearchParams, statusFilter]);
 
   const loadCaseOptions = useCallback(async () => {
     try {
@@ -446,6 +510,53 @@ const BackgroundChecksPage: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {hasActiveFilters ? (
+        <section className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-700">Active filters</span>
+            {isCaseFilterActive ? (
+              <button
+                type="button"
+                onClick={() => setCaseFilter("all")}
+                className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800 hover:bg-slate-200"
+              >
+                Case: {caseFilter} x
+              </button>
+            ) : null}
+            {isCheckTypeFilterActive ? (
+              <button
+                type="button"
+                onClick={() => setCheckTypeFilter("all")}
+                className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800 hover:bg-slate-200"
+              >
+                Type: {checkTypeLabelByValue[checkTypeFilter as BackgroundCheckType] || checkTypeFilter} x
+              </button>
+            ) : null}
+            {isStatusFilterActive ? (
+              <button
+                type="button"
+                onClick={() => setStatusFilter("all")}
+                className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800 hover:bg-slate-200"
+              >
+                Status: {statusLabelByValue[statusFilter] || statusFilter} x
+              </button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              className="ml-auto border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
+              onClick={() => {
+                setCaseFilter("all");
+                setCheckTypeFilter("all");
+                setStatusFilter("all");
+              }}
+            >
+              Clear check filters
+            </Button>
+          </div>
+        </section>
+      ) : null}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-bold text-slate-900">Submit Background Check</h2>

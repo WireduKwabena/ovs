@@ -4,6 +4,7 @@ import type {
   CandidateImportResult,
   CandidateImportRow,
   CampaignDashboard,
+  DocumentType,
   PaginatedResponse,
   VettingCampaign,
   Invitation,
@@ -45,6 +46,7 @@ export interface CreateCampaignData {
   starts_at?: string | null;
   ends_at?: string | null;
   settings_json?: Record<string, unknown>;
+  required_document_types?: DocumentType[];
 }
 
 function extractResults<T>(payload: PaginatedResponse<T> | T[]): T[] {

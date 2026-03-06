@@ -69,6 +69,8 @@ interface InterviewFeedbackRecord {
   notes: string;
 }
 
+const candidateSessionConfig = { withCredentials: true };
+
 interface InterviewPlaybackPayload {
   [key: string]: unknown;
 }
@@ -145,20 +147,23 @@ const toStartResponse = (session: InterviewSessionRecord): StartInterviewRespons
 const getLatestSessionForCase = async (caseIdentifier: string): Promise<InterviewSessionRecord | null> => {
   const response = await api.get<PaginatedResponse<InterviewSessionRecord> | InterviewSessionRecord[]>(
     '/interviews/sessions/',
-    { params: { case: caseIdentifier } }
+    { params: { case: caseIdentifier }, ...candidateSessionConfig }
   );
   const sessions = Array.isArray(response.data) ? response.data : response.data.results || [];
   return sessions.length > 0 ? sessions[0] : null;
 };
 
 const resolveCasePrimaryKey = async (caseIdentifier: string): Promise<string> => {
-  const response = await api.get<{ id: string }>(`/applications/cases/${caseIdentifier}/`);
+  const response = await api.get<{ id: string }>(`/applications/cases/${caseIdentifier}/`, candidateSessionConfig);
   return response.data.id;
 };
 
 const ensureInterviewSession = async (applicationId: string): Promise<InterviewSessionRecord> => {
   try {
-    const directSessionResponse = await api.get<InterviewSessionRecord>(`/interviews/sessions/${applicationId}/`);
+    const directSessionResponse = await api.get<InterviewSessionRecord>(
+      `/interviews/sessions/${applicationId}/`,
+      candidateSessionConfig,
+    );
     return directSessionResponse.data;
   } catch {
     // Not a direct session lookup; continue with case-based flow.
@@ -178,7 +183,7 @@ const ensureInterviewSession = async (applicationId: string): Promise<InterviewS
   const createdSessionResponse = await api.post<InterviewSessionRecord>('/interviews/sessions/', {
     case: casePrimaryKey,
     use_dynamic_questions: true,
-  });
+  }, candidateSessionConfig);
   return createdSessionResponse.data;
 };
 
@@ -187,7 +192,7 @@ export const interviewService = {
     try {
       const legacyResponse = await api.post<StartInterviewResponse>('/interviews/interrogation/start/', {
         application_id: applicationId,
-      });
+      }, candidateSessionConfig);
       return {
         ...legacyResponse.data,
         websocket_url:
@@ -205,7 +210,8 @@ export const interviewService = {
     if (session.status === 'created') {
       const startResponse = await api.post<InterviewSessionRecord>(
         `/interviews/sessions/${session.session_id}/start/`,
-        {}
+        {},
+        candidateSessionConfig,
       );
       activeSession = startResponse.data;
     }
@@ -222,12 +228,13 @@ export const interviewService = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      ...candidateSessionConfig,
     });
     return response.data;
   },
 
   async getInterviewSession(sessionId: string) {
-    const response = await api.get(`/interviews/sessions/${sessionId}/`);
+    const response = await api.get(`/interviews/sessions/${sessionId}/`, candidateSessionConfig);
     return response.data;
   },
 
@@ -235,7 +242,8 @@ export const interviewService = {
     try {
       const response = await api.post<AvatarSessionResponse>(
         `/interviews/sessions/${sessionId}/avatar-session/`,
-        {}
+        {},
+        candidateSessionConfig,
       );
       const payload = response.data;
       if (!payload.enabled || !payload.token || !payload.avatar_name) {
@@ -256,7 +264,11 @@ export const interviewService = {
   },
 
   async completeSession(sessionId: string): Promise<Record<string, unknown>> {
-    const response = await api.post<Record<string, unknown>>(`/interviews/sessions/${sessionId}/complete/`, {});
+    const response = await api.post<Record<string, unknown>>(
+      `/interviews/sessions/${sessionId}/complete/`,
+      {},
+      candidateSessionConfig,
+    );
     return response.data;
   },
 
@@ -272,6 +284,7 @@ export const interviewService = {
     const response = await api.post<Record<string, unknown>>(
       `/interviews/sessions/${sessionId}/save-exchange/`,
       payload,
+      candidateSessionConfig,
     );
     return response.data;
   },
@@ -289,19 +302,23 @@ export const interviewService = {
     const response = await api.post<Record<string, unknown>>(
       `/interviews/sessions/${sessionId}/update-exchange/`,
       payload,
+      candidateSessionConfig,
     );
     return response.data;
   },
 
   async getPlayback(sessionId: string): Promise<InterviewPlaybackPayload> {
-    const response = await api.get<InterviewPlaybackPayload>(`/interviews/sessions/${sessionId}/playback/`);
+    const response = await api.get<InterviewPlaybackPayload>(
+      `/interviews/sessions/${sessionId}/playback/`,
+      candidateSessionConfig,
+    );
     return response.data;
   },
 
   async compareSessions(sessionIds: string[]): Promise<Record<string, unknown>> {
     const response = await api.post<Record<string, unknown>>("/interviews/sessions/compare/", {
       session_ids: sessionIds,
-    });
+    }, candidateSessionConfig);
     return response.data;
   },
 
@@ -310,7 +327,7 @@ export const interviewService = {
       case: caseId,
       persist,
       replace_pending: replacePending,
-    });
+    }, candidateSessionConfig);
     return response.data;
   },
 
@@ -321,44 +338,57 @@ export const interviewService = {
   }): Promise<InterviewQuestionRecord[]> {
     const response = await api.get<PaginatedResponse<InterviewQuestionRecord> | InterviewQuestionRecord[]>(
       "/interviews/questions/",
-      { params },
+      { params, ...candidateSessionConfig },
     );
     return Array.isArray(response.data) ? response.data : response.data.results || [];
   },
 
   async getQuestionById(questionId: string): Promise<InterviewQuestionRecord> {
-    const response = await api.get<InterviewQuestionRecord>(`/interviews/questions/${questionId}/`);
+    const response = await api.get<InterviewQuestionRecord>(
+      `/interviews/questions/${questionId}/`,
+      candidateSessionConfig,
+    );
     return response.data;
   },
 
   async listResponses(params?: { session?: string }): Promise<InterviewResponseRecord[]> {
     const response = await api.get<PaginatedResponse<InterviewResponseRecord> | InterviewResponseRecord[]>(
       "/interviews/responses/",
-      { params },
+      { params, ...candidateSessionConfig },
     );
     return Array.isArray(response.data) ? response.data : response.data.results || [];
   },
 
   async getResponseById(responseId: string): Promise<InterviewResponseRecord> {
-    const response = await api.get<InterviewResponseRecord>(`/interviews/responses/${responseId}/`);
+    const response = await api.get<InterviewResponseRecord>(
+      `/interviews/responses/${responseId}/`,
+      candidateSessionConfig,
+    );
     return response.data;
   },
 
   async analyzeResponse(responseId: string): Promise<{ message: string }> {
-    const response = await api.post<{ message: string }>(`/interviews/responses/${responseId}/analyze/`, {});
+    const response = await api.post<{ message: string }>(
+      `/interviews/responses/${responseId}/analyze/`,
+      {},
+      candidateSessionConfig,
+    );
     return response.data;
   },
 
   async listFeedback(params?: { session?: string }): Promise<InterviewFeedbackRecord[]> {
     const response = await api.get<PaginatedResponse<InterviewFeedbackRecord> | InterviewFeedbackRecord[]>(
       "/interviews/feedback/",
-      { params },
+      { params, ...candidateSessionConfig },
     );
     return Array.isArray(response.data) ? response.data : response.data.results || [];
   },
 
   async getFeedbackById(feedbackId: string): Promise<InterviewFeedbackRecord> {
-    const response = await api.get<InterviewFeedbackRecord>(`/interviews/feedback/${feedbackId}/`);
+    const response = await api.get<InterviewFeedbackRecord>(
+      `/interviews/feedback/${feedbackId}/`,
+      candidateSessionConfig,
+    );
     return response.data;
   },
 };

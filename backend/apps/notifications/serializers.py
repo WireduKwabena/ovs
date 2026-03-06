@@ -47,6 +47,8 @@ class NotificationSerializer(serializers.ModelSerializer):
             "failure_reason",
             "retry_count",
             "is_read",
+            "is_archived",
+            "archived_at",
             "created_at",
         ]
         read_only_fields = [
@@ -70,6 +72,8 @@ class NotificationSerializer(serializers.ModelSerializer):
             "failure_reason",
             "retry_count",
             "created_at",
+            "is_archived",
+            "archived_at",
         ]
 
     def get_is_read(self, obj) -> bool:

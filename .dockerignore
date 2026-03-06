@@ -12,7 +12,7 @@ Thumbs.db
 .venv312/
 venv/
 env/
-
+tmp_docs/
 # Python caches / tooling output
 **/__pycache__
 **/*.pyc

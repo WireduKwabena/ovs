@@ -156,6 +156,15 @@ def build_livekit_join_token(*, meeting: VideoMeeting, user: User, role: str = "
     return jwt.encode(payload, api_secret, algorithm="HS256")
 
 
+def _meeting_event_idempotency_key(
+    *,
+    meeting: VideoMeeting,
+    event_type: str,
+    fingerprint: str,
+) -> str:
+    return f"{event_type}:{meeting.id}:{fingerprint}"
+
+
 def _notify_users(
     *,
     users: Iterable[User],
@@ -164,6 +173,7 @@ def _notify_users(
     meeting: VideoMeeting,
     event_type: str,
     priority: str = "normal",
+    idempotency_fingerprint: str | None = None,
 ):
     meeting_url = build_meeting_frontend_url(meeting, autojoin=False)
     meeting_autojoin_url = build_meeting_frontend_url(meeting, autojoin=True)
@@ -177,6 +187,7 @@ def _notify_users(
         "meeting_status": meeting.status,
         "scheduled_start": meeting.scheduled_start.isoformat(),
         "scheduled_end": meeting.scheduled_end.isoformat(),
+        "allow_join_before_seconds": int(getattr(meeting, "allow_join_before_seconds", 300) or 300),
         "room_name": meeting.livekit_room_name,
         "case_id": str(meeting.case_id) if meeting.case_id else "",
         "meeting_url": meeting_url,
@@ -184,6 +195,16 @@ def _notify_users(
         "meeting_google_calendar_url": meeting_google_calendar_url,
         "meeting_calendar_ics_url": meeting_calendar_ics_url,
     }
+    fingerprint = str(
+        idempotency_fingerprint
+        or f"{meeting.scheduled_start.isoformat()}:{meeting.scheduled_end.isoformat()}"
+    )
+    event_idempotency_key = _meeting_event_idempotency_key(
+        meeting=meeting,
+        event_type=event_type,
+        fingerprint=fingerprint,
+    )
+    payload["idempotency_key"] = event_idempotency_key
 
     message_with_links = message
     if event_type in {"video_call_scheduled", "video_call_updated", "video_call_reminder", "video_call_start_now"}:
@@ -203,6 +224,7 @@ def _notify_users(
             related_case=meeting.case,
             metadata=payload,
             priority=priority,
+            idempotency_key=event_idempotency_key,
         )
         NotificationService._send_email_notification(
             recipient=user,
@@ -211,6 +233,16 @@ def _notify_users(
             related_case=meeting.case,
             metadata=payload,
             priority=priority,
+            idempotency_key=event_idempotency_key,
+        )
+        NotificationService._send_sms_notification_record(
+            recipient=user,
+            subject=subject,
+            message=message_with_links,
+            related_case=meeting.case,
+            metadata=payload,
+            priority=priority,
+            idempotency_key=event_idempotency_key,
         )
 
 
@@ -230,6 +262,7 @@ def notify_meeting_created(meeting: VideoMeeting):
         meeting=meeting,
         event_type="video_call_scheduled",
         priority="high",
+        idempotency_fingerprint=str(getattr(meeting, "created_at", "") or meeting.scheduled_start.isoformat()),
     )
 
 
@@ -249,6 +282,7 @@ def notify_meeting_updated(meeting: VideoMeeting):
         meeting=meeting,
         event_type="video_call_updated",
         priority="high",
+        idempotency_fingerprint=str(getattr(meeting, "updated_at", "") or timezone.now().isoformat()),
     )
 
 
@@ -264,6 +298,7 @@ def notify_meeting_cancelled(meeting: VideoMeeting):
         meeting=meeting,
         event_type="video_call_cancelled",
         priority="high",
+        idempotency_fingerprint=str(getattr(meeting, "updated_at", "") or timezone.now().isoformat()),
     )
 
 
@@ -278,6 +313,7 @@ def notify_meeting_starting_soon(meeting: VideoMeeting, minutes: int):
         meeting=meeting,
         event_type="video_call_reminder",
         priority="normal",
+        idempotency_fingerprint=f"{meeting.scheduled_start.isoformat()}:{minutes}",
     )
 
 
@@ -292,6 +328,7 @@ def notify_meeting_start_now(meeting: VideoMeeting):
         meeting=meeting,
         event_type="video_call_start_now",
         priority="high",
+        idempotency_fingerprint=meeting.scheduled_start.isoformat(),
     )
 
 
@@ -306,4 +343,5 @@ def notify_meeting_time_up(meeting: VideoMeeting):
         meeting=meeting,
         event_type="video_call_time_up",
         priority="normal",
+        idempotency_fingerprint=meeting.scheduled_end.isoformat(),
     )

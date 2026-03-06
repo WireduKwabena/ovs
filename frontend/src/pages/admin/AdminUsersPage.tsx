@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { RefreshCw, Search, ShieldAlert, ShieldCheck, UserCog, Users } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -8,18 +9,43 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { adminService } from "@/services/admin.service";
 import type { AdminManagedUser, AdminUsersResponse } from "@/types";
 import { formatDate } from "@/utils/helper";
+import { applyQueryUpdates } from "@/utils/queryParams";
 
 type UserTypeFilter = "all" | "admin" | "hr_manager" | "applicant";
 type ActiveFilter = "all" | "active" | "inactive";
 
 const PAGE_SIZE = 20;
 
+const parsePage = (value: string | null): number => {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
+};
+
+const parseUserTypeFilter = (value: string | null): UserTypeFilter => {
+  if (value === "admin" || value === "hr_manager" || value === "applicant") {
+    return value;
+  }
+  return "all";
+};
+
+const parseActiveFilter = (value: string | null): ActiveFilter => {
+  if (value === "true" || value === "1") {
+    return "active";
+  }
+  if (value === "false" || value === "0") {
+    return "inactive";
+  }
+  return "all";
+};
+
 const AdminUsersPage: React.FC = () => {
-  const [searchInput, setSearchInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [userTypeFilter, setUserTypeFilter] = useState<UserTypeFilter>("all");
-  const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
-  const [page, setPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = parsePage(searchParams.get("page"));
+  const searchQuery = (searchParams.get("q") || "").trim();
+  const userTypeFilter = parseUserTypeFilter(searchParams.get("user_type"));
+  const activeFilter = parseActiveFilter(searchParams.get("is_active"));
+
+  const [searchInput, setSearchInput] = useState(searchQuery);
 
   const [payload, setPayload] = useState<AdminUsersResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -29,6 +55,10 @@ const AdminUsersPage: React.FC = () => {
   const users = useMemo(() => payload?.results ?? [], [payload]);
   const totalPages = payload?.total_pages ?? 1;
   const totalCount = payload?.count ?? 0;
+  const isSearchFilterActive = searchQuery.length > 0;
+  const isUserTypeFilterActive = userTypeFilter !== "all";
+  const isActiveFilterActive = activeFilter !== "all";
+  const hasUserFilters = isSearchFilterActive || isUserTypeFilterActive || isActiveFilterActive;
 
   const fetchUsers = async () => {
     try {
@@ -53,14 +83,27 @@ const AdminUsersPage: React.FC = () => {
     }
   };
 
+  const updateQuery = (updates: Record<string, string | null>, options: { keepPage?: boolean } = {}) => {
+    const nextParams = applyQueryUpdates(searchParams, updates, {
+      keepPage: options.keepPage ?? false,
+      pageParam: "page",
+      resetPageTo: "1",
+    });
+
+    setSearchParams(nextParams, { replace: true });
+  };
+
+  useEffect(() => {
+    setSearchInput(searchQuery);
+  }, [searchQuery]);
+
   useEffect(() => {
     void fetchUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, userTypeFilter, activeFilter, page]);
 
   const applySearch = () => {
-    setPage(1);
-    setSearchQuery(searchInput.trim());
+    updateQuery({ q: searchInput.trim() || null });
   };
 
   const refresh = () => {
@@ -142,8 +185,7 @@ const AdminUsersPage: React.FC = () => {
               <Select
                 value={userTypeFilter}
                 onValueChange={(value) => {
-                  setPage(1);
-                  setUserTypeFilter(value as UserTypeFilter);
+                  updateQuery({ user_type: value });
                 }}
               >
                 <SelectTrigger id="filter-type">
@@ -165,8 +207,10 @@ const AdminUsersPage: React.FC = () => {
               <Select
                 value={activeFilter}
                 onValueChange={(value) => {
-                  setPage(1);
-                  setActiveFilter(value as ActiveFilter);
+                  updateQuery({
+                    is_active:
+                      value === "all" ? null : value === "active" ? "true" : "false",
+                  });
                 }}
               >
                 <SelectTrigger id="filter-active">
@@ -180,6 +224,59 @@ const AdminUsersPage: React.FC = () => {
               </Select>
             </div>
           </div>
+
+          {hasUserFilters ? (
+            <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-700">Active filters</span>
+                {isSearchFilterActive ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchInput("");
+                      updateQuery({ q: null });
+                    }}
+                    className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800 hover:bg-slate-200"
+                  >
+                    Search: {searchQuery} x
+                  </button>
+                ) : null}
+                {isUserTypeFilterActive ? (
+                  <button
+                    type="button"
+                    onClick={() => updateQuery({ user_type: null })}
+                    className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800 hover:bg-slate-200"
+                  >
+                    User Type: {userTypeFilter} x
+                  </button>
+                ) : null}
+                {isActiveFilterActive ? (
+                  <button
+                    type="button"
+                    onClick={() => updateQuery({ is_active: null })}
+                    className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800 hover:bg-slate-200"
+                  >
+                    Status: {activeFilter} x
+                  </button>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="ml-auto border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
+                  onClick={() => {
+                    setSearchInput("");
+                    updateQuery({
+                      q: null,
+                      user_type: null,
+                      is_active: null,
+                    });
+                  }}
+                >
+                  Clear user filters
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </section>
 
         <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -328,7 +425,9 @@ const AdminUsersPage: React.FC = () => {
               className="w-full border-slate-700 text-slate-900 hover:bg-slate-100 sm:w-auto"
               size="sm"
               disabled={page <= 1 || loading}
-              onClick={() => setPage((value) => Math.max(1, value - 1))}
+              onClick={() =>
+                updateQuery({ page: String(Math.max(1, page - 1)) }, { keepPage: true })
+              }
             >
               Previous
             </Button>
@@ -338,7 +437,9 @@ const AdminUsersPage: React.FC = () => {
               className="w-full border-slate-700 text-slate-900 hover:bg-slate-100 sm:w-auto"
               size="sm"
               disabled={page >= totalPages || loading}
-              onClick={() => setPage((value) => value + 1)}
+              onClick={() =>
+                updateQuery({ page: String(page + 1) }, { keepPage: true })
+              }
             >
               Next
             </Button>

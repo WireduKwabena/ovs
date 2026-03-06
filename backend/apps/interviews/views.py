@@ -533,7 +533,7 @@ class LegacyInterviewStartAPIView(APIView):
     Body: {"application_id": "<case_id or pk>"}
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedOrCandidateAccessSession]
 
     @extend_schema(
         request=LegacyInterviewStartRequestSerializer,
@@ -554,6 +554,10 @@ class LegacyInterviewStartAPIView(APIView):
                 case = VettingCase.objects.get(id=application_id)
             except (VettingCase.DoesNotExist, ValueError, TypeError):
                 return Response({"error": "Vetting case not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        enrollment_id = _candidate_enrollment_id(request)
+        if enrollment_id and case.candidate_enrollment_id != enrollment_id:
+            raise PermissionDenied("Candidate access session cannot start interviews for another enrollment.")
 
         session = (
             InterviewSession.objects.filter(case=case)

@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
 from .models import Notification
@@ -27,6 +28,23 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
 
         user = self.request.user
         queryset = Notification.objects.filter(recipient=user).order_by("-created_at")
+
+        channel = self.request.query_params.get("channel", "in_app")
+        if channel != "all":
+            valid_channels = {"in_app", "email", "sms"}
+            if channel not in valid_channels:
+                channel = "in_app"
+            queryset = queryset.filter(notification_type=channel)
+
+        archived_param = (self.request.query_params.get("archived") or "").strip().lower()
+        if archived_param in {"1", "true", "yes", "only", "archived"}:
+            queryset = queryset.filter(is_archived=True)
+        elif archived_param in {"all", "any"}:
+            queryset = queryset
+        elif archived_param in {"0", "false", "no", "active", ""}:
+            queryset = queryset.filter(is_archived=False)
+        else:
+            queryset = queryset.filter(is_archived=False)
 
         status_value = self.request.query_params.get("status")
         if status_value:
@@ -123,10 +141,27 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["delete"])
     def archive(self, request, pk=None):
         """
-        Delete (archive) a notification for the current user.
+        Soft-archive a notification for the current user.
 
         DELETE /api/notifications/{id}/archive/
         """
         notification = self.get_object()
-        notification.delete()
+        notification.archive()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"])
+    def restore(self, request, pk=None):
+        """
+        Restore a soft-archived notification.
+
+        POST /api/notifications/{id}/restore/
+        """
+        notification = get_object_or_404(Notification, pk=pk, recipient=request.user)
+        notification.restore()
+        return Response(
+            {
+                "message": "Notification restored",
+                "notification": NotificationSerializer(notification).data,
+            },
+            status=status.HTTP_200_OK,
+        )

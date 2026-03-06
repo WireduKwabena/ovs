@@ -136,4 +136,90 @@ describe("MlMonitoringPage export actions", () => {
     expect(mocks.downloadCsvFile).not.toHaveBeenCalled();
     expect(mocks.downloadJsonFile).not.toHaveBeenCalled();
   });
+
+  it("shows active model filter and clears back to all models", async () => {
+    mocks.mlMonitoringService.latest.mockResolvedValue([
+      {
+        id: "metric-latest-fraud",
+        model_name: "fraud_detector",
+        model_version: "v1.2.0",
+        accuracy: 0.94,
+        precision: 0.93,
+        recall: 0.92,
+        f1_score: 0.925,
+        confusion_matrix: {},
+        trained_at: "2026-03-01T10:00:00.000Z",
+        evaluated_at: "2026-03-03T10:00:00.000Z",
+      },
+      {
+        id: "metric-latest-doc",
+        model_name: "document_classifier",
+        model_version: "v2.0.0",
+        accuracy: 0.91,
+        precision: 0.9,
+        recall: 0.89,
+        f1_score: 0.895,
+        confusion_matrix: {},
+        trained_at: "2026-03-01T11:00:00.000Z",
+        evaluated_at: "2026-03-03T11:00:00.000Z",
+      },
+    ]);
+    mocks.mlMonitoringService.performanceSummary.mockResolvedValue({
+      total_models: 2,
+      models: {
+        fraud_detector: {
+          version: "v1.2.0",
+          accuracy: 0.94,
+          precision: 0.93,
+          recall: 0.92,
+          f1_score: 0.925,
+          last_evaluated: "2026-03-03T10:00:00.000Z",
+        },
+        document_classifier: {
+          version: "v2.0.0",
+          accuracy: 0.91,
+          precision: 0.9,
+          recall: 0.89,
+          f1_score: 0.895,
+          last_evaluated: "2026-03-03T11:00:00.000Z",
+        },
+      },
+    });
+    mocks.mlMonitoringService.history.mockImplementation(async (modelName: string) => [
+      {
+        id: `metric-history-${modelName}`,
+        model_name: modelName,
+        model_version: "v1.0.0",
+        accuracy: 0.88,
+        precision: 0.87,
+        recall: 0.86,
+        f1_score: 0.865,
+        confusion_matrix: {},
+        trained_at: "2026-02-20T10:00:00.000Z",
+        evaluated_at: "2026-02-21T10:00:00.000Z",
+      },
+    ]);
+
+    render(
+      <MemoryRouter initialEntries={["/ml-monitoring?model=document_classifier"]}>
+        <MlMonitoringPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(mocks.mlMonitoringService.history).toHaveBeenCalledWith("document_classifier", 20);
+    });
+
+    expect(await screen.findByText(/active filters/i)).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /clear model filter/i })).toBeTruthy();
+
+    fireEvent.click(await screen.findByRole("button", { name: /clear model filter/i }));
+
+    await waitFor(() => {
+      expect(mocks.mlMonitoringService.history).toHaveBeenLastCalledWith("fraud_detector", 20);
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: /clear model filter/i })).toBeNull();
+    });
+  });
 });

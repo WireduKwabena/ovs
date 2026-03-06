@@ -143,11 +143,36 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
 
         serializer = DocumentUploadSerializer(data=payload)
         serializer.is_valid(raise_exception=True)
+        requested_document_type = serializer.validated_data["document_type"]
+
+        enrollment = case.candidate_enrollment
+        required_document_types: list[str] = []
+        if enrollment and enrollment.campaign_id:
+            settings_json = enrollment.campaign.settings_json if isinstance(enrollment.campaign.settings_json, dict) else {}
+            raw_required_types = settings_json.get("required_document_types")
+            if isinstance(raw_required_types, list):
+                allowed_values = {choice[0] for choice in Document.DOCUMENT_TYPE_CHOICES}
+                required_document_types = []
+                for item in raw_required_types:
+                    normalized = str(item)
+                    if normalized in allowed_values and normalized not in required_document_types:
+                        required_document_types.append(normalized)
+
+        if required_document_types and requested_document_type not in required_document_types:
+            raise ValidationError(
+                {
+                    "document_type": (
+                        f"'{requested_document_type}' is not required for this campaign. "
+                        "Upload one of the campaign-required document types."
+                    ),
+                    "required_document_types": required_document_types,
+                }
+            )
 
         file = serializer.validated_data["file"]
         document = Document.objects.create(
             case=case,
-            document_type=serializer.validated_data["document_type"],
+            document_type=requested_document_type,
             file=file,
             original_filename=file.name,
             file_size=file.size,
@@ -160,7 +185,6 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
             case.status = "document_analysis"
         case.save(update_fields=["documents_uploaded", "status", "updated_at"])
 
-        enrollment = case.candidate_enrollment
         if enrollment and enrollment.status in {"invited", "registered"}:
             enrollment.status = "in_progress"
             if not enrollment.registered_at:

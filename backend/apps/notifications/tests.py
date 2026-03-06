@@ -3,12 +3,13 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.applications.models import VettingCase
 from apps.authentication.models import User
+from apps.interviews.models import InterviewSession
 from apps.notifications.interview_alerts import (
     send_completion_summary,
     send_high_deception_alert,
@@ -66,8 +67,58 @@ class NotificationApiTests(APITestCase):
         response = self.client.get("/api/notifications/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+        subjects = {item["subject"] for item in response.data["results"]}
+        self.assertIn("Unread", subjects)
+        self.assertNotIn("Read", subjects)
+        self.assertNotIn("Other user notification", subjects)
+
+    def test_list_archived_filter_returns_only_archived_notifications(self):
+        self.unread.archive()
+
+        response = self.client.get("/api/notifications/?archived=only")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["subject"], "Unread")
+        self.assertTrue(response.data["results"][0]["is_archived"])
+
+    def test_list_archived_scope_contract_active_archived_and_all(self):
+        self.unread.archive()
+
+        active_response = self.client.get("/api/notifications/?channel=all&archived=active")
+        archived_response = self.client.get("/api/notifications/?channel=all&archived=archived")
+        all_response = self.client.get("/api/notifications/?channel=all&archived=all")
+
+        self.assertEqual(active_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(archived_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(all_response.status_code, status.HTTP_200_OK)
+
+        active_subjects = {item["subject"] for item in active_response.data["results"]}
+        archived_subjects = {item["subject"] for item in archived_response.data["results"]}
+        all_subjects = {item["subject"] for item in all_response.data["results"]}
+
+        self.assertEqual(active_subjects, {"Read"})
+        self.assertEqual(archived_subjects, {"Unread"})
+        self.assertEqual(all_subjects, {"Unread", "Read"})
+
+    def test_list_archived_invalid_value_defaults_to_active(self):
+        self.unread.archive()
+
+        response = self.client.get("/api/notifications/?channel=all&archived=unexpected-value")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        subjects = {item["subject"] for item in response.data["results"]}
+        self.assertEqual(subjects, {"Read"})
+
+    def test_list_channel_all_returns_all_delivery_types_for_current_user(self):
+        response = self.client.get("/api/notifications/?channel=all")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 2)
         subjects = {item["subject"] for item in response.data["results"]}
+        self.assertIn("Unread", subjects)
+        self.assertIn("Read", subjects)
         self.assertNotIn("Other user notification", subjects)
 
     def test_unread_count_excludes_read_notifications(self):
@@ -105,11 +156,13 @@ class NotificationApiTests(APITestCase):
         self.assertEqual(self.read.status, "read")
         self.assertEqual(self.other_users_notification.status, "sent")
 
-    def test_archive_removes_owned_notification(self):
+    def test_archive_soft_archives_owned_notification(self):
         response = self.client.delete(f"/api/notifications/{self.unread.id}/archive/")
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertFalse(Notification.objects.filter(id=self.unread.id).exists())
+        self.unread.refresh_from_db()
+        self.assertTrue(self.unread.is_archived)
+        self.assertIsNotNone(self.unread.archived_at)
 
     def test_cannot_archive_other_users_notification(self):
         response = self.client.delete(
@@ -118,6 +171,23 @@ class NotificationApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertTrue(Notification.objects.filter(id=self.other_users_notification.id).exists())
+
+    def test_restore_unarchives_owned_notification(self):
+        self.unread.archive()
+
+        response = self.client.post(f"/api/notifications/{self.unread.id}/restore/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.unread.refresh_from_db()
+        self.assertFalse(self.unread.is_archived)
+        self.assertIsNone(self.unread.archived_at)
+
+    def test_cannot_restore_other_users_notification(self):
+        self.other_users_notification.archive()
+
+        response = self.client.post(f"/api/notifications/{self.other_users_notification.id}/restore/")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
 
 class NotificationServiceTests(TestCase):
@@ -136,6 +206,7 @@ class NotificationServiceTests(TestCase):
             first_name="Notify",
             last_name="Applicant",
             user_type="applicant",
+            phone_number="+15550123456",
         )
         self.case = VettingCase.objects.create(
             applicant=self.applicant,
@@ -286,6 +357,129 @@ class NotificationServiceTests(TestCase):
         for notification in notifications:
             self.assertEqual(notification.metadata.get("raw"), "nons")
             self.assertEqual(notification.metadata.get("nested"), ["nons"])
+
+    @patch("apps.notifications.services.send_mail", return_value=1)
+    def test_send_interview_scheduled_creates_candidate_notifications(
+        self,
+        _send_mail,
+    ):
+        session = InterviewSession.objects.create(case=self.case, status="created")
+        Notification.objects.filter(
+            recipient=self.applicant,
+            related_case=self.case,
+            metadata__event_type="interview_scheduled",
+        ).delete()
+
+        result = NotificationService.send_interview_scheduled(session)
+
+        self.assertTrue(result)
+        notifications = Notification.objects.filter(
+            recipient=self.applicant,
+            related_case=self.case,
+            metadata__event_type="interview_scheduled",
+        )
+        self.assertEqual(notifications.count(), 2)
+        self.assertEqual(
+            set(notifications.values_list("notification_type", flat=True)),
+            {"in_app", "email"},
+        )
+        in_app_notification = notifications.get(notification_type="in_app")
+        self.assertEqual(in_app_notification.related_interview_id, session.id)
+        self.assertEqual(
+            in_app_notification.metadata.get("interview_url"),
+            f"/interview/interrogation/{self.case.case_id}",
+        )
+        self.assertEqual(
+            in_app_notification.metadata.get("case_url"),
+            f"/applications/{self.case.case_id}",
+        )
+        self.assertTrue(in_app_notification.metadata.get("idempotency_key"))
+
+    @patch("apps.notifications.services.send_mail", return_value=1)
+    def test_send_interview_scheduled_is_idempotent_for_retries(
+        self,
+        _send_mail,
+    ):
+        session = InterviewSession.objects.create(case=self.case, status="created")
+        Notification.objects.filter(
+            recipient=self.applicant,
+            related_case=self.case,
+            metadata__event_type="interview_scheduled",
+        ).delete()
+
+        first_result = NotificationService.send_interview_scheduled(session)
+        second_result = NotificationService.send_interview_scheduled(session)
+
+        self.assertTrue(first_result)
+        self.assertTrue(second_result)
+
+        notifications = Notification.objects.filter(
+            recipient=self.applicant,
+            related_case=self.case,
+            metadata__event_type="interview_scheduled",
+        )
+        self.assertEqual(notifications.count(), 2)
+        self.assertEqual(
+            set(notifications.values_list("notification_type", flat=True)),
+            {"in_app", "email"},
+        )
+
+    @override_settings(NOTIFICATIONS_SMS_ENABLED=True)
+    @patch("apps.notifications.services.NotificationService._send_sms_notification", return_value=True)
+    @patch("apps.notifications.services.send_mail", return_value=1)
+    def test_send_interview_scheduled_creates_sms_notification_when_enabled(
+        self,
+        _send_mail,
+        _send_sms,
+    ):
+        session = InterviewSession.objects.create(case=self.case, status="created")
+        Notification.objects.filter(
+            recipient=self.applicant,
+            related_case=self.case,
+            metadata__event_type="interview_scheduled",
+        ).delete()
+
+        result = NotificationService.send_interview_scheduled(session)
+
+        self.assertTrue(result)
+        notifications = Notification.objects.filter(
+            recipient=self.applicant,
+            related_case=self.case,
+            metadata__event_type="interview_scheduled",
+        )
+        self.assertEqual(notifications.count(), 3)
+        self.assertEqual(
+            set(notifications.values_list("notification_type", flat=True)),
+            {"in_app", "email", "sms"},
+        )
+        sms_notification = notifications.get(notification_type="sms")
+        self.assertEqual(sms_notification.status, "sent")
+
+    @override_settings(NOTIFICATIONS_SMS_ENABLED=False)
+    @patch("apps.notifications.services.NotificationService._send_sms_notification", return_value=True)
+    @patch("apps.notifications.services.send_mail", return_value=1)
+    def test_send_interview_scheduled_does_not_create_sms_when_disabled(
+        self,
+        _send_mail,
+        _send_sms,
+    ):
+        session = InterviewSession.objects.create(case=self.case, status="created")
+        Notification.objects.filter(
+            recipient=self.applicant,
+            related_case=self.case,
+            metadata__event_type="interview_scheduled",
+        ).delete()
+
+        result = NotificationService.send_interview_scheduled(session)
+
+        self.assertTrue(result)
+        notifications = Notification.objects.filter(
+            recipient=self.applicant,
+            related_case=self.case,
+            metadata__event_type="interview_scheduled",
+        )
+        self.assertEqual(notifications.count(), 2)
+        self.assertFalse(notifications.filter(notification_type="sms").exists())
 
 
 class InterviewAlertTaskTests(TestCase):

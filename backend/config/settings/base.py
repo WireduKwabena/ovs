@@ -779,6 +779,10 @@ VIDEO_CALLS_REMINDER_RETRY_MAX_SECONDS = config(
 DJANGO_API_URL = config("DJANGO_API_URL", default="http://localhost:8000")
 SERVICE_TOKEN = config("SERVICE_TOKEN", default="")
 
+TWILIO_ACCOUNT_SID = config("TWILIO_ACCOUNT_SID", default="")
+TWILIO_AUTH_TOKEN = config("TWILIO_AUTH_TOKEN", default="")
+TWILIO_PHONE_NUMBER = config("TWILIO_PHONE_NUMBER", default="")
+NOTIFICATIONS_SMS_ENABLED = config("NOTIFICATIONS_SMS_ENABLED", default=False, cast=bool)
 
 
 

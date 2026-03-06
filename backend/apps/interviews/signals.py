@@ -7,6 +7,7 @@ from django.dispatch import receiver
 from .case_sync import sync_case_interview_outcome
 from .models import InterviewResponse, InterviewSession
 from .tasks import analyze_response_task
+from apps.notifications.services import NotificationService
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,20 @@ def queue_response_analysis(sender, instance, created, **kwargs):
                     instance.id,
                     run_exc,
                 )
+
+
+@receiver(post_save, sender=InterviewSession)
+def notify_candidate_on_session_created(sender, instance, created, **kwargs):
+    if not created:
+        return
+    try:
+        NotificationService.send_interview_scheduled(instance)
+    except Exception as exc:
+        logger.warning(
+            "Failed to send interview scheduled notification for session=%s: %s",
+            instance.id,
+            exc,
+        )
 
 
 @receiver(post_save, sender=InterviewSession)

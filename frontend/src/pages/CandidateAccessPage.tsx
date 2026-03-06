@@ -1,26 +1,17 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { KeyRound, LogOut, RefreshCw, FileCheck2, ShieldAlert, Info, UploadCloud } from 'lucide-react';
 import { invitationService, type CandidatePortalDocument } from '@/services/invitation.service';
 import type { CandidateAccessContext, CandidateAccessResults, DocumentType, VettingCase } from '@/types';
 import { formatDateTime } from '@/utils/helper';
 import { FieldLabel, HelpTooltip } from '@/components/common/FieldHelp';
+import {
+  DOCUMENT_TYPE_OPTIONS,
+  getDocumentTypeLabel,
+  normalizeRequiredDocumentTypes,
+} from '@/constants/documentTypes';
 
 const terminalStatuses = new Set(['approved', 'rejected', 'escalated']);
-const DOCUMENT_TYPE_OPTIONS: Array<{ value: DocumentType; label: string }> = [
-  { value: 'id_card', label: 'National ID Card' },
-  { value: 'passport', label: 'Passport' },
-  { value: 'drivers_license', label: "Driver's License" },
-  { value: 'birth_certificate', label: 'Birth Certificate' },
-  { value: 'degree', label: 'Degree / Certificate' },
-  { value: 'transcript', label: 'Academic Transcript' },
-  { value: 'employment_letter', label: 'Employment Letter' },
-  { value: 'reference_letter', label: 'Reference Letter' },
-  { value: 'pay_slip', label: 'Pay Slip' },
-  { value: 'bank_statement', label: 'Bank Statement' },
-  { value: 'utility_bill', label: 'Utility Bill' },
-  { value: 'other', label: 'Other' },
-];
 
 const documentStatusClass = (status: string): string => {
   const normalized = String(status || '').toLowerCase();
@@ -126,6 +117,48 @@ const CandidateAccessPage: React.FC = () => {
     { key: 'reviewed', title: 'Reviewed By Initiator', description: 'HR or reviewer examined your results.' },
     { key: 'decision', title: `Outcome (${outcomeLabel})`, description: 'Final decision and notification step.' },
   ];
+  const requiredDocumentTypes = useMemo(
+    () => normalizeRequiredDocumentTypes(context?.campaign?.required_document_types),
+    [context?.campaign?.required_document_types],
+  );
+  const effectiveDocumentTypeOptions = useMemo(() => {
+    if (requiredDocumentTypes.length === 0) {
+      return DOCUMENT_TYPE_OPTIONS;
+    }
+    return DOCUMENT_TYPE_OPTIONS.filter((option) => requiredDocumentTypes.includes(option.value));
+  }, [requiredDocumentTypes]);
+  const latestInterviewSnapshot = useMemo(() => {
+    const payload = results?.latest_interview;
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return null;
+    }
+    const raw = payload as Record<string, unknown>;
+    return {
+      id: typeof raw.id === 'string' ? raw.id : '',
+      session_id: typeof raw.session_id === 'string' ? raw.session_id : '',
+      status: typeof raw.status === 'string' ? raw.status : 'unknown',
+      started_at: typeof raw.started_at === 'string' ? raw.started_at : null,
+      completed_at: typeof raw.completed_at === 'string' ? raw.completed_at : null,
+    };
+  }, [results?.latest_interview]);
+  const latestCaseSnapshot = useMemo(() => {
+    const payload = results?.case;
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return null;
+    }
+    const raw = payload as Record<string, unknown>;
+    return {
+      id: typeof raw.id === 'string' ? raw.id : '',
+      case_id: typeof raw.case_id === 'string' ? raw.case_id : '',
+      status: typeof raw.status === 'string' ? raw.status : '',
+    };
+  }, [results?.case]);
+  const interviewLaunchIdentifier = useMemo(() => {
+    if (!latestCaseSnapshot) {
+      return '';
+    }
+    return latestCaseSnapshot.case_id || latestCaseSnapshot.id || '';
+  }, [latestCaseSnapshot]);
 
   const consumeToken = useCallback(async (rawToken: string, syncQuery = true) => {
     setLoading(true);
@@ -230,23 +263,27 @@ const CandidateAccessPage: React.FC = () => {
     }
   }, [selectedCaseId, selectedFile, selectedDocumentType, loadCases, loadDocuments]);
 
-  const loadResults = async () => {
+  const loadResults = useCallback(async (options?: { silent?: boolean }) => {
     setResultsLoading(true);
     setError(null);
     try {
       const payload = await invitationService.getAccessResults();
       setResults(payload);
-      if (!payload.available) {
-        setMessage('Results are not available yet. Please check back later.');
-      } else {
-        setMessage('Results loaded.');
+      if (!options?.silent) {
+        if (!payload.available) {
+          setMessage('Results are not available yet. Please check back later.');
+        } else {
+          setMessage('Results loaded.');
+        }
       }
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Failed to load results.'));
+      if (!options?.silent) {
+        setError(getErrorMessage(err, 'Failed to load results.'));
+      }
     } finally {
       setResultsLoading(false);
     }
-  };
+  }, []);
 
   const handleLogout = async () => {
     setLoading(true);
@@ -298,6 +335,24 @@ const CandidateAccessPage: React.FC = () => {
   }, [context, selectedCaseId, loadDocuments]);
 
   const hasPendingDocuments = documents.some((doc) => isPendingDocumentStatus(doc.status));
+
+  useEffect(() => {
+    if (effectiveDocumentTypeOptions.length === 0) {
+      return;
+    }
+    if (effectiveDocumentTypeOptions.some((option) => option.value === selectedDocumentType)) {
+      return;
+    }
+    setSelectedDocumentType(effectiveDocumentTypeOptions[0].value);
+  }, [effectiveDocumentTypeOptions, selectedDocumentType]);
+
+  useEffect(() => {
+    if (!context) {
+      setResults(null);
+      return;
+    }
+    void loadResults({ silent: true });
+  }, [context, loadResults]);
 
   useEffect(() => {
     if (!context || !selectedCaseId || uploading || !hasPendingDocuments) {
@@ -457,6 +512,10 @@ const CandidateAccessPage: React.FC = () => {
                 );
               })}
             </div>
+            <div className="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-900">
+              AI interview does not auto-start immediately after upload. The interview step begins only after an
+              interview session is created/scheduled for your case. Use the section below to check interview status.
+            </div>
           </section>
 
           <section className="rounded-xl border border-slate-200 bg-white p-5">
@@ -469,6 +528,25 @@ const CandidateAccessPage: React.FC = () => {
               <span className="text-xs rounded-full bg-slate-100 text-slate-700 px-2.5 py-1">
                 {casesLoading ? 'Loading cases...' : `${cases.length} case(s)`}
               </span>
+            </div>
+            <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Campaign Required Documents</p>
+              {requiredDocumentTypes.length === 0 ? (
+                <p className="mt-1 text-sm text-slate-700">
+                  No explicit requirement configured for this campaign. Any supported document type is allowed.
+                </p>
+              ) : (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {requiredDocumentTypes.map((value) => (
+                    <span
+                      key={value}
+                      className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-800"
+                    >
+                      {getDocumentTypeLabel(value)}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             {cases.length === 0 ? (
@@ -511,7 +589,11 @@ const CandidateAccessPage: React.FC = () => {
                     htmlFor="candidate-document-type"
                     label="Document Type"
                     required
-                    help="Pick the closest document category for accurate vetting routing."
+                    help={
+                      requiredDocumentTypes.length > 0
+                        ? 'Only campaign-required document types are selectable.'
+                        : 'Pick the closest document category for accurate vetting routing.'
+                    }
                     className="mb-1"
                     textClassName="block text-sm text-slate-700"
                   />
@@ -521,7 +603,7 @@ const CandidateAccessPage: React.FC = () => {
                     onChange={(event) => setSelectedDocumentType(event.target.value as DocumentType)}
                     className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
                   >
-                    {DOCUMENT_TYPE_OPTIONS.map((option) => (
+                    {effectiveDocumentTypeOptions.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
@@ -626,8 +708,8 @@ const CandidateAccessPage: React.FC = () => {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="font-semibold text-lg inline-flex items-center gap-2">
                 <FileCheck2 className="w-5 h-5 text-indigo-600" />
-                Results
-                <HelpTooltip text="Check whether your vetting results are released and view the final outcome details." />
+                Results & Interview Status
+                <HelpTooltip text="Check vetting release status and whether an interview session is available for this case." />
               </h2>
               <button
                 type="button"
@@ -635,12 +717,46 @@ const CandidateAccessPage: React.FC = () => {
                 disabled={resultsLoading}
                 className="rounded-lg bg-indigo-600 text-white px-4 py-2 hover:bg-indigo-700 disabled:opacity-60"
               >
-                {resultsLoading ? 'Loading...' : 'Check Results'}
+                {resultsLoading ? 'Loading...' : 'Refresh Status'}
               </button>
             </div>
 
             {results && (
               <div className="mt-4 space-y-3">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+                  <p className="font-medium text-slate-900">Interview</p>
+                  {latestInterviewSnapshot ? (
+                    <div className="mt-1 space-y-1 text-slate-800">
+                      <p>
+                        Session: <strong>{latestInterviewSnapshot.session_id || latestInterviewSnapshot.id}</strong>
+                      </p>
+                      <p>
+                        Status: <strong>{latestInterviewSnapshot.status}</strong>
+                      </p>
+                      <p>
+                        Started:{' '}
+                        <strong>
+                          {latestInterviewSnapshot.started_at
+                            ? formatDateTime(latestInterviewSnapshot.started_at)
+                            : 'Not started'}
+                        </strong>
+                      </p>
+                      {interviewLaunchIdentifier &&
+                        (latestInterviewSnapshot.status === 'created' || latestInterviewSnapshot.status === 'in_progress') && (
+                          <Link
+                            to={`/candidate/interview/${interviewLaunchIdentifier}`}
+                            className="mt-2 inline-flex items-center rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
+                          >
+                            {latestInterviewSnapshot.status === 'created' ? 'Start AI Interview' : 'Resume AI Interview'}
+                          </Link>
+                        )}
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-slate-700">
+                      No interview session has been created yet for this case.
+                    </p>
+                  )}
+                </div>
                 <p className="text-sm">
                   Availability:{' '}
                   <strong>{results.available ? 'Available' : 'Pending review / processing'}</strong>
