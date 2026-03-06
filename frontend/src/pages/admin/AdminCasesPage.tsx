@@ -16,6 +16,7 @@ import {
 import { adminService } from '@/services/admin.service';
 import type { AdminCase, AdminCasesResponse, ApplicationStatus } from '@/types';
 import { formatDate } from '@/utils/helper';
+import { applyQueryUpdates } from '@/utils/queryParams';
 
 type StatusFilter = 'all' | ApplicationStatus;
 type PriorityFilter = 'all' | 'low' | 'medium' | 'high' | 'urgent';
@@ -130,19 +131,11 @@ const AdminCasesPage: React.FC = () => {
     updates: Record<string, string | null>,
     options: { keepPage?: boolean } = {},
   ) => {
-    const nextParams = new URLSearchParams(searchParams);
-
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value === null || value === '' || value === 'all') {
-        nextParams.delete(key);
-      } else {
-        nextParams.set(key, value);
-      }
+    const nextParams = applyQueryUpdates(searchParams, updates, {
+      keepPage: options.keepPage ?? false,
+      pageParam: 'page',
+      resetPageTo: '1',
     });
-
-    if (!options.keepPage && !Object.prototype.hasOwnProperty.call(updates, 'page')) {
-      nextParams.set('page', '1');
-    }
 
     setSearchParams(nextParams, { replace: true });
   };
@@ -180,6 +173,11 @@ const AdminCasesPage: React.FC = () => {
   const pageCaseIds = useMemo(() => cases.map((item) => item.case_id), [cases]);
   const selectedCaseIdSet = useMemo(() => new Set(selectedCaseIds), [selectedCaseIds]);
   const allVisibleSelected = pageCaseIds.length > 0 && pageCaseIds.every((id) => selectedCaseIdSet.has(id));
+  const normalizedTypeFilter = typeFilter.trim();
+  const isTypeFilterActive = normalizedTypeFilter.length > 0;
+  const isStatusFilterActive = statusFilter !== 'all';
+  const isPriorityFilterActive = priorityFilter !== 'all';
+  const hasCaseFilters = isTypeFilterActive || isStatusFilterActive || isPriorityFilterActive;
 
   const pageStart = useMemo(() => {
     if (totalCount === 0) return 0;
@@ -331,6 +329,59 @@ const AdminCasesPage: React.FC = () => {
               </Select>
             </div>
           </div>
+
+          {hasCaseFilters && (
+            <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-700">Active filters</span>
+                {isTypeFilterActive && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTypeFilterInput('');
+                      updateQuery({ application_type: null });
+                    }}
+                    className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800 hover:bg-slate-200"
+                  >
+                    Type: {normalizedTypeFilter} x
+                  </button>
+                )}
+                {isStatusFilterActive && (
+                  <button
+                    type="button"
+                    onClick={() => updateQuery({ status: null })}
+                    className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800 hover:bg-slate-200"
+                  >
+                    Status: {statusFilter.replace('_', ' ')} x
+                  </button>
+                )}
+                {isPriorityFilterActive && (
+                  <button
+                    type="button"
+                    onClick={() => updateQuery({ priority: null })}
+                    className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800 hover:bg-slate-200"
+                  >
+                    Priority: {priorityFilter} x
+                  </button>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="ml-auto border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
+                  onClick={() => {
+                    setTypeFilterInput('');
+                    updateQuery({
+                      application_type: null,
+                      status: null,
+                      priority: null,
+                    });
+                  }}
+                >
+                  Clear case filters
+                </Button>
+              </div>
+            </div>
+          )}
 
           <div className="flex flex-col gap-3 border-t pt-4 md:flex-row md:items-center md:justify-between">
             <div className="text-sm text-slate-800">

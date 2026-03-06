@@ -11,7 +11,9 @@ from rest_framework.test import APITestCase
 
 from apps.applications.models import VettingCase
 from apps.authentication.models import User
+from apps.notifications.models import Notification
 from apps.video_calls.models import VideoMeeting, VideoMeetingEvent, VideoMeetingParticipant
+from apps.video_calls.services import notify_meeting_start_now
 from apps.video_calls.tasks import process_video_meeting_reminders
 
 
@@ -284,6 +286,38 @@ class VideoMeetingApiTests(APITestCase):
         self.assertIn("text/calendar", response["Content-Type"])
         self.assertIn("BEGIN:VCALENDAR", response.content.decode("utf-8"))
         self.assertIn("SUMMARY:Calendar Interview", response.content.decode("utf-8"))
+
+    @override_settings(NOTIFICATIONS_SMS_ENABLED=False)
+    @patch("apps.notifications.services.send_mail", return_value=1)
+    def test_notify_meeting_start_now_is_idempotent(self, _send_mail):
+        meeting = VideoMeeting.objects.create(
+            organizer=self.hr_user,
+            case=self.case,
+            title="Idempotent start-now reminder",
+            status=VideoMeeting.STATUS_ONGOING,
+            scheduled_start=timezone.now() - timedelta(minutes=1),
+            scheduled_end=timezone.now() + timedelta(minutes=20),
+            timezone="UTC",
+        )
+        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.candidate, role="candidate")
+        Notification.objects.filter(metadata__event_type="video_call_start_now").delete()
+
+        notify_meeting_start_now(meeting)
+        notify_meeting_start_now(meeting)
+
+        notifications = Notification.objects.filter(
+            metadata__event_type="video_call_start_now",
+        )
+        self.assertEqual(notifications.count(), 4)
+        self.assertEqual(
+            set(notifications.values_list("notification_type", flat=True)),
+            {"in_app", "email"},
+        )
+        idempotency_keys = set(
+            notifications.values_list("metadata__idempotency_key", flat=True),
+        )
+        self.assertEqual(len(idempotency_keys), 1)
 
     def test_reminder_task_uses_per_meeting_lead_minutes(self):
         starts_in_ten = VideoMeeting.objects.create(

@@ -103,6 +103,24 @@ class InterviewsApiTests(APITestCase):
         self.assertTrue(self.case.interview_completed)
         self.assertIsNotNone(self.case.interview_score)
 
+    @patch("apps.interviews.signals.NotificationService.send_interview_scheduled")
+    def test_session_creation_triggers_candidate_interview_scheduled_notification(
+        self, mock_send_interview_scheduled
+    ):
+        create_session = self.client.post(
+            "/api/interviews/sessions/",
+            {
+                "case": self.case.id,
+                "use_dynamic_questions": True,
+                "max_questions": 5,
+            },
+            format="json",
+        )
+        self.assertEqual(create_session.status_code, 201)
+        mock_send_interview_scheduled.assert_called_once()
+        created_session = mock_send_interview_scheduled.call_args.args[0]
+        self.assertEqual(str(created_session.id), create_session.json()["id"])
+
     def test_save_and_update_exchange_actions_with_session_id_lookup(self):
         create_session = self.client.post(
             "/api/interviews/sessions/",

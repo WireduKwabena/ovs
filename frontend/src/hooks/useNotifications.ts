@@ -1,54 +1,59 @@
-// src/hooks/useNotifications.ts (Fixed - Resolves All Errors)
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useDispatch } from 'react-redux';
-import type { AppDispatch } from '@/app/store';  // Adjust path if needed
-import {  fetchNotifications, markAllAsRead, markAsRead } from '@/store/notificationSlice';  // Ensure slice exports these (as per prior tweaks)
-import { notificationService } from '@/services/notification.service';
-import { useEffect } from 'react';
-import { toast } from 'react-toastify';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-toastify";
 
-export const useNotifications = () => {
-  const dispatch = useDispatch<AppDispatch>();
+import { notificationService } from "@/services/notification.service";
+
+type UseNotificationsOptions = {
+  archived?: "active" | "archived" | "all";
+};
+
+export const useNotifications = (options?: UseNotificationsOptions) => {
   const queryClient = useQueryClient();
+  const archived = options?.archived ?? "active";
 
   const { data: notificationsData, isLoading, refetch } = useQuery({
-    queryKey: ['notifications'],
-    queryFn: () => notificationService.getAll(),
-    refetchInterval: 30000, // Poll every 30 seconds
-    staleTime: 1000 * 60,  // 1 min stale
+    queryKey: ["notifications", archived],
+    queryFn: () => notificationService.getAll({ archived }),
+    refetchInterval: 30000,
+    staleTime: 1000 * 60,
   });
-
-  useEffect(() => {
-    if (notificationsData) {
-      dispatch(fetchNotifications());  // Sync RTQ data to Redux (or let thunk handle fetch)
-    }
-  }, [notificationsData, dispatch]);
 
   const markAsReadMutation = useMutation({
     mutationFn: (ids: string[]) => notificationService.markAsRead(ids),
-    onSuccess: (_, variables: string[]) => {  // Use variables (ids) from mutation arg
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      dispatch(markAsRead(variables));  // Pass ids via variables
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
-    onError: (err) => toast.error(err.message || 'Failed to mark as read'),  // Use err.message
+    onError: (err: unknown) =>
+      toast.error(err instanceof Error ? err.message : "Failed to mark as read"),
   });
 
   const markAllAsReadMutation = useMutation({
     mutationFn: () => notificationService.markAllAsRead(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      dispatch(markAllAsRead());  // Redux thunk/action
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
-    onError: (err) => toast.error(err.message || 'Failed to mark all as read'),  // Use err.message
+    onError: (err: unknown) =>
+      toast.error(err instanceof Error ? err.message : "Failed to mark all as read"),
   });
 
   const archiveMutation = useMutation({
     mutationFn: (id: string) => notificationService.archive(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
       void refetch();
     },
-    onError: (err) => toast.error(err.message || 'Failed to archive notification'),
+    onError: (err: unknown) =>
+      toast.error(err instanceof Error ? err.message : "Failed to archive notification"),
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: (id: string) => notificationService.restore(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      void refetch();
+    },
+    onError: (err: unknown) =>
+      toast.error(err instanceof Error ? err.message : "Failed to restore notification"),
   });
 
   return {
@@ -58,6 +63,8 @@ export const useNotifications = () => {
     markAllAsRead: markAllAsReadMutation.mutate,
     archive: archiveMutation.mutate,
     archiveAsync: archiveMutation.mutateAsync,
+    restore: restoreMutation.mutate,
+    restoreAsync: restoreMutation.mutateAsync,
     refresh: refetch,
   };
 };

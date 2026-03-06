@@ -7,7 +7,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.applications.models import VettingCase
+from apps.applications.models import Document, VettingCase
 from apps.interviews.models import InterviewSession
 
 try:
@@ -166,6 +166,16 @@ def _candidate_context_payload(candidate_session):
     enrollment = candidate_session.enrollment
     candidate = enrollment.candidate
     campaign = enrollment.campaign
+    settings_json = campaign.settings_json if isinstance(campaign.settings_json, dict) else {}
+    raw_required_types = settings_json.get("required_document_types")
+    required_document_types = []
+    if isinstance(raw_required_types, list):
+        allowed_values = {choice[0] for choice in Document.DOCUMENT_TYPE_CHOICES}
+        for item in raw_required_types:
+            value = str(item)
+            if value in allowed_values and value not in required_document_types:
+                required_document_types.append(value)
+
     return {
         "session_key": str(candidate_session.session_key),
         "session_expires_at": candidate_session.expires_at,
@@ -175,6 +185,7 @@ def _candidate_context_payload(candidate_session):
             "id": campaign.id,
             "name": campaign.name,
             "status": campaign.status,
+            "required_document_types": required_document_types,
         },
         "candidate": {
             "id": candidate.id,

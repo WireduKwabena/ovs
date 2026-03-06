@@ -1,6 +1,21 @@
-// src/services/notification.service.ts (Enhanced with safety checks)
-import api from './api';
-import type { Notification, ApiError, PaginatedResponse } from '@/types';
+import api from "./api";
+import type { ApiError, Notification, PaginatedResponse } from "@/types";
+
+type NotificationApiRecord = {
+  id: string;
+  subject?: string;
+  title?: string;
+  message?: string;
+  status?: string;
+  is_read?: boolean;
+  is_archived?: boolean;
+  archived_at?: string;
+  metadata?: Record<string, unknown>;
+  notification_type?: Notification["notification_type"];
+  created_at: string;
+  read_at?: string;
+  priority?: Notification["priority"];
+};
 
 const extractResults = <T>(payload: PaginatedResponse<T> | T[]): T[] => {
   if (Array.isArray(payload)) {
@@ -9,59 +24,100 @@ const extractResults = <T>(payload: PaginatedResponse<T> | T[]): T[] => {
   return Array.isArray(payload.results) ? payload.results : [];
 };
 
+const normalizeNotification = (record: NotificationApiRecord): Notification => {
+  const isRead = record.is_read ?? record.status === "read";
+  return {
+    id: record.id,
+    notification_type: record.notification_type ?? "in_app",
+    title: record.title || record.subject || "Notification",
+    subject: record.subject,
+    message: record.message ?? "",
+    status: isRead ? "read" : "unread",
+    metadata: (record.metadata as Record<string, unknown>) || {},
+    is_read: isRead,
+    is_archived: Boolean(record.is_archived),
+    archived_at: record.archived_at,
+    created_at: record.created_at,
+    read_at: record.read_at,
+    priority: record.priority,
+  };
+};
+
+const getErrorMessage = (error: any, fallback: string): string => {
+  const payload = error?.response?.data as ApiError | { detail?: string } | undefined;
+  if (payload && typeof payload === "object") {
+    if ("message" in payload && typeof payload.message === "string" && payload.message.trim()) {
+      return payload.message;
+    }
+    if ("detail" in payload && typeof payload.detail === "string" && payload.detail.trim()) {
+      return payload.detail;
+    }
+  }
+  return fallback;
+};
+
 export const notificationService = {
   async getAll(params?: {
     status?: string;
     type?: string;
     priority?: string;
+    channel?: "in_app" | "email" | "sms" | "all";
+    archived?: "active" | "archived" | "all";
   }): Promise<Notification[]> {
     try {
-      const response = await api.get<PaginatedResponse<Notification> | Notification[]>(
-        '/notifications/',
-        { params },
-      );
-      return extractResults(response.data);
+      const { archived = "active", ...restParams } = params ?? {};
+      const archivedParam =
+        archived === "archived"
+          ? "only"
+          : archived === "all"
+            ? "all"
+            : "false";
+      const response = await api.get<
+        PaginatedResponse<NotificationApiRecord> | NotificationApiRecord[]
+      >("/notifications/", {
+        params: { channel: "in_app", archived: archivedParam, ...restParams },
+      });
+      return extractResults(response.data).map(normalizeNotification);
     } catch (error: any) {
-      console.error('Notification service error:', error);
-      throw new Error((error.response?.data as ApiError)?.message || 'Failed to fetch notifications');
+      throw new Error(getErrorMessage(error, "Failed to fetch notifications"));
     }
   },
 
   async getById(id: string): Promise<Notification> {
     try {
-      const response = await api.get<Notification>(`/notifications/${id}/`);
-      return response.data;
+      const response = await api.get<NotificationApiRecord>(`/notifications/${id}/`, {
+        params: { channel: "in_app", archived: "all" },
+      });
+      return normalizeNotification(response.data);
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Failed to fetch notification detail');
+      throw new Error(getErrorMessage(error, "Failed to fetch notification detail"));
     }
   },
 
   async getUnreadCount(): Promise<{ unread_count: number }> {
     try {
-      const response = await api.get('/notifications/unread-count/');
+      const response = await api.get<{ unread_count: number }>("/notifications/unread-count/");
       return response.data;
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Failed to fetch count');
+      throw new Error(getErrorMessage(error, "Failed to fetch count"));
     }
   },
 
   async markAsRead(notificationIds: string[]): Promise<void> {
     try {
-      console.log('Marking as read:', notificationIds);
-      await api.post('/notifications/mark-as-read/', {
+      await api.post("/notifications/mark-as-read/", {
         notification_ids: notificationIds,
       });
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Mark read failed');
+      throw new Error(getErrorMessage(error, "Failed to mark notifications as read"));
     }
   },
 
   async markAllAsRead(): Promise<void> {
     try {
-      console.log('Marking all as read');
-      await api.post('/notifications/mark-all-as-read/');
+      await api.post("/notifications/mark-all-as-read/");
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Mark all failed');
+      throw new Error(getErrorMessage(error, "Failed to mark all notifications as read"));
     }
   },
 
@@ -69,7 +125,7 @@ export const notificationService = {
     try {
       await api.post(`/notifications/${id}/mark_read/`);
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Mark single failed');
+      throw new Error(getErrorMessage(error, "Failed to mark notification as read"));
     }
   },
 
@@ -77,7 +133,15 @@ export const notificationService = {
     try {
       await api.delete(`/notifications/${id}/archive/`);
     } catch (error: any) {
-      throw new Error((error.response?.data as ApiError)?.message || 'Archive failed');
+      throw new Error(getErrorMessage(error, "Failed to archive notification"));
+    }
+  },
+
+  async restore(id: string): Promise<void> {
+    try {
+      await api.post(`/notifications/${id}/restore/`);
+    } catch (error: any) {
+      throw new Error(getErrorMessage(error, "Failed to restore notification"));
     }
   },
 };

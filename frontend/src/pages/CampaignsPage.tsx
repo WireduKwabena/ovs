@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Plus, FolderKanban, CalendarDays, RefreshCw, Info } from 'lucide-react';
 import { HelpTooltip, FieldLabel } from '@/components/common/FieldHelp';
-import type { VettingCampaign } from '@/types';
+import type { DocumentType, VettingCampaign } from '@/types';
 import { campaignService } from '@/services/campaign.service';
 import { billingService, type BillingQuotaCandidate } from '@/services/billing.service';
 import { formatDate } from '@/utils/helper';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
+import { applyQueryUpdates, normalizeQueryValue } from '@/utils/queryParams';
+import { DOCUMENT_TYPE_OPTIONS, getDocumentTypeLabel } from '@/constants/documentTypes';
 
 const statusBadgeClass: Record<string, string> = {
   draft: 'bg-slate-200 text-slate-800',
@@ -16,7 +18,19 @@ const statusBadgeClass: Record<string, string> = {
   archived: 'bg-zinc-100 text-zinc-700',
 };
 
+type CampaignListStatusFilter = VettingCampaign['status'] | 'all';
+
+const CAMPAIGN_LIST_STATUS_VALUES: CampaignListStatusFilter[] = ['all', 'draft', 'active', 'closed', 'archived'];
+
+const parseCampaignListStatusFilter = (value: string | null): CampaignListStatusFilter => {
+  const normalized = normalizeQueryValue(value);
+  return CAMPAIGN_LIST_STATUS_VALUES.includes(normalized as CampaignListStatusFilter)
+    ? (normalized as CampaignListStatusFilter)
+    : 'all';
+};
+
 const CampaignsPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { isHrOrAdmin, userType } = useAuth();
   const [campaigns, setCampaigns] = useState<VettingCampaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +45,14 @@ const CampaignsPage: React.FC = () => {
     status: 'draft' as VettingCampaign['status'],
     starts_at: '',
     ends_at: '',
+    required_document_types: ['id_card'] as DocumentType[],
   });
+  const [campaignSearchFilter, setCampaignSearchFilter] = useState<string>(() =>
+    normalizeQueryValue(searchParams.get('q')),
+  );
+  const [campaignStatusFilter, setCampaignStatusFilter] = useState<CampaignListStatusFilter>(() =>
+    parseCampaignListStatusFilter(searchParams.get('status')),
+  );
 
   const canManageCampaigns = isHrOrAdmin;
   const shouldShowQuota = userType === 'hr_manager';
@@ -76,6 +97,24 @@ const CampaignsPage: React.FC = () => {
     void fetchQuota();
   }, [fetchQuota]);
 
+  useEffect(() => {
+    const currentSearch = normalizeQueryValue(searchParams.get('q'));
+    const currentStatus = parseCampaignListStatusFilter(searchParams.get('status'));
+    if (currentSearch === campaignSearchFilter && currentStatus === campaignStatusFilter) {
+      return;
+    }
+
+    const nextParams = applyQueryUpdates(
+      searchParams,
+      {
+        q: campaignSearchFilter || null,
+        status: campaignStatusFilter,
+      },
+      { keepPage: true },
+    );
+    setSearchParams(nextParams, { replace: true });
+  }, [campaignSearchFilter, campaignStatusFilter, searchParams, setSearchParams]);
+
   const totalByStatus = useMemo(() => {
     return campaigns.reduce(
       (acc, campaign) => {
@@ -85,6 +124,28 @@ const CampaignsPage: React.FC = () => {
       {} as Record<string, number>
     );
   }, [campaigns]);
+
+  const filteredCampaigns = useMemo(() => {
+    const normalizedSearch = campaignSearchFilter.toLowerCase();
+    return campaigns.filter((campaign) => {
+      if (campaignStatusFilter !== 'all' && campaign.status !== campaignStatusFilter) {
+        return false;
+      }
+      if (normalizedSearch) {
+        const haystack = `${campaign.name} ${campaign.description || ''} ${campaign.status} ${
+          campaign.initiated_by_email || ''
+        }`.toLowerCase();
+        if (!haystack.includes(normalizedSearch)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [campaignSearchFilter, campaignStatusFilter, campaigns]);
+
+  const isCampaignSearchFilterActive = campaignSearchFilter.length > 0;
+  const isCampaignStatusFilterActive = campaignStatusFilter !== 'all';
+  const hasCampaignListFilters = isCampaignSearchFilterActive || isCampaignStatusFilterActive;
 
   const quotaBadge = useMemo(() => {
     if (!shouldShowQuota) {
@@ -118,6 +179,10 @@ const CampaignsPage: React.FC = () => {
       setError('Campaign name is required.');
       return;
     }
+    if (form.required_document_types.length === 0) {
+      setError('Select at least one required document type for this campaign.');
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
@@ -128,6 +193,7 @@ const CampaignsPage: React.FC = () => {
         status: form.status,
         starts_at: form.starts_at || null,
         ends_at: form.ends_at || null,
+        required_document_types: form.required_document_types,
       });
       setCampaigns((prev) => [created, ...prev]);
       setForm({
@@ -136,6 +202,7 @@ const CampaignsPage: React.FC = () => {
         status: 'draft',
         starts_at: '',
         ends_at: '',
+        required_document_types: ['id_card'],
       });
     } catch (err: any) {
       setError(err?.response?.data?.detail || err?.message || 'Failed to create campaign.');
@@ -296,6 +363,55 @@ const CampaignsPage: React.FC = () => {
                 placeholder="Describe this campaign's scope and rules."
               />
             </div>
+            <div>
+              <FieldLabel
+                htmlFor="campaign-required-doc-types"
+                label="Required Document Types"
+                required
+                help="Candidates can upload only these document categories for this campaign."
+                className="mb-2 flex items-center gap-1.5"
+                textClassName="block text-sm font-medium text-slate-700"
+              />
+              <div
+                id="campaign-required-doc-types"
+                className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2"
+              >
+                {DOCUMENT_TYPE_OPTIONS.map((option) => {
+                  const checked = form.required_document_types.includes(option.value);
+                  return (
+                    <label key={option.value} className="inline-flex items-center gap-2 text-sm text-slate-800">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(event) => {
+                          const isChecked = event.target.checked;
+                          setForm((prev) => {
+                            const current = prev.required_document_types;
+                            if (isChecked) {
+                              if (current.includes(option.value)) {
+                                return prev;
+                              }
+                              return {
+                                ...prev,
+                                required_document_types: [...current, option.value],
+                              };
+                            }
+                            return {
+                              ...prev,
+                              required_document_types: current.filter((item) => item !== option.value),
+                            };
+                          });
+                        }}
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-xs text-slate-700">
+                Selected: {form.required_document_types.length}
+              </p>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <FieldLabel
@@ -370,13 +486,82 @@ const CampaignsPage: React.FC = () => {
             <HelpTooltip text="Open Workspace to assign rubric versions, import candidates, and manage invitations for a campaign." />
           </h2>
 
+          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label htmlFor="campaign-list-search" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
+                Search
+              </label>
+              <Input
+                id="campaign-list-search"
+                value={campaignSearchFilter}
+                onChange={(event) => setCampaignSearchFilter(event.target.value)}
+                placeholder="Search name, description, owner"
+              />
+            </div>
+            <div>
+              <label htmlFor="campaign-list-status-filter" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
+                Status
+              </label>
+              <select
+                id="campaign-list-status-filter"
+                value={campaignStatusFilter}
+                onChange={(event) => setCampaignStatusFilter(event.target.value as CampaignListStatusFilter)}
+                className="w-full rounded-lg border border-slate-700 bg-white px-3 py-2 text-sm text-slate-900 focus:ring-2 focus:ring-indigo-400 outline-none"
+              >
+                <option value="all">All statuses</option>
+                <option value="draft">Draft</option>
+                <option value="active">Active</option>
+                <option value="closed">Closed</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+          </div>
+
+          {hasCampaignListFilters && (
+            <div className="mb-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-700">Active filters</span>
+                {isCampaignSearchFilterActive && (
+                  <button
+                    type="button"
+                    onClick={() => setCampaignSearchFilter('')}
+                    className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800 hover:bg-slate-200"
+                  >
+                    Search: {campaignSearchFilter} x
+                  </button>
+                )}
+                {isCampaignStatusFilterActive && (
+                  <button
+                    type="button"
+                    onClick={() => setCampaignStatusFilter('all')}
+                    className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800 hover:bg-slate-200"
+                  >
+                    Status: {campaignStatusFilter} x
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCampaignSearchFilter('');
+                    setCampaignStatusFilter('all');
+                  }}
+                  className="ml-auto inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-100"
+                >
+                  Clear campaign filters
+                </button>
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <div className="py-12 text-center text-slate-700">Loading campaigns...</div>
           ) : campaigns.length === 0 ? (
             <div className="py-12 text-center text-slate-700">No campaigns yet. Create your first one.</div>
+          ) : filteredCampaigns.length === 0 ? (
+            <div className="py-12 text-center text-slate-700">No campaigns match current filters.</div>
           ) : (
             <div className="space-y-3">
-              {campaigns.map((campaign) => (
+              {filteredCampaigns.map((campaign) => (
                 <article
                   key={campaign.id}
                   className="rounded-lg border border-slate-200 px-4 py-3 hover:border-indigo-300 transition-colors"
@@ -409,6 +594,12 @@ const CampaignsPage: React.FC = () => {
                   </div>
                   {campaign.description && (
                     <p className="text-sm text-slate-700 mt-2 line-clamp-2">{campaign.description}</p>
+                  )}
+                  {Array.isArray(campaign.required_document_types) && campaign.required_document_types.length > 0 && (
+                    <p className="text-xs text-slate-700 mt-2">
+                      Required docs:{" "}
+                      {campaign.required_document_types.map((value) => getDocumentTypeLabel(value)).join(', ')}
+                    </p>
                   )}
                   <div className="mt-3 flex items-center justify-between">
                     <div className="text-xs text-slate-700 inline-flex items-center gap-1">

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Activity, Eye, RefreshCw, Search } from "lucide-react";
 import { toast } from "react-toastify";
+import { useSearchParams } from "react-router-dom";
 
 import ExportActions from "@/components/common/ExportActions";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import type { AuditEventCatalogItem, AuditLog, AuditStatistics } from "@/types";
 import { downloadCsvFile, isoDateStamp } from "@/utils/csv";
 import { downloadJsonFile } from "@/utils/json";
 import { formatDate } from "@/utils/helper";
+import { applyQueryUpdates, normalizeQueryValue } from "@/utils/queryParams";
 
 type AuditActionFilter = "all" | "create" | "update" | "delete" | "login" | "logout" | "other";
 
@@ -45,6 +47,13 @@ const actionPillClass: Record<string, string> = {
   other: "bg-slate-200 text-slate-800",
 };
 
+const parseActionFilter = (value: string | null): AuditActionFilter => {
+  const normalized = normalizeQueryValue(value);
+  return ACTION_OPTIONS.some((option) => option.value === normalized)
+    ? (normalized as AuditActionFilter)
+    : "all";
+};
+
 const buildAuditStatsFromLogs = (items: AuditLog[]): AuditStatistics => {
   const actionCounts = new Map<string, number>();
   const entityCounts = new Map<string, number>();
@@ -68,6 +77,7 @@ const buildAuditStatsFromLogs = (items: AuditLog[]): AuditStatistics => {
 };
 
 const AuditLogsPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [recentLogs, setRecentLogs] = useState<AuditLog[]>([]);
   const [stats, setStats] = useState<AuditStatistics>(defaultStats);
@@ -78,13 +88,54 @@ const AuditLogsPage: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const [actionFilter, setActionFilter] = useState<AuditActionFilter>("all");
-  const [actorUserIdFilter, setActorUserIdFilter] = useState("");
-  const [entityTypeFilter, setEntityTypeFilter] = useState("");
-  const [eventKeyFilter, setEventKeyFilter] = useState("");
-  const [entityIdFilter, setEntityIdFilter] = useState("");
-  const [searchFilter, setSearchFilter] = useState("");
+  const [actionFilter, setActionFilter] = useState<AuditActionFilter>(() => parseActionFilter(searchParams.get("action")));
+  const [actorUserIdFilter, setActorUserIdFilter] = useState(() => normalizeQueryValue(searchParams.get("actor_user_id")));
+  const [entityTypeFilter, setEntityTypeFilter] = useState(() => normalizeQueryValue(searchParams.get("entity_type")));
+  const [eventKeyFilter, setEventKeyFilter] = useState(() => normalizeQueryValue(searchParams.get("event_key")));
+  const [entityIdFilter, setEntityIdFilter] = useState(() => normalizeQueryValue(searchParams.get("entity_id")));
+  const [searchFilter, setSearchFilter] = useState(() => normalizeQueryValue(searchParams.get("search")));
   const [eventCatalog, setEventCatalog] = useState<AuditEventCatalogItem[]>([]);
+
+  useEffect(() => {
+    const currentAction = parseActionFilter(searchParams.get("action"));
+    const currentActor = normalizeQueryValue(searchParams.get("actor_user_id"));
+    const currentEntityType = normalizeQueryValue(searchParams.get("entity_type"));
+    const currentEventKey = normalizeQueryValue(searchParams.get("event_key"));
+    const currentEntityId = normalizeQueryValue(searchParams.get("entity_id"));
+    const currentSearch = normalizeQueryValue(searchParams.get("search"));
+    if (
+      currentAction === actionFilter &&
+      currentActor === actorUserIdFilter &&
+      currentEntityType === entityTypeFilter &&
+      currentEventKey === eventKeyFilter &&
+      currentEntityId === entityIdFilter &&
+      currentSearch === searchFilter
+    ) {
+      return;
+    }
+    const nextParams = applyQueryUpdates(
+      searchParams,
+      {
+        action: actionFilter,
+        actor_user_id: actorUserIdFilter || null,
+        entity_type: entityTypeFilter || null,
+        event_key: eventKeyFilter || null,
+        entity_id: entityIdFilter || null,
+        search: searchFilter || null,
+      },
+      { keepPage: true },
+    );
+    setSearchParams(nextParams, { replace: true });
+  }, [
+    actionFilter,
+    actorUserIdFilter,
+    entityIdFilter,
+    entityTypeFilter,
+    eventKeyFilter,
+    searchFilter,
+    searchParams,
+    setSearchParams,
+  ]);
 
   useEffect(() => {
     let isMounted = true;
@@ -203,6 +254,13 @@ const AuditLogsPage: React.FC = () => {
 
   const topActions = useMemo(() => stats.action_distribution.slice(0, 5), [stats.action_distribution]);
   const topEntities = useMemo(() => stats.entity_distribution.slice(0, 5), [stats.entity_distribution]);
+  const normalizedActorUserIdFilter = actorUserIdFilter.trim();
+  const normalizedEntityTypeFilter = entityTypeFilter.trim();
+  const normalizedEventKeyFilter = eventKeyFilter.trim();
+  const isActorFilterActive = normalizedActorUserIdFilter.length > 0;
+  const isEntityTypeFilterActive = normalizedEntityTypeFilter.length > 0;
+  const isEventKeyFilterActive = normalizedEventKeyFilter.length > 0;
+  const hasContextFilters = isActorFilterActive || isEntityTypeFilterActive || isEventKeyFilterActive;
   const entityTypeOptions = useMemo(
     () => Array.from(new Set(eventCatalog.map((item) => item.entity_type))).sort(),
     [eventCatalog],
@@ -412,6 +470,71 @@ const AuditLogsPage: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {isActorFilterActive ? (
+        <section className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p>
+              Actor filter active: <span className="font-semibold">{normalizedActorUserIdFilter}</span>
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              className="border-cyan-300 bg-white text-cyan-900 hover:bg-cyan-100"
+              onClick={() => setActorUserIdFilter("")}
+            >
+              Clear actor filter
+            </Button>
+          </div>
+        </section>
+      ) : null}
+
+      {hasContextFilters ? (
+        <section className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-700">Active filters</span>
+            {isEntityTypeFilterActive ? (
+              <button
+                type="button"
+                onClick={() => setEntityTypeFilter("")}
+                className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800 hover:bg-slate-200"
+              >
+                Entity: {normalizedEntityTypeFilter} x
+              </button>
+            ) : null}
+            {isEventKeyFilterActive ? (
+              <button
+                type="button"
+                onClick={() => setEventKeyFilter("")}
+                className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800 hover:bg-slate-200"
+              >
+                Event: {normalizedEventKeyFilter} x
+              </button>
+            ) : null}
+            {isActorFilterActive ? (
+              <button
+                type="button"
+                onClick={() => setActorUserIdFilter("")}
+                className="inline-flex items-center rounded-full border border-cyan-300 bg-cyan-100 px-3 py-1 text-xs font-medium text-cyan-900 hover:bg-cyan-200"
+              >
+                Actor: {normalizedActorUserIdFilter} x
+              </button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              className="ml-auto border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
+              onClick={() => {
+                setActorUserIdFilter("");
+                setEntityTypeFilter("");
+                setEventKeyFilter("");
+              }}
+            >
+              Clear key filters
+            </Button>
+          </div>
+        </section>
+      ) : null}
 
       {loading ? (
         <section className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center text-slate-700 shadow-sm">

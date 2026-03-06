@@ -106,7 +106,7 @@ def _refresh_case_aggregates(document: Document):
     case.requires_manual_review = case.red_flags_count > 0 or (case.fraud_risk_score or 0) >= 50
 
     if case.status in {"pending", "document_upload", "document_analysis"}:
-        case.status = "under_review" if case.documents_verified else "document_analysis"
+        case.status = "document_analysis" if not case.documents_verified else "interview_scheduled"
 
     case.save(
         update_fields=[
@@ -122,6 +122,40 @@ def _refresh_case_aggregates(document: Document):
         ]
     )
     return case
+
+
+def _ensure_interview_session_for_case(case):
+    if not case.documents_verified or case.interview_completed:
+        return None
+
+    from apps.interviews.models import InterviewSession
+
+    interview_session = (
+        InterviewSession.objects.filter(case=case)
+        .order_by("-created_at")
+        .first()
+    )
+    if interview_session is None:
+        interview_session = InterviewSession.objects.create(
+            case=case,
+            use_dynamic_questions=True,
+            status="created",
+        )
+
+    if case.status not in {"approved", "rejected", "on_hold"}:
+        target_status = case.status
+        if interview_session.status == "in_progress":
+            target_status = "interview_in_progress"
+        elif interview_session.status in {"created", "failed", "cancelled"}:
+            target_status = "interview_scheduled"
+        elif interview_session.status == "completed":
+            target_status = "under_review"
+
+        if target_status != case.status:
+            case.status = target_status
+            case.save(update_fields=["status", "updated_at"])
+
+    return interview_session
 
 
 def _sync_case_social_profile_result(document: Document) -> None:
@@ -181,6 +215,7 @@ def verify_document_async(self, document_id: int):
         _upsert_flag_for_document(document, result)
         case = _refresh_case_aggregates(document)
         if case.documents_verified:
+            _ensure_interview_session_for_case(case)
             _sync_case_social_profile_result(document)
 
         return {

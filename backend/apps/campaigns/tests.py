@@ -119,6 +119,23 @@ class CampaignAuthorizationTests(APITestCase):
         self.assertIn(str(self.campaign_one.id), ids)
         self.assertIn(str(self.campaign_two.id), ids)
 
+    def test_hr_manager_can_define_required_document_types(self):
+        self.client.force_authenticate(self.hr_one)
+        payload = {
+            "name": "Required Docs Campaign",
+            "status": "draft",
+            "required_document_types": ["id_card", "passport", "id_card"],
+        }
+
+        response = self.client.post("/api/campaigns/", payload, format="json")
+        self.assertEqual(response.status_code, 201)
+        data = response.json()
+        self.assertEqual(data["required_document_types"], ["id_card", "passport"])
+
+        campaign = VettingCampaign.objects.get(id=data["id"])
+        settings_json = campaign.settings_json if isinstance(campaign.settings_json, dict) else {}
+        self.assertEqual(settings_json.get("required_document_types"), ["id_card", "passport"])
+
     def test_hr_manager_can_list_own_campaign_rubric_versions(self):
         self.client.force_authenticate(self.hr_one)
         response = self.client.get(f"/api/campaigns/{self.campaign_one.id}/rubrics/versions/")

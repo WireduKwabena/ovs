@@ -103,3 +103,30 @@ describe("auditService.getEventCatalog API contract", () => {
     await expect(auditService.getEventCatalog()).rejects.toThrow("Catalog unavailable");
   });
 });
+
+describe("auditService.getByUser API contract", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns actor-specific logs array", async () => {
+    apiGetMock.mockResolvedValueOnce({
+      data: [{ id: "log-user-1", action: "update", entity_type: "AppointmentRecord" }],
+    });
+
+    const rows = await auditService.getByUser("actor-uuid-1");
+
+    expect(apiGetMock).toHaveBeenCalledWith("/audit/logs/by_user/", {
+      params: { user_id: "actor-uuid-1" },
+    });
+    expect(rows).toEqual([{ id: "log-user-1", action: "update", entity_type: "AppointmentRecord" }]);
+  });
+
+  it("surfaces backend error message when by-user fetch fails", async () => {
+    apiGetMock.mockRejectedValueOnce({
+      response: { data: { message: "Actor filter unavailable" } },
+    });
+
+    await expect(auditService.getByUser("actor-uuid-1")).rejects.toThrow("Actor filter unavailable");
+  });
+});

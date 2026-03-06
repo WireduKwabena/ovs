@@ -72,6 +72,11 @@ const ApplicationDetailPage = React.lazy(() =>
 const NotificationsPage = React.lazy(() =>
   import("./pages/NotificationsPage").then((module) => ({ default: module.NotificationsPage })),
 );
+const NotificationDetailPage = React.lazy(() =>
+  import("./pages/NotificationDetailPage").then((module) => ({
+    default: module.NotificationDetailPage,
+  })),
+);
 const HeyGenInterrogation = React.lazy(() =>
   import("./components/interview/HeyGenInterrogation").then((module) => ({
     default: module.HeyGenInterrogation,
@@ -101,6 +106,16 @@ const HeyGenInterrogationPage: React.FC = () => {
   }
 
   return <HeyGenInterrogation applicationId={applicationId} />;
+};
+
+const CandidateInterrogationPage: React.FC = () => {
+  const { applicationId } = useParams<{ applicationId: string }>();
+
+  if (!applicationId) {
+    return <Navigate to="/candidate/access" />;
+  }
+
+  return <HeyGenInterrogation applicationId={applicationId} completionRedirectPath="/candidate/access" />;
 };
 
 const AppShell: React.FC = () => {
@@ -180,6 +195,7 @@ const AppShell: React.FC = () => {
           <Route path="/billing/cancel" element={<BillingCheckoutResultPage />} />
 
           <Route path="/candidate/access" element={<CandidateAccessPage />} />
+          <Route path="/candidate/interview/:applicationId" element={<CandidateInterrogationPage />} />
           <Route path="/invite/:token" element={<InvitationAcceptPage />} />
 
           <Route
@@ -299,6 +315,14 @@ const AppShell: React.FC = () => {
             element={
               <ProtectedRoute>
                 <NotificationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications/:notificationId"
+            element={
+              <ProtectedRoute>
+                <NotificationDetailPage />
               </ProtectedRoute>
             }
           />

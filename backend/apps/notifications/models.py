@@ -192,6 +192,10 @@ class Notification(models.Model):
     failure_reason = models.TextField(blank=True)
     retry_count = models.IntegerField(default=0)
 
+    # Soft-archive lifecycle
+    is_archived = models.BooleanField(default=False, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
+
     # Metadata
     metadata = models.JSONField(
         default=dict,
@@ -204,6 +208,7 @@ class Notification(models.Model):
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['recipient', 'status']),
+            models.Index(fields=['recipient', 'is_archived']),
             models.Index(fields=['status', 'priority']),
             models.Index(fields=['-created_at']),
         ]
@@ -233,6 +238,18 @@ class Notification(models.Model):
         self.failure_reason = reason
         self.retry_count += 1
         self.save()
+
+    def archive(self):
+        """Soft-archive notification."""
+        self.is_archived = True
+        self.archived_at = timezone.now()
+        self.save(update_fields=["is_archived", "archived_at"])
+
+    def restore(self):
+        """Restore soft-archived notification."""
+        self.is_archived = False
+        self.archived_at = None
+        self.save(update_fields=["is_archived", "archived_at"])
 
 
 class AlertRule(models.Model):

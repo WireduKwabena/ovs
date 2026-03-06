@@ -31,6 +31,7 @@ import type { HeyGenAvatarSdkConfig } from '@/services/interview.service';
 
 interface HeyGenInterrogationProps {
   applicationId: string;
+  completionRedirectPath?: string;
 }
 
 interface RecorderHandle {
@@ -65,6 +66,7 @@ const normalizeStatus = (status?: string): InterrogationFlagStatus => {
 
 export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
   applicationId,
+  completionRedirectPath = '/dashboard',
 }) => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
@@ -525,10 +527,10 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
             analyzed.
           </p>
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate(completionRedirectPath)}
             className="px-8 py-4 bg-blue-600 text-white rounded-xl font-semibold text-lg hover:bg-blue-700"
           >
-            Return to Dashboard
+            Continue
           </button>
         </div>
       </div>

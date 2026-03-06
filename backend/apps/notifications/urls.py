@@ -10,6 +10,7 @@ urlpatterns = [
     path('<uuid:pk>/', NotificationViewSet.as_view({'get': 'retrieve'}), name='notification-detail'),
     path('<uuid:pk>/mark_read/', NotificationViewSet.as_view({'post': 'mark_read'}), name='notification-mark-read'),
     path('<uuid:pk>/archive/', NotificationViewSet.as_view({'delete': 'archive'}), name='notification-archive'),
+    path('<uuid:pk>/restore/', NotificationViewSet.as_view({'post': 'restore'}), name='notification-restore'),
     path('mark-as-read/', NotificationViewSet.as_view({'post': 'mark_as_read'}), name='notification-mark-as-read'),
     path('mark-all-as-read/', NotificationViewSet.as_view({'post': 'mark_all_as_read'}), name='notification-mark-all-as-read'),
     path('unread-count/', NotificationViewSet.as_view({'get': 'unread_count'}), name='notification-unread-count'),

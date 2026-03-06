@@ -430,6 +430,9 @@ npm test
 
 # Focused UX + quota guard tests
 npm run test:ux-guards
+
+# Focused filter + URL state tests
+npm run test:filters
 ```
 
 ### Test Coverage Goals
@@ -447,6 +450,7 @@ The repository now includes a strict full-stack release gate workflow:
   - `npm run lint`
   - `npm run type-check`
   - `npm run test`
+  - `npm run test:filters`
   - `npm run build:ci`
   - `npm run coverage:endpoints -- --strict`
 - Backend checks:
@@ -464,6 +468,7 @@ cd frontend
 npm run lint
 npm run type-check
 npm run test
+npm run test:filters
 npm run build:ci
 npm run coverage:endpoints -- --strict
 

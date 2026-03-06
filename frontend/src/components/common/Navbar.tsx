@@ -551,8 +551,8 @@ export const Navbar: React.FC = () => {
             >
               <Bell className="w-6 h-6" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {unreadCount}
+                <span className="absolute -top-1 -right-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
+                  {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
             </Link>
@@ -718,7 +718,7 @@ export const Navbar: React.FC = () => {
                 <span className="text-slate-800">Notifications</span>
                 {unreadCount > 0 && (
                   <span className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full">
-                    {unreadCount}
+                    {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}
               </Link>

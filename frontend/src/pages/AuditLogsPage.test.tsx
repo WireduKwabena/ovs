@@ -279,6 +279,17 @@ describe("AuditLogsPage export actions", () => {
         expect.objectContaining({ changes__event: "personnel_record_deleted" }),
       );
     });
+
+    expect(await screen.findByText(/active filters/i)).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: /clear key filters/i }));
+
+    await waitFor(() => {
+      expect(mocks.auditService.list).toHaveBeenLastCalledWith(
+        expect.objectContaining({ changes__event: undefined }),
+      );
+    });
+    const eventKeyInputAfterClear = await screen.findByLabelText(/event key/i);
+    expect((eventKeyInputAfterClear as HTMLInputElement).value).toBe("");
   });
 
   it("filters by actor using by_user endpoint when row action is clicked", async () => {
@@ -332,5 +343,68 @@ describe("AuditLogsPage export actions", () => {
       expect(mocks.auditService.getByUser).toHaveBeenCalledWith("actor-uuid-1");
     });
     expect(await screen.findByText(/AppointmentRecord #APP-101/i)).toBeTruthy();
+    expect(await screen.findByText(/Actor filter active:/i)).toBeTruthy();
+
+    fireEvent.click(await screen.findByRole("button", { name: /clear actor filter/i }));
+
+    await waitFor(() => {
+      expect(mocks.auditService.list).toHaveBeenCalledTimes(2);
+    });
+    const actorInput = await screen.findByLabelText(/actor user id/i);
+    expect((actorInput as HTMLInputElement).value).toBe("");
+  });
+
+  it("hydrates filters from URL query and applies them to list request", async () => {
+    mocks.auditService.getEventCatalog.mockResolvedValue([]);
+    mocks.auditService.list.mockResolvedValue([
+      {
+        id: "log-url-hydrated",
+        action: "update",
+        action_display: "Update",
+        entity_type: "PersonnelRecord",
+        entity_id: "PER-100",
+        changes: { event: "personnel_record_updated" },
+        admin_user_name: "System Admin",
+        created_at: "2026-03-03T01:00:00.000Z",
+      },
+    ]);
+    mocks.auditService.getStatistics.mockResolvedValue({
+      total_logs: 1,
+      action_distribution: [{ action: "update", count: 1 }],
+      entity_distribution: [{ entity_type: "PersonnelRecord", count: 1 }],
+    });
+    mocks.auditService.getRecentActivity.mockResolvedValue([]);
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          "/audit-logs?action=update&entity_type=PersonnelRecord&event_key=personnel_record_updated&entity_id=PER-100&search=personnel",
+        ]}
+      >
+        <AuditLogsPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(mocks.auditService.list).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          action: "update",
+          entity_type: "PersonnelRecord",
+          changes__event: "personnel_record_updated",
+          entity_id: "PER-100",
+          search: "personnel",
+        }),
+      );
+    });
+
+    const entityTypeInput = await screen.findByLabelText(/entity type/i);
+    const eventKeyInput = await screen.findByLabelText(/event key/i);
+    const entityIdInput = await screen.findByLabelText(/entity id/i);
+    const searchInput = await screen.findByLabelText(/search/i);
+
+    expect((entityTypeInput as HTMLInputElement).value).toBe("PersonnelRecord");
+    expect((eventKeyInput as HTMLInputElement).value).toBe("personnel_record_updated");
+    expect((entityIdInput as HTMLInputElement).value).toBe("PER-100");
+    expect((searchInput as HTMLInputElement).value).toBe("personnel");
   });
 });

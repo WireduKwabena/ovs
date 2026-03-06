@@ -327,18 +327,25 @@ export type NotificationType =
   | 'status_updated' 
   | 'approval' 
   | 'rejection' 
-  | 'review_required';
+  | 'review_required'
+  | 'in_app'
+  | 'email'
+  | 'sms';
 
 export interface Notification {
   id: string;
   notification_type: NotificationType;
   title: string;
+  subject?: string;
   message: string;
-  status: 'unread' | 'read' | 'archived';
+  status: 'unread' | 'read' | 'archived' | 'pending' | 'sent' | 'failed';
   metadata: Record<string, any>;
   is_read: boolean;
+  is_archived?: boolean;
+  archived_at?: string;
   created_at: string;
   read_at?: string;
+  priority?: 'low' | 'normal' | 'high' | 'urgent';
 }
 
 export type RubricType = "general" | "technical" | "executive" | "sensitive" | "custom";
@@ -518,6 +525,7 @@ export interface VettingCampaign {
   starts_at: string | null;
   ends_at: string | null;
   settings_json: Record<string, unknown>;
+  required_document_types?: DocumentType[];
   initiated_by: string;
   initiated_by_email?: string;
   created_at: string;
@@ -638,6 +646,7 @@ export interface CandidateAccessContext {
     id: string;
     name: string;
     status: CampaignStatus;
+    required_document_types?: DocumentType[];
   };
   candidate: {
     id: string;
