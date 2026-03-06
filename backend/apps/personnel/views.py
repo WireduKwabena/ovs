@@ -3,7 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.candidates.models import Candidate
-from apps.core.permissions import IsHRManagerOrAdmin
+from apps.core.permissions import IsHRManagerOrAdmin, is_hr_or_admin_user
 from apps.audit.contracts import (
     PERSONNEL_LINKED_CANDIDATE_EVENT,
     PERSONNEL_RECORD_CREATED_EVENT,
@@ -120,6 +120,8 @@ class PersonnelRecordViewSet(viewsets.ModelViewSet):
     def appointment_history(self, request, pk=None):
         personnel = self.get_object()
         rows = personnel.appointment_records.select_related("position").order_by("-created_at")
+        if not is_hr_or_admin_user(request.user):
+            rows = rows.filter(is_public=True)
         data = [
             {
                 "id": row.id,

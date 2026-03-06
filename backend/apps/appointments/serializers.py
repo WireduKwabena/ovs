@@ -90,6 +90,86 @@ class AppointmentRecordSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("nomination_date cannot be in the future.")
         return value
 
+    @staticmethod
+    def _normalize_text(value) -> str:
+        return " ".join(str(value or "").strip().lower().split())
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        instance = getattr(self, "instance", None)
+        position = attrs.get("position") or getattr(instance, "position", None)
+        nominee = attrs.get("nominee") or getattr(instance, "nominee", None)
+
+        if "appointment_exercise" in attrs:
+            appointment_exercise = attrs.get("appointment_exercise")
+        else:
+            appointment_exercise = getattr(instance, "appointment_exercise", None)
+
+        if "vetting_case" in attrs:
+            vetting_case = attrs.get("vetting_case")
+        else:
+            vetting_case = getattr(instance, "vetting_case", None)
+
+        errors: dict[str, list[str]] = {}
+
+        def add_error(field: str, message: str):
+            errors.setdefault(field, []).append(message)
+
+        if appointment_exercise is not None and position is not None:
+            if appointment_exercise.positions.exists() and not appointment_exercise.positions.filter(id=position.id).exists():
+                add_error("position", "Selected position is not linked to the appointment exercise.")
+
+            if appointment_exercise.jurisdiction and appointment_exercise.jurisdiction != position.branch:
+                add_error("position", "Appointment exercise jurisdiction does not match selected position branch.")
+
+            if (
+                appointment_exercise.appointment_authority
+                and position.appointment_authority
+                and self._normalize_text(appointment_exercise.appointment_authority)
+                != self._normalize_text(position.appointment_authority)
+            ):
+                add_error(
+                    "position",
+                    "Appointment exercise appointing authority does not match selected position authority.",
+                )
+
+            if appointment_exercise.requires_parliamentary_confirmation and not position.confirmation_required:
+                add_error(
+                    "position",
+                    "Appointment exercise requires parliamentary confirmation but selected position does not.",
+                )
+
+            if position.rubric_id:
+                active_version = appointment_exercise.rubric_versions.filter(is_active=True).order_by("-version", "-created_at").first()
+                if active_version is not None:
+                    payload = active_version.rubric_payload if isinstance(active_version.rubric_payload, dict) else {}
+                    source_rubric_id = payload.get("source_rubric_id")
+                    if source_rubric_id and str(source_rubric_id) != str(position.rubric_id):
+                        add_error("position", "Selected position rubric does not match the active campaign rubric source.")
+
+        if vetting_case is not None and appointment_exercise is not None:
+            enrollment = getattr(vetting_case, "candidate_enrollment", None)
+            if enrollment is not None and enrollment.campaign_id != appointment_exercise.id:
+                add_error("vetting_case", "Selected vetting case belongs to a different campaign than appointment exercise.")
+
+        if vetting_case is not None and position is not None:
+            if vetting_case.position_applied and self._normalize_text(vetting_case.position_applied) != self._normalize_text(position.title):
+                add_error("vetting_case", "Selected vetting case position does not match appointment position.")
+
+            if vetting_case.department and self._normalize_text(vetting_case.department) != self._normalize_text(position.institution[:100]):
+                add_error("vetting_case", "Selected vetting case department does not match appointment position institution.")
+
+        if vetting_case is not None and nominee is not None and nominee.linked_candidate_id:
+            enrollment = getattr(vetting_case, "candidate_enrollment", None)
+            if enrollment is not None and enrollment.candidate_id != nominee.linked_candidate_id:
+                add_error("vetting_case", "Selected vetting case candidate does not match nominee linked candidate.")
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
+
 
 class AppointmentAdvanceStageSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=AppointmentRecord.STATUS_CHOICES)
