@@ -3,6 +3,16 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.core.permissions import IsHRManagerOrAdmin
+from apps.audit.contracts import (
+    GOVERNMENT_POSITION_CREATED_EVENT,
+    GOVERNMENT_POSITION_DELETED_EVENT,
+    GOVERNMENT_POSITION_UPDATED_EVENT,
+)
+try:
+    from apps.audit.events import log_event
+except Exception:  # pragma: no cover - audit app may be optional in some setups
+    def log_event(**kwargs):  # type: ignore
+        return False
 
 from .models import GovernmentPosition
 from .serializers import GovernmentPositionSerializer, PublicGovernmentPositionSerializer
@@ -15,6 +25,60 @@ class GovernmentPositionViewSet(viewsets.ModelViewSet):
     filterset_fields = ["branch", "institution", "is_vacant", "is_public", "confirmation_required"]
     search_fields = ["title", "institution", "appointment_authority", "constitutional_basis"]
     ordering_fields = ["title", "institution", "created_at", "updated_at"]
+
+    def perform_create(self, serializer):
+        position = serializer.save()
+        log_event(
+            request=self.request,
+            action="create",
+            entity_type="GovernmentPosition",
+            entity_id=str(position.id),
+            changes={
+                "event": GOVERNMENT_POSITION_CREATED_EVENT,
+                "title": position.title,
+                "branch": position.branch,
+                "institution": position.institution,
+            },
+        )
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        changed_fields = list(serializer.validated_data.keys())
+        before = {field: getattr(instance, field, None) for field in changed_fields}
+        position = serializer.save()
+        after = {field: getattr(position, field, None) for field in changed_fields}
+        log_event(
+            request=self.request,
+            action="update",
+            entity_type="GovernmentPosition",
+            entity_id=str(position.id),
+            changes={
+                "event": GOVERNMENT_POSITION_UPDATED_EVENT,
+                "changed_fields": changed_fields,
+                "before": before,
+                "after": after,
+            },
+        )
+
+    def perform_destroy(self, instance):
+        snapshot = {
+            "title": instance.title,
+            "branch": instance.branch,
+            "institution": instance.institution,
+            "appointment_authority": instance.appointment_authority,
+        }
+        entity_id = str(instance.id)
+        super().perform_destroy(instance)
+        log_event(
+            request=self.request,
+            action="delete",
+            entity_type="GovernmentPosition",
+            entity_id=entity_id,
+            changes={
+                "event": GOVERNMENT_POSITION_DELETED_EVENT,
+                "snapshot": snapshot,
+            },
+        )
 
     @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny], url_path="public")
     def public_positions(self, request):

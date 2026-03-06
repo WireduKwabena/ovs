@@ -4,6 +4,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from apps.audit.contracts import APPOINTMENT_STAGE_TRANSITION_EVENT
 from apps.audit.events import log_event
 from apps.billing.quotas import enforce_candidate_quota
 from apps.candidates.models import Candidate, CandidateEnrollment
@@ -274,7 +275,7 @@ def advance_stage(
                 entity_type="AppointmentRecord",
                 entity_id=str(appointment.id),
                 changes={
-                    "event": "appointment_stage_transition",
+                    "event": APPOINTMENT_STAGE_TRANSITION_EVENT,
                     "from": previous_status,
                     "to": new_status,
                     "reason_note": reason_note,
