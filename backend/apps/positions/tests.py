@@ -1,5 +1,11 @@
+from django.conf import settings
 from rest_framework.test import APITestCase
 
+from apps.audit.contracts import (
+    GOVERNMENT_POSITION_CREATED_EVENT,
+    GOVERNMENT_POSITION_DELETED_EVENT,
+    GOVERNMENT_POSITION_UPDATED_EVENT,
+)
 from apps.authentication.models import User
 from apps.positions.models import GovernmentPosition
 
@@ -13,6 +19,20 @@ class GovernmentPositionApiTests(APITestCase):
             last_name="Admin",
             user_type="admin",
         )
+        self.hr_user = User.objects.create_user(
+            email="positions_hr@example.com",
+            password="Pass1234!",
+            first_name="Pos",
+            last_name="HR",
+            user_type="hr_manager",
+        )
+        self.applicant_user = User.objects.create_user(
+            email="positions_applicant@example.com",
+            password="Pass1234!",
+            first_name="Pos",
+            last_name="Applicant",
+            user_type="applicant",
+        )
         GovernmentPosition.objects.create(
             title="Chief Justice",
             branch="judicial",
@@ -21,6 +41,30 @@ class GovernmentPositionApiTests(APITestCase):
             is_public=True,
             is_vacant=True,
         )
+
+    def _extract_results(self, response):
+        payload = response.json()
+        if isinstance(payload, dict) and "results" in payload:
+            return payload["results"]
+        return payload
+
+    def _assert_audit_row_exists(self, *, action: str, entity_id: str, expected_event: str | None = None):
+        if "apps.audit" not in settings.INSTALLED_APPS:
+            return
+        from apps.audit.models import AuditLog
+
+        row = (
+            AuditLog.objects.filter(
+                action=action,
+                entity_type="GovernmentPosition",
+                entity_id=str(entity_id),
+            )
+            .order_by("-created_at")
+            .first()
+        )
+        self.assertIsNotNone(row)
+        if expected_event:
+            self.assertEqual((row.changes or {}).get("event"), expected_event)
 
     def test_public_positions_available_without_auth(self):
         response = self.client.get("/api/positions/public/")
@@ -56,3 +100,137 @@ class GovernmentPositionApiTests(APITestCase):
             format="json",
         )
         self.assertEqual(success.status_code, 201)
+        self._assert_audit_row_exists(
+            action="create",
+            entity_id=success.json()["id"],
+            expected_event=GOVERNMENT_POSITION_CREATED_EVENT,
+        )
+
+    def test_positions_list_allows_hr_and_admin_but_blocks_applicant(self):
+        unauthenticated = self.client.get("/api/positions/")
+        self.assertIn(unauthenticated.status_code, {401, 403})
+
+        self.client.force_authenticate(self.applicant_user)
+        denied = self.client.get("/api/positions/")
+        self.assertEqual(denied.status_code, 403)
+
+        self.client.force_authenticate(self.hr_user)
+        hr_allowed = self.client.get("/api/positions/")
+        self.assertEqual(hr_allowed.status_code, 200)
+        self.assertGreaterEqual(len(self._extract_results(hr_allowed)), 1)
+
+        self.client.force_authenticate(self.admin_user)
+        admin_allowed = self.client.get("/api/positions/")
+        self.assertEqual(admin_allowed.status_code, 200)
+        self.assertGreaterEqual(len(self._extract_results(admin_allowed)), 1)
+
+    def test_positions_create_allows_hr_and_admin_but_blocks_applicant(self):
+        payload = {
+            "title": "Minister of Communications",
+            "branch": "executive",
+            "institution": "Ministry of Communications",
+            "appointment_authority": "President",
+        }
+
+        self.client.force_authenticate(self.applicant_user)
+        denied = self.client.post("/api/positions/", payload, format="json")
+        self.assertEqual(denied.status_code, 403)
+
+        self.client.force_authenticate(self.hr_user)
+        hr_allowed = self.client.post(
+            "/api/positions/",
+            {**payload, "title": "Minister of Communications (HR)"},
+            format="json",
+        )
+        self.assertEqual(hr_allowed.status_code, 201)
+        self._assert_audit_row_exists(
+            action="create",
+            entity_id=hr_allowed.json()["id"],
+            expected_event=GOVERNMENT_POSITION_CREATED_EVENT,
+        )
+
+        self.client.force_authenticate(self.admin_user)
+        admin_allowed = self.client.post(
+            "/api/positions/",
+            {**payload, "title": "Minister of Communications (Admin)"},
+            format="json",
+        )
+        self.assertEqual(admin_allowed.status_code, 201)
+        self._assert_audit_row_exists(
+            action="create",
+            entity_id=admin_allowed.json()["id"],
+            expected_event=GOVERNMENT_POSITION_CREATED_EVENT,
+        )
+
+    def test_positions_update_allows_hr_and_admin_but_blocks_applicant(self):
+        position = GovernmentPosition.objects.first()
+        self.assertIsNotNone(position)
+        detail_url = f"/api/positions/{position.id}/"
+
+        self.client.force_authenticate(self.applicant_user)
+        denied = self.client.patch(detail_url, {"title": "Blocked Update"}, format="json")
+        self.assertEqual(denied.status_code, 403)
+
+        self.client.force_authenticate(self.hr_user)
+        hr_allowed = self.client.patch(detail_url, {"title": "Updated By HR"}, format="json")
+        self.assertEqual(hr_allowed.status_code, 200)
+
+        self.client.force_authenticate(self.admin_user)
+        admin_allowed = self.client.patch(detail_url, {"title": "Updated By Admin"}, format="json")
+        self.assertEqual(admin_allowed.status_code, 200)
+        self._assert_audit_row_exists(
+            action="update",
+            entity_id=str(position.id),
+            expected_event=GOVERNMENT_POSITION_UPDATED_EVENT,
+        )
+
+    def test_positions_delete_allows_hr_and_admin_but_blocks_applicant(self):
+        blocked_position = GovernmentPosition.objects.create(
+            title="Delete Blocked Position",
+            branch="executive",
+            institution="Office A",
+            appointment_authority="President",
+            is_public=False,
+            is_vacant=True,
+        )
+        hr_position = GovernmentPosition.objects.create(
+            title="Delete HR Position",
+            branch="executive",
+            institution="Office B",
+            appointment_authority="President",
+            is_public=False,
+            is_vacant=True,
+        )
+        admin_position = GovernmentPosition.objects.create(
+            title="Delete Admin Position",
+            branch="executive",
+            institution="Office C",
+            appointment_authority="President",
+            is_public=False,
+            is_vacant=True,
+        )
+
+        self.client.force_authenticate(self.applicant_user)
+        denied = self.client.delete(f"/api/positions/{blocked_position.id}/")
+        self.assertEqual(denied.status_code, 403)
+        self.assertTrue(GovernmentPosition.objects.filter(id=blocked_position.id).exists())
+
+        self.client.force_authenticate(self.hr_user)
+        hr_allowed = self.client.delete(f"/api/positions/{hr_position.id}/")
+        self.assertEqual(hr_allowed.status_code, 204)
+        self.assertFalse(GovernmentPosition.objects.filter(id=hr_position.id).exists())
+        self._assert_audit_row_exists(
+            action="delete",
+            entity_id=str(hr_position.id),
+            expected_event=GOVERNMENT_POSITION_DELETED_EVENT,
+        )
+
+        self.client.force_authenticate(self.admin_user)
+        admin_allowed = self.client.delete(f"/api/positions/{admin_position.id}/")
+        self.assertEqual(admin_allowed.status_code, 204)
+        self.assertFalse(GovernmentPosition.objects.filter(id=admin_position.id).exists())
+        self._assert_audit_row_exists(
+            action="delete",
+            entity_id=str(admin_position.id),
+            expected_event=GOVERNMENT_POSITION_DELETED_EVENT,
+        )

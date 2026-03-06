@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { auditService } from "@/services/audit.service";
-import type { AuditLog, AuditStatistics } from "@/types";
+import type { AuditEventCatalogItem, AuditLog, AuditStatistics } from "@/types";
 import { downloadCsvFile, isoDateStamp } from "@/utils/csv";
 import { downloadJsonFile } from "@/utils/json";
 import { formatDate } from "@/utils/helper";
@@ -45,6 +45,28 @@ const actionPillClass: Record<string, string> = {
   other: "bg-slate-200 text-slate-800",
 };
 
+const buildAuditStatsFromLogs = (items: AuditLog[]): AuditStatistics => {
+  const actionCounts = new Map<string, number>();
+  const entityCounts = new Map<string, number>();
+
+  items.forEach((item) => {
+    const action = item.action || "other";
+    const entity = item.entity_type || "Unknown";
+    actionCounts.set(action, (actionCounts.get(action) || 0) + 1);
+    entityCounts.set(entity, (entityCounts.get(entity) || 0) + 1);
+  });
+
+  return {
+    total_logs: items.length,
+    action_distribution: Array.from(actionCounts.entries())
+      .map(([action, count]) => ({ action, count }))
+      .sort((a, b) => b.count - a.count),
+    entity_distribution: Array.from(entityCounts.entries())
+      .map(([entity_type, count]) => ({ entity_type, count }))
+      .sort((a, b) => b.count - a.count),
+  };
+};
+
 const AuditLogsPage: React.FC = () => {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [recentLogs, setRecentLogs] = useState<AuditLog[]>([]);
@@ -57,17 +79,82 @@ const AuditLogsPage: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [actionFilter, setActionFilter] = useState<AuditActionFilter>("all");
+  const [actorUserIdFilter, setActorUserIdFilter] = useState("");
   const [entityTypeFilter, setEntityTypeFilter] = useState("");
+  const [eventKeyFilter, setEventKeyFilter] = useState("");
   const [entityIdFilter, setEntityIdFilter] = useState("");
   const [searchFilter, setSearchFilter] = useState("");
+  const [eventCatalog, setEventCatalog] = useState<AuditEventCatalogItem[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    void auditService
+      .getEventCatalog()
+      .then((catalog) => {
+        if (isMounted && Array.isArray(catalog)) {
+          setEventCatalog(catalog);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setEventCatalog([]);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const applyClientFilters = useCallback(
+    (items: AuditLog[]): AuditLog[] => {
+      const normalizedEntityType = entityTypeFilter.trim();
+      const normalizedEventKey = eventKeyFilter.trim();
+      const normalizedEntityId = entityIdFilter.trim();
+      const normalizedSearch = searchFilter.trim().toLowerCase();
+
+      return items.filter((item) => {
+        if (actionFilter !== "all" && item.action !== actionFilter) {
+          return false;
+        }
+        if (normalizedEntityType && (item.entity_type || "") !== normalizedEntityType) {
+          return false;
+        }
+        if (normalizedEventKey && String(item.changes?.event || "") !== normalizedEventKey) {
+          return false;
+        }
+        if (normalizedEntityId && String(item.entity_id || "") !== normalizedEntityId) {
+          return false;
+        }
+        if (normalizedSearch) {
+          const searchable = `${item.entity_type || ""} ${JSON.stringify(item.changes || {})}`.toLowerCase();
+          if (!searchable.includes(normalizedSearch)) {
+            return false;
+          }
+        }
+        return true;
+      });
+    },
+    [actionFilter, entityIdFilter, entityTypeFilter, eventKeyFilter, searchFilter],
+  );
 
   const loadAuditLogs = useCallback(async () => {
     setErrorMessage(null);
     try {
+      const normalizedActorUserId = actorUserIdFilter.trim();
+      if (normalizedActorUserId) {
+        const actorLogs = await auditService.getByUser(normalizedActorUserId);
+        const filteredActorLogs = applyClientFilters(actorLogs);
+        setLogs(filteredActorLogs);
+        setStats(buildAuditStatsFromLogs(filteredActorLogs));
+        setRecentLogs(filteredActorLogs.slice(0, 10));
+        return;
+      }
+
       const [list, statistics, recent] = await Promise.all([
         auditService.list({
           action: actionFilter !== "all" ? actionFilter : undefined,
           entity_type: entityTypeFilter.trim() || undefined,
+          changes__event: eventKeyFilter.trim() || undefined,
           entity_id: entityIdFilter.trim() || undefined,
           search: searchFilter.trim() || undefined,
           ordering: "-created_at",
@@ -84,7 +171,7 @@ const AuditLogsPage: React.FC = () => {
       setErrorMessage(message);
       toast.error(message);
     }
-  }, [actionFilter, entityIdFilter, entityTypeFilter, searchFilter]);
+  }, [actionFilter, actorUserIdFilter, applyClientFilters, entityIdFilter, entityTypeFilter, eventKeyFilter, searchFilter]);
 
   useEffect(() => {
     const run = async () => {
@@ -116,6 +203,14 @@ const AuditLogsPage: React.FC = () => {
 
   const topActions = useMemo(() => stats.action_distribution.slice(0, 5), [stats.action_distribution]);
   const topEntities = useMemo(() => stats.entity_distribution.slice(0, 5), [stats.entity_distribution]);
+  const entityTypeOptions = useMemo(
+    () => Array.from(new Set(eventCatalog.map((item) => item.entity_type))).sort(),
+    [eventCatalog],
+  );
+  const eventKeyOptions = useMemo(
+    () => Array.from(new Set(eventCatalog.map((item) => item.key))).sort(),
+    [eventCatalog],
+  );
 
   const exportAuditCsv = () => {
     if (logs.length === 0) {
@@ -158,7 +253,9 @@ const AuditLogsPage: React.FC = () => {
         exported_at: new Date().toISOString(),
         filters: {
           action: actionFilter,
+          actor_user_id: actorUserIdFilter,
           entity_type: entityTypeFilter,
+          event_key: eventKeyFilter,
           entity_id: entityIdFilter,
           search: searchFilter,
         },
@@ -224,7 +321,7 @@ const AuditLogsPage: React.FC = () => {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-bold text-slate-900">Filters</h2>
-        <div className="mt-4 grid gap-3 md:grid-cols-4">
+        <div className="mt-4 grid gap-3 md:grid-cols-6">
           <div>
             <label htmlFor="audit-action-filter" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
               Action
@@ -243,6 +340,17 @@ const AuditLogsPage: React.FC = () => {
             </Select>
           </div>
           <div>
+            <label htmlFor="audit-actor-user-id" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
+              Actor User ID
+            </label>
+            <Input
+              id="audit-actor-user-id"
+              value={actorUserIdFilter}
+              onChange={(event) => setActorUserIdFilter(event.target.value)}
+              placeholder="actor uuid"
+            />
+          </div>
+          <div>
             <label htmlFor="audit-entity-type" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
               Entity Type
             </label>
@@ -250,8 +358,31 @@ const AuditLogsPage: React.FC = () => {
               id="audit-entity-type"
               value={entityTypeFilter}
               onChange={(event) => setEntityTypeFilter(event.target.value)}
-              placeholder="VettingCase"
+              placeholder="e.g. GovernmentPosition"
+              list="audit-entity-type-options"
             />
+            <datalist id="audit-entity-type-options">
+              {entityTypeOptions.map((entityType) => (
+                <option key={entityType} value={entityType} />
+              ))}
+            </datalist>
+          </div>
+          <div>
+            <label htmlFor="audit-event-key" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
+              Event Key
+            </label>
+            <Input
+              id="audit-event-key"
+              value={eventKeyFilter}
+              onChange={(event) => setEventKeyFilter(event.target.value)}
+              placeholder="e.g. personnel_record_deleted"
+              list="audit-event-key-options"
+            />
+            <datalist id="audit-event-key-options">
+              {eventKeyOptions.map((eventKey) => (
+                <option key={eventKey} value={eventKey} />
+              ))}
+            </datalist>
           </div>
           <div>
             <label htmlFor="audit-entity-id" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
@@ -324,7 +455,18 @@ const AuditLogsPage: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-3 py-2 text-slate-700">
-                          {log.admin_user_name || log.user_name || "system"}
+                          <div className="flex flex-col gap-1">
+                            <span>{log.admin_user_name || log.user_name || "system"}</span>
+                            {log.admin_user || log.user ? (
+                              <button
+                                type="button"
+                                onClick={() => setActorUserIdFilter(String(log.admin_user || log.user))}
+                                className="w-fit text-xs font-medium text-cyan-700 hover:text-cyan-800"
+                              >
+                                Filter actor
+                              </button>
+                            ) : null}
+                          </div>
                         </td>
                         <td className="px-3 py-2 text-slate-700">
                           {log.entity_type || "-"}

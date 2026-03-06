@@ -2,6 +2,18 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.audit.contracts import (
+    APPOINTMENT_RECORD_CREATED_EVENT,
+    APPOINTMENT_RECORD_DELETED_EVENT,
+    APPOINTMENT_RECORD_UPDATED_EVENT,
+    APPOINTMENT_VETTING_LINKAGE_ENSURED_EVENT,
+)
+try:
+    from apps.audit.events import log_event
+except Exception:  # pragma: no cover - audit app may be optional in some setups
+    def log_event(**kwargs):  # type: ignore
+        return False
+
 from apps.core.permissions import IsHRManagerOrAdmin
 
 from .models import AppointmentRecord, ApprovalStage, ApprovalStageTemplate
@@ -68,6 +80,57 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         appointment = serializer.save(nominated_by_user=self.request.user)
         ensure_vetting_linkage_for_appointment(appointment=appointment, actor=self.request.user)
+        log_event(
+            request=self.request,
+            action="create",
+            entity_type="AppointmentRecord",
+            entity_id=str(appointment.id),
+            changes={
+                "event": APPOINTMENT_RECORD_CREATED_EVENT,
+                "position_id": str(appointment.position_id),
+                "nominee_id": str(appointment.nominee_id),
+                "status": appointment.status,
+            },
+        )
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        changed_fields = list(serializer.validated_data.keys())
+        before = {field: getattr(instance, field, None) for field in changed_fields}
+        appointment = serializer.save()
+        after = {field: getattr(appointment, field, None) for field in changed_fields}
+        log_event(
+            request=self.request,
+            action="update",
+            entity_type="AppointmentRecord",
+            entity_id=str(appointment.id),
+            changes={
+                "event": APPOINTMENT_RECORD_UPDATED_EVENT,
+                "changed_fields": changed_fields,
+                "before": before,
+                "after": after,
+            },
+        )
+
+    def perform_destroy(self, instance):
+        snapshot = {
+            "position_id": str(instance.position_id),
+            "nominee_id": str(instance.nominee_id),
+            "status": instance.status,
+            "is_public": instance.is_public,
+        }
+        entity_id = str(instance.id)
+        super().perform_destroy(instance)
+        log_event(
+            request=self.request,
+            action="delete",
+            entity_type="AppointmentRecord",
+            entity_id=entity_id,
+            changes={
+                "event": APPOINTMENT_RECORD_DELETED_EVENT,
+                "snapshot": snapshot,
+            },
+        )
 
     @action(detail=True, methods=["post"], permission_classes=[IsStageActorOrAdmin], url_path="advance-stage")
     def advance_stage_action(self, request, pk=None):
@@ -140,6 +203,19 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
     def ensure_vetting_linkage_action(self, request, pk=None):
         appointment = self.get_object()
         appointment = ensure_vetting_linkage_for_appointment(appointment=appointment, actor=request.user)
+        log_event(
+            request=request,
+            action="update",
+            entity_type="AppointmentRecord",
+            entity_id=str(appointment.id),
+            changes={
+                "event": APPOINTMENT_VETTING_LINKAGE_ENSURED_EVENT,
+                "vetting_case_id": str(appointment.vetting_case_id) if appointment.vetting_case_id else "",
+                "appointment_exercise_id": str(appointment.appointment_exercise_id)
+                if appointment.appointment_exercise_id
+                else "",
+            },
+        )
         serializer = self.get_serializer(appointment)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

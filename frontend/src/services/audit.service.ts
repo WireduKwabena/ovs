@@ -1,5 +1,11 @@
 import api from "./api";
-import type { ApiError, AuditLog, AuditStatistics, PaginatedResponse } from "@/types";
+import type {
+  ApiError,
+  AuditEventCatalogItem,
+  AuditLog,
+  AuditStatistics,
+  PaginatedResponse,
+} from "@/types";
 
 const extractResults = <T>(payload: PaginatedResponse<T> | T[]): T[] => {
   if (Array.isArray(payload)) {
@@ -17,6 +23,7 @@ export interface AuditListParams {
   action?: string;
   entity_type?: string;
   entity_id?: string;
+  changes__event?: string;
   search?: string;
   ordering?: string;
 }
@@ -51,6 +58,17 @@ export const auditService = {
     }
   },
 
+  async getByUser(userId: string): Promise<AuditLog[]> {
+    try {
+      const response = await api.get<AuditLog[]>("/audit/logs/by_user/", {
+        params: { user_id: userId },
+      });
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+      throw new Error(toErrorMessage(error, "Failed to fetch user audit logs"));
+    }
+  },
+
   async getById(logId: string): Promise<AuditLog> {
     try {
       const response = await api.get<AuditLog>(`/audit/logs/${logId}/`);
@@ -66,6 +84,17 @@ export const auditService = {
       return response.data;
     } catch (error) {
       throw new Error(toErrorMessage(error, "Failed to fetch audit statistics"));
+    }
+  },
+
+  async getEventCatalog(): Promise<AuditEventCatalogItem[]> {
+    try {
+      const response = await api.get<PaginatedResponse<AuditEventCatalogItem> | AuditEventCatalogItem[]>(
+        "/audit/logs/event_catalog/",
+      );
+      return extractResults(response.data);
+    } catch (error) {
+      throw new Error(toErrorMessage(error, "Failed to fetch audit event catalog"));
     }
   },
 };

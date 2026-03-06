@@ -9,6 +9,12 @@ from rest_framework.test import APITestCase
 
 from apps.authentication.models import User
 
+from .contracts import (
+    APPOINTMENT_STAGE_TRANSITION_EVENT,
+    APPOINTMENT_VETTING_LINKAGE_ENSURED_EVENT,
+    GOVERNMENT_AUDIT_EVENT_CATALOG,
+    PERSONNEL_LINKED_CANDIDATE_EVENT,
+)
 from .events import log_event, request_ip_address
 from .models import AuditLog
 
@@ -69,6 +75,27 @@ class AuditApiTests(APITestCase):
             entity_id=str(self.admin_user.id),
             changes={},
         )
+        self.log_position = AuditLog.objects.create(
+            admin_user=self.admin_user,
+            action="update",
+            entity_type="GovernmentPosition",
+            entity_id="POS-1",
+            changes={"event": "government_position_updated", "field": "title"},
+        )
+        self.log_personnel = AuditLog.objects.create(
+            admin_user=self.admin_user,
+            action="delete",
+            entity_type="PersonnelRecord",
+            entity_id="PER-1",
+            changes={"event": "personnel_record_deleted"},
+        )
+        self.log_appointment = AuditLog.objects.create(
+            admin_user=self.admin_user,
+            action="create",
+            entity_type="AppointmentRecord",
+            entity_id="APP-1",
+            changes={"event": "appointment_record_created"},
+        )
 
     def test_regular_user_cannot_access_audit_logs(self):
         self.client.force_authenticate(self.applicant_user)
@@ -87,7 +114,7 @@ class AuditApiTests(APITestCase):
         response = self.client.get("/api/audit/logs/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["count"], 3)
+        self.assertEqual(response.data["count"], 6)
 
     def test_by_entity_requires_entity_type_and_entity_id(self):
         self.client.force_authenticate(self.admin_user)
@@ -106,6 +133,35 @@ class AuditApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["id"], str(self.log_own.id))
+
+    def test_by_user_requires_user_id(self):
+        self.client.force_authenticate(self.admin_user)
+        response = self.client.get("/api/audit/logs/by_user/")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "user_id is required")
+
+    def test_by_user_filters_logs_for_actor_fields(self):
+        self.client.force_authenticate(self.admin_user)
+
+        applicant_response = self.client.get(
+            "/api/audit/logs/by_user/",
+            {"user_id": str(self.applicant_user.id)},
+        )
+        self.assertEqual(applicant_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(applicant_response.data), 1)
+        self.assertEqual(applicant_response.data[0]["id"], str(self.log_own.id))
+
+        admin_response = self.client.get(
+            "/api/audit/logs/by_user/",
+            {"user_id": str(self.admin_user.id)},
+        )
+        self.assertEqual(admin_response.status_code, status.HTTP_200_OK)
+        self.assertGreaterEqual(len(admin_response.data), 3)
+        returned_ids = {item["id"] for item in admin_response.data}
+        self.assertIn(str(self.log_admin.id), returned_ids)
+        self.assertIn(str(self.log_position.id), returned_ids)
+        self.assertIn(str(self.log_personnel.id), returned_ids)
 
     def test_recent_activity_limits_results_to_fifty(self):
         for idx in range(60):
@@ -128,9 +184,107 @@ class AuditApiTests(APITestCase):
         response = self.client.get("/api/audit/logs/statistics/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["total_logs"], 3)
+        self.assertEqual(response.data["total_logs"], 6)
         self.assertTrue(any(item["action"] == "create" for item in response.data["action_distribution"]))
         self.assertTrue(any(item["entity_type"] == "VettingCase" for item in response.data["entity_distribution"]))
+        self.assertTrue(
+            any(item["entity_type"] == "GovernmentPosition" for item in response.data["entity_distribution"])
+        )
+        self.assertTrue(
+            any(item["entity_type"] == "PersonnelRecord" for item in response.data["entity_distribution"])
+        )
+        self.assertTrue(
+            any(item["entity_type"] == "AppointmentRecord" for item in response.data["entity_distribution"])
+        )
+
+    def test_admin_can_filter_list_by_government_entity_type(self):
+        self.client.force_authenticate(self.admin_user)
+
+        position_response = self.client.get("/api/audit/logs/", {"entity_type": "GovernmentPosition"})
+        self.assertEqual(position_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(position_response.data["count"], 1)
+        self.assertEqual(position_response.data["results"][0]["id"], str(self.log_position.id))
+
+        personnel_response = self.client.get("/api/audit/logs/", {"entity_type": "PersonnelRecord"})
+        self.assertEqual(personnel_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(personnel_response.data["count"], 1)
+        self.assertEqual(personnel_response.data["results"][0]["id"], str(self.log_personnel.id))
+
+        appointment_response = self.client.get("/api/audit/logs/", {"entity_type": "AppointmentRecord"})
+        self.assertEqual(appointment_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(appointment_response.data["count"], 1)
+        self.assertEqual(appointment_response.data["results"][0]["id"], str(self.log_appointment.id))
+
+    def test_admin_can_filter_list_by_event_key(self):
+        self.client.force_authenticate(self.admin_user)
+
+        response = self.client.get("/api/audit/logs/", {"changes__event": "personnel_record_deleted"})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["id"], str(self.log_personnel.id))
+
+    def test_admin_can_filter_list_by_entity_and_event_together(self):
+        self.client.force_authenticate(self.admin_user)
+
+        response = self.client.get(
+            "/api/audit/logs/",
+            {"entity_type": "AppointmentRecord", "changes__event": "appointment_record_created"},
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["id"], str(self.log_appointment.id))
+
+    def test_by_entity_returns_specific_government_records(self):
+        self.client.force_authenticate(self.admin_user)
+
+        position_response = self.client.get(
+            "/api/audit/logs/by_entity/",
+            {"entity_type": "GovernmentPosition", "entity_id": "POS-1"},
+        )
+        self.assertEqual(position_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(position_response.data), 1)
+        self.assertEqual(position_response.data[0]["id"], str(self.log_position.id))
+
+        personnel_response = self.client.get(
+            "/api/audit/logs/by_entity/",
+            {"entity_type": "PersonnelRecord", "entity_id": "PER-1"},
+        )
+        self.assertEqual(personnel_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(personnel_response.data), 1)
+        self.assertEqual(personnel_response.data[0]["id"], str(self.log_personnel.id))
+
+        appointment_response = self.client.get(
+            "/api/audit/logs/by_entity/",
+            {"entity_type": "AppointmentRecord", "entity_id": "APP-1"},
+        )
+        self.assertEqual(appointment_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(appointment_response.data), 1)
+        self.assertEqual(appointment_response.data[0]["id"], str(self.log_appointment.id))
+
+    def test_event_catalog_requires_admin(self):
+        self.client.force_authenticate(self.hr_user)
+        denied = self.client.get("/api/audit/logs/event_catalog/")
+        self.assertEqual(denied.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_event_catalog_returns_stable_contract(self):
+        self.client.force_authenticate(self.admin_user)
+        response = self.client.get("/api/audit/logs/event_catalog/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], len(GOVERNMENT_AUDIT_EVENT_CATALOG))
+        self.assertEqual(response.data["results"], GOVERNMENT_AUDIT_EVENT_CATALOG)
+        for item in response.data["results"]:
+            self.assertEqual(
+                set(item.keys()),
+                {"key", "entity_type", "action", "description"},
+            )
+
+    def test_event_catalog_keys_are_unique_and_include_operational_events(self):
+        keys = [item["key"] for item in GOVERNMENT_AUDIT_EVENT_CATALOG]
+        self.assertEqual(len(keys), len(set(keys)))
+        self.assertIn(PERSONNEL_LINKED_CANDIDATE_EVENT, keys)
+        self.assertIn(APPOINTMENT_STAGE_TRANSITION_EVENT, keys)
+        self.assertIn(APPOINTMENT_VETTING_LINKAGE_ENSURED_EVENT, keys)
 
 
     def test_log_event_creates_audit_row_with_request_metadata(self):

@@ -1,9 +1,17 @@
 from datetime import date
 
+from django.conf import settings
 from django.contrib.auth.models import Group
 from django.test import TestCase
 from rest_framework.test import APITestCase
 
+from apps.audit.contracts import (
+    APPOINTMENT_RECORD_CREATED_EVENT,
+    APPOINTMENT_RECORD_DELETED_EVENT,
+    APPOINTMENT_RECORD_UPDATED_EVENT,
+    APPOINTMENT_STAGE_TRANSITION_EVENT,
+    APPOINTMENT_VETTING_LINKAGE_ENSURED_EVENT,
+)
 from apps.authentication.models import User
 from apps.campaigns.models import VettingCampaign
 from apps.candidates.models import Candidate, CandidateEnrollment
@@ -257,12 +265,43 @@ class AppointmentPublicApiTests(APITestCase):
             last_name="User",
             user_type="hr_manager",
         )
+        self.applicant_user = User.objects.create_user(
+            email="appointments_applicant@example.com",
+            password="Pass1234!",
+            first_name="Appointment",
+            last_name="Applicant",
+            user_type="applicant",
+        )
         self.vetting_group, _ = Group.objects.get_or_create(name="vetting_officer")
         self.committee_group, _ = Group.objects.get_or_create(name="committee_member")
         self.authority_group, _ = Group.objects.get_or_create(name="appointing_authority")
         self.vetting_user.groups.add(self.vetting_group)
         self.committee_user.groups.add(self.committee_group)
         self.authority_user.groups.add(self.authority_group)
+
+    def _extract_results(self, response):
+        payload = response.json()
+        if isinstance(payload, dict) and "results" in payload:
+            return payload["results"]
+        return payload
+
+    def _assert_audit_row_exists(self, *, action: str, entity_id: str, expected_event: str | None = None):
+        if "apps.audit" not in settings.INSTALLED_APPS:
+            return
+        from apps.audit.models import AuditLog
+
+        row = (
+            AuditLog.objects.filter(
+                action=action,
+                entity_type="AppointmentRecord",
+                entity_id=str(entity_id),
+            )
+            .order_by("-created_at")
+            .first()
+        )
+        self.assertIsNotNone(row)
+        if expected_event:
+            self.assertEqual((row.changes or {}).get("event"), expected_event)
 
     def test_create_record_auto_links_vetting_case(self):
         response = self.client.post(
@@ -282,6 +321,146 @@ class AppointmentPublicApiTests(APITestCase):
         created = AppointmentRecord.objects.get(id=created_id)
         self.assertIsNotNone(created.vetting_case_id)
         self.assertTrue(Invitation.objects.filter(enrollment__campaign=created.appointment_exercise).exists())
+        self._assert_audit_row_exists(
+            action="create",
+            entity_id=created_id,
+            expected_event=APPOINTMENT_RECORD_CREATED_EVENT,
+        )
+
+    def test_list_records_allows_hr_and_admin_but_blocks_applicant(self):
+        self.client.force_authenticate(user=None)
+        unauthenticated = self.client.get("/api/appointments/records/")
+        self.assertIn(unauthenticated.status_code, {401, 403})
+
+        self.client.force_authenticate(self.applicant_user)
+        denied = self.client.get("/api/appointments/records/")
+        self.assertEqual(denied.status_code, 403)
+
+        self.client.force_authenticate(self.ordinary_hr_user)
+        hr_allowed = self.client.get("/api/appointments/records/")
+        self.assertEqual(hr_allowed.status_code, 200)
+        self.assertGreaterEqual(len(self._extract_results(hr_allowed)), 1)
+
+        self.client.force_authenticate(self.admin_user)
+        admin_allowed = self.client.get("/api/appointments/records/")
+        self.assertEqual(admin_allowed.status_code, 200)
+        self.assertGreaterEqual(len(self._extract_results(admin_allowed)), 1)
+
+    def test_create_record_allows_hr_and_admin_but_blocks_applicant(self):
+        payload = {
+            "position": str(self.record.position_id),
+            "nominee": str(self.record.nominee_id),
+            "nominated_by_display": "H.E. President",
+            "nominated_by_org": "Office of the President",
+            "nomination_date": str(date.today()),
+        }
+
+        self.client.force_authenticate(self.applicant_user)
+        denied = self.client.post("/api/appointments/records/", payload, format="json")
+        self.assertEqual(denied.status_code, 403)
+
+        self.client.force_authenticate(self.ordinary_hr_user)
+        hr_allowed = self.client.post("/api/appointments/records/", payload, format="json")
+        self.assertEqual(hr_allowed.status_code, 201)
+        self._assert_audit_row_exists(
+            action="create",
+            entity_id=hr_allowed.json()["id"],
+            expected_event=APPOINTMENT_RECORD_CREATED_EVENT,
+        )
+
+        self.client.force_authenticate(self.admin_user)
+        admin_allowed = self.client.post("/api/appointments/records/", payload, format="json")
+        self.assertEqual(admin_allowed.status_code, 201)
+        self._assert_audit_row_exists(
+            action="create",
+            entity_id=admin_allowed.json()["id"],
+            expected_event=APPOINTMENT_RECORD_CREATED_EVENT,
+        )
+
+    def test_update_record_allows_hr_and_admin_but_blocks_applicant(self):
+        detail_url = f"/api/appointments/records/{self.record.id}/"
+
+        self.client.force_authenticate(self.applicant_user)
+        denied = self.client.patch(detail_url, {"committee_recommendation": "Blocked update"}, format="json")
+        self.assertEqual(denied.status_code, 403)
+
+        self.client.force_authenticate(self.ordinary_hr_user)
+        hr_allowed = self.client.patch(
+            detail_url,
+            {"committee_recommendation": "Update by HR"},
+            format="json",
+        )
+        self.assertEqual(hr_allowed.status_code, 200)
+
+        self.client.force_authenticate(self.admin_user)
+        admin_allowed = self.client.patch(
+            detail_url,
+            {"committee_recommendation": "Update by Admin"},
+            format="json",
+        )
+        self.assertEqual(admin_allowed.status_code, 200)
+        self._assert_audit_row_exists(
+            action="update",
+            entity_id=str(self.record.id),
+            expected_event=APPOINTMENT_RECORD_UPDATED_EVENT,
+        )
+
+    def test_delete_record_allows_hr_and_admin_but_blocks_applicant(self):
+        blocked_record = AppointmentRecord.objects.create(
+            position=self.record.position,
+            nominee=self.record.nominee,
+            appointment_exercise=self.record.appointment_exercise,
+            nominated_by_user=self.admin_user,
+            nominated_by_display="Blocked Delete",
+            nomination_date=date.today(),
+            status="nominated",
+            is_public=False,
+        )
+        hr_record = AppointmentRecord.objects.create(
+            position=self.record.position,
+            nominee=self.record.nominee,
+            appointment_exercise=self.record.appointment_exercise,
+            nominated_by_user=self.admin_user,
+            nominated_by_display="HR Delete",
+            nomination_date=date.today(),
+            status="nominated",
+            is_public=False,
+        )
+        admin_record = AppointmentRecord.objects.create(
+            position=self.record.position,
+            nominee=self.record.nominee,
+            appointment_exercise=self.record.appointment_exercise,
+            nominated_by_user=self.admin_user,
+            nominated_by_display="Admin Delete",
+            nomination_date=date.today(),
+            status="nominated",
+            is_public=False,
+        )
+
+        self.client.force_authenticate(self.applicant_user)
+        denied = self.client.delete(f"/api/appointments/records/{blocked_record.id}/")
+        self.assertEqual(denied.status_code, 403)
+        self.assertTrue(AppointmentRecord.objects.filter(id=blocked_record.id).exists())
+
+        self.client.force_authenticate(self.ordinary_hr_user)
+        hr_allowed = self.client.delete(f"/api/appointments/records/{hr_record.id}/")
+        self.assertEqual(hr_allowed.status_code, 204)
+        self.assertFalse(AppointmentRecord.objects.filter(id=hr_record.id).exists())
+        self._assert_audit_row_exists(
+            action="delete",
+            entity_id=str(hr_record.id),
+            expected_event=APPOINTMENT_RECORD_DELETED_EVENT,
+        )
+
+        self.client.force_authenticate(self.admin_user)
+        admin_allowed = self.client.delete(f"/api/appointments/records/{admin_record.id}/")
+        self.assertEqual(admin_allowed.status_code, 204)
+        self.assertFalse(AppointmentRecord.objects.filter(id=admin_record.id).exists())
+        self._assert_audit_row_exists(
+            action="delete",
+            entity_id=str(admin_record.id),
+            expected_event=APPOINTMENT_RECORD_DELETED_EVENT,
+        )
 
     def test_appoint_endpoint_requires_appointing_authority_or_admin(self):
         self.record.status = "committee_review"
@@ -314,6 +493,25 @@ class AppointmentPublicApiTests(APITestCase):
             format="json",
         )
         self.assertEqual(allowed.status_code, 200)
+        self._assert_audit_row_exists(
+            action="update",
+            entity_id=str(self.record.id),
+            expected_event=APPOINTMENT_STAGE_TRANSITION_EVENT,
+        )
+
+    def test_ensure_vetting_linkage_action_logs_event(self):
+        self.client.force_authenticate(self.admin_user)
+        response = self.client.post(
+            f"/api/appointments/records/{self.record.id}/ensure-vetting-linkage/",
+            {},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self._assert_audit_row_exists(
+            action="update",
+            entity_id=str(self.record.id),
+            expected_event=APPOINTMENT_VETTING_LINKAGE_ENSURED_EVENT,
+        )
 
     def test_public_gazette_feed_redacts_internal_fields(self):
         self.client.force_authenticate(user=None)

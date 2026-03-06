@@ -1,6 +1,7 @@
 # backend/apps/audit/serializers.py
 
 from rest_framework import serializers
+
 from .models import AuditLog
 
 
@@ -32,3 +33,53 @@ class AuditLogSerializer(serializers.ModelSerializer):
             if hasattr(obj.admin_user, "get_full_name")
             else obj.admin_user.email
         )
+
+
+class AuditEventCatalogItemSerializer(serializers.Serializer):
+    """Schema for one audit event key contract item."""
+
+    key = serializers.CharField()
+    entity_type = serializers.CharField()
+    action = serializers.CharField()
+    description = serializers.CharField()
+
+
+class AuditEventCatalogSerializer(serializers.Serializer):
+    """Schema for audit event catalog response."""
+
+    count = serializers.IntegerField()
+    results = AuditEventCatalogItemSerializer(many=True)
+
+
+class AuditByEntityErrorSerializer(serializers.Serializer):
+    """Schema for by_entity validation errors."""
+
+    error = serializers.CharField()
+
+
+class AuditByUserErrorSerializer(serializers.Serializer):
+    """Schema for by_user validation errors."""
+
+    error = serializers.CharField()
+
+
+class AuditActionDistributionSerializer(serializers.Serializer):
+    """Schema for action distribution entries."""
+
+    action = serializers.CharField()
+    count = serializers.IntegerField()
+
+
+class AuditEntityDistributionSerializer(serializers.Serializer):
+    """Schema for entity distribution entries."""
+
+    entity_type = serializers.CharField()
+    count = serializers.IntegerField()
+
+
+class AuditStatisticsSerializer(serializers.Serializer):
+    """Schema for audit statistics endpoint."""
+
+    total_logs = serializers.IntegerField()
+    action_distribution = AuditActionDistributionSerializer(many=True)
+    entity_distribution = AuditEntityDistributionSerializer(many=True)

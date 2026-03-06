@@ -4,6 +4,17 @@ from rest_framework.response import Response
 
 from apps.candidates.models import Candidate
 from apps.core.permissions import IsHRManagerOrAdmin
+from apps.audit.contracts import (
+    PERSONNEL_LINKED_CANDIDATE_EVENT,
+    PERSONNEL_RECORD_CREATED_EVENT,
+    PERSONNEL_RECORD_DELETED_EVENT,
+    PERSONNEL_RECORD_UPDATED_EVENT,
+)
+try:
+    from apps.audit.events import log_event
+except Exception:  # pragma: no cover - audit app may be optional in some setups
+    def log_event(**kwargs):  # type: ignore
+        return False
 
 from .models import PersonnelRecord
 from .serializers import PersonnelRecordSerializer, PublicPersonnelRecordSerializer
@@ -16,6 +27,59 @@ class PersonnelRecordViewSet(viewsets.ModelViewSet):
     filterset_fields = ["nationality", "is_active_officeholder", "is_public"]
     search_fields = ["full_name", "contact_email", "contact_phone", "bio_summary"]
     ordering_fields = ["full_name", "created_at", "updated_at"]
+
+    def perform_create(self, serializer):
+        record = serializer.save()
+        log_event(
+            request=self.request,
+            action="create",
+            entity_type="PersonnelRecord",
+            entity_id=str(record.id),
+            changes={
+                "event": PERSONNEL_RECORD_CREATED_EVENT,
+                "full_name": record.full_name,
+                "is_public": record.is_public,
+                "is_active_officeholder": record.is_active_officeholder,
+            },
+        )
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        changed_fields = list(serializer.validated_data.keys())
+        before = {field: getattr(instance, field, None) for field in changed_fields}
+        record = serializer.save()
+        after = {field: getattr(record, field, None) for field in changed_fields}
+        log_event(
+            request=self.request,
+            action="update",
+            entity_type="PersonnelRecord",
+            entity_id=str(record.id),
+            changes={
+                "event": PERSONNEL_RECORD_UPDATED_EVENT,
+                "changed_fields": changed_fields,
+                "before": before,
+                "after": after,
+            },
+        )
+
+    def perform_destroy(self, instance):
+        snapshot = {
+            "full_name": instance.full_name,
+            "is_public": instance.is_public,
+            "is_active_officeholder": instance.is_active_officeholder,
+        }
+        entity_id = str(instance.id)
+        super().perform_destroy(instance)
+        log_event(
+            request=self.request,
+            action="delete",
+            entity_type="PersonnelRecord",
+            entity_id=entity_id,
+            changes={
+                "event": PERSONNEL_RECORD_DELETED_EVENT,
+                "snapshot": snapshot,
+            },
+        )
 
     @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny], url_path="officeholders")
     def officeholders(self, request):
@@ -38,6 +102,17 @@ class PersonnelRecordViewSet(viewsets.ModelViewSet):
 
         personnel.linked_candidate = candidate
         personnel.save(update_fields=["linked_candidate", "updated_at"])
+        log_event(
+            request=self.request,
+            action="update",
+            entity_type="PersonnelRecord",
+            entity_id=str(personnel.id),
+            changes={
+                "event": PERSONNEL_LINKED_CANDIDATE_EVENT,
+                "linked_candidate_id": str(candidate.id),
+                "linked_candidate_email": candidate.email,
+            },
+        )
         serializer = self.get_serializer(personnel)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

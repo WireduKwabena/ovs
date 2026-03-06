@@ -294,6 +294,7 @@ SPECTACULAR_SETTINGS = {
         "NotificationStatusEnum": "apps.notifications.models.Notification.STATUS_CHOICES",
         "BackgroundCheckStatusEnum": "apps.background_checks.models.BackgroundCheck.STATUS_CHOICES",
         "BackgroundCheckRiskLevelEnum": "apps.background_checks.models.BackgroundCheck.RISK_LEVEL_CHOICES",
+        "GovernmentBranchEnum": "apps.positions.models.GovernmentPosition.BRANCH_CHOICES",
         "FraudRiskLevelEnum": "apps.fraud.models.FraudDetectionResult.RISK_LEVELS",
         "VideoMeetingEventScopeEnum": "apps.video_calls.models.VideoMeetingEvent.SCOPE_CHOICES",
         "VideoMeetingSeriesScopeEnum": "apps.video_calls.serializers.VIDEO_MEETING_SERIES_SCOPE_CHOICES",

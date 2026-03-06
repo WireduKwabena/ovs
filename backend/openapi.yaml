@@ -554,6 +554,769 @@ paths:
               schema:
                 $ref: '#/components/schemas/Document'
           description: ''
+  /api/appointments/records/:
+    get:
+      operationId: appointments_records_list
+      parameters:
+      - in: query
+        name: appointment_exercise
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: is_public
+        schema:
+          type: boolean
+      - in: query
+        name: nominee
+        schema:
+          type: string
+          format: uuid
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: position
+        schema:
+          type: string
+          format: uuid
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - appointed
+          - committee_review
+          - confirmation_pending
+          - exited
+          - nominated
+          - rejected
+          - serving
+          - under_vetting
+          - withdrawn
+        description: |-
+          * `nominated` - Nominated
+          * `under_vetting` - Under Vetting
+          * `committee_review` - Committee Review
+          * `confirmation_pending` - Awaiting Parliamentary Confirmation
+          * `appointed` - Appointed
+          * `rejected` - Rejected
+          * `withdrawn` - Withdrawn
+          * `serving` - Serving
+          * `exited` - Exited
+      tags:
+      - appointments
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAppointmentRecordList'
+          description: ''
+    post:
+      operationId: appointments_records_create
+      tags:
+      - appointments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentRecord'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AppointmentRecord'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AppointmentRecord'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentRecord'
+          description: ''
+  /api/appointments/records/{id}/:
+    get:
+      operationId: appointments_records_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this appointment record.
+        required: true
+      tags:
+      - appointments
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentRecord'
+          description: ''
+    put:
+      operationId: appointments_records_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this appointment record.
+        required: true
+      tags:
+      - appointments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentRecord'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AppointmentRecord'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AppointmentRecord'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentRecord'
+          description: ''
+    patch:
+      operationId: appointments_records_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this appointment record.
+        required: true
+      tags:
+      - appointments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAppointmentRecord'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAppointmentRecord'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAppointmentRecord'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentRecord'
+          description: ''
+    delete:
+      operationId: appointments_records_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this appointment record.
+        required: true
+      tags:
+      - appointments
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/appointments/records/{id}/advance-stage/:
+    post:
+      operationId: appointments_records_advance_stage_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this appointment record.
+        required: true
+      tags:
+      - appointments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentRecord'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AppointmentRecord'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AppointmentRecord'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentRecord'
+          description: ''
+  /api/appointments/records/{id}/appoint/:
+    post:
+      operationId: appointments_records_appoint_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this appointment record.
+        required: true
+      tags:
+      - appointments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentRecord'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AppointmentRecord'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AppointmentRecord'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentRecord'
+          description: ''
+  /api/appointments/records/{id}/ensure-vetting-linkage/:
+    post:
+      operationId: appointments_records_ensure_vetting_linkage_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this appointment record.
+        required: true
+      tags:
+      - appointments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentRecord'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AppointmentRecord'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AppointmentRecord'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentRecord'
+          description: ''
+  /api/appointments/records/{id}/reject/:
+    post:
+      operationId: appointments_records_reject_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this appointment record.
+        required: true
+      tags:
+      - appointments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentRecord'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AppointmentRecord'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AppointmentRecord'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentRecord'
+          description: ''
+  /api/appointments/records/{id}/stage-actions/:
+    get:
+      operationId: appointments_records_stage_actions_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this appointment record.
+        required: true
+      tags:
+      - appointments
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentRecord'
+          description: ''
+  /api/appointments/records/gazette-feed/:
+    get:
+      operationId: appointments_records_gazette_feed_retrieve
+      tags:
+      - appointments
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentRecord'
+          description: ''
+  /api/appointments/records/open/:
+    get:
+      operationId: appointments_records_open_retrieve
+      tags:
+      - appointments
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentRecord'
+          description: ''
+  /api/appointments/stage-templates/:
+    get:
+      operationId: appointments_stage_templates_list
+      parameters:
+      - in: query
+        name: exercise_type
+        schema:
+          type: string
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - appointments
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedApprovalStageTemplateList'
+          description: ''
+    post:
+      operationId: appointments_stage_templates_create
+      tags:
+      - appointments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalStageTemplate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ApprovalStageTemplate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ApprovalStageTemplate'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalStageTemplate'
+          description: ''
+  /api/appointments/stage-templates/{id}/:
+    get:
+      operationId: appointments_stage_templates_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this approval stage template.
+        required: true
+      tags:
+      - appointments
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalStageTemplate'
+          description: ''
+    put:
+      operationId: appointments_stage_templates_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this approval stage template.
+        required: true
+      tags:
+      - appointments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalStageTemplate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ApprovalStageTemplate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ApprovalStageTemplate'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalStageTemplate'
+          description: ''
+    patch:
+      operationId: appointments_stage_templates_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this approval stage template.
+        required: true
+      tags:
+      - appointments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedApprovalStageTemplate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedApprovalStageTemplate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedApprovalStageTemplate'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalStageTemplate'
+          description: ''
+    delete:
+      operationId: appointments_stage_templates_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this approval stage template.
+        required: true
+      tags:
+      - appointments
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/appointments/stages/:
+    get:
+      operationId: appointments_stages_list
+      parameters:
+      - in: query
+        name: is_required
+        schema:
+          type: boolean
+      - in: query
+        name: maps_to_status
+        schema:
+          type: string
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: required_role
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: template
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - appointments
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedApprovalStageList'
+          description: ''
+    post:
+      operationId: appointments_stages_create
+      tags:
+      - appointments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalStage'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ApprovalStage'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ApprovalStage'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalStage'
+          description: ''
+  /api/appointments/stages/{id}/:
+    get:
+      operationId: appointments_stages_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this approval stage.
+        required: true
+      tags:
+      - appointments
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalStage'
+          description: ''
+    put:
+      operationId: appointments_stages_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this approval stage.
+        required: true
+      tags:
+      - appointments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalStage'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ApprovalStage'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ApprovalStage'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalStage'
+          description: ''
+    patch:
+      operationId: appointments_stages_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this approval stage.
+        required: true
+      tags:
+      - appointments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedApprovalStage'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedApprovalStage'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedApprovalStage'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalStage'
+          description: ''
+    delete:
+      operationId: appointments_stages_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this approval stage.
+        required: true
+      tags:
+      - appointments
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/audit/logs/:
     get:
       operationId: audit_logs_list
@@ -562,8 +1325,8 @@ paths:
 
         list: GET /api/audit/logs/
         retrieve: GET /api/audit/logs/{id}/
-        by_entity: GET /api/audit/logs/by-entity/?entity_type=VettingCase&entity_id=1
-        by_user: GET /api/audit/logs/by-user/?user_id=1
+        by_entity: GET /api/audit/logs/by_entity/?entity_type=VettingCase&entity_id=1
+        by_user: GET /api/audit/logs/by_user/?user_id=<uuid>
       parameters:
       - in: query
         name: action
@@ -583,6 +1346,11 @@ paths:
           * `login` - Login
           * `logout` - Logout
           * `other` - Other
+      - in: query
+        name: changes__event
+        schema:
+          type: string
+        description: Filter audit logs by changes.event key (exact match).
       - in: query
         name: entity_id
         schema:
@@ -629,8 +1397,8 @@ paths:
 
         list: GET /api/audit/logs/
         retrieve: GET /api/audit/logs/{id}/
-        by_entity: GET /api/audit/logs/by-entity/?entity_type=VettingCase&entity_id=1
-        by_user: GET /api/audit/logs/by-user/?user_id=1
+        by_entity: GET /api/audit/logs/by_entity/?entity_type=VettingCase&entity_id=1
+        by_user: GET /api/audit/logs/by_user/?user_id=<uuid>
       parameters:
       - in: path
         name: id
@@ -653,10 +1421,63 @@ paths:
           description: ''
   /api/audit/logs/by_entity/:
     get:
-      operationId: audit_logs_by_entity_retrieve
+      operationId: audit_logs_by_entity_list
       description: |-
         Get audit logs for a specific entity
         GET /api/audit/logs/by-entity/?entity_type=VettingCase&entity_id=1
+      parameters:
+      - in: query
+        name: action
+        schema:
+          type: string
+          enum:
+          - create
+          - delete
+          - login
+          - logout
+          - other
+          - update
+        description: |-
+          * `create` - Create
+          * `update` - Update
+          * `delete` - Delete
+          * `login` - Login
+          * `logout` - Logout
+          * `other` - Other
+      - in: query
+        name: changes__event
+        schema:
+          type: string
+      - in: query
+        name: entity_id
+        schema:
+          type: string
+        description: Entity identifier to filter by.
+        required: true
+      - in: query
+        name: entity_type
+        schema:
+          type: string
+        description: Entity type to filter by (e.g. AppointmentRecord).
+        required: true
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
       tags:
       - audit
       security:
@@ -667,14 +1488,162 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuditLog'
+                $ref: '#/components/schemas/PaginatedAuditLogList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditByEntityError'
+          description: ''
+  /api/audit/logs/by_user/:
+    get:
+      operationId: audit_logs_by_user_list
+      description: Get audit logs for a specific acting user/admin_user UUID.
+      parameters:
+      - in: query
+        name: action
+        schema:
+          type: string
+          enum:
+          - create
+          - delete
+          - login
+          - logout
+          - other
+          - update
+        description: |-
+          * `create` - Create
+          * `update` - Update
+          * `delete` - Delete
+          * `login` - Login
+          * `logout` - Logout
+          * `other` - Other
+      - in: query
+        name: changes__event
+        schema:
+          type: string
+      - in: query
+        name: entity_id
+        schema:
+          type: string
+      - in: query
+        name: entity_type
+        schema:
+          type: string
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: user_id
+        schema:
+          type: string
+        description: User UUID to filter by (matches user or admin_user actor fields).
+        required: true
+      tags:
+      - audit
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAuditLogList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditByUserError'
+          description: ''
+  /api/audit/logs/event_catalog/:
+    get:
+      operationId: audit_logs_event_catalog_retrieve
+      description: Expose stable audit event keys for frontend filtering/labeling.
+      tags:
+      - audit
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEventCatalog'
           description: ''
   /api/audit/logs/recent_activity/:
     get:
-      operationId: audit_logs_recent_activity_retrieve
+      operationId: audit_logs_recent_activity_list
       description: |-
         Get recent activity (last 50 logs)
         GET /api/audit/logs/recent-activity/
+      parameters:
+      - in: query
+        name: action
+        schema:
+          type: string
+          enum:
+          - create
+          - delete
+          - login
+          - logout
+          - other
+          - update
+        description: |-
+          * `create` - Create
+          * `update` - Update
+          * `delete` - Delete
+          * `login` - Login
+          * `logout` - Logout
+          * `other` - Other
+      - in: query
+        name: changes__event
+        schema:
+          type: string
+      - in: query
+        name: entity_id
+        schema:
+          type: string
+      - in: query
+        name: entity_type
+        schema:
+          type: string
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
       tags:
       - audit
       security:
@@ -685,7 +1654,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuditLog'
+                $ref: '#/components/schemas/PaginatedAuditLogList'
           description: ''
   /api/audit/logs/statistics/:
     get:
@@ -703,7 +1672,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuditLog'
+                $ref: '#/components/schemas/AuditStatistics'
           description: ''
   /api/auth/2fa/backup-codes/regenerate/:
     post:
@@ -4838,6 +5807,515 @@ paths:
               schema:
                 $ref: '#/components/schemas/Notification'
           description: ''
+  /api/personnel/:
+    get:
+      operationId: personnel_list
+      parameters:
+      - in: query
+        name: is_active_officeholder
+        schema:
+          type: boolean
+      - in: query
+        name: is_public
+        schema:
+          type: boolean
+      - in: query
+        name: nationality
+        schema:
+          type: string
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - personnel
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPersonnelRecordList'
+          description: ''
+    post:
+      operationId: personnel_create
+      tags:
+      - personnel
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonnelRecord'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PersonnelRecord'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PersonnelRecord'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonnelRecord'
+          description: ''
+  /api/personnel/{id}/:
+    get:
+      operationId: personnel_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this personnel record.
+        required: true
+      tags:
+      - personnel
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonnelRecord'
+          description: ''
+    put:
+      operationId: personnel_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this personnel record.
+        required: true
+      tags:
+      - personnel
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonnelRecord'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PersonnelRecord'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PersonnelRecord'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonnelRecord'
+          description: ''
+    patch:
+      operationId: personnel_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this personnel record.
+        required: true
+      tags:
+      - personnel
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPersonnelRecord'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPersonnelRecord'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPersonnelRecord'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonnelRecord'
+          description: ''
+    delete:
+      operationId: personnel_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this personnel record.
+        required: true
+      tags:
+      - personnel
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/personnel/{id}/appointment-history/:
+    get:
+      operationId: personnel_appointment_history_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this personnel record.
+        required: true
+      tags:
+      - personnel
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonnelRecord'
+          description: ''
+  /api/personnel/{id}/link-candidate/:
+    post:
+      operationId: personnel_link_candidate_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this personnel record.
+        required: true
+      tags:
+      - personnel
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonnelRecord'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PersonnelRecord'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PersonnelRecord'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonnelRecord'
+          description: ''
+  /api/personnel/officeholders/:
+    get:
+      operationId: personnel_officeholders_retrieve
+      tags:
+      - personnel
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonnelRecord'
+          description: ''
+  /api/positions/:
+    get:
+      operationId: positions_list
+      parameters:
+      - in: query
+        name: branch
+        schema:
+          type: string
+          enum:
+          - executive
+          - independent
+          - judicial
+          - legislative
+          - local
+        description: |-
+          * `executive` - Executive
+          * `legislative` - Legislative
+          * `judicial` - Judicial
+          * `independent` - Independent Body
+          * `local` - Local Government
+      - in: query
+        name: confirmation_required
+        schema:
+          type: boolean
+      - in: query
+        name: institution
+        schema:
+          type: string
+      - in: query
+        name: is_public
+        schema:
+          type: boolean
+      - in: query
+        name: is_vacant
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - positions
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedGovernmentPositionList'
+          description: ''
+    post:
+      operationId: positions_create
+      tags:
+      - positions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GovernmentPosition'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GovernmentPosition'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GovernmentPosition'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GovernmentPosition'
+          description: ''
+  /api/positions/{id}/:
+    get:
+      operationId: positions_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this government position.
+        required: true
+      tags:
+      - positions
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GovernmentPosition'
+          description: ''
+    put:
+      operationId: positions_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this government position.
+        required: true
+      tags:
+      - positions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GovernmentPosition'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GovernmentPosition'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GovernmentPosition'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GovernmentPosition'
+          description: ''
+    patch:
+      operationId: positions_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this government position.
+        required: true
+      tags:
+      - positions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedGovernmentPosition'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedGovernmentPosition'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedGovernmentPosition'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GovernmentPosition'
+          description: ''
+    delete:
+      operationId: positions_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this government position.
+        required: true
+      tags:
+      - positions
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/positions/{id}/appointment-history/:
+    get:
+      operationId: positions_appointment_history_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this government position.
+        required: true
+      tags:
+      - positions
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GovernmentPosition'
+          description: ''
+  /api/positions/public/:
+    get:
+      operationId: positions_public_retrieve
+      tags:
+      - positions
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GovernmentPosition'
+          description: ''
+  /api/positions/vacant/:
+    get:
+      operationId: positions_vacant_retrieve
+      tags:
+      - positions
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GovernmentPosition'
+          description: ''
   /api/rubrics/criteria/:
     get:
       operationId: rubrics_criteria_list
@@ -6586,6 +8064,253 @@ components:
       - page_size
       - results
       - total_pages
+    AppointmentRecord:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        position:
+          type: string
+          format: uuid
+        position_title:
+          type: string
+          readOnly: true
+        nominee:
+          type: string
+          format: uuid
+        nominee_name:
+          type: string
+          readOnly: true
+        appointment_exercise:
+          type: string
+          format: uuid
+          nullable: true
+        nominated_by_user:
+          type: string
+          format: uuid
+          nullable: true
+        nominated_by_display:
+          type: string
+          maxLength: 200
+        nominated_by_org:
+          type: string
+          maxLength: 200
+        nomination_date:
+          type: string
+          format: date
+        vetting_case:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/AppointmentRecordStatusEnum'
+          readOnly: true
+        committee_recommendation:
+          type: string
+        final_decision_by_user:
+          type: string
+          format: uuid
+          nullable: true
+        final_decision_by_display:
+          type: string
+          maxLength: 200
+        appointment_date:
+          type: string
+          format: date
+          nullable: true
+        gazette_number:
+          type: string
+          maxLength: 100
+        gazette_date:
+          type: string
+          format: date
+          nullable: true
+        exit_date:
+          type: string
+          format: date
+          nullable: true
+        exit_reason:
+          type: string
+        is_public:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - nominated_by_display
+      - nomination_date
+      - nominee
+      - nominee_name
+      - position
+      - position_title
+      - status
+      - updated_at
+    AppointmentRecordStatusEnum:
+      enum:
+      - nominated
+      - under_vetting
+      - committee_review
+      - confirmation_pending
+      - appointed
+      - rejected
+      - withdrawn
+      - serving
+      - exited
+      type: string
+      description: |-
+        * `nominated` - Nominated
+        * `under_vetting` - Under Vetting
+        * `committee_review` - Committee Review
+        * `confirmation_pending` - Awaiting Parliamentary Confirmation
+        * `appointed` - Appointed
+        * `rejected` - Rejected
+        * `withdrawn` - Withdrawn
+        * `serving` - Serving
+        * `exited` - Exited
+    ApprovalStage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        template:
+          type: string
+          format: uuid
+        order:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        name:
+          type: string
+          maxLength: 100
+        required_role:
+          type: string
+          maxLength: 50
+        is_required:
+          type: boolean
+        maps_to_status:
+          type: string
+          maxLength: 50
+      required:
+      - id
+      - maps_to_status
+      - name
+      - order
+      - required_role
+      - template
+    ApprovalStageTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        exercise_type:
+          type: string
+          maxLength: 50
+        created_by:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        stages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalStage'
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - exercise_type
+      - id
+      - name
+      - stages
+    AuditActionDistribution:
+      type: object
+      description: Schema for action distribution entries.
+      properties:
+        action:
+          type: string
+        count:
+          type: integer
+      required:
+      - action
+      - count
+    AuditByEntityError:
+      type: object
+      description: Schema for by_entity validation errors.
+      properties:
+        error:
+          type: string
+      required:
+      - error
+    AuditByUserError:
+      type: object
+      description: Schema for by_user validation errors.
+      properties:
+        error:
+          type: string
+      required:
+      - error
+    AuditEntityDistribution:
+      type: object
+      description: Schema for entity distribution entries.
+      properties:
+        entity_type:
+          type: string
+        count:
+          type: integer
+      required:
+      - count
+      - entity_type
+    AuditEventCatalog:
+      type: object
+      description: Schema for audit event catalog response.
+      properties:
+        count:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEventCatalogItem'
+      required:
+      - count
+      - results
+    AuditEventCatalogItem:
+      type: object
+      description: Schema for one audit event key contract item.
+      properties:
+        key:
+          type: string
+        entity_type:
+          type: string
+        action:
+          type: string
+        description:
+          type: string
+      required:
+      - action
+      - description
+      - entity_type
+      - key
     AuditLog:
       type: object
       description: Serializer for audit logs
@@ -6653,6 +8378,24 @@ components:
         * `login` - Login
         * `logout` - Logout
         * `other` - Other
+    AuditStatistics:
+      type: object
+      description: Schema for audit statistics endpoint.
+      properties:
+        total_logs:
+          type: integer
+        action_distribution:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditActionDistribution'
+        entity_distribution:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEntityDistribution'
+      required:
+      - action_distribution
+      - entity_distribution
+      - total_logs
     BackgroundCheck:
       type: object
       properties:
@@ -7164,6 +8907,9 @@ components:
       required:
       - event_type
       - received
+    BlankEnum:
+      enum:
+      - ''
     CampaignStatusEnum:
       enum:
       - draft
@@ -7762,6 +9508,22 @@ components:
           type: string
       required:
       - error
+    ExerciseTypeEnum:
+      enum:
+      - ministerial
+      - judicial
+      - board
+      - local_gov
+      - diplomatic
+      - security
+      type: string
+      description: |-
+        * `ministerial` - Ministerial
+        * `judicial` - Judicial
+        * `board` - Board / Commission
+        * `local_gov` - Local Government
+        * `diplomatic` - Diplomatic
+        * `security` - Security Services
     FraudDetectionResult:
       type: object
       description: Serializer for fraud detection results
@@ -7841,6 +9603,85 @@ components:
         * `LOW` - Low Risk
         * `MEDIUM` - Medium Risk
         * `HIGH` - High Risk
+    GovernmentBranchEnum:
+      enum:
+      - executive
+      - legislative
+      - judicial
+      - independent
+      - local
+      type: string
+      description: |-
+        * `executive` - Executive
+        * `legislative` - Legislative
+        * `judicial` - Judicial
+        * `independent` - Independent Body
+        * `local` - Local Government
+    GovernmentPosition:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        branch:
+          $ref: '#/components/schemas/GovernmentBranchEnum'
+        institution:
+          type: string
+          maxLength: 200
+        appointment_authority:
+          type: string
+          maxLength: 200
+        confirmation_required:
+          type: boolean
+        constitutional_basis:
+          type: string
+        term_length_years:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          nullable: true
+        required_qualifications:
+          type: string
+        is_vacant:
+          type: boolean
+        is_public:
+          type: boolean
+        current_holder:
+          type: string
+          format: uuid
+          nullable: true
+        current_holder_name:
+          type: string
+          readOnly: true
+        rubric:
+          type: string
+          format: uuid
+          nullable: true
+        rubric_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - appointment_authority
+      - branch
+      - created_at
+      - current_holder_name
+      - id
+      - institution
+      - rubric_name
+      - title
+      - updated_at
     InterviewActionError:
       type: object
       properties:
@@ -8618,6 +10459,75 @@ components:
         * `email` - Email
         * `sms` - SMS
         * `in_app` - In-App Notification
+    PaginatedAppointmentRecordList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppointmentRecord'
+    PaginatedApprovalStageList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalStage'
+    PaginatedApprovalStageTemplateList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalStageTemplate'
     PaginatedAuditLogList:
       type: object
       required:
@@ -8802,6 +10712,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FraudDetectionResult'
+    PaginatedGovernmentPositionList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/GovernmentPosition'
     PaginatedInterviewFeedbackList:
       type: object
       required:
@@ -8963,6 +10896,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Notification'
+    PaginatedPersonnelRecordList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PersonnelRecord'
     PaginatedRubricCriteriaList:
       type: object
       required:
@@ -9182,6 +11138,138 @@ components:
         reset_two_factor:
           type: boolean
           default: false
+    PatchedAppointmentRecord:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        position:
+          type: string
+          format: uuid
+        position_title:
+          type: string
+          readOnly: true
+        nominee:
+          type: string
+          format: uuid
+        nominee_name:
+          type: string
+          readOnly: true
+        appointment_exercise:
+          type: string
+          format: uuid
+          nullable: true
+        nominated_by_user:
+          type: string
+          format: uuid
+          nullable: true
+        nominated_by_display:
+          type: string
+          maxLength: 200
+        nominated_by_org:
+          type: string
+          maxLength: 200
+        nomination_date:
+          type: string
+          format: date
+        vetting_case:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/AppointmentRecordStatusEnum'
+          readOnly: true
+        committee_recommendation:
+          type: string
+        final_decision_by_user:
+          type: string
+          format: uuid
+          nullable: true
+        final_decision_by_display:
+          type: string
+          maxLength: 200
+        appointment_date:
+          type: string
+          format: date
+          nullable: true
+        gazette_number:
+          type: string
+          maxLength: 100
+        gazette_date:
+          type: string
+          format: date
+          nullable: true
+        exit_date:
+          type: string
+          format: date
+          nullable: true
+        exit_reason:
+          type: string
+        is_public:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedApprovalStage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        template:
+          type: string
+          format: uuid
+        order:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        name:
+          type: string
+          maxLength: 100
+        required_role:
+          type: string
+          maxLength: 50
+        is_required:
+          type: boolean
+        maps_to_status:
+          type: string
+          maxLength: 50
+    PatchedApprovalStageTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        exercise_type:
+          type: string
+          maxLength: 50
+        created_by:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        stages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalStage'
+          readOnly: true
     PatchedBackgroundCheck:
       type: object
       properties:
@@ -9403,6 +11491,61 @@ components:
         is_primary:
           type: boolean
         metadata: {}
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedGovernmentPosition:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        branch:
+          $ref: '#/components/schemas/GovernmentBranchEnum'
+        institution:
+          type: string
+          maxLength: 200
+        appointment_authority:
+          type: string
+          maxLength: 200
+        confirmation_required:
+          type: boolean
+        constitutional_basis:
+          type: string
+        term_length_years:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          nullable: true
+        required_qualifications:
+          type: string
+        is_vacant:
+          type: boolean
+        is_public:
+          type: boolean
+        current_holder:
+          type: string
+          format: uuid
+          nullable: true
+        current_holder_name:
+          type: string
+          readOnly: true
+        rubric:
+          type: string
+          format: uuid
+          nullable: true
+        rubric_name:
+          type: string
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -9766,6 +11909,63 @@ components:
         accept_url:
           type: string
           readOnly: true
+    PatchedPersonnelRecord:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        full_name:
+          type: string
+          maxLength: 200
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        nationality:
+          type: string
+          maxLength: 100
+        national_id_hash:
+          type: string
+          maxLength: 128
+        national_id_encrypted:
+          type: string
+          maxLength: 255
+        gender:
+          type: string
+          maxLength: 20
+        contact_email:
+          type: string
+          format: email
+          maxLength: 254
+        contact_phone:
+          type: string
+          maxLength: 30
+        bio_summary:
+          type: string
+        academic_qualifications: {}
+        professional_history: {}
+        is_active_officeholder:
+          type: boolean
+        is_public:
+          type: boolean
+        linked_candidate:
+          type: string
+          format: uuid
+          nullable: true
+        linked_candidate_email:
+          type: string
+          format: email
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     PatchedProfileUpdate:
       type: object
       description: Serializer for user + extended profile update payload.
@@ -9888,6 +12088,37 @@ components:
           format: date-time
           nullable: true
         settings_json: {}
+        exercise_type:
+          oneOf:
+          - $ref: '#/components/schemas/ExerciseTypeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        jurisdiction:
+          oneOf:
+          - $ref: '#/components/schemas/GovernmentBranchEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        positions:
+          type: array
+          items:
+            type: string
+            format: uuid
+        position_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          readOnly: true
+        approval_template:
+          type: string
+          format: uuid
+          nullable: true
+        appointment_authority:
+          type: string
+          maxLength: 200
+        requires_parliamentary_confirmation:
+          type: boolean
+        gazette_reference:
+          type: string
+          maxLength: 100
         initiated_by:
           type: string
           format: uuid
@@ -10142,7 +12373,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RubricCriteria'
-          readOnly: true
         total_weight:
           type: integer
           readOnly: true
@@ -10334,6 +12564,69 @@ components:
       - billing_cycle
       - plan_id
       - plan_name
+    PersonnelRecord:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        full_name:
+          type: string
+          maxLength: 200
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        nationality:
+          type: string
+          maxLength: 100
+        national_id_hash:
+          type: string
+          maxLength: 128
+        national_id_encrypted:
+          type: string
+          maxLength: 255
+        gender:
+          type: string
+          maxLength: 20
+        contact_email:
+          type: string
+          format: email
+          maxLength: 254
+        contact_phone:
+          type: string
+          maxLength: 30
+        bio_summary:
+          type: string
+        academic_qualifications: {}
+        professional_history: {}
+        is_active_officeholder:
+          type: boolean
+        is_public:
+          type: boolean
+        linked_candidate:
+          type: string
+          format: uuid
+          nullable: true
+        linked_candidate_email:
+          type: string
+          format: email
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - full_name
+      - id
+      - linked_candidate_email
+      - updated_at
     PlatformEnum:
       enum:
       - linkedin
@@ -10526,10 +12819,8 @@ components:
       required:
       - criteria_type
       - criteria_type_display
-      - description
       - id
       - name
-      - rubric
       - scoring_method_display
       - weight
     RubricEvaluation:
@@ -11292,6 +13583,37 @@ components:
           format: date-time
           nullable: true
         settings_json: {}
+        exercise_type:
+          oneOf:
+          - $ref: '#/components/schemas/ExerciseTypeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        jurisdiction:
+          oneOf:
+          - $ref: '#/components/schemas/GovernmentBranchEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        positions:
+          type: array
+          items:
+            type: string
+            format: uuid
+        position_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          readOnly: true
+        approval_template:
+          type: string
+          format: uuid
+          nullable: true
+        appointment_authority:
+          type: string
+          maxLength: 200
+        requires_parliamentary_confirmation:
+          type: boolean
+        gazette_reference:
+          type: string
+          maxLength: 100
         initiated_by:
           type: string
           format: uuid
@@ -11313,6 +13635,7 @@ components:
       - initiated_by
       - initiated_by_email
       - name
+      - position_ids
       - updated_at
     VettingCase:
       type: object
@@ -11673,14 +13996,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RubricCriteria'
-          readOnly: true
         total_weight:
           type: integer
           readOnly: true
       required:
       - created_at
       - created_by
-      - criteria
       - id
       - name
       - rubric_type_display

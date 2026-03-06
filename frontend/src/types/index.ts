@@ -827,9 +827,9 @@ export interface CriteriaOverride {
 // Audit Log Interface (for admin views)
 export interface AuditLog {
   id: string;
-  user?: number | null;
+  user?: string | number | null;
   user_name?: string | null;
-  admin_user?: number | null;
+  admin_user?: string | number | null;
   admin_user_name?: string | null;
   action: string;
   action_display?: string;
@@ -845,6 +845,13 @@ export interface AuditStatistics {
   total_logs: number;
   action_distribution: Array<{ action: string; count: number }>;
   entity_distribution: Array<{ entity_type: string; count: number }>;
+}
+
+export interface AuditEventCatalogItem {
+  key: string;
+  entity_type: string;
+  action: string;
+  description: string;
 }
 
 // ML Model Metrics Interface
