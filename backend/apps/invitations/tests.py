@@ -187,6 +187,25 @@ class CandidateAccessPassFlowTests(APITestCase):
         )
         self.assertEqual(response.status_code, 404)
 
+    def test_accept_invitation_returns_access_url_with_consumable_token(self):
+        accept = self.client.post(
+            "/api/invitations/accept/",
+            {"token": str(self.invitation.token)},
+            format="json",
+        )
+        self.assertEqual(accept.status_code, 200)
+        access_url = accept.json().get("access_url")
+        self.assertTrue(access_url)
+        token = access_url.split("token=", 1)[-1] if "token=" in access_url else ""
+        self.assertTrue(token)
+
+        consume = self.client.post(
+            "/api/invitations/access/consume/",
+            {"token": token},
+            format="json",
+        )
+        self.assertEqual(consume.status_code, 200)
+
     def test_candidate_access_exhausted_token_returns_400(self):
         _, raw_token = issue_candidate_access_pass(
             enrollment=self.enrollment,
@@ -209,6 +228,37 @@ class CandidateAccessPassFlowTests(APITestCase):
         )
         self.assertEqual(second.status_code, 400)
         self.assertEqual(second.json()["code"], "exhausted")
+
+    def test_candidate_access_consume_creates_single_vetting_case(self):
+        _, raw_token = issue_candidate_access_pass(
+            enrollment=self.enrollment,
+            invitation=self.invitation,
+            issued_by=self.hr,
+            pass_type="portal",
+            max_uses=5,
+        )
+
+        first = self.client.post(
+            "/api/invitations/access/consume/",
+            {"token": raw_token, "begin_vetting": True},
+            format="json",
+        )
+        self.assertEqual(first.status_code, 200)
+
+        created_case = VettingCase.objects.filter(candidate_enrollment=self.enrollment).first()
+        self.assertIsNotNone(created_case)
+        self.assertEqual(created_case.status, "document_upload")
+        self.assertEqual(created_case.assigned_to_id, self.hr.id)
+        self.assertEqual(created_case.applicant.email, self.candidate.email)
+        self.assertTrue(bool(created_case.position_applied))
+
+        second = self.client.post(
+            "/api/invitations/access/consume/",
+            {"token": raw_token, "begin_vetting": True},
+            format="json",
+        )
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(VettingCase.objects.filter(candidate_enrollment=self.enrollment).count(), 1)
 
 
 class CandidateAccessVettingEndpointsTests(APITestCase):

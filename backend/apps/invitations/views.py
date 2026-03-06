@@ -36,8 +36,10 @@ from .serializers import (
 )
 from .services import (
     CandidateAccessError,
+    build_candidate_access_url,
     close_candidate_access_session,
     consume_candidate_access_token,
+    issue_candidate_access_pass,
     touch_candidate_access_session,
 )
 from .tasks import send_invitation_task
@@ -138,12 +140,23 @@ class AcceptInvitationAPIView(APIView):
             enrollment.registered_at = timezone.now()
             enrollment.save(update_fields=["status", "registered_at", "updated_at"])
 
+        _, raw_access_token = issue_candidate_access_pass(
+            enrollment=enrollment,
+            invitation=invitation,
+            pass_type="portal",
+            issued_by=invitation.created_by,
+            metadata={"issued_via": "accept_invitation"},
+            revoke_existing=True,
+        )
+        access_url = build_candidate_access_url(raw_access_token)
+
         return Response(
             {
                 "message": "Invitation accepted.",
                 "campaign": invitation.enrollment.campaign.name,
                 "candidate_email": invitation.enrollment.candidate.email,
                 "enrollment_status": enrollment.status,
+                "access_url": access_url,
             },
             status=status.HTTP_200_OK,
         )

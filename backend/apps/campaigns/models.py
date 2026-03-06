@@ -7,6 +7,23 @@ from django.db import models
 
 
 class VettingCampaign(models.Model):
+    EXERCISE_TYPE_CHOICES = [
+        ("ministerial", "Ministerial"),
+        ("judicial", "Judicial"),
+        ("board", "Board / Commission"),
+        ("local_gov", "Local Government"),
+        ("diplomatic", "Diplomatic"),
+        ("security", "Security Services"),
+    ]
+
+    BRANCH_CHOICES = [
+        ("executive", "Executive"),
+        ("legislative", "Legislative"),
+        ("judicial", "Judicial"),
+        ("independent", "Independent Body"),
+        ("local", "Local Government"),
+    ]
+
     STATUS_CHOICES = [
         ("draft", "Draft"),
         ("active", "Active"),
@@ -21,6 +38,23 @@ class VettingCampaign(models.Model):
     starts_at = models.DateTimeField(null=True, blank=True)
     ends_at = models.DateTimeField(null=True, blank=True)
     settings_json = models.JSONField(default=dict, blank=True)
+    exercise_type = models.CharField(max_length=30, choices=EXERCISE_TYPE_CHOICES, blank=True, db_index=True)
+    jurisdiction = models.CharField(max_length=20, choices=BRANCH_CHOICES, blank=True, db_index=True)
+    positions = models.ManyToManyField(
+        "positions.GovernmentPosition",
+        blank=True,
+        related_name="appointment_exercises",
+    )
+    approval_template = models.ForeignKey(
+        "appointments.ApprovalStageTemplate",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="campaigns",
+    )
+    appointment_authority = models.CharField(max_length=200, blank=True)
+    requires_parliamentary_confirmation = models.BooleanField(default=False)
+    gazette_reference = models.CharField(max_length=100, blank=True)
 
     initiated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -36,6 +70,7 @@ class VettingCampaign(models.Model):
         indexes = [
             models.Index(fields=["status", "-created_at"]),
             models.Index(fields=["initiated_by", "status"]),
+            models.Index(fields=["exercise_type", "jurisdiction"]),
         ]
 
     def __str__(self):

@@ -28,7 +28,27 @@ class RubricCriteriaSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
         extra_kwargs = {
             "rubric": {"required": False},
+            "description": {"required": False, "allow_blank": True},
+            "evaluation_guidelines": {"required": False, "allow_blank": True},
         }
+        validators = []
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        rubric = attrs.get("rubric") or self.context.get("rubric")
+        if rubric is None and self.instance is not None:
+            rubric = self.instance.rubric
+
+        name = attrs.get("name")
+        if rubric is not None and name:
+            qs = RubricCriteria.objects.filter(rubric=rubric, name=name)
+            if self.instance is not None:
+                qs = qs.exclude(id=self.instance.id)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    {"name": "Criterion with this name already exists for this rubric."}
+                )
+        return attrs
 
 
 class VettingRubricSerializer(serializers.ModelSerializer):

@@ -1415,6 +1415,33 @@ const HrDashboardPage: React.FC = () => {
                 <p className="font-medium text-slate-900">Schedule Video Meeting</p>
                 <p className="text-xs text-slate-700">Create 1v1 or 1vMany live interview sessions.</p>
               </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/government/appointments')}
+                className="w-full rounded-lg border border-slate-700 px-4 py-3 text-left hover:bg-slate-100"
+              >
+                <p className="font-medium text-slate-900">Government Appointments</p>
+                <p className="text-xs text-slate-700">Track nomination, vetting stage, and final decisions.</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/government/positions')}
+                className="w-full rounded-lg border border-slate-700 px-4 py-3 text-left hover:bg-slate-100"
+              >
+                <p className="font-medium text-slate-900">Government Position Registry</p>
+                <p className="text-xs text-slate-700">Manage public offices, vacancies, and appointment authority.</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/government/personnel')}
+                className="w-full rounded-lg border border-slate-700 px-4 py-3 text-left hover:bg-slate-100"
+              >
+                <p className="font-medium text-slate-900">Government Personnel Registry</p>
+                <p className="text-xs text-slate-700">Maintain nominee and officeholder profiles.</p>
+              </button>
             </div>
           </div>
         </div>

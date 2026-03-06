@@ -17,12 +17,26 @@ const AUTH_ENDPOINTS = [
   '/auth/password-reset/',
   '/auth/password-reset-confirm/',
 ];
+const CANDIDATE_SESSION_ENDPOINT_PREFIXES = [
+  '/invitations/access/',
+  '/applications/cases/',
+  '/applications/documents/',
+  '/interviews/sessions/',
+  '/interviews/responses/',
+];
 
 const isAuthEndpoint = (url?: string) => {
   if (!url) {
     return false;
   }
   return AUTH_ENDPOINTS.some((endpoint) => url.includes(endpoint));
+};
+
+const isCandidateSessionEndpoint = (url?: string) => {
+  if (!url) {
+    return false;
+  }
+  return CANDIDATE_SESSION_ENDPOINT_PREFIXES.some((prefix) => url.includes(prefix));
 };
 
 const getApiErrorMessage = (error: AxiosError<ApiError>): string => {
@@ -58,7 +72,7 @@ api.interceptors.response.use(
     const statusCode = error.response?.status;
     const requestUrl = originalRequest?.url;
 
-    if (statusCode === 401 && isAuthEndpoint(requestUrl)) {
+    if (statusCode === 401 && (isAuthEndpoint(requestUrl) || isCandidateSessionEndpoint(requestUrl))) {
       return Promise.reject(error);
     }
 

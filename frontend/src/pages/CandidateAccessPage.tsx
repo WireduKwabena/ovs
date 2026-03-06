@@ -1,12 +1,40 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { KeyRound, LogOut, RefreshCw, FileCheck2, ShieldAlert, Info } from 'lucide-react';
-import { invitationService } from '@/services/invitation.service';
-import type { CandidateAccessContext, CandidateAccessResults } from '@/types';
+import { KeyRound, LogOut, RefreshCw, FileCheck2, ShieldAlert, Info, UploadCloud } from 'lucide-react';
+import { invitationService, type CandidatePortalDocument } from '@/services/invitation.service';
+import type { CandidateAccessContext, CandidateAccessResults, DocumentType, VettingCase } from '@/types';
 import { formatDateTime } from '@/utils/helper';
 import { FieldLabel, HelpTooltip } from '@/components/common/FieldHelp';
 
 const terminalStatuses = new Set(['approved', 'rejected', 'escalated']);
+const DOCUMENT_TYPE_OPTIONS: Array<{ value: DocumentType; label: string }> = [
+  { value: 'id_card', label: 'National ID Card' },
+  { value: 'passport', label: 'Passport' },
+  { value: 'drivers_license', label: "Driver's License" },
+  { value: 'birth_certificate', label: 'Birth Certificate' },
+  { value: 'degree', label: 'Degree / Certificate' },
+  { value: 'transcript', label: 'Academic Transcript' },
+  { value: 'employment_letter', label: 'Employment Letter' },
+  { value: 'reference_letter', label: 'Reference Letter' },
+  { value: 'pay_slip', label: 'Pay Slip' },
+  { value: 'bank_statement', label: 'Bank Statement' },
+  { value: 'utility_bill', label: 'Utility Bill' },
+  { value: 'other', label: 'Other' },
+];
+
+const documentStatusClass = (status: string): string => {
+  const normalized = String(status || '').toLowerCase();
+  if (normalized === 'verified') return 'bg-emerald-100 text-emerald-800';
+  if (normalized === 'failed') return 'bg-rose-100 text-rose-800';
+  if (normalized === 'flagged') return 'bg-amber-100 text-amber-800';
+  if (normalized === 'processing') return 'bg-blue-100 text-blue-800';
+  return 'bg-slate-100 text-slate-800';
+};
+
+const isPendingDocumentStatus = (status: string): boolean => {
+  const normalized = String(status || '').toLowerCase();
+  return normalized === 'queued' || normalized === 'processing';
+};
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
   if (!error) {
@@ -71,6 +99,15 @@ const CandidateAccessPage: React.FC = () => {
   const [results, setResults] = useState<CandidateAccessResults | null>(null);
   const [loading, setLoading] = useState(false);
   const [resultsLoading, setResultsLoading] = useState(false);
+  const [casesLoading, setCasesLoading] = useState(false);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [cases, setCases] = useState<VettingCase[]>([]);
+  const [documents, setDocuments] = useState<CandidatePortalDocument[]>([]);
+  const [lastDocumentsRefreshAt, setLastDocumentsRefreshAt] = useState<string | null>(null);
+  const [selectedCaseId, setSelectedCaseId] = useState('');
+  const [selectedDocumentType, setSelectedDocumentType] = useState<DocumentType>('id_card');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -125,6 +162,74 @@ const CandidateAccessPage: React.FC = () => {
     }
   }, []);
 
+  const loadCases = useCallback(async () => {
+    setCasesLoading(true);
+    try {
+      const rows = await invitationService.listCandidateCases();
+      setCases(rows);
+      setSelectedCaseId((current) => {
+        if (current && rows.some((row) => row.id === current)) {
+          return current;
+        }
+        return rows[0]?.id || '';
+      });
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Could not load candidate cases.'));
+      setCases([]);
+      setSelectedCaseId('');
+    } finally {
+      setCasesLoading(false);
+    }
+  }, []);
+
+  const loadDocuments = useCallback(
+    async (explicitCaseId?: string) => {
+      const caseId = explicitCaseId || selectedCaseId;
+      if (!caseId) {
+        setDocuments([]);
+        setLastDocumentsRefreshAt(null);
+        return;
+      }
+      setDocumentsLoading(true);
+      try {
+        const rows = await invitationService.listCandidateDocuments(caseId);
+        setDocuments(rows);
+        setLastDocumentsRefreshAt(new Date().toISOString());
+      } catch (err: unknown) {
+        setError(getErrorMessage(err, 'Could not load uploaded documents.'));
+        setDocuments([]);
+      } finally {
+        setDocumentsLoading(false);
+      }
+    },
+    [selectedCaseId],
+  );
+
+  const uploadDocument = useCallback(async () => {
+    if (!selectedCaseId) {
+      setError('Select a case before uploading.');
+      return;
+    }
+    if (!selectedFile) {
+      setError('Select a file to upload.');
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+    try {
+      await invitationService.uploadCandidateDocument(selectedCaseId, selectedFile, selectedDocumentType);
+      setMessage('Document uploaded successfully. Verification has been queued.');
+      setSelectedFile(null);
+      await loadCases();
+      await loadDocuments(selectedCaseId);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Document upload failed.'));
+    } finally {
+      setUploading(false);
+    }
+  }, [selectedCaseId, selectedFile, selectedDocumentType, loadCases, loadDocuments]);
+
   const loadResults = async () => {
     setResultsLoading(true);
     setError(null);
@@ -149,6 +254,11 @@ const CandidateAccessPage: React.FC = () => {
       await invitationService.logoutAccess();
       setContext(null);
       setResults(null);
+      setCases([]);
+      setDocuments([]);
+      setLastDocumentsRefreshAt(null);
+      setSelectedCaseId('');
+      setSelectedFile(null);
       setTokenInput('');
       setSearchParams({}, { replace: true });
       setMessage('Session closed.');
@@ -166,6 +276,42 @@ const CandidateAccessPage: React.FC = () => {
     }
     void refreshContext();
   }, [consumeToken, refreshContext, tokenFromQuery]);
+
+  useEffect(() => {
+    if (!context) {
+      setCases([]);
+      setDocuments([]);
+      setLastDocumentsRefreshAt(null);
+      setSelectedCaseId('');
+      return;
+    }
+    void loadCases();
+  }, [context, loadCases]);
+
+  useEffect(() => {
+    if (!context || !selectedCaseId) {
+      setDocuments([]);
+      setLastDocumentsRefreshAt(null);
+      return;
+    }
+    void loadDocuments(selectedCaseId);
+  }, [context, selectedCaseId, loadDocuments]);
+
+  const hasPendingDocuments = documents.some((doc) => isPendingDocumentStatus(doc.status));
+
+  useEffect(() => {
+    if (!context || !selectedCaseId || uploading || !hasPendingDocuments) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void loadDocuments(selectedCaseId);
+    }, 10000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [context, selectedCaseId, uploading, hasPendingDocuments, loadDocuments]);
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-10 space-y-5">
@@ -311,6 +457,169 @@ const CandidateAccessPage: React.FC = () => {
                 );
               })}
             </div>
+          </section>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="font-semibold text-lg inline-flex items-center gap-2">
+                <UploadCloud className="w-5 h-5 text-indigo-600" />
+                Submit Required Documents
+                <HelpTooltip text="Upload your verification documents for the active vetting case." />
+              </h2>
+              <span className="text-xs rounded-full bg-slate-100 text-slate-700 px-2.5 py-1">
+                {casesLoading ? 'Loading cases...' : `${cases.length} case(s)`}
+              </span>
+            </div>
+
+            {cases.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-700">
+                No candidate case is available yet. Contact the vetting initiator if this persists.
+              </p>
+            ) : (
+              <form
+                className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void uploadDocument();
+                }}
+              >
+                <div>
+                  <FieldLabel
+                    htmlFor="candidate-case-id"
+                    label="Case"
+                    required
+                    help="Select the case where this document belongs."
+                    className="mb-1"
+                    textClassName="block text-sm text-slate-700"
+                  />
+                  <select
+                    id="candidate-case-id"
+                    value={selectedCaseId}
+                    onChange={(event) => setSelectedCaseId(event.target.value)}
+                    className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
+                  >
+                    {cases.map((caseRow) => (
+                      <option key={caseRow.id} value={caseRow.id}>
+                        {caseRow.case_id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <FieldLabel
+                    htmlFor="candidate-document-type"
+                    label="Document Type"
+                    required
+                    help="Pick the closest document category for accurate vetting routing."
+                    className="mb-1"
+                    textClassName="block text-sm text-slate-700"
+                  />
+                  <select
+                    id="candidate-document-type"
+                    value={selectedDocumentType}
+                    onChange={(event) => setSelectedDocumentType(event.target.value as DocumentType)}
+                    className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
+                  >
+                    {DOCUMENT_TYPE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <FieldLabel
+                    htmlFor="candidate-document-file"
+                    label="Document File"
+                    required
+                    help="Accepted file validation is enforced by backend. Upload clear scans for best results."
+                    className="mb-1"
+                    textClassName="block text-sm text-slate-700"
+                  />
+                  <input
+                    id="candidate-document-file"
+                    type="file"
+                    onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+                    className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-indigo-700"
+                  />
+                </div>
+
+                <div className="md:col-span-3">
+                  <button
+                    type="submit"
+                    disabled={uploading || !selectedCaseId || !selectedFile}
+                    className="rounded-lg bg-indigo-600 text-white px-4 py-2 hover:bg-indigo-700 disabled:opacity-60"
+                  >
+                    {uploading ? 'Uploading...' : 'Upload Document'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {selectedCaseId && (
+              <div className="mt-5 rounded-lg border border-slate-200">
+                <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-semibold text-slate-900">Uploaded Documents</h3>
+                    <p className="text-xs text-slate-700">
+                      {lastDocumentsRefreshAt ? `Last updated ${formatDateTime(lastDocumentsRefreshAt)}` : 'Not fetched yet'}
+                      {hasPendingDocuments ? ' • Auto-refreshing every 10s' : ''}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void loadDocuments(selectedCaseId)}
+                    disabled={documentsLoading}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    {documentsLoading ? 'Refreshing...' : 'Refresh Documents'}
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-white">
+                      <tr className="text-left text-slate-700">
+                        <th className="px-4 py-2 font-medium">File</th>
+                        <th className="px-4 py-2 font-medium">Type</th>
+                        <th className="px-4 py-2 font-medium">Status</th>
+                        <th className="px-4 py-2 font-medium">Uploaded</th>
+                        <th className="px-4 py-2 font-medium">Processed</th>
+                        <th className="px-4 py-2 font-medium">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {documents.length === 0 ? (
+                        <tr>
+                          <td className="px-4 py-4 text-slate-700" colSpan={6}>
+                            {documentsLoading
+                              ? 'Loading uploaded documents...'
+                              : 'No documents uploaded for this case yet.'}
+                          </td>
+                        </tr>
+                      ) : (
+                        documents.map((doc) => (
+                          <tr key={doc.id} className="border-t border-slate-100 text-slate-800">
+                            <td className="px-4 py-2">{doc.original_filename || 'Document'}</td>
+                            <td className="px-4 py-2">{doc.document_type_display || doc.document_type}</td>
+                            <td className="px-4 py-2">
+                              <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${documentStatusClass(doc.status)}`}>
+                                {doc.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2">{doc.uploaded_at ? formatDateTime(doc.uploaded_at) : 'N/A'}</td>
+                            <td className="px-4 py-2">{doc.processed_at ? formatDateTime(doc.processed_at) : 'Pending'}</td>
+                            <td className="px-4 py-2">{doc.processing_error || '-'}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </section>
 
           <section className="rounded-xl border border-slate-200 bg-white p-5">
