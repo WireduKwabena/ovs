@@ -465,6 +465,21 @@ class AppointmentPublicApiTests(APITestCase):
         self.vetting_user.groups.add(self.vetting_group)
         self.committee_user.groups.add(self.committee_group)
         self.authority_user.groups.add(self.authority_group)
+        self._nominee_seq = 0
+
+    def _build_nominee(self):
+        self._nominee_seq += 1
+        suffix = self._nominee_seq
+        candidate = Candidate.objects.create(
+            first_name="Extra",
+            last_name=f"Nominee{suffix}",
+            email=f"extra.nominee.{suffix}@example.com",
+        )
+        return PersonnelRecord.objects.create(
+            full_name=f"Extra Nominee {suffix}",
+            linked_candidate=candidate,
+            is_public=True,
+        )
 
     def _extract_results(self, response):
         payload = response.json()
@@ -491,11 +506,12 @@ class AppointmentPublicApiTests(APITestCase):
             self.assertEqual((row.changes or {}).get("event"), expected_event)
 
     def test_create_record_auto_links_vetting_case(self):
+        nominee = self._build_nominee()
         response = self.client.post(
             "/api/appointments/records/",
             {
                 "position": str(self.record.position_id),
-                "nominee": str(self.record.nominee_id),
+                "nominee": str(nominee.id),
                 "appointment_exercise": str(self.record.appointment_exercise_id),
                 "nominated_by_display": "H.E. President",
                 "nominated_by_org": "Office of the President",
@@ -534,9 +550,11 @@ class AppointmentPublicApiTests(APITestCase):
         self.assertGreaterEqual(len(self._extract_results(admin_allowed)), 1)
 
     def test_create_record_allows_hr_and_admin_but_blocks_applicant(self):
+        first_nominee = self._build_nominee()
+        second_nominee = self._build_nominee()
         payload = {
             "position": str(self.record.position_id),
-            "nominee": str(self.record.nominee_id),
+            "nominee": str(first_nominee.id),
             "nominated_by_display": "H.E. President",
             "nominated_by_org": "Office of the President",
             "nomination_date": str(date.today()),
@@ -556,7 +574,14 @@ class AppointmentPublicApiTests(APITestCase):
         )
 
         self.client.force_authenticate(self.admin_user)
-        admin_allowed = self.client.post("/api/appointments/records/", payload, format="json")
+        admin_allowed = self.client.post(
+            "/api/appointments/records/",
+            {
+                **payload,
+                "nominee": str(second_nominee.id),
+            },
+            format="json",
+        )
         self.assertEqual(admin_allowed.status_code, 201)
         self._assert_audit_row_exists(
             action="create",
@@ -593,9 +618,12 @@ class AppointmentPublicApiTests(APITestCase):
         )
 
     def test_delete_record_allows_hr_and_admin_but_blocks_applicant(self):
+        blocked_nominee = self._build_nominee()
+        hr_nominee = self._build_nominee()
+        admin_nominee = self._build_nominee()
         blocked_record = AppointmentRecord.objects.create(
             position=self.record.position,
-            nominee=self.record.nominee,
+            nominee=blocked_nominee,
             appointment_exercise=self.record.appointment_exercise,
             nominated_by_user=self.admin_user,
             nominated_by_display="Blocked Delete",
@@ -605,7 +633,7 @@ class AppointmentPublicApiTests(APITestCase):
         )
         hr_record = AppointmentRecord.objects.create(
             position=self.record.position,
-            nominee=self.record.nominee,
+            nominee=hr_nominee,
             appointment_exercise=self.record.appointment_exercise,
             nominated_by_user=self.admin_user,
             nominated_by_display="HR Delete",
@@ -615,7 +643,7 @@ class AppointmentPublicApiTests(APITestCase):
         )
         admin_record = AppointmentRecord.objects.create(
             position=self.record.position,
-            nominee=self.record.nominee,
+            nominee=admin_nominee,
             appointment_exercise=self.record.appointment_exercise,
             nominated_by_user=self.admin_user,
             nominated_by_display="Admin Delete",

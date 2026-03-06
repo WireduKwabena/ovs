@@ -157,7 +157,7 @@ class AppointmentRecord(models.Model):
             models.Index(fields=["status", "is_public"]),
             models.Index(fields=["position", "nominee"]),
             models.Index(fields=["nomination_date", "status"]),
-            models.Index(fields=["position", "status", "created_at"], name="idx_appt_position_status_created"),
+            models.Index(fields=["position", "status", "created_at"], name="idx_appt_pos_status_created"),
         ]
 
     def __str__(self):

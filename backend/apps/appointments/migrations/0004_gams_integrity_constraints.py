@@ -61,7 +61,7 @@ class Migration(migrations.Migration):
             model_name="appointmentrecord",
             index=models.Index(
                 fields=["position", "status", "created_at"],
-                name="idx_appt_position_status_created",
+                name="idx_appt_pos_status_created",
             ),
         ),
     ]
