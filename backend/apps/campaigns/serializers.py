@@ -27,6 +27,7 @@ class CampaignRubricVersionSerializer(serializers.ModelSerializer):
 
 class VettingCampaignSerializer(serializers.ModelSerializer):
     initiated_by_email = serializers.CharField(source="initiated_by.email", read_only=True)
+    position_ids = serializers.PrimaryKeyRelatedField(source="positions", many=True, read_only=True)
 
     class Meta:
         model = VettingCampaign
@@ -38,6 +39,14 @@ class VettingCampaignSerializer(serializers.ModelSerializer):
             "starts_at",
             "ends_at",
             "settings_json",
+            "exercise_type",
+            "jurisdiction",
+            "positions",
+            "position_ids",
+            "approval_template",
+            "appointment_authority",
+            "requires_parliamentary_confirmation",
+            "gazette_reference",
             "initiated_by",
             "initiated_by_email",
             "created_at",

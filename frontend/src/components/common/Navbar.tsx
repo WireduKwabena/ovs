@@ -398,6 +398,9 @@ export const Navbar: React.FC = () => {
           { to: '/admin/dashboard', label: 'Dashboard' },
           { to: '/admin/cases', label: 'Cases' },
           { to: '/admin/users', label: 'Users' },
+          { to: '/government/appointments', label: 'Appointments' },
+          { to: '/government/positions', label: 'Positions' },
+          { to: '/government/personnel', label: 'Personnel' },
           { to: '/rubrics', label: 'Rubrics' },
           { to: '/video-calls', label: 'Video Calls' },
           { to: '/admin/control-center', label: 'Admin Control' },
@@ -420,6 +423,9 @@ export const Navbar: React.FC = () => {
             { to: '/applications', label: 'Cases' },
             { to: '/rubrics', label: 'Rubrics' },
             { to: '/video-calls', label: 'Video Calls' },
+            { to: '/government/appointments', label: 'Appointments' },
+            { to: '/government/positions', label: 'Positions' },
+            { to: '/government/personnel', label: 'Personnel' },
             { to: '/fraud-insights', label: 'Fraud' },
             { to: '/background-checks', label: 'Checks' },
           ];
@@ -445,6 +451,9 @@ export const Navbar: React.FC = () => {
   const desktopOverflowLinks =
     userType === 'admin'
       ? [
+          { to: '/government/appointments', label: 'Appointments' },
+          { to: '/government/positions', label: 'Positions' },
+          { to: '/government/personnel', label: 'Personnel' },
           { to: '/video-calls', label: 'Video Calls' },
           { to: '/admin/control-center', label: 'Admin Control' },
           { to: '/fraud-insights', label: 'Fraud' },
@@ -456,6 +465,9 @@ export const Navbar: React.FC = () => {
         ]
       : userType === 'hr_manager'
         ? [
+            { to: '/government/appointments', label: 'Appointments' },
+            { to: '/government/positions', label: 'Positions' },
+            { to: '/government/personnel', label: 'Personnel' },
             { to: '/fraud-insights', label: 'Fraud' },
             { to: '/background-checks', label: 'Checks' },
           ]

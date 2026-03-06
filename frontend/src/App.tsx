@@ -43,6 +43,9 @@ const CampaignsPage = React.lazy(() => import("./pages/CampaignsPage"));
 const CampaignWorkspacePage = React.lazy(() => import("./pages/CampaignWorkspacePage"));
 const VideoCallsPage = React.lazy(() => import("./pages/VideoCallsPage"));
 const RubricBuilderPage = React.lazy(() => import("./pages/RubricBuilderPage"));
+const GovernmentPositionsPage = React.lazy(() => import("./pages/GovernmentPositionsPage"));
+const GovernmentPersonnelPage = React.lazy(() => import("./pages/GovernmentPersonnelPage"));
+const AppointmentsRegistryPage = React.lazy(() => import("./pages/AppointmentsRegistryPage"));
 const ErrorPage = React.lazy(() => import("./pages/ErrorPage"));
 const NotFoundPage = React.lazy(() => import("./pages/NotFoundPage"));
 const AdminDashboardPage = React.lazy(() => import("./pages/admin/AdminDashboardPage"));
@@ -320,6 +323,30 @@ const AppShell: React.FC = () => {
             element={
               <ProtectedRoute>
                 <VideoCallsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/government/positions"
+            element={
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
+                <GovernmentPositionsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/government/personnel"
+            element={
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
+                <GovernmentPersonnelPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/government/appointments"
+            element={
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
+                <AppointmentsRegistryPage />
               </ProtectedRoute>
             }
           />

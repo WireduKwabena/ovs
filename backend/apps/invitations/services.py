@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.core.mail import send_mail
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from .models import CandidateAccessPass, CandidateAccessSession, Invitation
@@ -187,7 +187,94 @@ def consume_candidate_access_token(
         if enrollment_fields:
             enrollment.save(update_fields=[*enrollment_fields, "updated_at"])
 
+        _ensure_vetting_case_for_enrollment(enrollment)
+
         return candidate_session, access_pass
+
+
+def _resolve_case_applicant_user(enrollment):
+    from apps.authentication.models import User
+
+    candidate = enrollment.candidate
+    existing_user = User.objects.filter(email__iexact=candidate.email).first()
+    if existing_user:
+        if existing_user.user_type != "applicant":
+            logger.warning(
+                "Candidate email is linked to non-applicant user_type='%s' for enrollment_id=%s.",
+                existing_user.user_type,
+                enrollment.id,
+            )
+        return existing_user
+
+    try:
+        return User.objects.create_user(
+            email=candidate.email,
+            password=None,
+            first_name=candidate.first_name or "",
+            last_name=candidate.last_name or "",
+            user_type="applicant",
+        )
+    except IntegrityError:
+        recovered = User.objects.filter(email__iexact=candidate.email).first()
+        if recovered:
+            return recovered
+        raise CandidateAccessError("Unable to create candidate user profile.", code="user_create_failed")
+
+
+def _derive_case_status_from_enrollment(enrollment_status: str) -> str:
+    mapping = {
+        "invited": "document_upload",
+        "registered": "document_upload",
+        "in_progress": "document_upload",
+        "completed": "under_review",
+        "reviewed": "under_review",
+        "approved": "approved",
+        "rejected": "rejected",
+        "escalated": "under_review",
+    }
+    return mapping.get(enrollment_status, "document_upload")
+
+
+def _derive_case_position(campaign) -> str:
+    settings_json = campaign.settings_json if isinstance(campaign.settings_json, dict) else {}
+    position = (
+        settings_json.get("position_applied")
+        or settings_json.get("position")
+        or settings_json.get("role")
+        or settings_json.get("job_title")
+        or ""
+    )
+    if position:
+        return str(position)[:200]
+    return f"{campaign.name} Candidate Vetting"[:200]
+
+
+def _ensure_vetting_case_for_enrollment(enrollment):
+    from apps.applications.models import VettingCase
+
+    existing_case = (
+        VettingCase.objects.select_related("candidate_enrollment")
+        .filter(candidate_enrollment_id=enrollment.id)
+        .order_by("-created_at")
+        .first()
+    )
+    if existing_case:
+        return existing_case
+
+    applicant = _resolve_case_applicant_user(enrollment)
+    campaign = enrollment.campaign
+    settings_json = campaign.settings_json if isinstance(campaign.settings_json, dict) else {}
+
+    return VettingCase.objects.create(
+        applicant=applicant,
+        candidate_enrollment=enrollment,
+        assigned_to=campaign.initiated_by,
+        position_applied=_derive_case_position(campaign),
+        department=str(settings_json.get("department", "") or "")[:100],
+        job_description=campaign.description or "",
+        priority="medium",
+        status=_derive_case_status_from_enrollment(enrollment.status),
+    )
 
 
 def resolve_candidate_access_session(session_key: str | None) -> CandidateAccessSession | None:
@@ -208,6 +295,14 @@ def resolve_candidate_access_session(session_key: str | None) -> CandidateAccess
         session.closed_reason = "expired"
         session.save(update_fields=["status", "closed_at", "closed_reason"])
         return None
+
+    try:
+        _ensure_vetting_case_for_enrollment(session.enrollment)
+    except Exception:
+        logger.exception(
+            "Failed to ensure vetting case for active candidate session enrollment_id=%s",
+            session.enrollment_id,
+        )
     return session
 
 

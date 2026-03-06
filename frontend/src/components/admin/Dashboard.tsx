@@ -335,6 +335,45 @@ export const AdminDashboard: React.FC = () => {
               <span className="ml-2 group-hover:ml-3 transition-all">→</span>
             </div>
           </button>
+
+          <button
+            onClick={() => navigate('/government/appointments')}
+            className="group p-6 bg-linear-to-br from-indigo-100 to-indigo-200 rounded-lg border-2 border-indigo-300 hover:border-indigo-400 hover:shadow-md transition-all text-left"
+          >
+            <CheckCircle className="w-10 h-10 text-indigo-900 mb-3 group-hover:scale-110 transition-transform" />
+            <h3 className="font-bold text-lg text-gray-900">Appointment Registry</h3>
+            <p className="text-sm text-slate-800 mt-1">Run nomination lifecycle, stage progression, and decisions.</p>
+            <div className="mt-4 flex items-center text-indigo-900 font-semibold text-sm">
+              <span>Open Registry</span>
+              <span className="ml-2 group-hover:ml-3 transition-all">→</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => navigate('/government/positions')}
+            className="group p-6 bg-linear-to-br from-cyan-100 to-cyan-200 rounded-lg border-2 border-cyan-300 hover:border-cyan-400 hover:shadow-md transition-all text-left"
+          >
+            <FileText className="w-10 h-10 text-cyan-900 mb-3 group-hover:scale-110 transition-transform" />
+            <h3 className="font-bold text-lg text-gray-900">Position Registry</h3>
+            <p className="text-sm text-slate-800 mt-1">Manage positions, vacancies, and constitutional metadata.</p>
+            <div className="mt-4 flex items-center text-cyan-900 font-semibold text-sm">
+              <span>Open Positions</span>
+              <span className="ml-2 group-hover:ml-3 transition-all">→</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => navigate('/government/personnel')}
+            className="group p-6 bg-linear-to-br from-teal-100 to-teal-200 rounded-lg border-2 border-teal-300 hover:border-teal-400 hover:shadow-md transition-all text-left"
+          >
+            <Users className="w-10 h-10 text-teal-900 mb-3 group-hover:scale-110 transition-transform" />
+            <h3 className="font-bold text-lg text-gray-900">Personnel Registry</h3>
+            <p className="text-sm text-slate-800 mt-1">Manage nominees and officeholders linked to appointments.</p>
+            <div className="mt-4 flex items-center text-teal-900 font-semibold text-sm">
+              <span>Open Personnel</span>
+              <span className="ml-2 group-hover:ml-3 transition-all">→</span>
+            </div>
+          </button>
         </div>
       </div>
     </div>

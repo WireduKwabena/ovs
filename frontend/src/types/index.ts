@@ -99,6 +99,12 @@ export interface VettingCase {
 export type DocumentType = 
   | 'id_card' 
   | 'passport' 
+  | 'drivers_license'
+  | 'degree'
+  | 'transcript'
+  | 'pay_slip'
+  | 'bank_statement'
+  | 'utility_bill'
   | 'certificate' 
   | 'diploma' 
   | 'employment_letter' 
@@ -1092,6 +1098,106 @@ export interface VideoMeetingReminderHealth {
   time_up_retry_exhausted: number;
 }
 
+export type GovernmentBranch =
+  | "executive"
+  | "legislative"
+  | "judicial"
+  | "independent"
+  | "local";
+
+export interface GovernmentPosition {
+  id: string;
+  title: string;
+  branch: GovernmentBranch;
+  institution: string;
+  appointment_authority: string;
+  confirmation_required: boolean;
+  constitutional_basis: string;
+  term_length_years: number | null;
+  required_qualifications: string;
+  is_vacant: boolean;
+  is_public: boolean;
+  current_holder: string | null;
+  current_holder_name?: string;
+  rubric: string | null;
+  rubric_name?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PersonnelRecord {
+  id: string;
+  full_name: string;
+  date_of_birth: string | null;
+  nationality: string;
+  national_id_hash: string;
+  national_id_encrypted: string;
+  gender: string;
+  contact_email: string;
+  contact_phone: string;
+  bio_summary: string;
+  academic_qualifications: unknown[];
+  professional_history: unknown[];
+  is_active_officeholder: boolean;
+  is_public: boolean;
+  linked_candidate: string | null;
+  linked_candidate_email?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AppointmentStatus =
+  | "nominated"
+  | "under_vetting"
+  | "committee_review"
+  | "confirmation_pending"
+  | "appointed"
+  | "rejected"
+  | "withdrawn"
+  | "serving"
+  | "exited";
+
+export interface AppointmentStageAction {
+  id: string;
+  appointment: string;
+  stage: string | null;
+  stage_name?: string;
+  actor: string;
+  actor_email?: string;
+  actor_role: string;
+  action: "approved" | "rejected" | "referred" | "deferred" | "noted";
+  reason_note: string;
+  evidence_links: string[];
+  previous_status: string;
+  new_status: string;
+  acted_at: string;
+}
+
+export interface AppointmentRecord {
+  id: string;
+  position: string;
+  position_title?: string;
+  nominee: string;
+  nominee_name?: string;
+  appointment_exercise: string | null;
+  nominated_by_user: string | null;
+  nominated_by_display: string;
+  nominated_by_org: string;
+  nomination_date: string;
+  vetting_case: string | null;
+  status: AppointmentStatus;
+  committee_recommendation: string;
+  final_decision_by_user: string | null;
+  final_decision_by_display: string;
+  appointment_date: string | null;
+  gazette_number: string;
+  gazette_date: string | null;
+  exit_date: string | null;
+  exit_reason: string;
+  is_public: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 
 

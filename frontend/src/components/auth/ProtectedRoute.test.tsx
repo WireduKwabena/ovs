@@ -45,7 +45,10 @@ const renderWithState = (
     | "/campaigns"
     | "/campaigns/campaign-001"
     | "/rubrics"
-    | "/rubrics/new" = "/private",
+    | "/rubrics/new"
+    | "/government/positions"
+    | "/government/personnel"
+    | "/government/appointments" = "/private",
 ) => {
   const store = configureStore({
     reducer: (currentState: GuardState = state) => currentState,
@@ -144,6 +147,30 @@ const renderWithState = (
             element={
               <ProtectedRoute disallowUserTypes={["applicant"]}>
                 <div>Rubric builder page</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/government/positions"
+            element={
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
+                <div>Government positions page</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/government/personnel"
+            element={
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
+                <div>Government personnel page</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/government/appointments"
+            element={
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
+                <div>Government appointments page</div>
               </ProtectedRoute>
             }
           />
@@ -351,5 +378,47 @@ describe("ProtectedRoute integration", () => {
       "/rubrics/new",
     );
     expect(screen.getByText("Dashboard page")).toBeTruthy();
+  });
+
+  it("redirects applicants away from /government/* routes", () => {
+    const routes: Array<"/government/positions" | "/government/personnel" | "/government/appointments"> = [
+      "/government/positions",
+      "/government/personnel",
+      "/government/appointments",
+    ];
+
+    routes.forEach((route) => {
+      renderWithState(
+        createGuardState({
+          isAuthenticated: true,
+          userType: "applicant",
+        }),
+        route,
+      );
+      expect(screen.getByText("Dashboard page")).toBeTruthy();
+      cleanup();
+    });
+  });
+
+  it("allows hr_manager on /government/appointments", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "hr_manager",
+      }),
+      "/government/appointments",
+    );
+    expect(screen.getByText("Government appointments page")).toBeTruthy();
+  });
+
+  it("allows admin on /government/appointments", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "admin",
+      }),
+      "/government/appointments",
+    );
+    expect(screen.getByText("Government appointments page")).toBeTruthy();
   });
 });

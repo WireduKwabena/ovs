@@ -12,7 +12,19 @@ const InvitationAcceptPage: React.FC = () => {
     campaign: string;
     candidate_email: string;
     enrollment_status: string;
+    access_url?: string;
   } | null>(null);
+
+  const toRelativeAccessPath = (rawUrl?: string): string => {
+    if (!rawUrl) return '/candidate/access';
+    try {
+      const parsed = new URL(rawUrl, window.location.origin);
+      const query = parsed.search || '';
+      return `/candidate/access${query}`;
+    } catch {
+      return '/candidate/access';
+    }
+  };
 
   useEffect(() => {
     const accept = async () => {
@@ -35,10 +47,7 @@ const InvitationAcceptPage: React.FC = () => {
     void accept();
   }, [token]);
 
-  const accessPath = useMemo(
-    () => (token ? `/candidate/access?token=${encodeURIComponent(token)}` : '/candidate/access'),
-    [token]
-  );
+  const accessPath = useMemo(() => toRelativeAccessPath(payload?.access_url), [payload?.access_url]);
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-12">
@@ -79,7 +88,7 @@ const InvitationAcceptPage: React.FC = () => {
             Continue to Candidate Access
           </Link>
           <p className="text-xs text-slate-700 mt-2">
-            Use the access URL from your invitation email/SMS inside the portal if prompted.
+            Continue with the generated access link. If needed, you can also use your access URL from email/SMS.
           </p>
         </div>
       </section>
