@@ -2,6 +2,7 @@ from datetime import date
 
 from django.conf import settings
 from django.contrib.auth.models import Group
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from rest_framework.test import APITestCase
 
@@ -21,7 +22,13 @@ from apps.personnel.models import PersonnelRecord
 from apps.positions.models import GovernmentPosition
 
 from .models import AppointmentRecord, ApprovalStage, ApprovalStageTemplate
-from .services import InvalidTransitionError, StageAuthorizationError, advance_stage, ensure_vetting_linkage_for_appointment
+from .services import (
+    InvalidTransitionError,
+    LinkageValidationError,
+    StageAuthorizationError,
+    advance_stage,
+    ensure_vetting_linkage_for_appointment,
+)
 
 
 class AppointmentTransitionServiceTests(TestCase):
@@ -196,6 +203,186 @@ class AppointmentTransitionServiceTests(TestCase):
         self.assertEqual(self.position.current_holder_id, self.nominee.id)
         self.assertFalse(self.position.is_vacant)
         self.assertTrue(self.nominee.is_active_officeholder)
+
+    def test_exited_transition_clears_position_holder(self):
+        self.appointment.status = "appointed"
+        self.appointment.save(update_fields=["status", "updated_at"])
+        advance_stage(
+            appointment=self.appointment,
+            new_status="serving",
+            actor=self.admin_user,
+        )
+
+        updated = advance_stage(
+            appointment=self.appointment,
+            new_status="exited",
+            actor=self.admin_user,
+        )
+
+        self.position.refresh_from_db()
+        self.nominee.refresh_from_db()
+        self.assertEqual(updated.status, "exited")
+        self.assertIsNotNone(updated.exit_date)
+        self.assertIsNone(self.position.current_holder_id)
+        self.assertTrue(self.position.is_vacant)
+        self.assertFalse(self.nominee.is_active_officeholder)
+
+    def test_required_stage_context_enforced_when_campaign_template_exists(self):
+        template = ApprovalStageTemplate.objects.create(
+            name="Ministerial Required Chain",
+            exercise_type="ministerial",
+            created_by=self.admin_user,
+        )
+        stage = ApprovalStage.objects.create(
+            template=template,
+            order=1,
+            name="Vetting Desk Review",
+            required_role="vetting_officer",
+            is_required=True,
+            maps_to_status="under_vetting",
+        )
+        self.exercise.approval_template = template
+        self.exercise.save(update_fields=["approval_template", "updated_at"])
+
+        with self.assertRaises(InvalidTransitionError):
+            advance_stage(
+                appointment=self.appointment,
+                new_status="under_vetting",
+                actor=self.admin_user,
+            )
+
+        updated = advance_stage(
+            appointment=self.appointment,
+            new_status="under_vetting",
+            actor=self.hr_user,
+            stage=stage,
+        )
+        self.assertEqual(updated.status, "under_vetting")
+
+    def test_ensure_vetting_linkage_rejects_campaign_position_mismatch(self):
+        self.exercise.positions.add(self.position)
+        other_position = GovernmentPosition.objects.create(
+            title="Minister of Transport",
+            branch="executive",
+            institution="Ministry of Transport",
+            appointment_authority="President",
+            is_vacant=True,
+            is_public=True,
+        )
+        mismatched = AppointmentRecord.objects.create(
+            position=other_position,
+            nominee=self.nominee,
+            appointment_exercise=self.exercise,
+            nominated_by_user=self.admin_user,
+            nominated_by_display="H.E. President",
+            nomination_date=date.today(),
+            status="nominated",
+            is_public=True,
+        )
+
+        with self.assertRaises(LinkageValidationError):
+            ensure_vetting_linkage_for_appointment(appointment=mismatched, actor=self.admin_user)
+
+
+class AppointmentIntegrityConstraintTests(TestCase):
+    def setUp(self):
+        self.position = GovernmentPosition.objects.create(
+            title="Auditor-General",
+            branch="executive",
+            institution="Audit Service",
+            appointment_authority="President",
+            is_vacant=True,
+            is_public=True,
+        )
+        self.nominee_one = PersonnelRecord.objects.create(full_name="Nominee One")
+        self.nominee_two = PersonnelRecord.objects.create(full_name="Nominee Two")
+
+    def _create_record(self, *, nominee, status, appointment_date=None, exit_date=None):
+        return AppointmentRecord.objects.create(
+            position=self.position,
+            nominee=nominee,
+            nominated_by_display="Constitutional Authority",
+            nomination_date=date.today(),
+            status=status,
+            appointment_date=appointment_date,
+            exit_date=exit_date,
+            is_public=False,
+        )
+
+    def test_prevents_multiple_serving_records_for_same_position(self):
+        self._create_record(
+            nominee=self.nominee_one,
+            status="serving",
+            appointment_date=date.today(),
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self._create_record(
+                    nominee=self.nominee_two,
+                    status="serving",
+                    appointment_date=date.today(),
+                )
+
+    def test_prevents_multiple_active_records_for_same_position_nominee(self):
+        self._create_record(
+            nominee=self.nominee_one,
+            status="nominated",
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self._create_record(
+                    nominee=self.nominee_one,
+                    status="under_vetting",
+                )
+
+    def test_allows_new_active_record_after_terminal_status(self):
+        self._create_record(
+            nominee=self.nominee_one,
+            status="withdrawn",
+        )
+        created = self._create_record(
+            nominee=self.nominee_one,
+            status="nominated",
+        )
+        self.assertEqual(created.status, "nominated")
+
+    def test_prevents_exit_date_when_status_is_not_exited(self):
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self._create_record(
+                    nominee=self.nominee_one,
+                    status="appointed",
+                    appointment_date=date.today(),
+                    exit_date=date.today(),
+                )
+
+    def test_prevents_exited_without_exit_date(self):
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self._create_record(
+                    nominee=self.nominee_one,
+                    status="exited",
+                    appointment_date=date.today(),
+                )
+
+    def test_prevents_serving_without_appointment_date(self):
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self._create_record(
+                    nominee=self.nominee_one,
+                    status="serving",
+                )
+
+    def test_prevents_exited_without_appointment_date(self):
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self._create_record(
+                    nominee=self.nominee_one,
+                    status="exited",
+                    exit_date=date.today(),
+                )
 
 
 class AppointmentPublicApiTests(APITestCase):
@@ -498,6 +685,108 @@ class AppointmentPublicApiTests(APITestCase):
             entity_id=str(self.record.id),
             expected_event=APPOINTMENT_STAGE_TRANSITION_EVENT,
         )
+
+    def test_advance_stage_requires_stage_id_when_template_requires_status(self):
+        template = ApprovalStageTemplate.objects.create(
+            name="Committee Chain",
+            exercise_type="ministerial",
+            created_by=self.admin_user,
+        )
+        stage = ApprovalStage.objects.create(
+            template=template,
+            order=1,
+            name="Committee Review",
+            required_role="committee_member",
+            is_required=True,
+            maps_to_status="committee_review",
+        )
+        campaign = self.record.appointment_exercise
+        campaign.approval_template = template
+        campaign.save(update_fields=["approval_template", "updated_at"])
+        self.record.status = "under_vetting"
+        self.record.save(update_fields=["status", "updated_at"])
+
+        self.client.force_authenticate(self.committee_user)
+        denied = self.client.post(
+            f"/api/appointments/records/{self.record.id}/advance-stage/",
+            {"status": "committee_review"},
+            format="json",
+        )
+        self.assertEqual(denied.status_code, 400)
+        self.assertEqual(denied.json().get("code"), "invalid_transition")
+
+        allowed = self.client.post(
+            f"/api/appointments/records/{self.record.id}/advance-stage/",
+            {"status": "committee_review", "stage_id": str(stage.id)},
+            format="json",
+        )
+        self.assertEqual(allowed.status_code, 200)
+
+    def test_create_record_rejects_position_not_linked_to_campaign(self):
+        linked_position = self.record.position
+        unlinked_position = GovernmentPosition.objects.create(
+            title="Minister of Health",
+            branch="executive",
+            institution="Ministry of Health",
+            appointment_authority="President",
+            is_vacant=True,
+            is_public=True,
+        )
+        campaign = self.record.appointment_exercise
+        campaign.positions.clear()
+        campaign.positions.add(linked_position)
+
+        response = self.client.post(
+            "/api/appointments/records/",
+            {
+                "position": str(unlinked_position.id),
+                "nominee": str(self.record.nominee_id),
+                "appointment_exercise": str(campaign.id),
+                "nominated_by_display": "H.E. President",
+                "nominated_by_org": "Office of the President",
+                "nomination_date": str(date.today()),
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("position", response.json())
+
+    def test_appoint_requires_stage_id_when_template_requires_final_stage(self):
+        template = ApprovalStageTemplate.objects.create(
+            name="Final Decision Chain",
+            exercise_type="ministerial",
+            created_by=self.admin_user,
+        )
+        final_stage = ApprovalStage.objects.create(
+            template=template,
+            order=1,
+            name="Appointing Authority Decision",
+            required_role="appointing_authority",
+            is_required=True,
+            maps_to_status="appointed",
+        )
+        campaign = self.record.appointment_exercise
+        campaign.approval_template = template
+        campaign.save(update_fields=["approval_template", "updated_at"])
+
+        self.record.status = "committee_review"
+        self.record.save(update_fields=["status", "updated_at"])
+
+        self.client.force_authenticate(self.authority_user)
+        denied = self.client.post(
+            f"/api/appointments/records/{self.record.id}/appoint/",
+            {},
+            format="json",
+        )
+        self.assertEqual(denied.status_code, 400)
+        self.assertEqual(denied.json().get("code"), "invalid_transition")
+
+        allowed = self.client.post(
+            f"/api/appointments/records/{self.record.id}/appoint/",
+            {"stage_id": str(final_stage.id)},
+            format="json",
+        )
+        self.assertEqual(allowed.status_code, 200)
 
     def test_ensure_vetting_linkage_action_logs_event(self):
         self.client.force_authenticate(self.admin_user)

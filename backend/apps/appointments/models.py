@@ -2,6 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 
 
 class ApprovalStageTemplate(models.Model):
@@ -119,10 +120,44 @@ class AppointmentRecord(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["position"],
+                condition=Q(status="serving"),
+                name="uniq_appt_serving_per_position",
+            ),
+            models.UniqueConstraint(
+                fields=["position", "nominee"],
+                condition=Q(
+                    status__in=[
+                        "nominated",
+                        "under_vetting",
+                        "committee_review",
+                        "confirmation_pending",
+                        "appointed",
+                        "serving",
+                    ]
+                ),
+                name="uniq_appt_active_position_nominee",
+            ),
+            models.CheckConstraint(
+                condition=Q(exit_date__isnull=True) | Q(status="exited"),
+                name="chk_appt_exit_date_only_exited",
+            ),
+            models.CheckConstraint(
+                condition=~Q(status="exited") | Q(exit_date__isnull=False),
+                name="chk_appt_exited_requires_exit_date",
+            ),
+            models.CheckConstraint(
+                condition=~Q(status__in=["serving", "exited"]) | Q(appointment_date__isnull=False),
+                name="chk_appt_serving_exited_need_appointment_date",
+            ),
+        ]
         indexes = [
             models.Index(fields=["status", "is_public"]),
             models.Index(fields=["position", "nominee"]),
             models.Index(fields=["nomination_date", "status"]),
+            models.Index(fields=["position", "status", "created_at"], name="idx_appt_position_status_created"),
         ]
 
     def __str__(self):

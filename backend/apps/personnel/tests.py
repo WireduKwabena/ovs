@@ -1,6 +1,9 @@
+from datetime import date
+
 from django.conf import settings
 from rest_framework.test import APITestCase
 
+from apps.appointments.models import AppointmentRecord
 from apps.audit.contracts import (
     PERSONNEL_LINKED_CANDIDATE_EVENT,
     PERSONNEL_RECORD_CREATED_EVENT,
@@ -9,6 +12,7 @@ from apps.audit.contracts import (
 )
 from apps.authentication.models import User
 from apps.candidates.models import Candidate
+from apps.positions.models import GovernmentPosition
 from apps.personnel.models import PersonnelRecord
 
 
@@ -219,3 +223,42 @@ class PersonnelApiTests(APITestCase):
             entity_id=str(admin_record.id),
             expected_event=PERSONNEL_RECORD_DELETED_EVENT,
         )
+
+    def test_appointment_history_hides_non_public_records_for_non_hr_users(self):
+        position = GovernmentPosition.objects.create(
+            title="Minister of Fisheries",
+            branch="executive",
+            institution="Ministry of Fisheries",
+            appointment_authority="President",
+            is_vacant=True,
+            is_public=True,
+        )
+        AppointmentRecord.objects.create(
+            position=position,
+            nominee=self.record,
+            nominated_by_display="Public Appointment",
+            nomination_date=date.today(),
+            status="nominated",
+            is_public=True,
+        )
+        AppointmentRecord.objects.create(
+            position=position,
+            nominee=self.record,
+            nominated_by_display="Private Appointment",
+            nomination_date=date.today(),
+            status="nominated",
+            is_public=False,
+        )
+
+        self.client.force_authenticate(self.applicant_user)
+        applicant_response = self.client.get(f"/api/personnel/{self.record.id}/appointment-history/")
+        self.assertEqual(applicant_response.status_code, 200)
+        applicant_rows = applicant_response.json()
+        self.assertEqual(len(applicant_rows), 1)
+        self.assertTrue(all(row["is_public"] for row in applicant_rows))
+
+        self.client.force_authenticate(self.hr_user)
+        hr_response = self.client.get(f"/api/personnel/{self.record.id}/appointment-history/")
+        self.assertEqual(hr_response.status_code, 200)
+        hr_rows = hr_response.json()
+        self.assertEqual(len(hr_rows), 2)

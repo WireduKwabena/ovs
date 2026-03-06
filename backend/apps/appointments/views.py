@@ -1,3 +1,5 @@
+from django.db import transaction
+from rest_framework.exceptions import ValidationError
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -26,7 +28,13 @@ from .serializers import (
     ApprovalStageTemplateSerializer,
     PublicAppointmentRecordSerializer,
 )
-from .services import InvalidTransitionError, StageAuthorizationError, advance_stage, ensure_vetting_linkage_for_appointment
+from .services import (
+    InvalidTransitionError,
+    LinkageValidationError,
+    StageAuthorizationError,
+    advance_stage,
+    ensure_vetting_linkage_for_appointment,
+)
 
 
 class ApprovalStageTemplateViewSet(viewsets.ModelViewSet):
@@ -78,20 +86,24 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
     ordering_fields = ["created_at", "nomination_date", "appointment_date", "updated_at"]
 
     def perform_create(self, serializer):
-        appointment = serializer.save(nominated_by_user=self.request.user)
-        ensure_vetting_linkage_for_appointment(appointment=appointment, actor=self.request.user)
-        log_event(
-            request=self.request,
-            action="create",
-            entity_type="AppointmentRecord",
-            entity_id=str(appointment.id),
-            changes={
-                "event": APPOINTMENT_RECORD_CREATED_EVENT,
-                "position_id": str(appointment.position_id),
-                "nominee_id": str(appointment.nominee_id),
-                "status": appointment.status,
-            },
-        )
+        try:
+            with transaction.atomic():
+                appointment = serializer.save(nominated_by_user=self.request.user)
+                ensure_vetting_linkage_for_appointment(appointment=appointment, actor=self.request.user)
+                log_event(
+                    request=self.request,
+                    action="create",
+                    entity_type="AppointmentRecord",
+                    entity_id=str(appointment.id),
+                    changes={
+                        "event": APPOINTMENT_RECORD_CREATED_EVENT,
+                        "position_id": str(appointment.position_id),
+                        "nominee_id": str(appointment.nominee_id),
+                        "status": appointment.status,
+                    },
+                )
+        except LinkageValidationError as exc:
+            raise ValidationError({"non_field_errors": [str(exc)]}) from exc
 
     def perform_update(self, serializer):
         instance = serializer.instance
@@ -166,11 +178,18 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], permission_classes=[IsAppointingAuthorityOrAdmin], url_path="appoint")
     def appoint(self, request, pk=None):
         appointment = self.get_object()
+        stage = None
+        stage_id = request.data.get("stage_id")
+        if stage_id:
+            stage = ApprovalStage.objects.filter(id=stage_id).first()
+            if stage is None:
+                return Response({"error": "Approval stage not found."}, status=status.HTTP_404_NOT_FOUND)
         try:
             appointment = advance_stage(
                 appointment=appointment,
                 new_status="appointed",
                 actor=request.user,
+                stage=stage,
                 reason_note=request.data.get("reason_note", ""),
                 evidence_links=request.data.get("evidence_links", []),
                 request=request,
@@ -184,11 +203,18 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], permission_classes=[IsAppointingAuthorityOrAdmin], url_path="reject")
     def reject(self, request, pk=None):
         appointment = self.get_object()
+        stage = None
+        stage_id = request.data.get("stage_id")
+        if stage_id:
+            stage = ApprovalStage.objects.filter(id=stage_id).first()
+            if stage is None:
+                return Response({"error": "Approval stage not found."}, status=status.HTTP_404_NOT_FOUND)
         try:
             appointment = advance_stage(
                 appointment=appointment,
                 new_status="rejected",
                 actor=request.user,
+                stage=stage,
                 reason_note=request.data.get("reason_note", ""),
                 evidence_links=request.data.get("evidence_links", []),
                 request=request,
@@ -202,7 +228,10 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="ensure-vetting-linkage")
     def ensure_vetting_linkage_action(self, request, pk=None):
         appointment = self.get_object()
-        appointment = ensure_vetting_linkage_for_appointment(appointment=appointment, actor=request.user)
+        try:
+            appointment = ensure_vetting_linkage_for_appointment(appointment=appointment, actor=request.user)
+        except LinkageValidationError as exc:
+            return Response({"error": str(exc), "code": "linkage_invalid"}, status=status.HTTP_400_BAD_REQUEST)
         log_event(
             request=request,
             action="update",

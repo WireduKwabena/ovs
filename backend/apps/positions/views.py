@@ -2,7 +2,7 @@ from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.core.permissions import IsHRManagerOrAdmin
+from apps.core.permissions import IsHRManagerOrAdmin, is_hr_or_admin_user
 from apps.audit.contracts import (
     GOVERNMENT_POSITION_CREATED_EVENT,
     GOVERNMENT_POSITION_DELETED_EVENT,
@@ -96,6 +96,8 @@ class GovernmentPositionViewSet(viewsets.ModelViewSet):
     def appointment_history(self, request, pk=None):
         position = self.get_object()
         rows = position.appointment_records.select_related("nominee").order_by("-created_at")
+        if not is_hr_or_admin_user(request.user):
+            rows = rows.filter(is_public=True)
         data = [
             {
                 "id": row.id,
