@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
     list: vi.fn(),
     getStatistics: vi.fn(),
     getRecentActivity: vi.fn(),
+    getByUser: vi.fn(),
     getById: vi.fn(),
     getEventCatalog: vi.fn(),
   },
@@ -278,5 +279,58 @@ describe("AuditLogsPage export actions", () => {
         expect.objectContaining({ changes__event: "personnel_record_deleted" }),
       );
     });
+  });
+
+  it("filters by actor using by_user endpoint when row action is clicked", async () => {
+    mocks.auditService.getEventCatalog.mockResolvedValue([]);
+    mocks.auditService.list.mockResolvedValue([
+      {
+        id: "log-with-actor",
+        action: "update",
+        action_display: "Update",
+        entity_type: "AppointmentRecord",
+        entity_id: "APP-100",
+        user: "actor-uuid-1",
+        user_name: "Actor One",
+        changes: { event: "appointment_record_updated" },
+        created_at: "2026-03-03T01:00:00.000Z",
+      },
+    ]);
+    mocks.auditService.getByUser.mockResolvedValue([
+      {
+        id: "log-actor-result",
+        action: "create",
+        action_display: "Create",
+        entity_type: "AppointmentRecord",
+        entity_id: "APP-101",
+        user: "actor-uuid-1",
+        user_name: "Actor One",
+        changes: { event: "appointment_record_created" },
+        created_at: "2026-03-03T02:00:00.000Z",
+      },
+    ]);
+    mocks.auditService.getStatistics.mockResolvedValue({
+      total_logs: 1,
+      action_distribution: [{ action: "update", count: 1 }],
+      entity_distribution: [{ entity_type: "AppointmentRecord", count: 1 }],
+    });
+    mocks.auditService.getRecentActivity.mockResolvedValue([]);
+
+    render(
+      <MemoryRouter>
+        <AuditLogsPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(mocks.auditService.list).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: /filter actor/i }));
+
+    await waitFor(() => {
+      expect(mocks.auditService.getByUser).toHaveBeenCalledWith("actor-uuid-1");
+    });
+    expect(await screen.findByText(/AppointmentRecord #APP-101/i)).toBeTruthy();
   });
 });
