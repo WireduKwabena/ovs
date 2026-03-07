@@ -55,6 +55,7 @@ class AppointmentStageActionSerializer(serializers.ModelSerializer):
 class AppointmentRecordSerializer(serializers.ModelSerializer):
     position_title = serializers.CharField(source="position.title", read_only=True)
     nominee_name = serializers.CharField(source="nominee.full_name", read_only=True)
+    vetting_decision = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = AppointmentRecord
@@ -70,6 +71,7 @@ class AppointmentRecordSerializer(serializers.ModelSerializer):
             "nominated_by_org",
             "nomination_date",
             "vetting_case",
+            "vetting_decision",
             "status",
             "committee_recommendation",
             "final_decision_by_user",
@@ -170,6 +172,32 @@ class AppointmentRecordSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(errors)
 
         return attrs
+
+    def get_vetting_decision(self, obj):
+        linked_case = getattr(obj, "vetting_case", None)
+        if linked_case is None:
+            return None
+        evaluation = getattr(linked_case, "rubric_evaluation", None)
+        if evaluation is None:
+            return None
+        recommendation = (
+            evaluation.decision_recommendations.filter(is_latest=True)
+            .order_by("-created_at")
+            .first()
+        )
+        if recommendation is None:
+            return None
+        blocking_issues = recommendation.blocking_issues if isinstance(recommendation.blocking_issues, list) else []
+        warnings = recommendation.warnings if isinstance(recommendation.warnings, list) else []
+        return {
+            "id": recommendation.id,
+            "recommendation_status": recommendation.recommendation_status,
+            "advisory_only": recommendation.advisory_only,
+            "blocking_issues_count": len(blocking_issues),
+            "warnings_count": len(warnings),
+            "has_override": recommendation.overrides.exists(),
+            "updated_at": recommendation.updated_at,
+        }
 
 
 class AppointmentAdvanceStageSerializer(serializers.Serializer):

@@ -5,6 +5,7 @@ from rest_framework.response import Response
 
 from apps.applications.models import VettingCase
 
+from .decision_engine import VettingDecisionEngine
 from .engine import RubricEvaluationEngine
 from .models import CriteriaOverride, RubricCriteria, RubricEvaluation, VettingRubric
 from .permissions import IsHRManager
@@ -12,6 +13,8 @@ from .serializers import (
     CriteriaOverrideSerializer,
     RubricCriteriaSerializer,
     RubricEvaluationSerializer,
+    VettingDecisionOverrideRequestSerializer,
+    VettingDecisionRecommendationSerializer,
     VettingRubricSerializer,
 )
 from .tasks import evaluate_case_with_rubric
@@ -32,6 +35,14 @@ def _parse_boolean(value) -> bool:
         if normalized in {"0", "false", "no", "n", "off", ""}:
             return False
     return bool(value)
+
+
+def _parse_ai_signals(payload):
+    if payload is None:
+        return None, None
+    if not isinstance(payload, dict):
+        return None, Response({"error": "ai_signals must be an object"}, status=status.HTTP_400_BAD_REQUEST)
+    return payload, None
 
 
 class VettingRubricViewSet(viewsets.ModelViewSet):
@@ -156,19 +167,35 @@ class VettingRubricViewSet(viewsets.ModelViewSet):
         rubric = self.get_object()
         case_id = request.data.get("case_id")
         run_async = _parse_boolean(request.data.get("async", False))
+        ai_signals, ai_error = _parse_ai_signals(request.data.get("ai_signals"))
 
         if not case_id:
             return Response({"error": "case_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        if ai_error is not None:
+            return ai_error
         try:
             case = VettingCase.objects.get(id=case_id)
         except VettingCase.DoesNotExist:
             return Response({"error": "Case not found"}, status=status.HTTP_404_NOT_FOUND)
 
         if run_async:
+            if ai_signals is not None:
+                return Response(
+                    {"error": "ai_signals are currently supported only for synchronous evaluation"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             evaluate_case_with_rubric.delay(case.id, rubric.id, request.user.id)
             return Response({"message": "Evaluation queued."}, status=status.HTTP_202_ACCEPTED)
 
-        evaluation = RubricEvaluationEngine(case=case, rubric=rubric).evaluate(evaluated_by=request.user)
+        evaluation = RubricEvaluationEngine(case=case, rubric=rubric).evaluate(
+            evaluated_by=request.user,
+            ai_signals=ai_signals,
+        )
+        VettingDecisionEngine.generate_recommendation(
+            evaluation=evaluation,
+            actor=request.user,
+            request=request,
+        )
         data = RubricEvaluationSerializer(evaluation, context=self.get_serializer_context()).data
         return Response(data, status=status.HTTP_200_OK)
 
@@ -184,9 +211,12 @@ class VettingRubricViewSet(viewsets.ModelViewSet):
         rubric = self.get_object()
         case_ref = request.data.get("application_id") or request.data.get("case_id")
         run_async = _parse_boolean(request.data.get("async", False))
+        ai_signals, ai_error = _parse_ai_signals(request.data.get("ai_signals"))
 
         if not case_ref:
             return Response({"error": "application_id (or case_id) is required"}, status=status.HTTP_400_BAD_REQUEST)
+        if ai_error is not None:
+            return ai_error
 
         case = VettingCase.objects.filter(case_id=str(case_ref)).first()
         if case is None:
@@ -196,10 +226,23 @@ class VettingRubricViewSet(viewsets.ModelViewSet):
                 return Response({"error": "Case not found"}, status=status.HTTP_404_NOT_FOUND)
 
         if run_async:
+            if ai_signals is not None:
+                return Response(
+                    {"error": "ai_signals are currently supported only for synchronous evaluation"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             evaluate_case_with_rubric.delay(case.id, rubric.id, request.user.id)
             return Response({"message": "Evaluation queued."}, status=status.HTTP_202_ACCEPTED)
 
-        evaluation = RubricEvaluationEngine(case=case, rubric=rubric).evaluate(evaluated_by=request.user)
+        evaluation = RubricEvaluationEngine(case=case, rubric=rubric).evaluate(
+            evaluated_by=request.user,
+            ai_signals=ai_signals,
+        )
+        VettingDecisionEngine.generate_recommendation(
+            evaluation=evaluation,
+            actor=request.user,
+            request=request,
+        )
         data = RubricEvaluationSerializer(evaluation, context=self.get_serializer_context()).data
         return Response(data, status=status.HTTP_200_OK)
 
@@ -221,7 +264,11 @@ class RubricEvaluationViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsHRManager]
 
     def get_queryset(self):
-        queryset = RubricEvaluation.objects.select_related("case", "rubric", "evaluated_by").prefetch_related("overrides")
+        queryset = RubricEvaluation.objects.select_related("case", "rubric", "evaluated_by").prefetch_related(
+            "overrides",
+            "decision_recommendations__generated_by",
+            "decision_recommendations__overrides__overridden_by",
+        )
         case_id = self.request.query_params.get("case")
         rubric_id = self.request.query_params.get("rubric")
         if case_id:
@@ -233,8 +280,79 @@ class RubricEvaluationViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["post"], url_path="rerun")
     def rerun(self, request, pk=None):
         evaluation = self.get_object()
-        updated = RubricEvaluationEngine(case=evaluation.case, rubric=evaluation.rubric).evaluate(evaluated_by=request.user)
+        ai_signals, ai_error = _parse_ai_signals(request.data.get("ai_signals"))
+        if ai_error is not None:
+            return ai_error
+        updated = RubricEvaluationEngine(case=evaluation.case, rubric=evaluation.rubric).evaluate(
+            evaluated_by=request.user,
+            ai_signals=ai_signals,
+        )
+        VettingDecisionEngine.generate_recommendation(
+            evaluation=updated,
+            actor=request.user,
+            request=request,
+        )
         return Response(self.get_serializer(updated).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["get"], url_path="decision-recommendation")
+    def decision_recommendation(self, request, pk=None):
+        evaluation = self.get_object()
+        recommendation = (
+            evaluation.decision_recommendations.select_related("generated_by")
+            .prefetch_related("overrides__overridden_by")
+            .filter(is_latest=True)
+            .order_by("-created_at")
+            .first()
+        )
+        if recommendation is None:
+            recommendation = VettingDecisionEngine.generate_recommendation(
+                evaluation=evaluation,
+                actor=request.user,
+                request=request,
+            )
+        serializer = VettingDecisionRecommendationSerializer(recommendation, context=self.get_serializer_context())
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="override-decision")
+    def override_decision(self, request, pk=None):
+        evaluation = self.get_object()
+        payload = VettingDecisionOverrideRequestSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+
+        recommendation = (
+            evaluation.decision_recommendations.filter(is_latest=True)
+            .order_by("-created_at")
+            .first()
+        )
+        if recommendation is None:
+            recommendation = VettingDecisionEngine.generate_recommendation(
+                evaluation=evaluation,
+                actor=request.user,
+                request=request,
+            )
+
+        try:
+            recommendation, override = VettingDecisionEngine.record_human_override(
+                recommendation=recommendation,
+                actor=request.user,
+                overridden_recommendation_status=payload.validated_data["recommendation_status"],
+                rationale=payload.validated_data["rationale"],
+                request=request,
+            )
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+            {
+                "message": "Decision recommendation override recorded.",
+                "recommendation": VettingDecisionRecommendationSerializer(
+                    recommendation,
+                    context=self.get_serializer_context(),
+                ).data,
+                "override_id": str(override.id),
+            },
+            status=status.HTTP_200_OK,
+        )
 
     @action(detail=True, methods=["post"], url_path="override-criterion")
     def override_criterion(self, request, pk=None):
@@ -287,6 +405,25 @@ class RubricEvaluationViewSet(viewsets.ReadOnlyModelViewSet):
             evaluation.review_reasons = reasons
             evaluation.requires_manual_review = True
             evaluation.status = "requires_review"
+
+            if isinstance(evaluation.criterion_scores, dict):
+                trace = evaluation.criterion_scores.get(RubricEvaluationEngine.TRACE_KEY)
+                if isinstance(trace, dict):
+                    events = list(trace.get("events", []))
+                    events.append(
+                        {
+                            "event_type": "override_applied",
+                            "criterion_id": str(criterion.id),
+                            "criterion_name": criterion.name,
+                            "overridden_by": str(request.user.id),
+                            "timestamp": str(override.created_at.isoformat()),
+                            "original_score": original,
+                            "overridden_score": overridden_score,
+                        }
+                    )
+                    trace["events"] = events
+                    evaluation.criterion_scores[RubricEvaluationEngine.TRACE_KEY] = trace
+
             evaluation.save(update_fields=["criterion_scores", "review_reasons", "requires_manual_review", "status", "updated_at"])
 
         return Response(
