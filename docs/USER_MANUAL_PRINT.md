@@ -1,7 +1,7 @@
 # CAVP End-User Manual (Task Guide)
 
 Version: 2.0  
-Audience: Applicants, Operations Users, Government Appointment Actors, and Admins  
+Audience: Candidates (invitation-based), Operations Users, Government Appointment Actors, and Admins  
 Last Updated: March 7, 2026
 
 ---
@@ -100,13 +100,14 @@ This is not an API or developer manual.
    - Standard sign-in: `/login`
    - Invitation onboarding: `/invite/:token`
 3. Complete 2FA if prompted.
-4. After login, use the top navigation bar.
+4. After internal login, use the top navigation bar.  
+   Candidate invitation sessions are managed from `/candidate/access`.
 
 ### 2.2 If You Do Not See a Page
 
 Access is role-based.
 
-- Applicants cannot access admin, campaign management, or government registry pages.
+- Candidate-access users cannot access internal admin, campaign management, or government registry pages.
 - Operations users and admins can access vetting + government workflow pages.
 - Some actions (for example final appointment decision and publication) require appointing-authority/admin rights.
 
@@ -114,15 +115,13 @@ Access is role-based.
 
 ## 3) Navigation Map By Role
 
-### 3.1 Applicant
+### 3.1 Candidate (Invitation-Only Access)
 
 Primary pages:
 
-- `/dashboard`
-- `/applications` (My Cases)
-- `/video-calls`
-- `/candidate/access` (invitation portal)
-- `/notifications`
+- `/invite/:token`
+- `/candidate/access`
+- `/candidate/interview/:applicationId` (only when interview session is available)
 
 ### 3.2 Operations User
 
@@ -160,13 +159,13 @@ Primary pages:
 
 ---
 
-## 4) Common Tasks For All Users
+## 4) Common Tasks For Internal Users
 
 ### 4.1 Update Profile and Security
 
 1. Open profile menu (top-right avatar).
 2. Click `Profile & Settings` (`/settings`) to update profile details.
-3. Click `Security` (`/security`) to manage 2FA/security settings (non-applicant roles).
+3. Click `Security` (`/security`) to manage 2FA/security settings (internal roles).
 4. Click `Change Password` (`/change-password`) when needed.
 
 ### 4.2 Manage Notifications
@@ -183,9 +182,29 @@ Expected result:
 
 ---
 
-## 5) Applicant Task Guide
+## 5) Candidate Task Guide (Invitation Lifecycle)
 
-### 5.1 Accept Invitation and Start Candidate Session
+### 5.0 Important Access Rule
+
+Candidate onboarding is invitation-only.
+
+- Candidates do not self-register through `/register`.
+- Candidates do not use internal dashboard/routes such as `/dashboard` or `/applications`.
+- Candidate workflow starts from `/invite/:token` and continues in `/candidate/access`.
+
+### 5.1 Understand the Two Candidate Status Tracks
+
+The platform tracks candidate progress in two different places:
+
+1. Invitation status: `pending -> sent -> accepted` (or `failed` / `expired`)
+2. Enrollment status: `invited -> registered -> in_progress -> completed -> reviewed -> approved/rejected/escalated`
+
+Important:
+
+- Invitation status confirms delivery/acceptance of the invite token.
+- Enrollment status is the candidate lifecycle used for vetting progress and decisions.
+
+### 5.2 Accept Invitation (Legacy/Direct Invite Link)
 
 Route options:
 
@@ -195,15 +214,30 @@ Route options:
 Steps:
 
 1. Open the invite link.
-2. Confirm your access token/session.
-3. Review campaign requirements shown in candidate access.
+2. System accepts the invitation token.
+3. Click `Continue to Candidate Access`.
 
-Expected result:
+Expected transition:
+
+- Invitation becomes `accepted`.
+- Enrollment moves from `invited` to `registered`.
+
+### 5.3 Start or Resume Candidate Session
+
+1. First-time entry: open `/candidate/access?token=...` from the access URL.
+2. Return visits: open `/candidate/access` while your candidate session is still active.
+3. Token is consumed and candidate session is created.
+4. Review campaign context and required document types.
+
+Expected transition:
 
 - session is active,
-- your case context is visible.
+- enrollment typically moves from `registered` to `in_progress` automatically,
+- your vetting case context is visible.
 
-### 5.2 Upload Required Documents
+Note: `registered` can be brief because access consumption usually advances directly into `in_progress`.
+
+### 5.4 Upload Required Documents
 
 1. In candidate access, pick your case.
 2. Select document type.
@@ -215,13 +249,13 @@ Expected result:
 - file appears in document list,
 - status progresses from queued/processing to verified/flagged/failed.
 
-### 5.3 Complete Interview (When Assigned)
+### 5.5 Complete Interview (When Assigned)
 
-1. Open interview link from candidate access or notifications.
+1. Open interview link from candidate access.
 2. Complete interview responses.
 3. Return to candidate access to monitor progress.
 
-### 5.4 Check Status and Results
+### 5.6 Check Status and Results
 
 1. Open `/candidate/access`.
 2. Use refresh in the results section.
@@ -235,6 +269,20 @@ Typical timeline states you will see:
 - completed
 - reviewed
 - approved / rejected / escalated
+
+Candidate lifecycle summary:
+
+1. invited
+2. registered
+3. in_progress
+4. completed
+5. reviewed
+6. approved / rejected / escalated
+
+Result visibility rule:
+
+- Results are available once enrollment reaches `completed`, `reviewed`, `approved`, `rejected`, or `escalated`.
+- Final decision label is shown when enrollment is `approved`, `rejected`, or `escalated`.
 
 ---
 
@@ -479,18 +527,18 @@ Action:
 - `/`
 - `/subscribe`
 - `/login`
-- `/register`
+- `/register` (organization/agency onboarding only, after subscription verification)
 - `/forgot-password`
 - `/invite/:token`
 - `/candidate/access`
 
 ### Core Authenticated
 
-- `/dashboard`
+- `/dashboard` (internal roles only)
 - `/settings`
 - `/security`
 - `/change-password`
-- `/notifications`
+- `/notifications` (internal roles only)
 
 ### Vetting Operations
 
