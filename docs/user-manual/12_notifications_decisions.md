@@ -40,6 +40,12 @@ OVS case progression (typical):
    - escalate/manual review.
 6. Candidate and stakeholders notified.
 
+Rubric and recommendation architecture:
+
+1. Rubric scoring layer computes weighted scoring + criterion outcomes.
+2. Decision recommendation layer consumes rubric outputs, policy/evidence checks, and advisory AI signals.
+3. Human reviewers retain final authority and can record recommendation overrides with rationale.
+
 GAMS appointment progression (service-enforced transitions):
 
 1. `nominated`
@@ -55,17 +61,37 @@ Alternative terminal outcomes:
 - `rejected`
 - `withdrawn`
 
-## 12.4 Decision Quality Controls
+## 12.4 Appointment Stage Gating With Recommendation Context
+
+For appointments linked to vetting cases, transitions into governance decision stages require recommendation context:
+
+- gated statuses: `committee_review`, `confirmation_pending`, `appointed`
+- required baseline:
+  - linked rubric evaluation exists
+  - latest vetting decision recommendation exists
+
+Additional enforcement:
+
+- For `confirmation_pending` and `appointed`:
+  - if blocking issues exist, provide `reason_note` or record recommendation override first.
+- For `appointed`:
+  - `recommend_reject` requires recommendation override.
+  - `recommend_manual_review` requires `reason_note` or recommendation override.
+
+This gate is advisory-aware, not autonomous: human actors still execute final stage transitions.
+
+## 12.5 Decision Quality Controls
 
 Before finalizing:
 
 - Confirm rubric context and active version.
+- Review `decision_explanation`, `evaluation_trace`, and latest recommendation status.
 - Check for unresolved high-risk flags.
 - Ensure all required evidence has completed processing.
-- Add reviewer notes where required by policy.
-- For appointments, ensure required approval stage context is attached when template policy requires it.
+- Add reviewer notes where required by policy (`reason_note` where needed).
+- For appointments, ensure required approval-stage context is attached when template policy requires it.
 
-## 12.5 Notification Hygiene
+## 12.6 Notification Hygiene
 
 Recommended team process:
 
@@ -73,4 +99,4 @@ Recommended team process:
 2. Archive obsolete notifications to reduce noise.
 3. Use filters and case links for triage.
 4. Correlate decision notifications with audit entries.
-5. For GAMS, track appointment event types in notification metadata (for example `appointment_published`, `appointment_revoked`).
+5. For GAMS, track appointment lifecycle event types in metadata (for example `appointment_moved_to_approval_chain`, `appointment_published`, `appointment_revoked`).

@@ -44,7 +44,7 @@ Post-create checks:
 
 ## 5.4 Rubric Strategy
 
-Rubrics define weighted scoring and evaluation criteria.
+Rubrics define weighted scoring policy, while recommendation generation runs in a separate decision layer.
 
 Pages:
 
@@ -72,6 +72,27 @@ Rubric APIs:
 
 ## 5.6 Evaluation Workflow
 
+Implemented architecture:
+
+1. Rubric scoring layer (`RubricEvaluationEngine`):
+   - calculates weighted component scores and criterion-level outcomes,
+   - stores transparent scoring internals in:
+     - `evaluation_trace`
+     - `decision_explanation`.
+2. Vetting Decision Engine (`VettingDecisionEngine`):
+   - runs after rubric evaluation,
+   - generates advisory recommendation output (`decision_recommendation`) with:
+     - `recommendation_status`
+     - `blocking_issues`
+     - `warnings`
+     - `decision_basis` and explanation metadata.
+
+AI inputs:
+
+- Optional `ai_signals` payload is accepted only for synchronous rubric evaluation calls.
+- AI signals are sanitized and persisted as advisory (`advisory_only=True`).
+- Async evaluation rejects `ai_signals`.
+
 Case evaluation APIs:
 
 - `POST /api/rubrics/vetting-rubrics/{id}/evaluate-case/`
@@ -82,21 +103,37 @@ Evaluation management APIs:
 - `GET /api/rubrics/evaluations/`
 - `GET /api/rubrics/evaluations/{id}/`
 - `POST /api/rubrics/evaluations/{id}/rerun/`
+- `GET /api/rubrics/evaluations/{id}/decision-recommendation/`
+- `POST /api/rubrics/evaluations/{id}/override-decision/`
 - `POST /api/rubrics/evaluations/{id}/override-criterion/`
 
-## 5.7 HR Daily Workflow Example
+## 5.7 Recommendation Override and Audit
+
+Use `POST /api/rubrics/evaluations/{id}/override-decision/` when a human reviewer needs to override the latest advisory recommendation.
+
+Override behavior:
+
+- `rationale` is required.
+- override is stored as `VettingDecisionOverride`.
+- recommendation status is updated with a `human_override` entry in `decision_basis`.
+- API-driven recommendation/override actions emit audit events for generation and override recording.
+
+Human authority remains final: recommendation output does not auto-approve or auto-reject an appointment.
+
+## 5.8 HR Daily Workflow Example
 
 1. Open campaign workspace.
 2. Confirm active rubric version.
 3. Review intake totals (enrolled, in-progress, completed).
-4. Investigate flagged candidates.
-5. Trigger or rerun evaluation where needed.
-6. Apply final human decision with rationale.
+4. Run or rerun rubric evaluation as needed.
+5. Inspect `decision_explanation`, `evaluation_trace`, and latest `decision_recommendation`.
+6. Record decision override (with rationale) when policy or evidence requires a different recommendation path.
+7. Apply final human decision with rationale.
 
-## 5.8 Common Campaign Mistakes
+## 5.9 Common Campaign Mistakes
 
 - Activating campaign without active rubric.
 - Importing candidates before verifying quota.
 - Using ambiguous rubric criteria descriptions.
 - Ignoring manual-review flags for low-confidence outputs.
-
+- Treating advisory AI signals as final authority.

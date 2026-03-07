@@ -55,6 +55,17 @@ Use audit for:
 3. Reconstructing operational incidents.
 4. Compliance and reporting evidence.
 
+Government workflow events include appointment and decision-support contracts such as:
+
+- `appointment_nomination_created`
+- `appointment_stage_transition`
+- `appointment_stage_action_taken`
+- `appointment_final_decision_recorded`
+- `appointment_publication_published`
+- `appointment_publication_revoked`
+- `vetting_decision_recommendation_generated`
+- `vetting_decision_override_recorded`
+
 ## 10.7 Monitoring Best Practices
 
 1. Monitor trends, not only snapshots.
@@ -70,4 +81,3 @@ If runtime cards show unavailable:
 2. Confirm Redis and Celery services are running.
 3. Check endpoint-specific auth/permission context.
 4. Inspect backend and worker logs for recent errors.
-

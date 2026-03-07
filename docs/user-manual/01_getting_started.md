@@ -1,13 +1,16 @@
 # 1) Getting Started
 
-## 1.1 What OVS Is
+## 1.1 What the Platform Is
 
-OVS is a web-based vetting platform that combines:
+OVS-Redo is a web-based platform combining:
 
-- Process orchestration (campaigns, rubrics, case tracking),
+- OVS vetting orchestration (campaigns, rubrics, case tracking),
 - AI-assisted evidence analysis (documents and interviews),
-- Human final decisions (approve, reject, escalate),
-- Administrative control and operational monitoring.
+- Two-layer decision support:
+  - rubric scoring + trace/explanation output,
+  - advisory decision recommendation with audited human override support,
+- GAMS appointment governance (positions, personnel, approval chain, publication),
+- Human final authority and operational monitoring.
 
 ## 1.2 Deployment Modes
 
@@ -54,16 +57,17 @@ After environment setup:
 4. Candidate receives invitation link or access route.
 5. Candidate submits required evidence and interview responses.
 6. AI analyses are processed asynchronously.
-7. HR/Admin reviews case outputs and makes a final decision.
+7. HR/Admin reviews rubric trace + recommendation context and makes a final human decision.
 8. Notifications and status updates are distributed.
 
 ## 1.7 Data Handling Model
 
-OVS stores and displays:
+The platform stores and displays:
 
 - Identity and profile information (role-scoped),
 - Campaign metadata and rubric versions,
 - Case/evidence analysis outputs,
+- Decision recommendation and override audit artifacts,
 - Billing and subscription records,
 - Audit and operational metrics.
 
