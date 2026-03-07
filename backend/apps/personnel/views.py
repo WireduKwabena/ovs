@@ -3,7 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.candidates.models import Candidate
-from apps.core.permissions import IsHRManagerOrAdmin, is_hr_or_admin_user
+from apps.core.authz import CAPABILITY_APPOINTMENT_VIEW_INTERNAL, has_capability
+from apps.core.permissions import IsRegistryOperatorOrAdmin
 from apps.audit.contracts import (
     PERSONNEL_LINKED_CANDIDATE_EVENT,
     PERSONNEL_RECORD_CREATED_EVENT,
@@ -23,7 +24,7 @@ from .serializers import PersonnelRecordSerializer, PublicPersonnelRecordSeriali
 class PersonnelRecordViewSet(viewsets.ModelViewSet):
     queryset = PersonnelRecord.objects.select_related("linked_candidate").all()
     serializer_class = PersonnelRecordSerializer
-    permission_classes = [IsHRManagerOrAdmin]
+    permission_classes = [IsRegistryOperatorOrAdmin]
     filterset_fields = ["nationality", "is_active_officeholder", "is_public"]
     search_fields = ["full_name", "contact_email", "contact_phone", "bio_summary"]
     ordering_fields = ["full_name", "created_at", "updated_at"]
@@ -89,7 +90,7 @@ class PersonnelRecordViewSet(viewsets.ModelViewSet):
         serializer = PublicPersonnelRecordSerializer(queryset, many=True)
         return Response(serializer.data)
 
-    @action(detail=True, methods=["post"], permission_classes=[IsHRManagerOrAdmin], url_path="link-candidate")
+    @action(detail=True, methods=["post"], permission_classes=[IsRegistryOperatorOrAdmin], url_path="link-candidate")
     def link_candidate(self, request, pk=None):
         personnel = self.get_object()
         candidate_id = request.data.get("candidate_id")
@@ -120,7 +121,7 @@ class PersonnelRecordViewSet(viewsets.ModelViewSet):
     def appointment_history(self, request, pk=None):
         personnel = self.get_object()
         rows = personnel.appointment_records.select_related("position").order_by("-created_at")
-        if not is_hr_or_admin_user(request.user):
+        if not has_capability(request.user, CAPABILITY_APPOINTMENT_VIEW_INTERNAL):
             rows = rows.filter(is_public=True)
         data = [
             {

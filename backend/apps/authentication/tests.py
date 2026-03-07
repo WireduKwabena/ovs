@@ -3,6 +3,7 @@ import time
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from django.contrib.auth.models import Group
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.hashers import check_password
 from django.core.signing import Signer
@@ -10,6 +11,7 @@ from django.test import override_settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from apps.authentication.models import User, UserProfile
 from apps.billing.models import BillingSubscription
@@ -205,6 +207,40 @@ class EmailAuthEndpointTests(APITestCase):
         self.assertIn("access", payload["tokens"])
         self.assertIn("refresh", payload["tokens"])
         self.assertEqual(payload["user_type"], "applicant")
+        access_token = AccessToken(payload["tokens"]["access"])
+        refresh_token = RefreshToken(payload["tokens"]["refresh"])
+        self.assertIsNotNone(access_token.get("recent_auth_at"))
+        self.assertIsNotNone(refresh_token.get("recent_auth_at"))
+
+    def test_login_requires_2fa_for_applicant_with_internal_role_group(self):
+        applicant = User.objects.create_user(
+            email="applicant.internal@example.com",
+            password=self.password,
+            first_name="Applicant",
+            last_name="Internal",
+            user_type="applicant",
+        )
+        group, _ = Group.objects.get_or_create(name="vetting_officer")
+        applicant.groups.add(group)
+
+        with patch(
+            "apps.authentication.views.pyotp",
+            SimpleNamespace(random_base32=lambda: "E" * 32),
+        ):
+            response = self.client.post(
+                "/api/auth/login/",
+                {
+                    "email": applicant.email,
+                    "password": self.password,
+                },
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = response.json()
+        self.assertIn("token", payload)
+        self.assertNotIn("tokens", payload)
+        self.assertTrue(payload.get("setup_required"))
 
     def test_login_verify_enables_2fa_and_returns_tokens(self):
         with patch(
@@ -237,6 +273,10 @@ class EmailAuthEndpointTests(APITestCase):
         payload = verify_response.json()
         self.assertIn("tokens", payload)
         self.assertEqual(payload["user_type"], "hr_manager")
+        access_token = AccessToken(payload["tokens"]["access"])
+        refresh_token = RefreshToken(payload["tokens"]["refresh"])
+        self.assertIsNotNone(access_token.get("recent_auth_at"))
+        self.assertIsNotNone(refresh_token.get("recent_auth_at"))
 
         self.user.refresh_from_db()
         self.assertTrue(self.user.is_two_factor_enabled)
@@ -475,6 +515,28 @@ class EmailAuthEndpointTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("token", response.data)
 
+    def test_admin_login_rejects_staff_user_without_admin_role(self):
+        staff_operator = User.objects.create_user(
+            email="staff-operator@example.com",
+            password=self.password,
+            first_name="Staff",
+            last_name="Operator",
+            user_type="hr_manager",
+            is_staff=True,
+        )
+
+        response = self.client.post(
+            "/api/auth/admin/login/",
+            {
+                "email": staff_operator.email,
+                "password": self.password,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("non_field_errors", response.data)
+
     def test_social_login_endpoints_are_disabled(self):
         google = self.client.post("/api/auth/google/login/", {"code": "mock"}, format="json")
         github = self.client.post("/api/auth/github/login/", {"code": "mock"}, format="json")
@@ -675,3 +737,71 @@ class EmailAuthEndpointTests(APITestCase):
         self.assertEqual(response.data["user_type"], "applicant")
         self.assertFalse(response.data["two_factor_required"])
         self.assertTrue(response.data["applicant_exempt"])
+
+    def test_two_factor_status_for_applicant_with_internal_role_requires_2fa(self):
+        applicant = User.objects.create_user(
+            email="status-applicant-internal@example.com",
+            password=self.password,
+            first_name="Status",
+            last_name="ApplicantInternal",
+            user_type="applicant",
+        )
+        group, _ = Group.objects.get_or_create(name="auditor")
+        applicant.groups.add(group)
+        self.client.force_authenticate(user=applicant)
+
+        response = self.client.get("/api/auth/2fa/status/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["user_type"], "applicant")
+        self.assertTrue(response.data["two_factor_required"])
+        self.assertFalse(response.data["applicant_exempt"])
+
+    def test_profile_view_exposes_roles_and_capabilities(self):
+        group, _ = Group.objects.get_or_create(name="vetting_officer")
+        self.user.groups.add(group)
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.get("/api/auth/profile/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("roles", response.data)
+        self.assertIn("capabilities", response.data)
+        self.assertTrue(response.data["is_internal_operator"])
+        self.assertIn("vetting_officer", response.data["roles"])
+        self.assertIn("roles", response.data["user"])
+        self.assertIn("capabilities", response.data["user"])
+
+    def test_profile_roles_do_not_treat_staff_as_admin_by_default(self):
+        staff_operator = User.objects.create_user(
+            email="staff-profile@example.com",
+            password=self.password,
+            first_name="Staff",
+            last_name="Profile",
+            user_type="hr_manager",
+            is_staff=True,
+        )
+        self.client.force_authenticate(user=staff_operator)
+
+        response = self.client.get("/api/auth/profile/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("hr_manager", response.data["roles"])
+        self.assertNotIn("admin", response.data["roles"])
+
+    @override_settings(AUTHZ_STAFF_IMPLIES_ADMIN=True)
+    def test_profile_roles_can_preserve_legacy_staff_admin_mapping(self):
+        staff_operator = User.objects.create_user(
+            email="staff-profile-compat@example.com",
+            password=self.password,
+            first_name="Staff",
+            last_name="Compat",
+            user_type="hr_manager",
+            is_staff=True,
+        )
+        self.client.force_authenticate(user=staff_operator)
+
+        response = self.client.get("/api/auth/profile/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("admin", response.data["roles"])

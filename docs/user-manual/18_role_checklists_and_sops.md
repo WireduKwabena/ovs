@@ -8,7 +8,7 @@
 4. Check billing/webhook error indicators.
 5. Confirm no critical queue backlog.
 
-## 18.2 HR Manager Daily Checklist
+## 18.2 Operations User Daily Checklist
 
 1. Open campaign dashboard and review active workloads.
 2. Confirm pending invitations and follow-ups.
@@ -72,8 +72,7 @@ For support staff handling candidate issues:
 ## 18.9 Defense/Demo-Day Checklist
 
 1. Run service health checks.
-2. Confirm admin and HR login paths.
+2. Confirm admin and operations-user login paths.
 3. Confirm one complete fallback case is available.
 4. Keep backend and worker logs visible.
 5. Follow `DEFENSE_PACK.md` order if interrupted.
-

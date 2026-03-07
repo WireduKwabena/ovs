@@ -25,7 +25,7 @@ export const EmergencyBackupCodesCard: React.FC<EmergencyBackupCodesCardProps> =
   const downloadCodes = () => {
     const timestamp = generatedIso.replace(/[:]/g, "-").slice(0, 19);
     const content = [
-      "OVS + GAMS Backup Recovery Codes",
+      "CAVP Backup Recovery Codes",
       `Generated: ${generatedIso}`,
       "",
       "Store these securely. Each code can be used only once.",
@@ -34,7 +34,7 @@ export const EmergencyBackupCodesCard: React.FC<EmergencyBackupCodesCardProps> =
       "",
     ].join("\n");
 
-    downloadTextFile(content, `ovs-backup-codes-${timestamp}.txt`);
+    downloadTextFile(content, `cavp-backup-codes-${timestamp}.txt`);
     toast.success("Backup codes downloaded.");
   };
 

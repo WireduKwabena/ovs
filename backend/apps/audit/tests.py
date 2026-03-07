@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from django.conf import settings
+from django.contrib.auth.models import Group
 from django.test import RequestFactory
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -58,6 +59,15 @@ class AuditApiTests(APITestCase):
             last_name="HR",
             user_type="hr_manager",
         )
+        self.auditor_user = User.objects.create_user(
+            email="audit-reader@example.com",
+            password="Pass1234!",
+            first_name="Audit",
+            last_name="Reader",
+            user_type="hr_manager",
+        )
+        auditor_group, _ = Group.objects.get_or_create(name="auditor")
+        self.auditor_user.groups.add(auditor_group)
 
         self.log_own = AuditLog.objects.create(
             user=self.applicant_user,
@@ -113,6 +123,13 @@ class AuditApiTests(APITestCase):
         response = self.client.get("/api/audit/logs/")
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_auditor_role_can_access_audit_logs(self):
+        self.client.force_authenticate(self.auditor_user)
+        response = self.client.get("/api/audit/logs/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 6)
 
     def test_admin_sees_all_logs(self):
         self.client.force_authenticate(self.admin_user)
@@ -270,6 +287,11 @@ class AuditApiTests(APITestCase):
         self.client.force_authenticate(self.hr_user)
         denied = self.client.get("/api/audit/logs/event_catalog/")
         self.assertEqual(denied.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_event_catalog_allows_auditor_role(self):
+        self.client.force_authenticate(self.auditor_user)
+        response = self.client.get("/api/audit/logs/event_catalog/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_event_catalog_returns_stable_contract(self):
         self.client.force_authenticate(self.admin_user)

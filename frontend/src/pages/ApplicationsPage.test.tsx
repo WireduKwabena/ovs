@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
   refetch: vi.fn(),
   authState: {
     isHrOrAdmin: false,
-    isApplicant: false,
     isAdmin: false,
   },
 }));
@@ -39,18 +38,7 @@ describe("ApplicationsPage scope fetching", () => {
     cleanup();
     mocks.refetch.mockReset();
     mocks.authState.isHrOrAdmin = false;
-    mocks.authState.isApplicant = false;
     mocks.authState.isAdmin = false;
-  });
-
-  it("fetches applicant scope as mine", async () => {
-    mocks.authState.isApplicant = true;
-
-    renderPage("/applications");
-
-    await waitFor(() => {
-      expect(mocks.refetch).toHaveBeenCalledWith({ scope: "mine" });
-    });
   });
 
   it("fetches admin scope as all", async () => {
@@ -84,4 +72,3 @@ describe("ApplicationsPage scope fetching", () => {
     });
   });
 });
-

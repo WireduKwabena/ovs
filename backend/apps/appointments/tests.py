@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from uuid import uuid4
 from unittest.mock import patch
 
@@ -6,6 +6,7 @@ from django.conf import settings
 from django.contrib.auth.models import Group
 from django.db import IntegrityError, transaction
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from apps.audit.contracts import (
@@ -21,6 +22,10 @@ from apps.audit.contracts import (
     APPOINTMENT_VETTING_LINKAGE_ENSURED_EVENT,
 )
 from apps.authentication.models import User
+from apps.authentication.permissions import (
+    RECENT_AUTH_REQUIRED_CODE,
+    RECENT_AUTH_SESSION_KEY,
+)
 from apps.campaigns.models import VettingCampaign
 from apps.candidates.models import Candidate, CandidateEnrollment
 from apps.applications.models import VettingCase
@@ -643,11 +648,25 @@ class AppointmentPublicApiTests(APITestCase):
             last_name="User",
             user_type="hr_manager",
         )
+        self.committee_chair_user = User.objects.create_user(
+            email="committee.chair@example.com",
+            password="Pass1234!",
+            first_name="Committee",
+            last_name="Chair",
+            user_type="hr_manager",
+        )
         self.authority_user = User.objects.create_user(
             email="authority.user@example.com",
             password="Pass1234!",
             first_name="Authority",
             last_name="User",
+            user_type="hr_manager",
+        )
+        self.publication_user = User.objects.create_user(
+            email="publication.user@example.com",
+            password="Pass1234!",
+            first_name="Publication",
+            last_name="Officer",
             user_type="hr_manager",
         )
         self.applicant_user = User.objects.create_user(
@@ -659,10 +678,14 @@ class AppointmentPublicApiTests(APITestCase):
         )
         self.vetting_group, _ = Group.objects.get_or_create(name="vetting_officer")
         self.committee_group, _ = Group.objects.get_or_create(name="committee_member")
+        self.committee_chair_group, _ = Group.objects.get_or_create(name="committee_chair")
         self.authority_group, _ = Group.objects.get_or_create(name="appointing_authority")
+        self.publication_group, _ = Group.objects.get_or_create(name="publication_officer")
         self.vetting_user.groups.add(self.vetting_group)
         self.committee_user.groups.add(self.committee_group)
+        self.committee_chair_user.groups.add(self.committee_chair_group)
         self.authority_user.groups.add(self.authority_group)
+        self.publication_user.groups.add(self.publication_group)
         self._nominee_seq = 0
 
     def _build_nominee(self):
@@ -678,6 +701,20 @@ class AppointmentPublicApiTests(APITestCase):
             linked_candidate=candidate,
             is_public=True,
         )
+
+    def _authenticate_with_recent_auth(self, user: User, *, age_seconds: int = 0):
+        self.client.force_authenticate(user)
+        session = self.client.session
+        session[RECENT_AUTH_SESSION_KEY] = int(
+            (timezone.now() - timedelta(seconds=max(age_seconds, 0))).timestamp()
+        )
+        session.save()
+
+    def _authenticate_without_recent_auth(self, user: User):
+        self.client.force_authenticate(user)
+        session = self.client.session
+        session.pop(RECENT_AUTH_SESSION_KEY, None)
+        session.save()
 
     def _extract_results(self, response):
         payload = response.json()
@@ -726,7 +763,7 @@ class AppointmentPublicApiTests(APITestCase):
     def _publish_record(self, *, record: AppointmentRecord | None = None, actor: User | None = None):
         target = record or self.record
         publisher = actor or self.authority_user
-        self.client.force_authenticate(publisher)
+        self._authenticate_with_recent_auth(publisher)
         return self.client.post(
             f"/api/appointments/records/{target.id}/publish/",
             {
@@ -949,15 +986,32 @@ class AppointmentPublicApiTests(APITestCase):
         denied = self.client.post(f"/api/appointments/records/{self.record.id}/appoint/", {}, format="json")
         self.assertEqual(denied.status_code, 403)
 
-        self.client.force_authenticate(self.authority_user)
+        self._authenticate_with_recent_auth(self.authority_user)
         allowed = self.client.post(f"/api/appointments/records/{self.record.id}/appoint/", {}, format="json")
         self.assertEqual(allowed.status_code, 200)
+
+    def test_appoint_endpoint_rejects_staff_without_admin_or_authority_role(self):
+        self.record.status = "committee_review"
+        self.record.save(update_fields=["status", "updated_at"])
+
+        staff_operator = User.objects.create_user(
+            email="staff.operator.appoint@example.com",
+            password="Pass1234!",
+            first_name="Staff",
+            last_name="Operator",
+            user_type="hr_manager",
+            is_staff=True,
+        )
+        self._authenticate_with_recent_auth(staff_operator)
+
+        denied = self.client.post(f"/api/appointments/records/{self.record.id}/appoint/", {}, format="json")
+        self.assertEqual(denied.status_code, 403)
 
     def test_appoint_emits_final_decision_audit_and_notifications(self):
         self.record.status = "committee_review"
         self.record.save(update_fields=["status", "updated_at"])
 
-        self.client.force_authenticate(self.authority_user)
+        self._authenticate_with_recent_auth(self.authority_user)
         response = self.client.post(f"/api/appointments/records/{self.record.id}/appoint/", {}, format="json")
         self.assertEqual(response.status_code, 200)
         self._assert_audit_event_exists(
@@ -966,6 +1020,19 @@ class AppointmentPublicApiTests(APITestCase):
         )
         self.assertGreater(self._notification_count_for_event(event_type="appointment_approved"), 0)
         self.assertGreater(self._notification_count_for_event(event_type="appointment_appointed"), 0)
+
+    def test_appoint_requires_recent_auth_for_authorized_actor(self):
+        self.record.status = "committee_review"
+        self.record.save(update_fields=["status", "updated_at"])
+
+        self._authenticate_without_recent_auth(self.authority_user)
+        denied = self.client.post(f"/api/appointments/records/{self.record.id}/appoint/", {}, format="json")
+        self.assertEqual(denied.status_code, 403)
+        self.assertEqual((denied.json() or {}).get("code"), RECENT_AUTH_REQUIRED_CODE)
+
+        self._authenticate_with_recent_auth(self.authority_user)
+        allowed = self.client.post(f"/api/appointments/records/{self.record.id}/appoint/", {}, format="json")
+        self.assertEqual(allowed.status_code, 200)
 
     def test_advance_stage_requires_stage_actor_group(self):
         self.record.status = "under_vetting"
@@ -1013,6 +1080,18 @@ class AppointmentPublicApiTests(APITestCase):
             ),
             0,
         )
+
+    def test_committee_chair_can_advance_committee_stage(self):
+        self.record.status = "under_vetting"
+        self.record.save(update_fields=["status", "updated_at"])
+
+        self.client.force_authenticate(self.committee_chair_user)
+        response = self.client.post(
+            f"/api/appointments/records/{self.record.id}/advance-stage/",
+            {"status": "committee_review"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
 
     def test_advance_stage_requires_stage_id_when_template_requires_status(self):
         template = ApprovalStageTemplate.objects.create(
@@ -1100,7 +1179,7 @@ class AppointmentPublicApiTests(APITestCase):
         self.record.status = "committee_review"
         self.record.save(update_fields=["status", "updated_at"])
 
-        self.client.force_authenticate(self.authority_user)
+        self._authenticate_with_recent_auth(self.authority_user)
         denied = self.client.post(
             f"/api/appointments/records/{self.record.id}/appoint/",
             {},
@@ -1151,6 +1230,57 @@ class AppointmentPublicApiTests(APITestCase):
             expected_event=APPOINTMENT_PUBLICATION_PUBLISHED_EVENT,
         )
 
+    def test_publish_and_revoke_allow_publication_officer(self):
+        self.client.force_authenticate(self.ordinary_hr_user)
+        denied_publish = self.client.post(
+            f"/api/appointments/records/{self.record.id}/publish/",
+            {"publication_reference": "GOV-GAZ-DENIED", "publication_document_hash": "a" * 64},
+            format="json",
+        )
+        self.assertEqual(denied_publish.status_code, 403)
+
+        self._authenticate_with_recent_auth(self.publication_user)
+        publish = self.client.post(
+            f"/api/appointments/records/{self.record.id}/publish/",
+            {
+                "publication_reference": "GOV-GAZ-PUBROLE",
+                "publication_document_hash": "a" * 64,
+            },
+            format="json",
+        )
+        self.assertEqual(publish.status_code, 200)
+
+        revoke = self.client.post(
+            f"/api/appointments/records/{self.record.id}/revoke-publication/",
+            {"revocation_reason": "Publication correction", "make_private": True},
+            format="json",
+        )
+        self.assertEqual(revoke.status_code, 200)
+
+    def test_publish_requires_recent_auth_for_authorized_actor(self):
+        self._authenticate_without_recent_auth(self.publication_user)
+        denied = self.client.post(
+            f"/api/appointments/records/{self.record.id}/publish/",
+            {
+                "publication_reference": "GOV-GAZ-STEPUP",
+                "publication_document_hash": "a" * 64,
+            },
+            format="json",
+        )
+        self.assertEqual(denied.status_code, 403)
+        self.assertEqual((denied.json() or {}).get("code"), RECENT_AUTH_REQUIRED_CODE)
+
+        self._authenticate_with_recent_auth(self.publication_user)
+        allowed = self.client.post(
+            f"/api/appointments/records/{self.record.id}/publish/",
+            {
+                "publication_reference": "GOV-GAZ-STEPUP-OK",
+                "publication_document_hash": "a" * 64,
+            },
+            format="json",
+        )
+        self.assertEqual(allowed.status_code, 200)
+
     def test_repeated_publish_does_not_duplicate_publication_notifications(self):
         first = self._publish_record()
         self.assertEqual(first.status_code, 200)
@@ -1172,7 +1302,7 @@ class AppointmentPublicApiTests(APITestCase):
         before_ids = {str(item["id"]) for item in feed_before.json()}
         self.assertIn(str(self.record.id), before_ids)
 
-        self.client.force_authenticate(self.authority_user)
+        self._authenticate_with_recent_auth(self.authority_user)
         revoke_response = self.client.post(
             f"/api/appointments/records/{self.record.id}/revoke-publication/",
             {"revocation_reason": "Court injunction pending review.", "make_private": True},
@@ -1199,6 +1329,27 @@ class AppointmentPublicApiTests(APITestCase):
         self.assertEqual(feed_after.status_code, 200)
         after_ids = {str(item["id"]) for item in feed_after.json()}
         self.assertNotIn(str(self.record.id), after_ids)
+
+    def test_revoke_publication_requires_recent_auth_for_authorized_actor(self):
+        publish_response = self._publish_record(actor=self.authority_user)
+        self.assertEqual(publish_response.status_code, 200)
+
+        self._authenticate_with_recent_auth(self.authority_user, age_seconds=3600)
+        denied_stale = self.client.post(
+            f"/api/appointments/records/{self.record.id}/revoke-publication/",
+            {"revocation_reason": "Stale auth should be rejected.", "make_private": True},
+            format="json",
+        )
+        self.assertEqual(denied_stale.status_code, 403)
+        self.assertEqual((denied_stale.json() or {}).get("code"), RECENT_AUTH_REQUIRED_CODE)
+
+        self._authenticate_with_recent_auth(self.authority_user)
+        allowed = self.client.post(
+            f"/api/appointments/records/{self.record.id}/revoke-publication/",
+            {"revocation_reason": "Fresh auth accepted.", "make_private": True},
+            format="json",
+        )
+        self.assertEqual(allowed.status_code, 200)
 
     def test_public_endpoints_exclude_unpublished_records_even_if_marked_public(self):
         nominee = self._build_nominee()

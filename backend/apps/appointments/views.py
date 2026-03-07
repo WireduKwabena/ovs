@@ -16,10 +16,16 @@ except Exception:  # pragma: no cover - audit app may be optional in some setups
     def log_event(**kwargs):  # type: ignore
         return False
 
-from apps.core.permissions import IsHRManagerOrAdmin
+from apps.core.permissions import IsGovernmentWorkflowOperator
+from apps.authentication.permissions import RequiresRecentAuth
 
 from .models import AppointmentRecord, ApprovalStage, ApprovalStageTemplate
-from .permissions import IsAppointingAuthorityOrAdmin, IsCommitteeMemberOrAdmin, IsStageActorOrAdmin
+from .permissions import (
+    IsAppointingAuthorityOrAdmin,
+    IsCommitteeMemberOrAdmin,
+    IsPublicationOfficerOrAuthorityOrAdmin,
+    IsStageActorOrAdmin,
+)
 from .serializers import (
     AppointmentAdvanceStageSerializer,
     AppointmentPublicationSerializer,
@@ -48,7 +54,7 @@ from .services import (
 class ApprovalStageTemplateViewSet(viewsets.ModelViewSet):
     queryset = ApprovalStageTemplate.objects.prefetch_related("stages").all()
     serializer_class = ApprovalStageTemplateSerializer
-    permission_classes = [IsHRManagerOrAdmin]
+    permission_classes = [IsGovernmentWorkflowOperator]
     filterset_fields = ["exercise_type"]
     search_fields = ["name", "exercise_type"]
     ordering_fields = ["name", "created_at"]
@@ -60,7 +66,7 @@ class ApprovalStageTemplateViewSet(viewsets.ModelViewSet):
 class ApprovalStageViewSet(viewsets.ModelViewSet):
     queryset = ApprovalStage.objects.select_related("template").all()
     serializer_class = ApprovalStageSerializer
-    permission_classes = [IsHRManagerOrAdmin]
+    permission_classes = [IsGovernmentWorkflowOperator]
     filterset_fields = ["template", "required_role", "maps_to_status", "is_required"]
     search_fields = ["name", "required_role", "maps_to_status"]
     ordering_fields = ["order", "name"]
@@ -77,7 +83,7 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
         "publication",
     ).prefetch_related("stage_actions")
     serializer_class = AppointmentRecordSerializer
-    permission_classes = [IsHRManagerOrAdmin]
+    permission_classes = [IsGovernmentWorkflowOperator]
     filterset_fields = [
         "status",
         "is_public",
@@ -186,7 +192,12 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(appointment)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=["post"], permission_classes=[IsAppointingAuthorityOrAdmin], url_path="appoint")
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsAppointingAuthorityOrAdmin, RequiresRecentAuth],
+        url_path="appoint",
+    )
     def appoint(self, request, pk=None):
         appointment = self.get_object()
         stage = None
@@ -266,7 +277,12 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
         serializer = AppointmentStageActionSerializer(rows, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=["post"], permission_classes=[IsAppointingAuthorityOrAdmin], url_path="publish")
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsPublicationOfficerOrAuthorityOrAdmin, RequiresRecentAuth],
+        url_path="publish",
+    )
     def publish(self, request, pk=None):
         appointment = self.get_object()
         payload = AppointmentPublishSerializer(data=request.data)
@@ -291,7 +307,7 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
     @action(
         detail=True,
         methods=["post"],
-        permission_classes=[IsAppointingAuthorityOrAdmin],
+        permission_classes=[IsPublicationOfficerOrAuthorityOrAdmin, RequiresRecentAuth],
         url_path="revoke-publication",
     )
     def revoke_publication(self, request, pk=None):
@@ -312,7 +328,7 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
 
         return Response(AppointmentPublicationSerializer(publication).data, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=["get"], permission_classes=[IsHRManagerOrAdmin], url_path="publication")
+    @action(detail=True, methods=["get"], permission_classes=[IsGovernmentWorkflowOperator], url_path="publication")
     def publication_detail(self, request, pk=None):
         appointment = self.get_object()
         publication = ensure_publication_record_for_appointment(appointment=appointment)

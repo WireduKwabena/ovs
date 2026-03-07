@@ -1,7 +1,7 @@
-# OVS + GAMS End-User Manual (Task Guide)
+# CAVP End-User Manual (Task Guide)
 
 Version: 2.0  
-Audience: Applicants, HR Managers, Government Appointment Actors, and Admins  
+Audience: Applicants, Operations Users, Government Appointment Actors, and Admins  
 Last Updated: March 7, 2026
 
 ---
@@ -60,8 +60,8 @@ docker compose exec backend python manage.py setup_demo
 
 ### 0.5 Key talking points (say these explicitly)
 
-1. OVS modules are preserved.
-2. GAMS adds governed appointment lifecycle.
+1. CAVP preserves vetting modules and governance controls.
+2. Government appointment lifecycle is governed and traceable.
 3. AI is advisory only; humans remain final authority.
 4. Critical actions are visible in notifications and audit logs.
 
@@ -107,7 +107,7 @@ This is not an API or developer manual.
 Access is role-based.
 
 - Applicants cannot access admin, campaign management, or government registry pages.
-- HR Managers and Admins can access vetting + government workflow pages.
+- Operations users and admins can access vetting + government workflow pages.
 - Some actions (for example final appointment decision and publication) require appointing-authority/admin rights.
 
 ---
@@ -124,7 +124,7 @@ Primary pages:
 - `/candidate/access` (invitation portal)
 - `/notifications`
 
-### 3.2 HR Manager
+### 3.2 Operations User
 
 Primary pages:
 
@@ -238,7 +238,7 @@ Typical timeline states you will see:
 
 ---
 
-## 6) HR Task Guide (Vetting Operations)
+## 6) Operations Task Guide (Vetting Operations)
 
 ### 6.1 Create and Run a Campaign
 

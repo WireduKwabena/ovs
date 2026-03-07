@@ -1,7 +1,13 @@
 export type AuthUserType = "applicant" | "hr_manager" | "admin" | null | undefined;
 
 export const getDashboardPathForUser = (userType: AuthUserType): string => {
-  return userType === "admin" ? "/admin/dashboard" : "/dashboard";
+  if (userType === "admin") {
+    return "/admin/dashboard";
+  }
+  if (userType === "applicant") {
+    return "/candidate/access";
+  }
+  return "/dashboard";
 };
 
 export const hasActiveTwoFactorChallenge = (

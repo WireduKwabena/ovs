@@ -8,7 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 
-from apps.authentication.permissions import IsAdminUser
+from apps.core.permissions import IsAuditReaderOrAdmin
 
 from .contracts import GOVERNMENT_AUDIT_EVENT_CATALOG
 from .models import AuditLog
@@ -40,7 +40,7 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = AuditLog.objects.select_related("user", "admin_user").all()
     serializer_class = AuditLogSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAuditReaderOrAdmin]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class = AuditLogFilter
     search_fields = ['entity_type', 'changes']

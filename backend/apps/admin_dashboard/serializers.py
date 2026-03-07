@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from apps.applications.models import VettingCase
 from apps.authentication.models import User
+from apps.core.authz import GOVERNMENT_ROLE_GROUPS
 
 
 class VettingCaseAdminSerializer(serializers.ModelSerializer):
@@ -118,6 +119,7 @@ class AdminCasesResponseSerializer(serializers.Serializer):
 
 class AdminManagedUserSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
+    group_roles = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -132,6 +134,7 @@ class AdminManagedUserSerializer(serializers.ModelSerializer):
             "is_staff",
             "is_superuser",
             "is_two_factor_enabled",
+            "group_roles",
             "last_login",
             "created_at",
             "updated_at",
@@ -141,6 +144,10 @@ class AdminManagedUserSerializer(serializers.ModelSerializer):
         if hasattr(obj, "get_full_name"):
             return obj.get_full_name()
         return f"{obj.first_name} {obj.last_name}".strip() or obj.email
+
+    def get_group_roles(self, obj) -> list[str]:
+        names = set(obj.groups.values_list("name", flat=True))
+        return sorted(names.intersection(GOVERNMENT_ROLE_GROUPS))
 
 
 class AdminUsersResponseSerializer(serializers.Serializer):
@@ -160,4 +167,9 @@ class AdminUserUpdateRequestSerializer(serializers.Serializer):
     is_active = serializers.BooleanField(required=False)
     is_staff = serializers.BooleanField(required=False)
     reset_two_factor = serializers.BooleanField(required=False, default=False)
+    group_roles = serializers.ListField(
+        child=serializers.ChoiceField(choices=sorted(GOVERNMENT_ROLE_GROUPS)),
+        required=False,
+        allow_empty=True,
+    )
 

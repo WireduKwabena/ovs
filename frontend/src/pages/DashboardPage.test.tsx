@@ -19,8 +19,8 @@ vi.mock("@/hooks/useApplications", () => ({
   }),
 }));
 
-vi.mock("@/pages/HrDashboardPage", () => ({
-  default: () => <div>HR Dashboard Page</div>,
+vi.mock("@/pages/OperationsDashboardPage", () => ({
+  default: () => <div>Operations Dashboard Page</div>,
 }));
 
 describe("DashboardPage role routing", () => {
@@ -44,7 +44,7 @@ describe("DashboardPage role routing", () => {
     expect(await screen.findByText("Admin Dashboard Page")).toBeTruthy();
   });
 
-  it("renders HR dashboard when user type is hr_manager", async () => {
+  it("renders operations dashboard when user type is hr_manager", async () => {
     mockUseAuth.mockReturnValue({ userType: "hr_manager" });
 
     render(
@@ -55,6 +55,22 @@ describe("DashboardPage role routing", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText("HR Dashboard Page")).toBeTruthy();
+    expect(await screen.findByText("Operations Dashboard Page")).toBeTruthy();
+  });
+
+  it("redirects applicant users to candidate access", async () => {
+    mockUseAuth.mockReturnValue({ userType: "applicant" });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Routes>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/candidate/access" element={<div>Candidate Access Page</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Candidate Access Page")).toBeTruthy();
   });
 });
+

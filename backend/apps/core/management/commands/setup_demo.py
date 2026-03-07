@@ -15,7 +15,15 @@ from apps.personnel.models import PersonnelRecord
 from apps.positions.models import GovernmentPosition
 
 
-APPOINTMENT_ROLE_GROUPS = ("vetting_officer", "committee_member", "appointing_authority", "registry_admin")
+APPOINTMENT_ROLE_GROUPS = (
+    "vetting_officer",
+    "committee_member",
+    "committee_chair",
+    "appointing_authority",
+    "registry_admin",
+    "publication_officer",
+    "auditor",
+)
 ACTIVE_APPOINTMENT_STATUSES = {
     "nominated",
     "under_vetting",
@@ -45,6 +53,12 @@ class Command(BaseCommand):
         parser.add_argument("--registry-email", default="gams.registry@demo.local")
         parser.add_argument("--registry-password", default="DemoRegistry123!")
 
+        parser.add_argument("--publication-email", default="gams.publication@demo.local")
+        parser.add_argument("--publication-password", default="DemoPublication123!")
+
+        parser.add_argument("--auditor-email", default="gams.auditor@demo.local")
+        parser.add_argument("--auditor-password", default="DemoAuditor123!")
+
         parser.add_argument(
             "--skip-sample-data",
             action="store_true",
@@ -69,6 +83,8 @@ class Command(BaseCommand):
         self.stdout.write(f"  Committee: {options['committee_email']} / {options['committee_password']}")
         self.stdout.write(f"  Authority: {options['authority_email']} / {options['authority_password']}")
         self.stdout.write(f"  Registry:  {options['registry_email']} / {options['registry_password']}")
+        self.stdout.write(f"  Publication: {options['publication_email']} / {options['publication_password']}")
+        self.stdout.write(f"  Auditor:  {options['auditor_email']} / {options['auditor_password']}")
 
     def _ensure_sample_data_schema_ready(self) -> None:
         required_tables = {
@@ -115,7 +131,7 @@ class Command(BaseCommand):
             first_name="Vetting",
             last_name="Officer",
             user_type="hr_manager",
-            is_staff=True,
+            is_staff=False,
             is_superuser=False,
             organization="Appointments Secretariat",
             department="Vetting",
@@ -128,7 +144,7 @@ class Command(BaseCommand):
             first_name="Committee",
             last_name="Member",
             user_type="hr_manager",
-            is_staff=True,
+            is_staff=False,
             is_superuser=False,
             organization="Parliamentary Appointments Committee",
             department="Review",
@@ -141,7 +157,7 @@ class Command(BaseCommand):
             first_name="Appointing",
             last_name="Authority",
             user_type="hr_manager",
-            is_staff=True,
+            is_staff=False,
             is_superuser=False,
             organization="Office of the President",
             department="Executive",
@@ -154,12 +170,38 @@ class Command(BaseCommand):
             first_name="Registry",
             last_name="Officer",
             user_type="hr_manager",
-            is_staff=True,
+            is_staff=False,
             is_superuser=False,
             organization="Gazette and Records Office",
             department="Records",
         )
         registry_user.groups.add(groups["registry_admin"])
+
+        publication_user = self._upsert_user(
+            email=options["publication_email"],
+            password=options["publication_password"],
+            first_name="Publication",
+            last_name="Officer",
+            user_type="hr_manager",
+            is_staff=False,
+            is_superuser=False,
+            organization="Gazette and Records Office",
+            department="Publication",
+        )
+        publication_user.groups.add(groups["publication_officer"])
+
+        auditor_user = self._upsert_user(
+            email=options["auditor_email"],
+            password=options["auditor_password"],
+            first_name="Government",
+            last_name="Auditor",
+            user_type="hr_manager",
+            is_staff=False,
+            is_superuser=False,
+            organization="Audit Service",
+            department="Compliance",
+        )
+        auditor_user.groups.add(groups["auditor"])
 
         return {
             "admin": admin_user,
@@ -167,6 +209,8 @@ class Command(BaseCommand):
             "committee": committee_user,
             "authority": authority_user,
             "registry": registry_user,
+            "publication": publication_user,
+            "auditor": auditor_user,
         }
 
     def _upsert_user(

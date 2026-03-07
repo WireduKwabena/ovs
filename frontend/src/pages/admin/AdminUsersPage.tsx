@@ -15,6 +15,11 @@ type UserTypeFilter = "all" | "admin" | "hr_manager" | "applicant";
 type ActiveFilter = "all" | "active" | "inactive";
 
 const PAGE_SIZE = 20;
+const USER_TYPE_LABELS: Record<Exclude<UserTypeFilter, "all">, string> = {
+  admin: "Admin",
+  hr_manager: "Operations User",
+  applicant: "Applicant",
+};
 
 const parsePage = (value: string | null): number => {
   const parsed = Number(value);
@@ -36,6 +41,13 @@ const parseActiveFilter = (value: string | null): ActiveFilter => {
     return "inactive";
   }
   return "all";
+};
+
+const formatUserTypeFilter = (value: UserTypeFilter): string => {
+  if (value === "all") {
+    return "All";
+  }
+  return USER_TYPE_LABELS[value];
 };
 
 const AdminUsersPage: React.FC = () => {
@@ -194,7 +206,7 @@ const AdminUsersPage: React.FC = () => {
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="hr_manager">HR Manager</SelectItem>
+                  <SelectItem value="hr_manager">Operations User</SelectItem>
                   <SelectItem value="applicant">Applicant</SelectItem>
                 </SelectContent>
               </Select>
@@ -247,7 +259,7 @@ const AdminUsersPage: React.FC = () => {
                     onClick={() => updateQuery({ user_type: null })}
                     className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800 hover:bg-slate-200"
                   >
-                    User Type: {userTypeFilter} x
+                    User Type: {formatUserTypeFilter(userTypeFilter)} x
                   </button>
                 ) : null}
                 {isActiveFilterActive ? (
@@ -340,7 +352,7 @@ const AdminUsersPage: React.FC = () => {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="hr_manager">HR Manager</SelectItem>
+                              <SelectItem value="hr_manager">Operations User</SelectItem>
                               <SelectItem value="applicant">Applicant</SelectItem>
                             </SelectContent>
                           </Select>

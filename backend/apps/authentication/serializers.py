@@ -7,6 +7,7 @@ from django.contrib.auth import authenticate
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from apps.authentication.models import User, UserProfile
+from apps.core.authz import ROLE_ADMIN, get_user_capabilities, get_user_roles, has_role, is_internal_operator
 
 USER_TYPE_CHOICES = User.USER_TYPE_CHOICES
 
@@ -14,12 +15,16 @@ class UserSerializer(serializers.ModelSerializer):
     """Serializer for regular users (applicants)"""
     full_name = serializers.CharField(source='get_full_name', read_only=True)
     profile = serializers.SerializerMethodField(read_only=True)
+    roles = serializers.SerializerMethodField(read_only=True)
+    capabilities = serializers.SerializerMethodField(read_only=True)
+    is_internal_operator = serializers.SerializerMethodField(read_only=True)
     
     class Meta:
         model = User
         fields = [
             'id', 'email', 'first_name', 'last_name', 'full_name', 'phone_number',
-            'organization', 'department', 'user_type', 'is_active', 'is_staff', 'is_superuser', 'created_at', 'profile'
+            'organization', 'department', 'user_type', 'is_active', 'is_staff', 'is_superuser', 'created_at',
+            'profile', 'roles', 'capabilities', 'is_internal_operator'
         ]
         read_only_fields = ['id', 'created_at', 'user_type', 'is_active', 'is_staff', 'is_superuser']
 
@@ -28,6 +33,15 @@ class UserSerializer(serializers.ModelSerializer):
         if profile is None:
             return None
         return UserProfileSerializer(profile, context=self.context).data
+
+    def get_roles(self, obj) -> list[str]:
+        return sorted(get_user_roles(obj))
+
+    def get_capabilities(self, obj) -> list[str]:
+        return sorted(get_user_capabilities(obj))
+
+    def get_is_internal_operator(self, obj) -> bool:
+        return bool(is_internal_operator(obj))
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -67,12 +81,16 @@ class AdminUserSerializer(serializers.ModelSerializer):
     role_display = serializers.CharField(source='get_user_type_display', read_only=True)
     full_name = serializers.CharField(source='get_full_name', read_only=True)
     profile = serializers.SerializerMethodField(read_only=True)
+    roles = serializers.SerializerMethodField(read_only=True)
+    capabilities = serializers.SerializerMethodField(read_only=True)
+    is_internal_operator = serializers.SerializerMethodField(read_only=True)
     
     class Meta:
         model = User
         fields = [
             'id', 'email', 'first_name', 'last_name', 'full_name', 'phone_number',
-            'organization', 'department', 'user_type', 'role_display', 'is_active', 'is_staff', 'is_superuser', 'created_at', 'profile'
+            'organization', 'department', 'user_type', 'role_display', 'is_active', 'is_staff', 'is_superuser',
+            'created_at', 'profile', 'roles', 'capabilities', 'is_internal_operator'
         ]
         read_only_fields = ['id', 'created_at', 'user_type', 'is_active', 'is_staff', 'is_superuser']
 
@@ -81,6 +99,15 @@ class AdminUserSerializer(serializers.ModelSerializer):
         if profile is None:
             return None
         return UserProfileSerializer(profile, context=self.context).data
+
+    def get_roles(self, obj) -> list[str]:
+        return sorted(get_user_roles(obj))
+
+    def get_capabilities(self, obj) -> list[str]:
+        return sorted(get_user_capabilities(obj))
+
+    def get_is_internal_operator(self, obj) -> bool:
+        return bool(is_internal_operator(obj))
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -195,7 +222,7 @@ class AdminLoginSerializer(serializers.Serializer):
 
         if email and password:
             user = authenticate(request=self.context.get('request'), email=email, password=password)
-            if not user or not user.is_staff:
+            if not user or not has_role(user, ROLE_ADMIN):
                 raise serializers.ValidationError('Invalid credentials or not an admin user.', code='authorization')
         else:
             raise serializers.ValidationError('Email and password are required.', code='authorization')
@@ -319,6 +346,9 @@ class TwoFactorStatusResponseSerializer(serializers.Serializer):
 class ProfileResponseSerializer(serializers.Serializer):
     user = serializers.DictField()
     user_type = serializers.ChoiceField(choices=USER_TYPE_CHOICES)
+    roles = serializers.ListField(child=serializers.CharField(), required=False)
+    capabilities = serializers.ListField(child=serializers.CharField(), required=False)
+    is_internal_operator = serializers.BooleanField(required=False)
 
 
 

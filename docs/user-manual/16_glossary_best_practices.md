@@ -16,7 +16,7 @@
 
 ## 16.2 User Best Practices
 
-### For HR Managers
+### For Operations Users
 
 1. Activate rubric before importing candidates.
 2. Validate data quality during import.
@@ -70,4 +70,3 @@ To keep this manual accurate:
 3. Review role behavior whenever auth or permissions are modified.
 4. Review billing and provider sections whenever integrations change.
 5. Version user manual updates alongside release tags.
-

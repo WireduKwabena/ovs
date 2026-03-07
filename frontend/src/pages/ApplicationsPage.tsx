@@ -1,11 +1,10 @@
 // src/pages/ApplicationsPage.tsx
 import React, { useEffect, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { Plus, Search, Filter, Info } from "lucide-react";
+import { Search, Filter, Info } from "lucide-react";
 import { useApplications } from "@/hooks/useApplications";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Loader } from "@/components/common/Loader";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldLabel } from "@/components/common/FieldHelp";
 import {
@@ -22,10 +21,10 @@ export const ApplicationsPage: React.FC = () => {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { applications, loading, refetch } = useApplications();
-  const { isHrOrAdmin, isApplicant, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
 
   const isAdminView = location.pathname.startsWith("/admin");
-  const isCaseManagerView = isAdminView || (isHrOrAdmin && !isApplicant);
+  const isCaseManagerView = true;
   const isValidStatusParam = (value: string | null): value is "pending" | "under_review" | "approved" | "rejected" =>
     value === "pending" || value === "under_review" || value === "approved" || value === "rejected";
   const isValidScopeParam = (value: string | null): value is "all" | "assigned" =>
@@ -35,20 +34,16 @@ export const ApplicationsPage: React.FC = () => {
   const statusFromQuery = searchParams.get("status");
   const statusFilter = isValidStatusParam(statusFromQuery) ? statusFromQuery : "all";
   const scopeFromQuery = searchParams.get("scope");
-  const canChooseScope = !isApplicant && !isAdminView && !isAdmin;
+  const canChooseScope = !isAdminView && !isAdmin;
   const scopeFilter = canChooseScope && isValidScopeParam(scopeFromQuery) ? scopeFromQuery : "assigned";
 
   useEffect(() => {
-    if (isApplicant) {
-      refetch({ scope: "mine" });
-      return;
-    }
     if (isAdmin || isAdminView) {
       refetch({ scope: "all" });
       return;
     }
     refetch({ scope: scopeFilter });
-  }, [refetch, isApplicant, isAdmin, isAdminView, scopeFilter]);
+  }, [refetch, isAdmin, isAdminView, scopeFilter]);
 
   const handleStatusChange = (value: string) => {
     const nextParams = new URLSearchParams(searchParams);
@@ -87,25 +82,14 @@ export const ApplicationsPage: React.FC = () => {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
-              {isCaseManagerView ? "Vetting Cases" : "My Applications"}
+              {isCaseManagerView ? "Vetting Cases" : "Applications"}
             </h1>
             <p className="mt-1 text-slate-700">
               {isCaseManagerView
                 ? "Review and manage submitted vetting cases"
-                : "Track and manage your vetting applications"}
+                : "Review and manage submitted applications"}
             </p>
           </div>
-          {!isAdminView && isApplicant && (
-            <Button asChild>
-              <Link
-                to="/applications/new"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-              >
-                <Plus className="w-5 h-5" />
-                New Application
-              </Link>
-            </Button>
-          )}
         </div>
 
         {/* Filters */}
@@ -198,19 +182,8 @@ export const ApplicationsPage: React.FC = () => {
             <p className="mb-6 text-slate-700">
               {searchTerm || statusFilter !== "all"
                 ? "Try adjusting your filters"
-                : "Get started by creating your first application"}
+                : "No cases match the current scope."}
             </p>
-            {!isAdminView && isApplicant && !searchTerm && statusFilter === "all" && (
-              <Button asChild>
-                <Link
-                  to="/applications/new"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                >
-                  <Plus className="w-5 h-5" />
-                  Create Application
-                </Link>
-              </Button>
-            )}
           </div>
         ) : (
           <div className="grid gap-6">

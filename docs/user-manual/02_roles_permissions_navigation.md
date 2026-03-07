@@ -62,9 +62,9 @@ Typical admin routes:
 - `/ml-monitoring`
 - `/ai-monitor`
 
-## 2.5 HR Manager Responsibilities
+## 2.5 Operations User Responsibilities
 
-HR Managers can:
+Operations users can:
 
 - Build and run vetting campaigns.
 - Create and apply rubrics.
@@ -72,7 +72,7 @@ HR Managers can:
 - Monitor candidate progress and case outcomes.
 - Schedule and manage video meeting workflows.
 
-Typical HR routes:
+Typical operations routes:
 
 - `/dashboard`
 - `/campaigns`
@@ -113,4 +113,3 @@ If a user cannot see expected menu items:
 2. Confirm successful authentication and profile fetch.
 3. Confirm no pending 2FA challenge state.
 4. Check backend permissions or token freshness.
-

@@ -23,6 +23,7 @@ const selectUserData = createSelector(
     user: auth.user,
     isAuthenticated: auth.isAuthenticated,
     userType: auth.userType,
+    capabilities: auth.capabilities ?? [],
   })
 );
 
@@ -45,7 +46,7 @@ export const Navbar: React.FC = () => {
 
   
   // ✅ Line 14 should be around here - use memoized selectors
-  const { user, isAuthenticated, userType } = useSelector(selectUserData);
+  const { user, isAuthenticated, userType, capabilities } = useSelector(selectUserData);
   const unreadCount = useSelector(selectUnreadCount);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [reminderRuntimeStatus, setReminderRuntimeStatus] = useState<ReminderRuntimeStatus>('unknown');
@@ -255,7 +256,7 @@ export const Navbar: React.FC = () => {
 
   const displayName = getUserDisplayName(user, 'User');
 
-  const roleLabel = userType === 'admin' ? 'Admin' : userType === 'hr_manager' ? 'HR Manager' : userType === 'applicant' ? 'Applicant' : 'User';
+  const roleLabel = userType === 'admin' ? 'Admin' : userType === 'hr_manager' ? 'Operations User' : userType === 'applicant' ? 'Candidate Access' : 'User';
   const canManageTwoFactor = userType !== 'applicant';
   const canViewReminderRuntime = userType === 'admin';
   const reminderStatusMeta: Record<ReminderRuntimeStatus, { dotClass: string; label: string }> = {
@@ -392,6 +393,8 @@ export const Navbar: React.FC = () => {
     );
   };
 
+  const hasAuditCapability = Array.isArray(capabilities) && capabilities.includes("gams.audit.view");
+
   const navLinks =
     userType === 'admin'
       ? [
@@ -413,9 +416,7 @@ export const Navbar: React.FC = () => {
         ]
       : userType === 'applicant'
         ? [
-            { to: '/dashboard', label: 'Dashboard' },
-            { to: '/applications', label: 'My Cases' },
-            { to: '/video-calls', label: 'Video Calls' },
+            { to: '/candidate/access', label: 'Candidate Access' },
           ]
         : [
             { to: '/dashboard', label: 'Dashboard' },
@@ -470,25 +471,28 @@ export const Navbar: React.FC = () => {
             { to: '/government/personnel', label: 'Personnel' },
             { to: '/fraud-insights', label: 'Fraud' },
             { to: '/background-checks', label: 'Checks' },
+            ...(hasAuditCapability ? [{ to: '/audit-logs', label: 'Audit' }] : []),
           ]
         : [];
   const hasActiveOverflowLink = desktopOverflowLinks.some((item) => isRouteActive(item.to));
   
   const initial = getUserInitial(user, '?');
 
-  const profile_picture_url = userType === 'applicant' ? (user as User)?.profile_picture_url:'';
+  const profile_picture_url = (user as User)?.profile_picture_url || "";
+
+  const homePath = userType === "admin" ? "/admin/dashboard" : userType === "applicant" ? "/candidate/access" : "/dashboard";
 
   return (
     <nav className="bg-slate-50 border-b border-slate-200 shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <Link to={userType === 'admin' ? '/admin/dashboard' : '/dashboard'} className="flex items-center">
+            <Link to={homePath} className="flex items-center">
               <div className="flex items-center">
               <Shield className="h-7 w-7 text-indigo-600 sm:h-8 sm:w-8" />
               <span className="ml-2 text-lg leading-none font-bold text-gray-900 sm:text-xl xl:text-2xl">
-                <span className="sm:hidden">OVS+</span>
-                <span className="hidden sm:inline">OVS + GAMS</span>
+                <span className="sm:hidden">CAVP</span>
+                <span className="hidden sm:inline">CAVP</span>
               </span>
             </div>
             </Link>
@@ -815,3 +819,4 @@ export const Navbar: React.FC = () => {
     </nav>
   );
 };
+

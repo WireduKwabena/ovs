@@ -7,6 +7,9 @@ export interface User {
   last_name?: string;
   full_name: string;
   user_type?: 'applicant' | 'hr_manager' | 'admin';
+  roles?: string[];
+  capabilities?: string[];
+  is_internal_operator?: boolean;
   phone_number: string;
   organization?: string;
   department?: string;
@@ -30,6 +33,9 @@ export interface AdminUser {
   organization?: string;
   department?: string;
   user_type?: 'applicant' | 'hr_manager' | 'admin';
+  roles?: string[];
+  capabilities?: string[];
+  is_internal_operator?: boolean;
   role_display?: string;
   username?: string;
   role?: 'admin' | 'reviewer' | 'hr_manager' | 'super_admin';
@@ -67,6 +73,8 @@ export interface AuthState {
   tokens: AuthTokens | null;  // Updated: Full tokens object
   isAuthenticated: boolean;
   userType: 'applicant' | 'hr_manager' | 'admin' | null;
+  roles: string[];
+  capabilities: string[];
   loading: boolean;
   error: string | null;
 }
@@ -491,6 +499,7 @@ export interface AdminManagedUser {
   last_name: string;
   full_name: string;
   user_type: "admin" | "hr_manager" | "applicant";
+  group_roles?: string[];
   is_active: boolean;
   is_staff: boolean;
   is_superuser: boolean;
@@ -514,6 +523,7 @@ export interface AdminUserUpdatePayload {
   is_active?: boolean;
   is_staff?: boolean;
   reset_two_factor?: boolean;
+  group_roles?: string[];
 }
 export type CampaignStatus = 'draft' | 'active' | 'closed' | 'archived';
 export type CampaignExerciseType =
@@ -820,6 +830,9 @@ export interface UploadDocumentResponse {
 export interface ProfileResponse {
   user: User | AdminUser;
   user_type: 'applicant' | 'hr_manager' | 'admin';
+  roles?: string[];
+  capabilities?: string[];
+  is_internal_operator?: boolean;
 }
 
 // Analytics/Chart Interfaces

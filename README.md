@@ -1,4 +1,4 @@
-# OVS-Redo (OVS + GAMS)
+# CAVP (Civic Appointment & Vetting Platform)
 
 > Automated vetting and government appointment governance in one platform.
 
@@ -11,8 +11,10 @@
 
 ## System Overview
 
-This repository preserves the original OVS vetting engine while extending it into GAMS
-(Government Appointment Management System).
+This repository implements CAVP (Civic Appointment & Vetting Platform), integrating:
+
+- OVS vetting capabilities, and
+- GAMS government appointment governance capabilities.
 
 Implemented today:
 
@@ -54,7 +56,7 @@ Key design rule:
 
 ---
 
-## Implemented GAMS Workflow
+## Implemented Government Workflow
 
 ### Appointment States
 
@@ -397,7 +399,7 @@ For interview realtime communication, keep Redis enabled and run an ASGI server.
 
 ## 🗄️ Database Schema
 
-The platform uses additive OVS + GAMS schemas across backend apps.
+The platform uses additive schemas across vetting and government modules.
 
 ### Core Models
 
@@ -667,10 +669,10 @@ See `docs/user-manual/13_operational_procedures.md` for operational command refe
 
 ## 🛣️ Current Status
 
-This repository currently ships both OVS and GAMS flows in the same runtime:
+This repository currently ships both vetting and government governance flows in the same runtime:
 
-- OVS: campaigns/cases/documents/interviews/rubrics/fraud/monitoring remain active.
-- GAMS: positions/personnel/appointments/approval-chain/publication lifecycle are implemented and integrated.
+- OVS subsystem: campaigns/cases/documents/interviews/rubrics/fraud/monitoring remain active.
+- GAMS subsystem: positions/personnel/appointments/approval-chain/publication lifecycle are implemented and integrated.
 - Audit + notifications include appointment-specific event coverage.
 - Public government endpoints expose only curated serializer fields; internal vetting fields remain restricted.
 
