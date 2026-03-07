@@ -94,18 +94,17 @@ export const NotificationDetailPage: React.FC = () => {
     },
   });
 
-  const actionButtons = data ? extractNotificationActions(data) : [];
   const actionButtonsWithState = React.useMemo(
     () => {
       if (!data) {
         return [];
       }
-      return actionButtons.map((action) => ({
+      return extractNotificationActions(data).map((action) => ({
         action,
         availability: getNotificationActionAvailability(data, action),
       }));
     },
-    [actionButtons, data],
+    [data],
   );
   const contextFields = data ? extractNotificationContext(data) : [];
   const [isArchiving, setIsArchiving] = React.useState(false);
@@ -204,7 +203,7 @@ export const NotificationDetailPage: React.FC = () => {
 
         <article className="rounded-xl border border-gray-200 bg-white p-6 space-y-5">
           <header className="space-y-2">
-            <h1 className="text-2xl font-bold text-gray-900 break-words">
+            <h1 className="text-2xl font-bold text-gray-900 wrap-break-word">
               {data.title || data.subject || "Notification"}
             </h1>
             <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
@@ -245,7 +244,7 @@ export const NotificationDetailPage: React.FC = () => {
           </section>
 
           <section className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm text-slate-900 whitespace-pre-wrap break-words">
+            <p className="text-sm text-slate-900 whitespace-pre-wrap wrap-break-word">
               {linkifyMessage(data.message)}
             </p>
           </section>
@@ -262,7 +261,7 @@ export const NotificationDetailPage: React.FC = () => {
                     <dt className="text-[11px] uppercase tracking-wide text-slate-600">
                       {field.label}
                     </dt>
-                    <dd className="text-sm text-slate-900 break-words">{field.value}</dd>
+                    <dd className="text-sm text-slate-900 wrap-break-word">{field.value}</dd>
                   </div>
                 ))}
               </dl>
