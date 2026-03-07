@@ -246,6 +246,39 @@ class AppointmentTransitionServiceTests(TestCase):
         self.assertTrue(self.position.is_vacant)
         self.assertFalse(self.nominee.is_active_officeholder)
 
+    def test_exited_transition_preserves_reassigned_current_holder(self):
+        replacement = PersonnelRecord.objects.create(
+            full_name="Replacement Officeholder",
+            is_public=True,
+            is_active_officeholder=True,
+        )
+        self.appointment.status = "appointed"
+        self.appointment.save(update_fields=["status", "updated_at"])
+        advance_stage(
+            appointment=self.appointment,
+            new_status="serving",
+            actor=self.admin_user,
+        )
+
+        # Simulate registry correction/reassignment before this appointment exits.
+        self.position.current_holder = replacement
+        self.position.is_vacant = False
+        self.position.save(update_fields=["current_holder", "is_vacant", "updated_at"])
+
+        updated = advance_stage(
+            appointment=self.appointment,
+            new_status="exited",
+            actor=self.admin_user,
+        )
+
+        self.position.refresh_from_db()
+        self.nominee.refresh_from_db()
+        self.assertEqual(updated.status, "exited")
+        self.assertIsNotNone(updated.exit_date)
+        self.assertEqual(self.position.current_holder_id, replacement.id)
+        self.assertFalse(self.position.is_vacant)
+        self.assertFalse(self.nominee.is_active_officeholder)
+
     def test_required_stage_context_enforced_when_campaign_template_exists(self):
         template = ApprovalStageTemplate.objects.create(
             name="Ministerial Required Chain",
