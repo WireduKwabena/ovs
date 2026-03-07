@@ -45,7 +45,7 @@ export const HomePage: React.FC = () => {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
             <Shield className="h-7 w-7 text-cyan-700" />
-            <span className="text-lg font-semibold tracking-tight">OVS + GAMS Platform</span>
+            <span className="text-lg font-semibold tracking-tight">CAVP Platform</span>
           </div>
           <button
             type="button"
@@ -129,12 +129,12 @@ export const HomePage: React.FC = () => {
 
       <footer className="border-t border-slate-200 bg-white py-8">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 text-sm text-slate-700 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-          <p>© {new Date().getFullYear()} OVS + GAMS Platform</p>
+          <p>© {new Date().getFullYear()} CAVP Platform</p>
           <a
-            href="mailto:support@ovs.local"
+            href="mailto:support@cavp.local"
             className="font-medium text-cyan-700 hover:text-cyan-800"
           >
-            support@ovs.local
+            support@cavp.local
           </a>
         </div>
       </footer>

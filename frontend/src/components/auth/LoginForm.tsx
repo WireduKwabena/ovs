@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getApiErrorMessage } from "@/utils/apiError";
+import { getDashboardPathForUser } from "@/utils/authRouting";
 
 export const LoginForm: React.FC = () => {
   const navigate = useNavigate();
@@ -62,7 +63,7 @@ export const LoginForm: React.FC = () => {
 
       const requestedPath =
         (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
-      const defaultPath = response.user_type === "admin" ? "/admin/dashboard" : "/dashboard";
+      const defaultPath = getDashboardPathForUser(response.user_type ?? null);
       const redirectPath = requestedPath && requestedPath !== "/" ? requestedPath : defaultPath;
 
       navigate(redirectPath, { replace: true });
@@ -86,7 +87,7 @@ export const LoginForm: React.FC = () => {
           <div className="relative flex h-full flex-col justify-between gap-6">
             <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide">
               <ShieldCheck className="h-4 w-4" />
-              OVS + GAMS Portal
+              CAVP Portal
             </div>
 
             <div>

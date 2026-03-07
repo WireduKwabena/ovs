@@ -13,10 +13,13 @@ describe("authRouting", () => {
       expect(getDashboardPathForUser("admin")).toBe("/admin/dashboard");
     });
 
-    it("returns standard dashboard for non-admin roles", () => {
+    it("returns standard dashboard for internal non-admin roles", () => {
       expect(getDashboardPathForUser("hr_manager")).toBe("/dashboard");
-      expect(getDashboardPathForUser("applicant")).toBe("/dashboard");
       expect(getDashboardPathForUser(null)).toBe("/dashboard");
+    });
+
+    it("returns candidate access path for applicant users", () => {
+      expect(getDashboardPathForUser("applicant")).toBe("/candidate/access");
     });
   });
 
@@ -104,6 +107,15 @@ describe("authRouting", () => {
           twoFactorToken: null,
         }),
       ).toBe("/dashboard");
+
+      expect(
+        resolveUnauthenticatedRouteRedirect({
+          isAuthenticated: true,
+          userType: "applicant",
+          twoFactorRequired: false,
+          twoFactorToken: null,
+        }),
+      ).toBe("/candidate/access");
     });
 
     it("allows unauthenticated requests without 2FA challenge", () => {

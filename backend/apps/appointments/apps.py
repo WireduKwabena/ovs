@@ -14,5 +14,13 @@ class AppointmentsConfig(AppConfig):
 def _ensure_appointment_role_groups(sender, **kwargs):
     from django.contrib.auth.models import Group
 
-    for name in ("vetting_officer", "committee_member", "appointing_authority", "registry_admin"):
+    for name in (
+        "vetting_officer",
+        "committee_member",
+        "committee_chair",
+        "appointing_authority",
+        "registry_admin",
+        "publication_officer",
+        "auditor",
+    ):
         Group.objects.get_or_create(name=name)

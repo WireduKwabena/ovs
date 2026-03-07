@@ -18,6 +18,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.authentication.models import User, UserProfile
+from apps.authentication.permissions import RECENT_AUTH_SESSION_KEY, RECENT_AUTH_TOKEN_CLAIM
 from apps.authentication.serializers import (
     AdminAuthResponseSerializer,
     AdminLoginSerializer,
@@ -43,6 +44,7 @@ from apps.authentication.serializers import (
     UserRegistrationSerializer,
     UserSerializer,
 )
+from apps.core.authz import ROLE_ADMIN, get_user_capabilities, get_user_roles, has_role, requires_two_factor_for_user
 from apps.billing.models import BillingSubscription
 
 try:
@@ -69,6 +71,20 @@ TWO_FACTOR_CHALLENGE_SALT = 'auth.login.2fa.challenge'
 def _two_factor_challenge_ttl_seconds() -> int:
     ttl = int(getattr(settings, 'AUTH_TWO_FACTOR_CHALLENGE_TTL_SECONDS', 300))
     return ttl if ttl > 0 else 300
+
+
+def _mark_recent_auth(request, refresh_token: RefreshToken) -> int:
+    """
+    Stamp a recent-auth timestamp into token/session context for step-up checks.
+    """
+    epoch = int(timezone.now().timestamp())
+    refresh_token[RECENT_AUTH_TOKEN_CLAIM] = epoch
+
+    session = getattr(request, "session", None)
+    if session is not None:
+        session[RECENT_AUTH_SESSION_KEY] = epoch
+        session.modified = True
+    return epoch
 
 
 def _consume_registration_subscription(reference: str, email: str) -> bool:
@@ -201,15 +217,16 @@ def login_view(request):
     POST /api/auth/login/
     Body: {"email": "user@example.com", "password": "password123"}
 
-    Applicants receive direct JWT tokens.
-    Non-applicant accounts must complete 2FA challenge before tokens are issued.
+    External users receive direct JWT tokens.
+    Internal operator accounts must complete 2FA challenge before tokens are issued.
     """
     serializer = LoginSerializer(data=request.data, context={'request': request})
     serializer.is_valid(raise_exception=True)
     user = serializer.validated_data['user']
 
-    if user.user_type == 'applicant':
+    if not requires_two_factor_for_user(user):
         refresh = RefreshToken.for_user(user)
+        _mark_recent_auth(request=request, refresh_token=refresh)
         return Response({
             'user': UserSerializer(user).data,
             'tokens': {
@@ -322,20 +339,22 @@ def two_factor_verification_view(request):
         cache.delete(consumed_cache_key)
         return Response({"error": "Invalid OTP or backup code."}, status=status.HTTP_400_BAD_REQUEST)
 
+    two_factor_required = requires_two_factor_for_user(user)
     was_two_factor_enabled = user.is_two_factor_enabled
-    if user.user_type != "applicant" and not user.is_two_factor_enabled:
+    if two_factor_required and not user.is_two_factor_enabled:
         user.is_two_factor_enabled = True
         user.save(update_fields=["is_two_factor_enabled", "updated_at"])
 
     issued_backup_codes = None
-    if user.user_type != "applicant" and not was_two_factor_enabled and not user.has_backup_codes():
+    if two_factor_required and not was_two_factor_enabled and not user.has_backup_codes():
         issued_backup_codes = user.generate_backup_codes()
 
     refresh = RefreshToken.for_user(user)
+    _mark_recent_auth(request=request, refresh_token=refresh)
 
     user_serializer = (
         AdminUserSerializer(user)
-        if (user.is_staff or user.user_type == "admin")
+        if (has_role(user, ROLE_ADMIN) or user.user_type == "hr_manager")
         else UserSerializer(user)
     )
     payload = {
@@ -364,9 +383,9 @@ def two_factor_setup_view(request):
     GET /api/auth/admin/2fa/setup/
     """
     user = request.user
-    if user.user_type == "applicant":
+    if not requires_two_factor_for_user(user):
         return Response(
-            {'error': 'Applicants are exempt from account 2FA setup.'},
+            {'error': 'This account is exempt from operator 2FA setup.'},
             status=status.HTTP_403_FORBIDDEN,
         )
     if pyotp is None:
@@ -396,9 +415,9 @@ def two_factor_enable_view(request):
     Body: {"otp": "123456"}
     """
     user = request.user
-    if user.user_type == "applicant":
+    if not requires_two_factor_for_user(user):
         return Response(
-            {'error': 'Applicants are exempt from account 2FA.'},
+            {'error': 'This account is exempt from operator 2FA.'},
             status=status.HTTP_403_FORBIDDEN,
         )
 
@@ -431,9 +450,9 @@ def two_factor_backup_codes_regenerate_view(request):
     Body: {"otp": "123456"} or {"backup_code": "ABCD-EFGH"}
     """
     user = request.user
-    if user.user_type == "applicant":
+    if not requires_two_factor_for_user(user):
         return Response(
-            {'error': 'Applicants are exempt from account 2FA.'},
+            {'error': 'This account is exempt from operator 2FA.'},
             status=status.HTTP_403_FORBIDDEN,
         )
 
@@ -480,12 +499,12 @@ def two_factor_status_view(request):
     GET /api/auth/2fa/status/
     """
     user = request.user
-    is_applicant = user.user_type == "applicant"
+    two_factor_required = requires_two_factor_for_user(user)
     return Response(
         {
             "user_type": user.user_type,
-            "two_factor_required": not is_applicant,
-            "applicant_exempt": is_applicant,
+            "two_factor_required": two_factor_required,
+            "applicant_exempt": not two_factor_required,
             "is_two_factor_enabled": bool(user.is_two_factor_enabled),
             "has_totp_secret": bool(user.two_factor_secret),
             "backup_codes_remaining": len(user.two_factor_backup_codes or []),
@@ -527,7 +546,7 @@ def profile_view(request):
     """
     UserProfile.objects.get_or_create(user=request.user)
 
-    if request.user.is_staff or request.user.user_type in {"admin", "hr_manager"}:
+    if has_role(request.user, ROLE_ADMIN) or request.user.user_type == "hr_manager":
         serializer = AdminUserSerializer(request.user, context={"request": request})
         user_type = request.user.user_type
     else:
@@ -536,7 +555,10 @@ def profile_view(request):
     
     return Response({
         'user': serializer.data,
-        'user_type': user_type
+        'user_type': user_type,
+        'roles': sorted(get_user_roles(request.user)),
+        'capabilities': sorted(get_user_capabilities(request.user)),
+        'is_internal_operator': requires_two_factor_for_user(request.user),
     })
 
 
@@ -610,7 +632,7 @@ def update_profile_view(request):
 
     user.refresh_from_db()
 
-    if request.user.is_staff or request.user.user_type in {"admin", "hr_manager"}:
+    if has_role(request.user, ROLE_ADMIN) or request.user.user_type == "hr_manager":
         response_serializer = AdminUserSerializer(user, context={"request": request})
     else:
         response_serializer = UserSerializer(user, context={"request": request})

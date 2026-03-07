@@ -114,13 +114,13 @@ export const RegisterForm: React.FC = () => {
           <div className="relative flex h-full flex-col justify-between gap-6">
             <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide">
               <ShieldCheck className="h-4 w-4" />
-              OVS + GAMS Organization Setup
+              CAVP Organization Setup
             </div>
 
             <div>
               <h1 className="text-3xl font-black leading-tight">Provision Your Firm Workspace</h1>
               <p className="mt-4 text-sm text-slate-200/90">
-                Complete registration with your subscribed organization details and activate your HR vetting workspace.
+                Complete registration with your subscribed organization details and activate your operations workspace.
               </p>
             </div>
 

@@ -36,6 +36,12 @@ class SetupDemoCommandTests(TestCase):
         admin_user = User.objects.get(email="gams.admin@demo.local")
         self.assertTrue(admin_user.is_superuser)
         self.assertTrue(admin_user.is_staff)
+        self.assertFalse(User.objects.get(email="gams.vetting@demo.local").is_staff)
+        self.assertFalse(User.objects.get(email="gams.committee@demo.local").is_staff)
+        self.assertFalse(User.objects.get(email="gams.authority@demo.local").is_staff)
+        self.assertFalse(User.objects.get(email="gams.registry@demo.local").is_staff)
+        self.assertFalse(User.objects.get(email="gams.publication@demo.local").is_staff)
+        self.assertFalse(User.objects.get(email="gams.auditor@demo.local").is_staff)
 
         campaign = VettingCampaign.objects.get(name="GAMS Demo Ministerial Exercise")
         self.assertEqual(campaign.status, "active")

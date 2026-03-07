@@ -59,7 +59,7 @@ describe("UserSettingsPage billing empty-state", () => {
         email: "hr@example.com",
         first_name: "HR",
         last_name: "Manager",
-        full_name: "HR Manager",
+        full_name: "Operations User",
         phone_number: "",
         organization: "Acme",
         department: "Ops",

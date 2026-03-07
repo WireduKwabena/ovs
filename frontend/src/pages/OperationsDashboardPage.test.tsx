@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
-import HrDashboardPage from "./HrDashboardPage";
+import OperationsDashboardPage from "./OperationsDashboardPage";
 
 const mocks = vi.hoisted(() => ({
   list: vi.fn(),
@@ -22,7 +22,7 @@ vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => mocks.useAuth(),
 }));
 
-vi.mock("@/components/admin/HrDashboardChartsSection", () => ({
+vi.mock("@/components/admin/OperationsDashboardChartsSection", () => ({
   default: () => <div>Charts</div>,
 }));
 
@@ -34,19 +34,19 @@ vi.mock("react-toastify", () => ({
   },
 }));
 
-const renderHrDashboard = () =>
+const renderOperationsDashboard = () =>
   render(
     <MemoryRouter initialEntries={["/dashboard"]}>
       <Routes>
-        <Route path="/dashboard" element={<HrDashboardPage />} />
-        <Route path="/government/appointments" element={<div>HR Appointments Route</div>} />
-        <Route path="/government/positions" element={<div>HR Positions Route</div>} />
-        <Route path="/government/personnel" element={<div>HR Personnel Route</div>} />
+        <Route path="/dashboard" element={<OperationsDashboardPage />} />
+        <Route path="/government/appointments" element={<div>Operations Appointments Route</div>} />
+        <Route path="/government/positions" element={<div>Operations Positions Route</div>} />
+        <Route path="/government/personnel" element={<div>Operations Personnel Route</div>} />
       </Routes>
     </MemoryRouter>,
   );
 
-describe("HrDashboardPage government quick actions", () => {
+describe("OperationsDashboardPage government quick actions", () => {
   const mockHrContext = () => {
     mocks.useAuth.mockReturnValue({
       user: {
@@ -54,7 +54,7 @@ describe("HrDashboardPage government quick actions", () => {
         email: "hr@example.com",
         first_name: "HR",
         last_name: "Manager",
-        full_name: "HR Manager",
+        full_name: "Operations User",
         phone_number: "",
         profile_picture_url: "",
         avatar_url: "",
@@ -84,22 +84,23 @@ describe("HrDashboardPage government quick actions", () => {
 
   it("navigates to government appointments", async () => {
     mockHrContext();
-    renderHrDashboard();
+    renderOperationsDashboard();
     fireEvent.click(await screen.findByRole("button", { name: /government appointments/i }));
-    expect(await screen.findByText("HR Appointments Route")).toBeTruthy();
+    expect(await screen.findByText("Operations Appointments Route")).toBeTruthy();
   });
 
   it("navigates to government positions", async () => {
     mockHrContext();
-    renderHrDashboard();
+    renderOperationsDashboard();
     fireEvent.click(await screen.findByRole("button", { name: /government position registry/i }));
-    expect(await screen.findByText("HR Positions Route")).toBeTruthy();
+    expect(await screen.findByText("Operations Positions Route")).toBeTruthy();
   });
 
   it("navigates to government personnel", async () => {
     mockHrContext();
-    renderHrDashboard();
+    renderOperationsDashboard();
     fireEvent.click(await screen.findByRole("button", { name: /government personnel registry/i }));
-    expect(await screen.findByText("HR Personnel Route")).toBeTruthy();
+    expect(await screen.findByText("Operations Personnel Route")).toBeTruthy();
   });
 });
+

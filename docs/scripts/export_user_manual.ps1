@@ -1,20 +1,20 @@
 <#
-  Export OVS + GAMS user manual to PDF/DOCX/HTML using Pandoc.
+  Export CAVP user manual to PDF/DOCX/HTML using Pandoc.
 
   Examples:
     powershell -ExecutionPolicy Bypass -File docs/scripts/export_user_manual.ps1
     powershell -ExecutionPolicy Bypass -File docs/scripts/export_user_manual.ps1 -Formats docx,html
-    powershell -ExecutionPolicy Bypass -File docs/scripts/export_user_manual.ps1 -OutputDir docs/exports -Title "OVS + GAMS User Manual"
+    powershell -ExecutionPolicy Bypass -File docs/scripts/export_user_manual.ps1 -OutputDir docs/exports -Title "CAVP User Manual"
 #>
 
 [CmdletBinding()]
 param(
     [string]$InputPath = "docs/USER_MANUAL_PRINT.md",
     [string]$OutputDir = "docs/exports",
-    [string]$BaseName = "OVS_GAMS_USER_MANUAL",
+    [string]$BaseName = "CAVP_USER_MANUAL",
     [string]$Formats = "pdf,docx,html",
-    [string]$Title = "OVS + GAMS User Manual",
-    [string]$Author = "OVS + GAMS Project Team",
+    [string]$Title = "CAVP User Manual",
+    [string]$Author = "CAVP Project Team",
     [switch]$Strict
 )
 

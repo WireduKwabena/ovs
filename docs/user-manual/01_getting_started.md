@@ -2,7 +2,7 @@
 
 ## 1.1 What the Platform Is
 
-OVS-Redo is a web-based platform combining:
+CAVP is a web-based platform combining:
 
 - OVS vetting orchestration (campaigns, rubrics, case tracking),
 - AI-assisted evidence analysis (documents and interviews),
@@ -14,7 +14,7 @@ OVS-Redo is a web-based platform combining:
 
 ## 1.2 Deployment Modes
 
-OVS can run in:
+The platform can run in:
 
 - Local development mode (Docker Compose, localhost),
 - Production mode (dedicated production compose stack and hosted services).

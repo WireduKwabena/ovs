@@ -1,9 +1,9 @@
-# Frontend Overview (OVS + GAMS)
+# Frontend Overview (CAVP)
 
 This frontend is a React + TypeScript app for both:
 
-- OVS vetting workflows (campaigns, applications, interviews, rubrics, monitoring).
-- GAMS government workflows (positions, personnel, appointments, approval chain, publication lifecycle).
+- Vetting workflows (campaigns, applications, interviews, rubrics, monitoring).
+- Government workflows (positions, personnel, appointments, approval chain, publication lifecycle).
 
 ## Core Government Pages
 

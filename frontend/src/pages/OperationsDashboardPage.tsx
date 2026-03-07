@@ -51,7 +51,7 @@ interface PendingQuerySync {
 const STATUS_FILTER_OPTIONS: DashboardStatusFilter[] = ['all', 'draft', 'active', 'closed', 'archived'];
 const WINDOW_FILTER_OPTIONS: DashboardWindowFilter[] = ['all', '30', '90', '365'];
 const CHART_MODE_OPTIONS: DashboardChartMode[] = ['count', 'percentage'];
-const SAVED_VIEWS_STORAGE_KEY = 'ovs.hr_dashboard.saved_views.v1';
+const SAVED_VIEWS_STORAGE_KEY = 'ovs.operations_dashboard.saved_views.v1';
 const MAX_SAVED_VIEWS = 8;
 const CAMPAIGN_PULSE_SORT_OPTIONS: Array<{ value: CampaignPulseSort; label: string }> = [
   { value: 'recent', label: 'Most Recent' },
@@ -188,11 +188,11 @@ const createSavedViewId = () => {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 };
 
-const HrDashboardChartsSection = React.lazy(
-  () => import('@/components/admin/HrDashboardChartsSection')
+const OperationsDashboardChartsSection = React.lazy(
+  () => import('@/components/admin/OperationsDashboardChartsSection')
 );
 
-const HrDashboardPage: React.FC = () => {
+const OperationsDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
@@ -254,7 +254,7 @@ const HrDashboardPage: React.FC = () => {
 
       setCampaignStats(dashboards);
     } catch (err: any) {
-      setError(err?.response?.data?.detail || err?.message || 'Failed to load HR dashboard.');
+      setError(err?.response?.data?.detail || err?.message || 'Failed to load operations dashboard.');
       setCampaignStats([]);
     } finally {
       setLoading(false);
@@ -960,7 +960,7 @@ const HrDashboardPage: React.FC = () => {
     return (
       <div className="max-w-7xl mx-auto px-4 py-10">
         <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-700">
-          Loading HR dashboard...
+          Loading operations dashboard...
         </div>
       </div>
     );
@@ -971,7 +971,7 @@ const HrDashboardPage: React.FC = () => {
       <section className="rounded-2xl bg-linear-to-br from-slate-900 via-slate-800 to-teal-900 text-white p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold">HR Operations Dashboard</h1>
+            <h1 className="text-2xl font-semibold">Operations Dashboard</h1>
             <p className="text-slate-200 mt-1">
               Welcome, {displayName}. Campaign performance and candidate pipeline are summarized here.
             </p>
@@ -1143,11 +1143,11 @@ const HrDashboardPage: React.FC = () => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
-            <label htmlFor="hr-search-campaign" className="block text-sm font-medium text-slate-700 mb-1">
+            <label htmlFor="operations-search-campaign" className="block text-sm font-medium text-slate-700 mb-1">
               Search
             </label>
             <input
-              id="hr-search-campaign"
+              id="operations-search-campaign"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Campaign name, description, manager email"
@@ -1155,11 +1155,11 @@ const HrDashboardPage: React.FC = () => {
             />
           </div>
           <div>
-            <label htmlFor="hr-status-filter" className="block text-sm font-medium text-slate-700 mb-1">
+            <label htmlFor="operations-status-filter" className="block text-sm font-medium text-slate-700 mb-1">
               Status
             </label>
             <select
-              id="hr-status-filter"
+              id="operations-status-filter"
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as DashboardStatusFilter)}
               className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none"
@@ -1172,11 +1172,11 @@ const HrDashboardPage: React.FC = () => {
             </select>
           </div>
           <div>
-            <label htmlFor="hr-window-filter" className="block text-sm font-medium text-slate-700 mb-1">
+            <label htmlFor="operations-window-filter" className="block text-sm font-medium text-slate-700 mb-1">
               Created within
             </label>
             <select
-              id="hr-window-filter"
+              id="operations-window-filter"
               value={windowFilter}
               onChange={(event) => setWindowFilter(event.target.value as DashboardWindowFilter)}
               className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none"
@@ -1258,7 +1258,7 @@ const HrDashboardPage: React.FC = () => {
             </section>
           }
         >
-          <HrDashboardChartsSection
+          <OperationsDashboardChartsSection
             chartMode={chartMode}
             onChartModeChange={setChartMode}
             throughputDisplayData={throughputDisplayData}
@@ -1450,7 +1450,8 @@ const HrDashboardPage: React.FC = () => {
   );
 };
 
-export default HrDashboardPage;
+export default OperationsDashboardPage;
+
 
 
 

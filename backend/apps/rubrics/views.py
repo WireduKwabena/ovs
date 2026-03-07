@@ -4,6 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.applications.models import VettingCase
+from apps.authentication.permissions import RequiresRecentAuth
 
 from .decision_engine import VettingDecisionEngine
 from .engine import RubricEvaluationEngine
@@ -313,7 +314,12 @@ class RubricEvaluationViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = VettingDecisionRecommendationSerializer(recommendation, context=self.get_serializer_context())
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=["post"], url_path="override-decision")
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsHRManager, RequiresRecentAuth],
+        url_path="override-decision",
+    )
     def override_decision(self, request, pk=None):
         evaluation = self.get_object()
         payload = VettingDecisionOverrideRequestSerializer(data=request.data)

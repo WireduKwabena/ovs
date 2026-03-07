@@ -16,6 +16,18 @@ from apps.audit.contracts import (
 from apps.audit.events import log_event
 from apps.billing.quotas import enforce_candidate_quota
 from apps.candidates.models import Candidate, CandidateEnrollment
+from apps.core.authz import (
+    ROLE_ADMIN,
+    ROLE_APPOINTING_AUTHORITY,
+    ROLE_COMMITTEE_CHAIR,
+    ROLE_COMMITTEE_MEMBER,
+    ROLE_PUBLICATION_OFFICER,
+    ROLE_REGISTRY_ADMIN,
+    ROLE_VETTING_OFFICER,
+    has_any_role,
+    has_role,
+    resolve_actor_role,
+)
 try:
     from apps.notifications.services import NotificationService
 except Exception:  # pragma: no cover - notifications app may be optional in some setups
@@ -136,30 +148,26 @@ def _emit_appointment_notifications(
             )
 
 
-def _has_named_group(user, group_name: str) -> bool:
-    if not getattr(user, "is_authenticated", False):
-        return False
-    return user.groups.filter(name=group_name).exists()
-
-
 def _actor_matches_stage_role(actor, required_role: str) -> bool:
     role = str(required_role or "").strip().lower()
     if not role:
         return True
 
-    if getattr(actor, "is_staff", False) or getattr(actor, "is_superuser", False) or getattr(actor, "user_type", "") == "admin":
+    if has_role(actor, ROLE_ADMIN):
         return True
 
-    if role == "vetting_officer":
-        return getattr(actor, "user_type", "") == "hr_manager" and _has_named_group(actor, "vetting_officer")
-    if role == "committee_member":
-        return getattr(actor, "user_type", "") == "hr_manager" and _has_named_group(actor, "committee_member")
-    if role == "appointing_authority":
-        return _has_named_group(actor, "appointing_authority")
-    if role == "registry_admin":
-        return _has_named_group(actor, "registry_admin")
+    if role == ROLE_VETTING_OFFICER:
+        return has_any_role(actor, (ROLE_VETTING_OFFICER,))
+    if role in {ROLE_COMMITTEE_MEMBER, ROLE_COMMITTEE_CHAIR}:
+        return has_any_role(actor, (ROLE_COMMITTEE_MEMBER, ROLE_COMMITTEE_CHAIR))
+    if role == ROLE_APPOINTING_AUTHORITY:
+        return has_any_role(actor, (ROLE_APPOINTING_AUTHORITY,))
+    if role == ROLE_REGISTRY_ADMIN:
+        return has_any_role(actor, (ROLE_REGISTRY_ADMIN,))
+    if role == ROLE_PUBLICATION_OFFICER:
+        return has_any_role(actor, (ROLE_PUBLICATION_OFFICER,))
 
-    return _has_named_group(actor, role)
+    return has_role(actor, role)
 
 
 def _normalize_text(value) -> str:
@@ -750,10 +758,8 @@ def advance_stage(
             raise StageAuthorizationError(f"Actor lacks required role '{stage.required_role}' for stage '{stage.name}'.")
 
     if new_status in {"appointed", "rejected"} and not (
-        getattr(actor, "is_staff", False)
-        or getattr(actor, "is_superuser", False)
-        or getattr(actor, "user_type", "") == "admin"
-        or _has_named_group(actor, "appointing_authority")
+        has_role(actor, ROLE_ADMIN)
+        or has_any_role(actor, (ROLE_APPOINTING_AUTHORITY,))
     ):
         raise StageAuthorizationError("Only appointing authority/admin can finalize appointment decisions.")
 
@@ -807,11 +813,17 @@ def advance_stage(
             "updated_at",
         ])
 
+        preferred_actor_roles: list[str] = []
+        if stage is not None and getattr(stage, "required_role", ""):
+            preferred_actor_roles.append(stage.required_role)
+        if new_status in {"appointed", "rejected"}:
+            preferred_actor_roles.append(ROLE_APPOINTING_AUTHORITY)
+
         stage_action = AppointmentStageAction.objects.create(
             appointment=appointment,
             stage=stage,
             actor=actor,
-            actor_role=getattr(actor, "user_type", "") or ("admin" if getattr(actor, "is_staff", False) else "user"),
+            actor_role=resolve_actor_role(actor, preferred_roles=preferred_actor_roles),
             action="noted",
             reason_note=reason_note,
             evidence_links=evidence_links or [],

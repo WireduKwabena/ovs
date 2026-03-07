@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 
+from django.contrib.auth.models import Group
 from django.shortcuts import get_object_or_404
 from django.core.paginator import Paginator
 from django.db.models import Avg, Count, Q
@@ -13,6 +14,7 @@ from rest_framework.response import Response
 from apps.applications.models import Document, VettingCase
 from apps.auth_actions import IsAdminUser
 from apps.authentication.models import User
+from apps.core.authz import GOVERNMENT_ROLE_GROUPS
 from apps.fraud.models import FraudDetectionResult
 from apps.rubrics.models import RubricEvaluation
 
@@ -368,6 +370,7 @@ def admin_user_update(request, user_id):
 
     updates = serializer.validated_data.copy()
     reset_two_factor = bool(updates.pop("reset_two_factor", False))
+    group_roles = updates.pop("group_roles", None)
 
     if "is_active" in updates:
         next_active = bool(updates["is_active"])
@@ -388,6 +391,12 @@ def admin_user_update(request, user_id):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    if group_roles is not None and group_roles and managed_user.user_type == "applicant":
+        return Response(
+            {"detail": "Internal operational roles can only be assigned to internal users."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     for field, value in updates.items():
         setattr(managed_user, field, value)
 
@@ -405,6 +414,18 @@ def admin_user_update(request, user_id):
 
     if update_fields:
         managed_user.save(update_fields=[*set(update_fields), "updated_at"])
+
+    if group_roles is not None:
+        requested_roles = set(group_roles)
+        existing_group_names = set(managed_user.groups.values_list("name", flat=True))
+        preserved_groups = existing_group_names.difference(GOVERNMENT_ROLE_GROUPS)
+        target_group_names = preserved_groups.union(requested_roles)
+
+        for role_name in requested_roles:
+            Group.objects.get_or_create(name=role_name)
+
+        target_groups = Group.objects.filter(name__in=target_group_names)
+        managed_user.groups.set(target_groups)
 
     return Response(AdminManagedUserSerializer(managed_user).data)
 

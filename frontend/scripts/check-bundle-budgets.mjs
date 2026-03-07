@@ -5,7 +5,7 @@ const KIB = 1024
 
 const budgets = [
   { label: 'Main app chunk', pattern: /^index-.*\.js$/, maxBytes: 130 * KIB },
-  { label: 'HR dashboard route chunk', pattern: /^HrDashboardPage-.*\.js$/, maxBytes: 30 * KIB },
+  { label: 'Operations dashboard route chunk', pattern: /^OperationsDashboardPage-.*\.js$/, maxBytes: 30 * KIB },
   { label: 'Interview route chunk', pattern: /^HeyGenInterrogation-.*\.js$/, maxBytes: 40 * KIB },
   { label: 'React core vendor chunk', pattern: /^react-core-.*\.js$/, maxBytes: 220 * KIB },
   { label: 'State/data vendor chunk', pattern: /^state-data-.*\.js$/, maxBytes: 120 * KIB },

@@ -58,7 +58,15 @@ const PUBLICATION_LABELS: Record<"draft" | "published" | "revoked", string> = {
 };
 
 const EXERCISE_TYPE_OPTIONS = ["ministerial", "judicial", "board", "local_gov", "diplomatic", "security"];
-const REQUIRED_ROLE_OPTIONS = ["vetting_officer", "committee_member", "appointing_authority", "registry_admin"];
+const REQUIRED_ROLE_OPTIONS = [
+  "vetting_officer",
+  "committee_member",
+  "committee_chair",
+  "appointing_authority",
+  "registry_admin",
+  "publication_officer",
+  "auditor",
+];
 const todayIso = new Date().toISOString().slice(0, 10);
 
 type StageActionIntent = "note" | "approve" | "reject" | "return";

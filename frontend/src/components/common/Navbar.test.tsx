@@ -38,7 +38,7 @@ const createState = (overrides?: Record<string, any>) => {
         email: "hr@example.com",
         first_name: "HR",
         last_name: "Manager",
-        full_name: "HR Manager",
+        full_name: "Operations User",
         phone_number: "",
         profile_picture_url: "",
         avatar_url: "",
@@ -50,6 +50,8 @@ const createState = (overrides?: Record<string, any>) => {
       tokens: { access: "token-access", refresh: "token-refresh" },
       isAuthenticated: true,
       userType: "hr_manager",
+      roles: [],
+      capabilities: [],
       loading: false,
       error: null,
       passwordResetEmailSent: false,
@@ -220,7 +222,7 @@ describe("Navbar runtime + active tab behavior", () => {
         user: {
           user_type: "hr_manager",
           email: "hr@example.com",
-          full_name: "HR Manager",
+          full_name: "Operations User",
           first_name: "HR",
           last_name: "Manager",
         },
@@ -263,7 +265,7 @@ describe("Navbar runtime + active tab behavior", () => {
         user: {
           user_type: "hr_manager",
           email: "hr@example.com",
-          full_name: "HR Manager",
+          full_name: "Operations User",
           first_name: "HR",
           last_name: "Manager",
         },
@@ -276,5 +278,51 @@ describe("Navbar runtime + active tab behavior", () => {
 
     expect(screen.getAllByRole("link", { name: /campaigns/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /rubrics/i }).length).toBeGreaterThan(0);
+  });
+
+  it("shows audit link for hr_manager users with audit capability", async () => {
+    renderNavbar("/dashboard", {
+      auth: {
+        userType: "hr_manager",
+        capabilities: ["gams.audit.view"],
+        user: {
+          user_type: "hr_manager",
+          email: "auditor@example.com",
+          full_name: "Audit Reader",
+          first_name: "Audit",
+          last_name: "Reader",
+        },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /more/i }));
+    expect(screen.getAllByRole("link", { name: /audit/i }).length).toBeGreaterThan(0);
+  });
+
+  it("hides audit link for hr_manager users without audit capability", async () => {
+    renderNavbar("/dashboard", {
+      auth: {
+        userType: "hr_manager",
+        capabilities: [],
+        user: {
+          user_type: "hr_manager",
+          email: "operator@example.com",
+          full_name: "Ops User",
+          first_name: "Ops",
+          last_name: "User",
+        },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /more/i }));
+    expect(screen.queryByRole("link", { name: /audit/i })).toBeNull();
   });
 });

@@ -11,6 +11,8 @@ type GuardAuthState = {
   isAuthenticated: boolean;
   userType: "applicant" | "hr_manager" | "admin" | null;
   user: { is_staff?: boolean; is_superuser?: boolean } | null;
+  roles: string[];
+  capabilities: string[];
   twoFactorRequired: boolean;
   twoFactorToken: string | null;
 };
@@ -25,6 +27,8 @@ const createGuardState = (auth: Partial<GuardAuthState> = {}): GuardState => ({
     isAuthenticated: false,
     userType: null,
     user: null,
+    roles: [],
+    capabilities: [],
     twoFactorRequired: false,
     twoFactorToken: null,
     ...auth,
@@ -39,16 +43,15 @@ const renderWithState = (
     | "/admin-private"
     | "/no-applicant"
     | "/applications"
-    | "/applications/new"
     | "/applications/case-001"
-    | "/applications/case-001/upload"
     | "/campaigns"
     | "/campaigns/campaign-001"
     | "/rubrics"
     | "/rubrics/new"
     | "/government/positions"
     | "/government/personnel"
-    | "/government/appointments" = "/private",
+    | "/government/appointments"
+    | "/audit-logs" = "/private",
 ) => {
   const store = configureStore({
     reducer: (currentState: GuardState = state) => currentState,
@@ -89,32 +92,16 @@ const renderWithState = (
           <Route
             path="/applications"
             element={
-              <ProtectedRoute disallowUserTypes={["admin"]}>
+              <ProtectedRoute disallowUserTypes={["admin", "applicant"]}>
                 <div>Applications page</div>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/applications/new"
-            element={
-              <ProtectedRoute disallowUserTypes={["hr_manager", "admin"]}>
-                <div>New application page</div>
               </ProtectedRoute>
             }
           />
           <Route
             path="/applications/:caseId"
             element={
-              <ProtectedRoute disallowUserTypes={["admin"]}>
+              <ProtectedRoute disallowUserTypes={["admin", "applicant"]}>
                 <div>Application detail page</div>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/applications/:caseId/upload"
-            element={
-              <ProtectedRoute disallowUserTypes={["admin"]}>
-                <div>Upload document page</div>
               </ProtectedRoute>
             }
           />
@@ -174,6 +161,14 @@ const renderWithState = (
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/audit-logs"
+            element={
+              <ProtectedRoute requiredCapabilities={["gams.audit.view"]}>
+                <div>Audit logs page</div>
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </MemoryRouter>
     </Provider>,
@@ -223,12 +218,24 @@ describe("ProtectedRoute integration", () => {
     expect(screen.getByText("Dashboard page")).toBeTruthy();
   });
 
-  it("allows staff users on admin-only routes even when user_type is not admin", () => {
+  it("does not allow staff-only users on admin-only routes", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
         userType: "hr_manager",
         user: { is_staff: true, is_superuser: false },
+      }),
+      "/admin-private",
+    );
+    expect(screen.getByText("Dashboard page")).toBeTruthy();
+  });
+
+  it("allows users with admin role on admin-only routes", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "hr_manager",
+        roles: ["admin"],
       }),
       "/admin-private",
     );
@@ -270,26 +277,26 @@ describe("ProtectedRoute integration", () => {
     expect(screen.getByText("Dashboard page")).toBeTruthy();
   });
 
-  it("blocks hr_manager from /applications/new", () => {
+  it("allows hr_manager users on /applications", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
         userType: "hr_manager",
       }),
-      "/applications/new",
+      "/applications",
     );
-    expect(screen.getByText("Dashboard page")).toBeTruthy();
+    expect(screen.getByText("Applications page")).toBeTruthy();
   });
 
-  it("allows applicants to access /applications/new", () => {
+  it("redirects applicants away from /applications", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
         userType: "applicant",
       }),
-      "/applications/new",
+      "/applications",
     );
-    expect(screen.getByText("New application page")).toBeTruthy();
+    expect(screen.getByText("Dashboard page")).toBeTruthy();
   });
 
   it("redirects admin users away from /applications/:caseId routes", () => {
@@ -299,17 +306,6 @@ describe("ProtectedRoute integration", () => {
         userType: "admin",
       }),
       "/applications/case-001",
-    );
-    expect(screen.getByText("Dashboard page")).toBeTruthy();
-  });
-
-  it("redirects admin users away from /applications/:caseId/upload", () => {
-    renderWithState(
-      createGuardState({
-        isAuthenticated: true,
-        userType: "admin",
-      }),
-      "/applications/case-001/upload",
     );
     expect(screen.getByText("Dashboard page")).toBeTruthy();
   });
@@ -420,5 +416,28 @@ describe("ProtectedRoute integration", () => {
       "/government/appointments",
     );
     expect(screen.getByText("Government appointments page")).toBeTruthy();
+  });
+
+  it("allows users with gams.audit.view capability on /audit-logs", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "hr_manager",
+        capabilities: ["gams.audit.view"],
+      }),
+      "/audit-logs",
+    );
+    expect(screen.getByText("Audit logs page")).toBeTruthy();
+  });
+
+  it("blocks users without gams.audit.view capability from /audit-logs", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "hr_manager",
+      }),
+      "/audit-logs",
+    );
+    expect(screen.getByText("Dashboard page")).toBeTruthy();
   });
 });

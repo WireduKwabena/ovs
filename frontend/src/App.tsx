@@ -38,7 +38,6 @@ const BackgroundChecksPage = React.lazy(() => import("./pages/BackgroundChecksPa
 const AuditLogsPage = React.lazy(() => import("./pages/AuditLogsPage"));
 const MlMonitoringPage = React.lazy(() => import("./pages/MlMonitoringPage"));
 const AiMonitorPage = React.lazy(() => import("./pages/AiMonitorPage"));
-const UploadDocumentsPage = React.lazy(() => import("./pages/UploadDocumentPage"));
 const CampaignsPage = React.lazy(() => import("./pages/CampaignsPage"));
 const CampaignWorkspacePage = React.lazy(() => import("./pages/CampaignWorkspacePage"));
 const VideoCallsPage = React.lazy(() => import("./pages/VideoCallsPage"));
@@ -63,9 +62,6 @@ const ApplicationsPage = React.lazy(() =>
 const RubricsPage = React.lazy(() =>
   import("./pages/RubricsPage").then((module) => ({ default: module.RubricsPage })),
 );
-const NewApplicationPage = React.lazy(() =>
-  import("./pages/NewApplicationPage").then((module) => ({ default: module.NewApplicationPage })),
-);
 const ApplicationDetailPage = React.lazy(() =>
   import("./pages/ApplicationDetailPage").then((module) => ({ default: module.ApplicationDetailPage })),
 );
@@ -88,6 +84,8 @@ const HIDE_NAVBAR_PREFIXES = [
   "/subscribe",
   "/login",
   "/register",
+  "/candidate",
+  "/invite",
   "/forgot-password",
   "/reset-password",
   "/billing",
@@ -120,12 +118,13 @@ const CandidateInterrogationPage: React.FC = () => {
 
 const AppShell: React.FC = () => {
   const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
+  const userType = useSelector((state: RootState) => state.auth.userType);
   const location = useLocation();
   const hideNavbar = shouldHideNavbar(location.pathname);
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {isAuthenticated && !hideNavbar ? (
+      {isAuthenticated && userType !== "applicant" && !hideNavbar ? (
         <Suspense fallback={<div className="h-16 border-b border-slate-200 bg-slate-50" />}>
           <Navbar />
         </Suspense>
@@ -201,7 +200,7 @@ const AppShell: React.FC = () => {
           <Route
             path="/interview/interrogation/:applicationId"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
                 <HeyGenInterrogationPage />
               </ProtectedRoute>
             }
@@ -257,7 +256,7 @@ const AppShell: React.FC = () => {
           <Route
             path="/audit-logs"
             element={
-              <ProtectedRoute adminOnly>
+              <ProtectedRoute requiredCapabilities={["gams.audit.view"]}>
                 <AuditLogsPage />
               </ProtectedRoute>
             }
@@ -281,39 +280,23 @@ const AppShell: React.FC = () => {
           <Route
             path="/applications"
             element={
-              <ProtectedRoute disallowUserTypes={["admin"]}>
+              <ProtectedRoute disallowUserTypes={["admin", "applicant"]}>
                 <ApplicationsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/applications/new"
-            element={
-              <ProtectedRoute disallowUserTypes={["hr_manager", "admin"]}>
-                <NewApplicationPage />
               </ProtectedRoute>
             }
           />
           <Route
             path="/applications/:caseId"
             element={
-              <ProtectedRoute disallowUserTypes={["admin"]}>
+              <ProtectedRoute disallowUserTypes={["admin", "applicant"]}>
                 <ApplicationDetailPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/applications/:caseId/upload"
-            element={
-              <ProtectedRoute disallowUserTypes={["admin"]}>
-                <UploadDocumentsPage />
               </ProtectedRoute>
             }
           />
           <Route
             path="/notifications"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
                 <NotificationsPage />
               </ProtectedRoute>
             }
@@ -321,7 +304,7 @@ const AppShell: React.FC = () => {
           <Route
             path="/notifications/:notificationId"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
                 <NotificationDetailPage />
               </ProtectedRoute>
             }
@@ -345,7 +328,7 @@ const AppShell: React.FC = () => {
           <Route
             path="/video-calls"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
                 <VideoCallsPage />
               </ProtectedRoute>
             }

@@ -31,7 +31,7 @@ interface MixRow {
   raw: number;
 }
 
-interface HrDashboardChartsSectionProps {
+interface OperationsDashboardChartsSectionProps {
   chartMode: DashboardChartMode;
   onChartModeChange: (mode: DashboardChartMode) => void;
   throughputDisplayData: ThroughputRow[];
@@ -39,7 +39,7 @@ interface HrDashboardChartsSectionProps {
   decisionMixDisplayData: MixRow[];
 }
 
-const HrDashboardChartsSection: React.FC<HrDashboardChartsSectionProps> = ({
+const OperationsDashboardChartsSection: React.FC<OperationsDashboardChartsSectionProps> = ({
   chartMode,
   onChartModeChange,
   throughputDisplayData,
@@ -187,4 +187,5 @@ const HrDashboardChartsSection: React.FC<HrDashboardChartsSectionProps> = ({
   );
 };
 
-export default HrDashboardChartsSection;
+export default OperationsDashboardChartsSection;
+

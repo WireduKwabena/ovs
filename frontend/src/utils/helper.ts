@@ -101,7 +101,7 @@ export function printBackupCodes(codes: string[], generatedIso: string = new Dat
     <html>
       <head>
         <meta charset="utf-8" />
-        <title>OVS + GAMS Backup Recovery Codes</title>
+        <title>CAVP Backup Recovery Codes</title>
         <style>
           body { font-family: Arial, sans-serif; margin: 24px; color: #111827; }
           h1 { margin: 0 0 8px; font-size: 20px; }
@@ -112,7 +112,7 @@ export function printBackupCodes(codes: string[], generatedIso: string = new Dat
         </style>
       </head>
       <body>
-        <h1>OVS + GAMS Backup Recovery Codes</h1>
+        <h1>CAVP Backup Recovery Codes</h1>
         <p>Generated: ${escapedGeneratedAt}</p>
         <div class="warn">Store these codes securely. Each code can be used only once.</div>
         <ul>${escapedCodes}</ul>

@@ -1,11 +1,17 @@
+from datetime import timedelta
 from unittest.mock import patch
 from uuid import UUID
 
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from apps.applications.models import VettingCase
 from apps.authentication.models import User
+from apps.authentication.permissions import (
+    RECENT_AUTH_REQUIRED_CODE,
+    RECENT_AUTH_SESSION_KEY,
+)
 from apps.rubrics.models import RubricEvaluation, VettingDecisionOverride, VettingDecisionRecommendation, VettingRubric
 from apps.rubrics.tasks import auto_assign_rubric, evaluate_case_with_rubric
 
@@ -48,7 +54,21 @@ class RubricsApiTests(APITestCase):
             fraud_risk_score=18,
             interview_score=74,
         )
-        self.client.force_authenticate(self.hr)
+        self._authenticate_with_recent_auth(self.hr)
+
+    def _authenticate_with_recent_auth(self, user: User, *, age_seconds: int = 0):
+        self.client.force_authenticate(user)
+        session = self.client.session
+        session[RECENT_AUTH_SESSION_KEY] = int(
+            (timezone.now() - timedelta(seconds=max(age_seconds, 0))).timestamp()
+        )
+        session.save()
+
+    def _authenticate_without_recent_auth(self, user: User):
+        self.client.force_authenticate(user)
+        session = self.client.session
+        session.pop(RECENT_AUTH_SESSION_KEY, None)
+        session.save()
 
     def _rubric_payload(self, name: str) -> dict:
         return {
@@ -364,6 +384,51 @@ class RubricsApiTests(APITestCase):
             VettingDecisionOverride.objects.filter(recommendation=recommendation).count(),
             1,
         )
+
+    def test_override_decision_requires_recent_auth(self):
+        rubric_id = self._create_rubric("Decision Override Step Up Rubric")
+        evaluate = self.client.post(
+            f"/api/rubrics/vetting-rubrics/{rubric_id}/evaluate-case/",
+            {"case_id": self.case.id},
+            format="json",
+        )
+        self.assertEqual(evaluate.status_code, 200)
+        evaluation_id = evaluate.json()["id"]
+
+        self._authenticate_without_recent_auth(self.hr)
+        denied_missing = self.client.post(
+            f"/api/rubrics/evaluations/{evaluation_id}/override-decision/",
+            {
+                "recommendation_status": "recommend_manual_review",
+                "rationale": "Attempt without step-up auth.",
+            },
+            format="json",
+        )
+        self.assertEqual(denied_missing.status_code, 403)
+        self.assertEqual((denied_missing.json() or {}).get("code"), RECENT_AUTH_REQUIRED_CODE)
+
+        self._authenticate_with_recent_auth(self.hr, age_seconds=3600)
+        denied_stale = self.client.post(
+            f"/api/rubrics/evaluations/{evaluation_id}/override-decision/",
+            {
+                "recommendation_status": "recommend_manual_review",
+                "rationale": "Attempt with stale step-up auth.",
+            },
+            format="json",
+        )
+        self.assertEqual(denied_stale.status_code, 403)
+        self.assertEqual((denied_stale.json() or {}).get("code"), RECENT_AUTH_REQUIRED_CODE)
+
+        self._authenticate_with_recent_auth(self.hr)
+        allowed = self.client.post(
+            f"/api/rubrics/evaluations/{evaluation_id}/override-decision/",
+            {
+                "recommendation_status": "recommend_manual_review",
+                "rationale": "Fresh step-up auth accepted.",
+            },
+            format="json",
+        )
+        self.assertEqual(allowed.status_code, 200)
 
     def test_override_records_trace_event(self):
         rubric_id = self._create_rubric("Override Trace Rubric")

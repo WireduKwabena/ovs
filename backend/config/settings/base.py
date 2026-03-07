@@ -206,6 +206,16 @@ AUTH_TWO_FACTOR_BACKUP_CODE_LENGTH = config(
     default=8,
     cast=int,
 )
+AUTH_RECENT_AUTH_MAX_AGE_SECONDS = config(
+    'AUTH_RECENT_AUTH_MAX_AGE_SECONDS',
+    default=900,
+    cast=int,
+)
+AUTHZ_STAFF_IMPLIES_ADMIN = config(
+    'AUTHZ_STAFF_IMPLIES_ADMIN',
+    default=False,
+    cast=bool,
+)
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

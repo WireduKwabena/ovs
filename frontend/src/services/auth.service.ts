@@ -39,6 +39,9 @@ export interface TwoFactorVerifyPayload {
 export interface ProfileResponse {
   user: User | AdminUser;
   user_type: "applicant" | "hr_manager" | "admin";
+  roles?: string[];
+  capabilities?: string[];
+  is_internal_operator?: boolean;
 }
 
 const toApiError = (error: any, fallback: string): Error => {

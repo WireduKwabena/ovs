@@ -25,6 +25,8 @@ interface AuthState {
   tokens: AuthTokens | null;
   isAuthenticated: boolean;
   userType: "applicant" | "hr_manager" | "admin" | null;
+  roles: string[];
+  capabilities: string[];
   loading: boolean;
   error: string | null;
   passwordResetEmailSent: boolean;
@@ -41,6 +43,8 @@ const initialState: AuthState = {
   tokens: null,
   isAuthenticated: false,
   userType: null,
+  roles: [],
+  capabilities: [],
   loading: false,
   error: null,
   passwordResetEmailSent: false,
@@ -83,7 +87,45 @@ const clearSessionState = (state: AuthState) => {
   state.tokens = null;
   state.isAuthenticated = false;
   state.userType = null;
+  state.roles = [];
+  state.capabilities = [];
   clearTwoFactorState(state);
+};
+
+const normalizeStringArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return Array.from(
+    new Set(
+      value
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0),
+    ),
+  );
+};
+
+const resolveRoles = (payload: {
+  roles?: unknown;
+  user?: User | AdminUser;
+}): string[] => {
+  const fromPayload = normalizeStringArray(payload.roles);
+  if (fromPayload.length > 0) {
+    return fromPayload;
+  }
+  return normalizeStringArray((payload.user as (User & { roles?: unknown }) | undefined)?.roles);
+};
+
+const resolveCapabilities = (payload: {
+  capabilities?: unknown;
+  user?: User | AdminUser;
+}): string[] => {
+  const fromPayload = normalizeStringArray(payload.capabilities);
+  if (fromPayload.length > 0) {
+    return fromPayload;
+  }
+  return normalizeStringArray((payload.user as (User & { capabilities?: unknown }) | undefined)?.capabilities);
 };
 
 export const login = createAsyncThunk<
@@ -265,6 +307,8 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.tokens = action.payload.tokens;
         state.userType = resolveUserType(action.payload.user_type, action.payload.user);
+        state.roles = resolveRoles(action.payload);
+        state.capabilities = resolveCapabilities(action.payload);
         state.isAuthenticated = true;
         clearTwoFactorState(state);
       })
@@ -282,6 +326,8 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.tokens = action.payload.tokens;
         state.userType = resolveUserType(action.payload.user_type, action.payload.user);
+        state.roles = resolveRoles(action.payload);
+        state.capabilities = resolveCapabilities(action.payload);
         state.isAuthenticated = true;
         state.loading = false;
         clearTwoFactorState(state);
@@ -321,6 +367,8 @@ const authSlice = createSlice({
       .addCase(fetchProfile.fulfilled, (state, action) => {
         state.user = action.payload.user;
         state.userType = action.payload.user_type as AuthState["userType"];
+        state.roles = resolveRoles(action.payload);
+        state.capabilities = resolveCapabilities(action.payload);
         state.isAuthenticated = true;
         clearTwoFactorState(state);
       })

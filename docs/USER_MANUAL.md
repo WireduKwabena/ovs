@@ -1,4 +1,4 @@
-# OVS + GAMS User Manual
+# CAVP User Manual
 
 Version: 2.0  
 Last Updated: March 7, 2026
@@ -13,7 +13,7 @@ If you want a practical, click-by-click guide, use:
 This manual is organized for day-to-day work by role:
 
 - Applicant tasks (invitation, document upload, interview, results)
-- HR tasks (campaigns, rubrics, case review, checks, calls)
+- Operations tasks (campaigns, rubrics, case review, checks, calls)
 - Government appointment tasks (positions, personnel, nomination, approval stages, publication)
 - Admin oversight tasks (users, audit, monitoring)
 
