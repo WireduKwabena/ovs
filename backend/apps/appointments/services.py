@@ -693,9 +693,11 @@ def advance_stage(
                 appointment.exit_date = now.date()
 
             position = appointment.position
-            if position.current_holder_id == appointment.nominee_id or not position.is_vacant:
-                if position.current_holder_id == appointment.nominee_id:
-                    position.current_holder = None
+            if position.current_holder_id == appointment.nominee_id:
+                position.current_holder = None
+                position.is_vacant = True
+                position.save(update_fields=["current_holder", "is_vacant", "updated_at"])
+            elif position.current_holder_id is None and not position.is_vacant:
                 position.is_vacant = True
                 position.save(update_fields=["current_holder", "is_vacant", "updated_at"])
 

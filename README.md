@@ -432,16 +432,16 @@ Algorithm: Handcrafted signature features + RandomForest
 ```bash
 # Backend tests
 cd backend
-python manage.py test
+python manage.py test --keepdb
 
 # Focused orchestration + domain integration suites
-python manage.py test apps.campaigns apps.candidates apps.invitations apps.applications apps.interviews apps.rubrics
+python manage.py test --keepdb apps.campaigns apps.candidates apps.invitations apps.applications apps.interviews apps.rubrics
 
 # Monitoring/audit/fraud suites
-python manage.py test apps.audit apps.fraud apps.ml_monitoring
+python manage.py test --keepdb apps.audit apps.fraud apps.ml_monitoring
 
 # With coverage
-coverage run --source='.' manage.py test
+coverage run --source='.' manage.py test --keepdb
 coverage report
 
 # Frontend tests
