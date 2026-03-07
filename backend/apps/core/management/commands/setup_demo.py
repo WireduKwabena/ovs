@@ -3,7 +3,8 @@ from __future__ import annotations
 from datetime import date
 
 from django.contrib.auth.models import Group
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
+from django.db import connection
 from django.db import transaction
 from django.utils import timezone
 
@@ -51,6 +52,9 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        if not options["skip_sample_data"]:
+            self._ensure_sample_data_schema_ready()
+
         with transaction.atomic():
             groups = self._ensure_groups()
             users = self._ensure_users(options=options, groups=groups)
@@ -65,6 +69,24 @@ class Command(BaseCommand):
         self.stdout.write(f"  Committee: {options['committee_email']} / {options['committee_password']}")
         self.stdout.write(f"  Authority: {options['authority_email']} / {options['authority_password']}")
         self.stdout.write(f"  Registry:  {options['registry_email']} / {options['registry_password']}")
+
+    def _ensure_sample_data_schema_ready(self) -> None:
+        required_tables = {
+            ApprovalStageTemplate._meta.db_table,
+            ApprovalStage._meta.db_table,
+            AppointmentRecord._meta.db_table,
+            AppointmentPublication._meta.db_table,
+            VettingCampaign._meta.db_table,
+            GovernmentPosition._meta.db_table,
+            PersonnelRecord._meta.db_table,
+        }
+        existing_tables = set(connection.introspection.table_names())
+        missing_tables = sorted(required_tables - existing_tables)
+        if missing_tables:
+            raise CommandError(
+                "Cannot seed demo sample records because required tables are missing: "
+                f"{', '.join(missing_tables)}. Run `python manage.py migrate` and retry."
+            )
 
     def _ensure_groups(self) -> dict[str, Group]:
         groups: dict[str, Group] = {}
@@ -448,27 +470,52 @@ class Command(BaseCommand):
             )
         else:
             record.appointment_exercise = campaign
+            record.status = "nominated"
             record.nominated_by_user = nominated_by
             if not record.nominated_by_display:
                 record.nominated_by_display = "H.E. President"
             if not record.nominated_by_org:
                 record.nominated_by_org = "Office of the President"
+            record.nomination_date = record.nomination_date or date.today()
+            record.committee_recommendation = ""
+            record.final_decision_by_user = None
+            record.final_decision_by_display = ""
+            record.appointment_date = None
+            record.gazette_number = ""
+            record.gazette_date = None
+            record.exit_date = None
+            record.exit_reason = ""
             record.is_public = False
             record.save(
                 update_fields=[
                     "appointment_exercise",
+                    "status",
                     "nominated_by_user",
                     "nominated_by_display",
                     "nominated_by_org",
+                    "nomination_date",
+                    "committee_recommendation",
+                    "final_decision_by_user",
+                    "final_decision_by_display",
+                    "appointment_date",
+                    "gazette_number",
+                    "gazette_date",
+                    "exit_date",
+                    "exit_reason",
                     "is_public",
                     "updated_at",
                 ]
             )
 
-        if position.current_holder_id == nominee.id:
+        position_updates: list[str] = []
+        if position.current_holder_id is not None:
             position.current_holder = None
+            position_updates.append("current_holder")
+        if not position.is_vacant:
             position.is_vacant = True
-            position.save(update_fields=["current_holder", "is_vacant", "updated_at"])
+            position_updates.append("is_vacant")
+        if position_updates:
+            position.save(update_fields=position_updates + ["updated_at"])
         return record
 
     def _ensure_serving_record(
@@ -553,6 +600,24 @@ class Command(BaseCommand):
                 "publication_notes": "",
             },
         )
+        updated_fields: list[str] = []
+        for field, value in {
+            "status": "draft",
+            "publication_reference": "",
+            "publication_document_hash": "",
+            "publication_notes": "",
+            "published_by": None,
+            "published_at": None,
+            "revoked_by": None,
+            "revoked_at": None,
+            "revocation_reason": "",
+        }.items():
+            if getattr(publication, field) != value:
+                setattr(publication, field, value)
+                updated_fields.append(field)
+
+        if updated_fields:
+            publication.save(update_fields=updated_fields + ["updated_at"])
         return publication
 
     def _ensure_published_publication(self, appointment: AppointmentRecord, *, publisher: User) -> AppointmentPublication:
