@@ -251,6 +251,16 @@ class Notification(models.Model):
         self.archived_at = None
         self.save(update_fields=["is_archived", "archived_at"])
 
+    @property
+    def event_type(self) -> str:
+        """Stable helper for event-driven notification tracing."""
+        return str((self.metadata or {}).get("event_type", "") or "")
+
+    @property
+    def idempotency_key(self) -> str:
+        """Expose metadata idempotency key when present."""
+        return str((self.metadata or {}).get("idempotency_key", "") or "")
+
 
 class AlertRule(models.Model):
     """

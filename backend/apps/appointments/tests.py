@@ -1,4 +1,5 @@
 from datetime import date
+from unittest.mock import patch
 
 from django.conf import settings
 from django.contrib.auth.models import Group
@@ -7,9 +8,14 @@ from django.test import TestCase
 from rest_framework.test import APITestCase
 
 from apps.audit.contracts import (
+    APPOINTMENT_FINAL_DECISION_RECORDED_EVENT,
+    APPOINTMENT_NOMINATION_CREATED_EVENT,
+    APPOINTMENT_PUBLICATION_PUBLISHED_EVENT,
+    APPOINTMENT_PUBLICATION_REVOKED_EVENT,
     APPOINTMENT_RECORD_CREATED_EVENT,
     APPOINTMENT_RECORD_DELETED_EVENT,
     APPOINTMENT_RECORD_UPDATED_EVENT,
+    APPOINTMENT_STAGE_ACTION_TAKEN_EVENT,
     APPOINTMENT_STAGE_TRANSITION_EVENT,
     APPOINTMENT_VETTING_LINKAGE_ENSURED_EVENT,
 )
@@ -18,10 +24,11 @@ from apps.campaigns.models import VettingCampaign
 from apps.candidates.models import Candidate, CandidateEnrollment
 from apps.applications.models import VettingCase
 from apps.invitations.models import Invitation
+from apps.notifications.models import Notification
 from apps.personnel.models import PersonnelRecord
 from apps.positions.models import GovernmentPosition
 
-from .models import AppointmentRecord, ApprovalStage, ApprovalStageTemplate
+from .models import AppointmentPublication, AppointmentRecord, ApprovalStage, ApprovalStageTemplate
 from .services import (
     InvalidTransitionError,
     LinkageValidationError,
@@ -187,6 +194,17 @@ class AppointmentTransitionServiceTests(TestCase):
 
         self.assertEqual(first_count, second_count)
 
+    @patch("apps.invitations.tasks.send_invitation_task.delay", side_effect=RuntimeError("broker down"))
+    def test_ensure_vetting_linkage_tolerates_invitation_dispatch_failures(self, _mock_invite_delay):
+        linked = ensure_vetting_linkage_for_appointment(appointment=self.appointment, actor=self.admin_user)
+        self.assertIsNotNone(linked.vetting_case_id)
+        self.assertTrue(
+            Invitation.objects.filter(
+                enrollment__campaign=self.exercise,
+                enrollment__candidate=self.candidate,
+            ).exists()
+        )
+
     def test_serving_transition_updates_position_holder(self):
         self.appointment.status = "appointed"
         self.appointment.save(update_fields=["status", "updated_at"])
@@ -200,6 +218,7 @@ class AppointmentTransitionServiceTests(TestCase):
         self.position.refresh_from_db()
         self.nominee.refresh_from_db()
         self.assertEqual(updated.status, "serving")
+        self.assertIsNotNone(updated.appointment_date)
         self.assertEqual(self.position.current_holder_id, self.nominee.id)
         self.assertFalse(self.position.is_vacant)
         self.assertTrue(self.nominee.is_active_officeholder)
@@ -492,18 +511,54 @@ class AppointmentPublicApiTests(APITestCase):
             return
         from apps.audit.models import AuditLog
 
-        row = (
+        queryset = AuditLog.objects.filter(
+            action=action,
+            entity_type="AppointmentRecord",
+            entity_id=str(entity_id),
+        )
+        if expected_event:
+            queryset = queryset.filter(changes__event=expected_event)
+        row = queryset.order_by("-created_at").first()
+        self.assertIsNotNone(row)
+        if expected_event:
+            self.assertEqual((row.changes or {}).get("event"), expected_event)
+
+    def _assert_audit_event_exists(self, *, event: str, entity_id: str, action: str = "update"):
+        if "apps.audit" not in settings.INSTALLED_APPS:
+            return
+        from apps.audit.models import AuditLog
+
+        self.assertTrue(
             AuditLog.objects.filter(
                 action=action,
                 entity_type="AppointmentRecord",
                 entity_id=str(entity_id),
-            )
-            .order_by("-created_at")
-            .first()
+                changes__event=event,
+            ).exists()
         )
-        self.assertIsNotNone(row)
-        if expected_event:
-            self.assertEqual((row.changes or {}).get("event"), expected_event)
+
+    def _notification_count_for_event(self, *, event_type: str, record: AppointmentRecord | None = None) -> int:
+        target = record or self.record
+        return Notification.objects.filter(
+            metadata__event_type=event_type,
+            metadata__appointment_id=str(target.id),
+        ).count()
+
+    def _publish_record(self, *, record: AppointmentRecord | None = None, actor: User | None = None):
+        target = record or self.record
+        publisher = actor or self.authority_user
+        self.client.force_authenticate(publisher)
+        return self.client.post(
+            f"/api/appointments/records/{target.id}/publish/",
+            {
+                "publication_reference": f"GOV-GAZ-{str(target.id)[:8]}",
+                "publication_document_hash": "a" * 64,
+                "publication_notes": "Published in official gazette.",
+                "gazette_number": f"GZT-{str(target.id)[:8]}",
+                "gazette_date": str(date.today()),
+            },
+            format="json",
+        )
 
     def test_create_record_auto_links_vetting_case(self):
         nominee = self._build_nominee()
@@ -528,6 +583,36 @@ class AppointmentPublicApiTests(APITestCase):
             action="create",
             entity_id=created_id,
             expected_event=APPOINTMENT_RECORD_CREATED_EVENT,
+        )
+
+    @patch("apps.invitations.tasks.send_invitation_task.delay", return_value=None)
+    def test_create_record_emits_nomination_lifecycle_audit_and_notification(self, _mock_invite_delay):
+        nominee = self._build_nominee()
+        response = self.client.post(
+            "/api/appointments/records/",
+            {
+                "position": str(self.record.position_id),
+                "nominee": str(nominee.id),
+                "appointment_exercise": str(self.record.appointment_exercise_id),
+                "nominated_by_display": "H.E. President",
+                "nominated_by_org": "Office of the President",
+                "nomination_date": str(date.today()),
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        created_id = response.json()["id"]
+        self._assert_audit_event_exists(
+            event=APPOINTMENT_NOMINATION_CREATED_EVENT,
+            action="create",
+            entity_id=created_id,
+        )
+        self.assertGreater(
+            Notification.objects.filter(
+                metadata__event_type="appointment_nomination_created",
+                metadata__appointment_id=created_id,
+            ).count(),
+            0,
         )
 
     def test_list_records_allows_hr_and_admin_but_blocks_applicant(self):
@@ -689,6 +774,20 @@ class AppointmentPublicApiTests(APITestCase):
         allowed = self.client.post(f"/api/appointments/records/{self.record.id}/appoint/", {}, format="json")
         self.assertEqual(allowed.status_code, 200)
 
+    def test_appoint_emits_final_decision_audit_and_notifications(self):
+        self.record.status = "committee_review"
+        self.record.save(update_fields=["status", "updated_at"])
+
+        self.client.force_authenticate(self.authority_user)
+        response = self.client.post(f"/api/appointments/records/{self.record.id}/appoint/", {}, format="json")
+        self.assertEqual(response.status_code, 200)
+        self._assert_audit_event_exists(
+            event=APPOINTMENT_FINAL_DECISION_RECORDED_EVENT,
+            entity_id=str(self.record.id),
+        )
+        self.assertGreater(self._notification_count_for_event(event_type="appointment_approved"), 0)
+        self.assertGreater(self._notification_count_for_event(event_type="appointment_appointed"), 0)
+
     def test_advance_stage_requires_stage_actor_group(self):
         self.record.status = "under_vetting"
         self.record.save(update_fields=["status", "updated_at"])
@@ -712,6 +811,28 @@ class AppointmentPublicApiTests(APITestCase):
             action="update",
             entity_id=str(self.record.id),
             expected_event=APPOINTMENT_STAGE_TRANSITION_EVENT,
+        )
+
+    def test_advance_stage_emits_stage_action_audit_and_committee_notification(self):
+        self.record.status = "under_vetting"
+        self.record.save(update_fields=["status", "updated_at"])
+
+        self.client.force_authenticate(self.committee_user)
+        response = self.client.post(
+            f"/api/appointments/records/{self.record.id}/advance-stage/",
+            {"status": "committee_review"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self._assert_audit_event_exists(
+            event=APPOINTMENT_STAGE_ACTION_TAKEN_EVENT,
+            entity_id=str(self.record.id),
+        )
+        self.assertGreater(
+            self._notification_count_for_event(
+                event_type="appointment_moved_to_committee_review",
+            ),
+            0,
         )
 
     def test_advance_stage_requires_stage_id_when_template_requires_status(self):
@@ -830,14 +951,133 @@ class AppointmentPublicApiTests(APITestCase):
             expected_event=APPOINTMENT_VETTING_LINKAGE_ENSURED_EVENT,
         )
 
+    def test_publish_flow_creates_publication_provenance_and_audit(self):
+        self.record.is_public = False
+        self.record.save(update_fields=["is_public", "updated_at"])
+
+        response = self._publish_record()
+        self.assertEqual(response.status_code, 200)
+
+        self.record.refresh_from_db()
+        publication = AppointmentPublication.objects.get(appointment=self.record)
+        self.assertEqual(publication.status, "published")
+        self.assertIsNotNone(publication.published_at)
+        self.assertEqual(publication.published_by_id, self.authority_user.id)
+        self.assertEqual(publication.publication_document_hash, "a" * 64)
+        self.assertTrue(self.record.is_public)
+        self.assertTrue(self.record.gazette_number.startswith("GZT-"))
+        self._assert_audit_row_exists(
+            action="update",
+            entity_id=str(self.record.id),
+            expected_event=APPOINTMENT_PUBLICATION_PUBLISHED_EVENT,
+        )
+
+    def test_repeated_publish_does_not_duplicate_publication_notifications(self):
+        first = self._publish_record()
+        self.assertEqual(first.status_code, 200)
+        first_count = self._notification_count_for_event(event_type="appointment_published")
+        self.assertGreater(first_count, 0)
+
+        second = self._publish_record()
+        self.assertEqual(second.status_code, 200)
+        second_count = self._notification_count_for_event(event_type="appointment_published")
+        self.assertEqual(first_count, second_count)
+
+    def test_revoke_flow_hides_record_from_public_feed_and_audit(self):
+        publish_response = self._publish_record()
+        self.assertEqual(publish_response.status_code, 200)
+
+        self.client.force_authenticate(user=None)
+        feed_before = self.client.get("/api/appointments/records/gazette-feed/")
+        self.assertEqual(feed_before.status_code, 200)
+        before_ids = {str(item["id"]) for item in feed_before.json()}
+        self.assertIn(str(self.record.id), before_ids)
+
+        self.client.force_authenticate(self.authority_user)
+        revoke_response = self.client.post(
+            f"/api/appointments/records/{self.record.id}/revoke-publication/",
+            {"revocation_reason": "Court injunction pending review.", "make_private": True},
+            format="json",
+        )
+        self.assertEqual(revoke_response.status_code, 200)
+
+        self.record.refresh_from_db()
+        publication = AppointmentPublication.objects.get(appointment=self.record)
+        self.assertEqual(publication.status, "revoked")
+        self.assertIsNotNone(publication.revoked_at)
+        self.assertEqual(publication.revoked_by_id, self.authority_user.id)
+        self.assertEqual(publication.revocation_reason, "Court injunction pending review.")
+        self.assertFalse(self.record.is_public)
+        self._assert_audit_row_exists(
+            action="update",
+            entity_id=str(self.record.id),
+            expected_event=APPOINTMENT_PUBLICATION_REVOKED_EVENT,
+        )
+        self.assertGreater(self._notification_count_for_event(event_type="appointment_revoked"), 0)
+
+        self.client.force_authenticate(user=None)
+        feed_after = self.client.get("/api/appointments/records/gazette-feed/")
+        self.assertEqual(feed_after.status_code, 200)
+        after_ids = {str(item["id"]) for item in feed_after.json()}
+        self.assertNotIn(str(self.record.id), after_ids)
+
+    def test_public_endpoints_exclude_unpublished_records_even_if_marked_public(self):
+        nominee = self._build_nominee()
+        unpublished = AppointmentRecord.objects.create(
+            position=self.record.position,
+            nominee=nominee,
+            appointment_exercise=self.record.appointment_exercise,
+            nominated_by_user=self.admin_user,
+            nominated_by_display="Unpublished Public Marker",
+            nomination_date=date.today(),
+            status="nominated",
+            is_public=True,
+        )
+        self.assertFalse(AppointmentPublication.objects.filter(appointment=unpublished).exists())
+
+        self.client.force_authenticate(user=None)
+        gazette_feed = self.client.get("/api/appointments/records/gazette-feed/")
+        self.assertEqual(gazette_feed.status_code, 200)
+        gazette_ids = {str(item["id"]) for item in gazette_feed.json()}
+        self.assertNotIn(str(unpublished.id), gazette_ids)
+
+        open_feed = self.client.get("/api/appointments/records/open/")
+        self.assertEqual(open_feed.status_code, 200)
+        open_ids = {str(item["id"]) for item in open_feed.json()}
+        self.assertNotIn(str(unpublished.id), open_ids)
+
+    def test_publication_detail_endpoint_returns_provenance(self):
+        publish_response = self._publish_record()
+        self.assertEqual(publish_response.status_code, 200)
+
+        self.client.force_authenticate(self.admin_user)
+        detail_response = self.client.get(f"/api/appointments/records/{self.record.id}/publication/")
+        self.assertEqual(detail_response.status_code, 200)
+        payload = detail_response.json()
+        self.assertEqual(payload["status"], "published")
+        self.assertEqual(payload["appointment"], str(self.record.id))
+        self.assertIn("published_at", payload)
+        self.assertIn("publication_reference", payload)
+
+        self.client.force_authenticate(self.applicant_user)
+        denied = self.client.get(f"/api/appointments/records/{self.record.id}/publication/")
+        self.assertEqual(denied.status_code, 403)
+
     def test_public_gazette_feed_redacts_internal_fields(self):
+        publish_response = self._publish_record(actor=self.admin_user)
+        self.assertEqual(publish_response.status_code, 200)
+
         self.client.force_authenticate(user=None)
         response = self.client.get("/api/appointments/records/gazette-feed/")
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertIsInstance(payload, list)
-        if payload:
-            item = payload[0]
-            self.assertNotIn("vetting_case", item)
-            self.assertNotIn("committee_recommendation", item)
-            self.assertIn("position_title", item)
+        item = next((row for row in payload if str(row["id"]) == str(self.record.id)), None)
+        self.assertIsNotNone(item)
+        self.assertNotIn("vetting_case", item)
+        self.assertNotIn("committee_recommendation", item)
+        self.assertNotIn("stage_actions", item)
+        self.assertNotIn("publication_notes", item)
+        self.assertIn("position_title", item)
+        self.assertIn("publication_status", item)
+        self.assertIn("publication_reference", item)

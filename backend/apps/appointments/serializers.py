@@ -1,7 +1,7 @@
 from django.utils import timezone
 from rest_framework import serializers
 
-from .models import AppointmentRecord, AppointmentStageAction, ApprovalStage, ApprovalStageTemplate
+from .models import AppointmentPublication, AppointmentRecord, AppointmentStageAction, ApprovalStage, ApprovalStageTemplate
 
 
 class ApprovalStageSerializer(serializers.ModelSerializer):
@@ -83,6 +83,7 @@ class AppointmentRecordSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+        validators = []
         read_only_fields = ["id", "status", "created_at", "updated_at"]
 
     def validate_nomination_date(self, value):
@@ -182,10 +183,80 @@ class AppointmentAdvanceStageSerializer(serializers.Serializer):
     )
 
 
+class AppointmentPublishSerializer(serializers.Serializer):
+    publication_reference = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    publication_document_hash = serializers.CharField(required=False, allow_blank=True, max_length=128)
+    publication_notes = serializers.CharField(required=False, allow_blank=True)
+    gazette_number = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    gazette_date = serializers.DateField(required=False)
+
+    def validate_publication_document_hash(self, value):
+        normalized = (value or "").strip().lower()
+        if not normalized:
+            return ""
+        if len(normalized) not in {64, 128}:
+            raise serializers.ValidationError("publication_document_hash must be 64 or 128 hex characters when provided.")
+        if any(char not in "0123456789abcdef" for char in normalized):
+            raise serializers.ValidationError("publication_document_hash must be hexadecimal.")
+        return normalized
+
+
+class AppointmentRevokePublicationSerializer(serializers.Serializer):
+    revocation_reason = serializers.CharField(required=True, allow_blank=False)
+    make_private = serializers.BooleanField(required=False, default=True)
+
+
+class AppointmentPublicationSerializer(serializers.ModelSerializer):
+    published_by_email = serializers.EmailField(source="published_by.email", read_only=True)
+    revoked_by_email = serializers.EmailField(source="revoked_by.email", read_only=True)
+
+    class Meta:
+        model = AppointmentPublication
+        fields = [
+            "id",
+            "appointment",
+            "status",
+            "publication_reference",
+            "publication_document_hash",
+            "publication_notes",
+            "published_by",
+            "published_by_email",
+            "published_at",
+            "revoked_by",
+            "revoked_by_email",
+            "revoked_at",
+            "revocation_reason",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+
 class PublicAppointmentRecordSerializer(serializers.ModelSerializer):
     position_title = serializers.CharField(source="position.title", read_only=True)
     institution = serializers.CharField(source="position.institution", read_only=True)
     nominee_name = serializers.CharField(source="nominee.full_name", read_only=True)
+    publication_status = serializers.SerializerMethodField()
+    publication_reference = serializers.SerializerMethodField()
+    published_at = serializers.SerializerMethodField()
+
+    @staticmethod
+    def _publication(obj):
+        return getattr(obj, "publication", None)
+
+    def get_publication_status(self, obj):
+        publication = self._publication(obj)
+        return publication.status if publication is not None else "draft"
+
+    def get_publication_reference(self, obj):
+        publication = self._publication(obj)
+        if publication is not None and publication.publication_reference:
+            return publication.publication_reference
+        return obj.gazette_number
+
+    def get_published_at(self, obj):
+        publication = self._publication(obj)
+        return publication.published_at if publication is not None else None
 
     class Meta:
         model = AppointmentRecord
@@ -200,4 +271,7 @@ class PublicAppointmentRecordSerializer(serializers.ModelSerializer):
             "gazette_number",
             "gazette_date",
             "status",
+            "publication_status",
+            "publication_reference",
+            "published_at",
         ]

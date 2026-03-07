@@ -15,8 +15,13 @@ PERSONNEL_LINKED_CANDIDATE_EVENT = "personnel_linked_candidate"
 APPOINTMENT_RECORD_CREATED_EVENT = "appointment_record_created"
 APPOINTMENT_RECORD_UPDATED_EVENT = "appointment_record_updated"
 APPOINTMENT_RECORD_DELETED_EVENT = "appointment_record_deleted"
+APPOINTMENT_NOMINATION_CREATED_EVENT = "appointment_nomination_created"
 APPOINTMENT_STAGE_TRANSITION_EVENT = "appointment_stage_transition"
+APPOINTMENT_STAGE_ACTION_TAKEN_EVENT = "appointment_stage_action_taken"
+APPOINTMENT_FINAL_DECISION_RECORDED_EVENT = "appointment_final_decision_recorded"
 APPOINTMENT_VETTING_LINKAGE_ENSURED_EVENT = "appointment_vetting_linkage_ensured"
+APPOINTMENT_PUBLICATION_PUBLISHED_EVENT = "appointment_publication_published"
+APPOINTMENT_PUBLICATION_REVOKED_EVENT = "appointment_publication_revoked"
 
 GOVERNMENT_AUDIT_EVENT_CATALOG: list[dict[str, str]] = [
     {
@@ -80,10 +85,28 @@ GOVERNMENT_AUDIT_EVENT_CATALOG: list[dict[str, str]] = [
         "description": "Appointment record deleted.",
     },
     {
+        "key": APPOINTMENT_NOMINATION_CREATED_EVENT,
+        "entity_type": "AppointmentRecord",
+        "action": "create",
+        "description": "Appointment nomination created and registered.",
+    },
+    {
         "key": APPOINTMENT_STAGE_TRANSITION_EVENT,
         "entity_type": "AppointmentRecord",
         "action": "update",
         "description": "Appointment record moved to another stage/status.",
+    },
+    {
+        "key": APPOINTMENT_STAGE_ACTION_TAKEN_EVENT,
+        "entity_type": "AppointmentRecord",
+        "action": "update",
+        "description": "Appointment stage action captured with actor and stage context.",
+    },
+    {
+        "key": APPOINTMENT_FINAL_DECISION_RECORDED_EVENT,
+        "entity_type": "AppointmentRecord",
+        "action": "update",
+        "description": "Appointment final decision recorded (appointed/rejected).",
     },
     {
         "key": APPOINTMENT_VETTING_LINKAGE_ENSURED_EVENT,
@@ -91,9 +114,26 @@ GOVERNMENT_AUDIT_EVENT_CATALOG: list[dict[str, str]] = [
         "action": "update",
         "description": "Appointment record ensured to have vetting linkage.",
     },
+    {
+        "key": APPOINTMENT_PUBLICATION_PUBLISHED_EVENT,
+        "entity_type": "AppointmentRecord",
+        "action": "update",
+        "description": "Appointment record publication was published.",
+    },
+    {
+        "key": APPOINTMENT_PUBLICATION_REVOKED_EVENT,
+        "entity_type": "AppointmentRecord",
+        "action": "update",
+        "description": "Appointment record publication was revoked.",
+    },
 ]
 
 __all__ = [
+    "APPOINTMENT_FINAL_DECISION_RECORDED_EVENT",
+    "APPOINTMENT_NOMINATION_CREATED_EVENT",
+    "APPOINTMENT_PUBLICATION_PUBLISHED_EVENT",
+    "APPOINTMENT_PUBLICATION_REVOKED_EVENT",
+    "APPOINTMENT_STAGE_ACTION_TAKEN_EVENT",
     "APPOINTMENT_STAGE_TRANSITION_EVENT",
     "APPOINTMENT_RECORD_CREATED_EVENT",
     "APPOINTMENT_RECORD_DELETED_EVENT",

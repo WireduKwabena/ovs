@@ -10,6 +10,9 @@ from rest_framework.test import APITestCase
 from apps.authentication.models import User
 
 from .contracts import (
+    APPOINTMENT_FINAL_DECISION_RECORDED_EVENT,
+    APPOINTMENT_NOMINATION_CREATED_EVENT,
+    APPOINTMENT_STAGE_ACTION_TAKEN_EVENT,
     APPOINTMENT_STAGE_TRANSITION_EVENT,
     APPOINTMENT_VETTING_LINKAGE_ENSURED_EVENT,
     GOVERNMENT_AUDIT_EVENT_CATALOG,
@@ -283,7 +286,10 @@ class AuditApiTests(APITestCase):
         keys = [item["key"] for item in GOVERNMENT_AUDIT_EVENT_CATALOG]
         self.assertEqual(len(keys), len(set(keys)))
         self.assertIn(PERSONNEL_LINKED_CANDIDATE_EVENT, keys)
+        self.assertIn(APPOINTMENT_NOMINATION_CREATED_EVENT, keys)
         self.assertIn(APPOINTMENT_STAGE_TRANSITION_EVENT, keys)
+        self.assertIn(APPOINTMENT_STAGE_ACTION_TAKEN_EVENT, keys)
+        self.assertIn(APPOINTMENT_FINAL_DECISION_RECORDED_EVENT, keys)
         self.assertIn(APPOINTMENT_VETTING_LINKAGE_ENSURED_EVENT, keys)
 
 

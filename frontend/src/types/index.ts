@@ -516,6 +516,13 @@ export interface AdminUserUpdatePayload {
   reset_two_factor?: boolean;
 }
 export type CampaignStatus = 'draft' | 'active' | 'closed' | 'archived';
+export type CampaignExerciseType =
+  | "ministerial"
+  | "judicial"
+  | "board"
+  | "local_gov"
+  | "diplomatic"
+  | "security";
 
 export interface VettingCampaign {
   id: string;
@@ -525,6 +532,14 @@ export interface VettingCampaign {
   starts_at: string | null;
   ends_at: string | null;
   settings_json: Record<string, unknown>;
+  exercise_type?: CampaignExerciseType | "";
+  jurisdiction?: GovernmentBranch | "";
+  positions?: string[];
+  position_ids?: string[];
+  approval_template?: string | null;
+  appointment_authority?: string;
+  requires_parliamentary_confirmation?: boolean;
+  gazette_reference?: string;
   required_document_types?: DocumentType[];
   initiated_by: string;
   initiated_by_email?: string;
@@ -1187,6 +1202,61 @@ export interface AppointmentStageAction {
   previous_status: string;
   new_status: string;
   acted_at: string;
+}
+
+export interface ApprovalStage {
+  id: string;
+  template: string;
+  order: number;
+  name: string;
+  required_role: string;
+  is_required: boolean;
+  maps_to_status: AppointmentStatus;
+}
+
+export interface ApprovalStageTemplate {
+  id: string;
+  name: string;
+  exercise_type: string;
+  created_by: string | null;
+  created_at: string;
+  stages: ApprovalStage[];
+}
+
+export type AppointmentPublicationStatus = "draft" | "published" | "revoked";
+
+export interface AppointmentPublication {
+  id: string;
+  appointment: string;
+  status: AppointmentPublicationStatus;
+  publication_reference: string;
+  publication_document_hash: string;
+  publication_notes: string;
+  published_by: string | null;
+  published_by_email?: string;
+  published_at: string | null;
+  revoked_by: string | null;
+  revoked_by_email?: string;
+  revoked_at: string | null;
+  revocation_reason: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PublicAppointmentRecord {
+  id: string;
+  position_title: string;
+  institution: string;
+  nominee_name: string;
+  nominated_by_display: string;
+  nominated_by_org: string;
+  appointment_date: string | null;
+  gazette_number: string;
+  gazette_date: string | null;
+  status: AppointmentStatus;
+  publication_status: AppointmentPublicationStatus;
+  publication_reference: string;
+  published_at: string | null;
 }
 
 export interface AppointmentRecord {

@@ -22,7 +22,10 @@ from .models import AppointmentRecord, ApprovalStage, ApprovalStageTemplate
 from .permissions import IsAppointingAuthorityOrAdmin, IsCommitteeMemberOrAdmin, IsStageActorOrAdmin
 from .serializers import (
     AppointmentAdvanceStageSerializer,
+    AppointmentPublicationSerializer,
+    AppointmentPublishSerializer,
     AppointmentRecordSerializer,
+    AppointmentRevokePublicationSerializer,
     AppointmentStageActionSerializer,
     ApprovalStageSerializer,
     ApprovalStageTemplateSerializer,
@@ -31,9 +34,14 @@ from .serializers import (
 from .services import (
     InvalidTransitionError,
     LinkageValidationError,
+    PublicationLifecycleError,
     StageAuthorizationError,
     advance_stage,
+    ensure_publication_record_for_appointment,
     ensure_vetting_linkage_for_appointment,
+    notify_nomination_created,
+    publish_appointment_record,
+    revoke_appointment_publication,
 )
 
 
@@ -66,6 +74,7 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
         "nominated_by_user",
         "vetting_case",
         "final_decision_by_user",
+        "publication",
     ).prefetch_related("stage_actions")
     serializer_class = AppointmentRecordSerializer
     permission_classes = [IsHRManagerOrAdmin]
@@ -90,6 +99,8 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
             with transaction.atomic():
                 appointment = serializer.save(nominated_by_user=self.request.user)
                 ensure_vetting_linkage_for_appointment(appointment=appointment, actor=self.request.user)
+                ensure_publication_record_for_appointment(appointment=appointment)
+                notify_nomination_created(appointment=appointment, actor=self.request.user, request=self.request)
                 log_event(
                     request=self.request,
                     action="create",
@@ -255,10 +266,62 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
         serializer = AppointmentStageActionSerializer(rows, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=["post"], permission_classes=[IsAppointingAuthorityOrAdmin], url_path="publish")
+    def publish(self, request, pk=None):
+        appointment = self.get_object()
+        payload = AppointmentPublishSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+
+        try:
+            publication = publish_appointment_record(
+                appointment=appointment,
+                actor=request.user,
+                publication_reference=payload.validated_data.get("publication_reference", ""),
+                publication_document_hash=payload.validated_data.get("publication_document_hash", ""),
+                publication_notes=payload.validated_data.get("publication_notes", ""),
+                gazette_number=payload.validated_data.get("gazette_number"),
+                gazette_date=payload.validated_data.get("gazette_date"),
+                request=request,
+            )
+        except PublicationLifecycleError as exc:
+            return Response({"error": str(exc), "code": "publication_invalid"}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(AppointmentPublicationSerializer(publication).data, status=status.HTTP_200_OK)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsAppointingAuthorityOrAdmin],
+        url_path="revoke-publication",
+    )
+    def revoke_publication(self, request, pk=None):
+        appointment = self.get_object()
+        payload = AppointmentRevokePublicationSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+
+        try:
+            publication = revoke_appointment_publication(
+                appointment=appointment,
+                actor=request.user,
+                revocation_reason=payload.validated_data["revocation_reason"],
+                make_private=payload.validated_data.get("make_private", True),
+                request=request,
+            )
+        except PublicationLifecycleError as exc:
+            return Response({"error": str(exc), "code": "publication_invalid"}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(AppointmentPublicationSerializer(publication).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["get"], permission_classes=[IsHRManagerOrAdmin], url_path="publication")
+    def publication_detail(self, request, pk=None):
+        appointment = self.get_object()
+        publication = ensure_publication_record_for_appointment(appointment=appointment)
+        return Response(AppointmentPublicationSerializer(publication).data, status=status.HTTP_200_OK)
+
     @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny], url_path="gazette-feed")
     def gazette_feed(self, request):
         queryset = self.filter_queryset(
-            self.get_queryset().filter(is_public=True).exclude(gazette_number="")
+            self.get_queryset().filter(is_public=True, publication__status="published").exclude(gazette_number="")
         )
         serializer = PublicAppointmentRecordSerializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -269,6 +332,7 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
             self.get_queryset().filter(
                 status__in={"nominated", "under_vetting", "committee_review", "confirmation_pending"},
                 is_public=True,
+                publication__status="published",
             )
         )
         serializer = PublicAppointmentRecordSerializer(queryset, many=True)

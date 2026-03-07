@@ -246,7 +246,7 @@ class PersonnelApiTests(APITestCase):
             nominee=self.record,
             nominated_by_display="Private Appointment",
             nomination_date=date.today(),
-            status="nominated",
+            status="withdrawn",
             is_public=False,
         )
 
