@@ -42,7 +42,7 @@ export const grantSubscriptionAccess = (input: {
     billingCycle: input.billingCycle,
     paymentMethod: input.paymentMethod,
     amountUsd: input.amountUsd,
-    reference: `OVS-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
+    reference: `OVS-GAMS-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
     confirmedAt: now,
     expiresAt: now + ttl * 60 * 60 * 1000,
   };

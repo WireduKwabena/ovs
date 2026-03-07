@@ -86,7 +86,7 @@ export const LoginForm: React.FC = () => {
           <div className="relative flex h-full flex-col justify-between gap-6">
             <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide">
               <ShieldCheck className="h-4 w-4" />
-              OVS Firm Portal
+              OVS + GAMS Portal
             </div>
 
             <div>
@@ -97,7 +97,7 @@ export const LoginForm: React.FC = () => {
             </div>
 
             <div className="rounded-2xl border border-white/20 bg-white/10 p-4 text-xs text-slate-200">
-              Access is provisioned by OVS operations. Need onboarding? Start from subscription plans.
+              Access is provisioned by platform operations. Need onboarding? Start from subscription plans.
             </div>
           </div>
         </aside>

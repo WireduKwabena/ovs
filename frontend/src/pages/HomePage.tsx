@@ -45,7 +45,7 @@ export const HomePage: React.FC = () => {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
             <Shield className="h-7 w-7 text-cyan-700" />
-            <span className="text-lg font-semibold tracking-tight">Online Vetting System</span>
+            <span className="text-lg font-semibold tracking-tight">OVS + GAMS Platform</span>
           </div>
           <button
             type="button"
@@ -62,15 +62,15 @@ export const HomePage: React.FC = () => {
         <div className="mx-auto grid max-w-7xl gap-10 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-28">
           <div>
             <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-cyan-800">
-              Enterprise Vetting Automation
+              Vetting and Appointment Governance
             </p>
             <h1 className="text-4xl font-extrabold leading-tight sm:text-5xl">
-              AI-First Vetting for
-              <span className="block text-cyan-700">HR and Risk Teams</span>
+              AI-Assisted Vetting and
+              <span className="block text-cyan-700">Government Appointments</span>
             </h1>
             <p className="mt-6 max-w-xl text-base text-slate-700 sm:text-lg">
-              Run document verification and live interview intelligence in one workflow,
-              then finalize outcomes with human approval and complete auditability.
+              Run document verification and interview intelligence with human oversight, then
+              manage appointment approvals, publication, and auditability end to end.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
@@ -106,7 +106,7 @@ export const HomePage: React.FC = () => {
           <div>
             <h2 className="text-2xl font-bold sm:text-3xl">Core Capabilities</h2>
             <p className="mt-2 text-sm text-slate-700">
-              Built for high-volume firm vetting workflows with AI + human review.
+              Built for high-volume vetting workflows and appointment governance with AI + human review.
             </p>
           </div>
         </div>
@@ -129,7 +129,7 @@ export const HomePage: React.FC = () => {
 
       <footer className="border-t border-slate-200 bg-white py-8">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 text-sm text-slate-700 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-          <p>© {new Date().getFullYear()} Online Vetting System</p>
+          <p>© {new Date().getFullYear()} OVS + GAMS Platform</p>
           <a
             href="mailto:support@ovs.local"
             className="font-medium text-cyan-700 hover:text-cyan-800"

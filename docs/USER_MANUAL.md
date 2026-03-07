@@ -1,7 +1,7 @@
-# OVS User Manual
+# OVS + GAMS User Manual
 
 Version: 1.0  
-Project: OVS (AI-Powered Vetting System)  
+Project: OVS-Redo (AI Vetting + Government Appointment Management)  
 Audience: Administrators, HR Managers, Candidate Participants, and Technical Operators
 
 ## How To Use This Manual
@@ -41,14 +41,19 @@ Manual export tooling:
 
 ## Product Summary
 
-OVS automates structured vetting workflows:
+This platform operates two integrated domains:
 
-- Campaign creation and rubric-driven scoring.
-- Candidate enrollment and invitation-based access.
-- Document verification (OCR, authenticity, fraud checks).
-- Interview analysis and live meeting scheduling.
-- Subscription, quota enforcement, and payment lifecycle.
-- Auditability, monitoring, and human-in-the-loop decisions.
+- OVS domain:
+  - Campaign creation and rubric-driven scoring.
+  - Candidate enrollment and invitation-based access.
+  - Document verification (OCR, authenticity, fraud checks).
+  - Interview analysis and live meeting scheduling.
+  - Subscription, quota enforcement, and payment lifecycle.
+- GAMS domain:
+  - Government positions and personnel registries.
+  - Appointment nomination, staged approval, and decision lifecycle.
+  - Gazette/publication lifecycle and public-safe appointment feeds.
+  - Appointment-specific audit events and notification flows.
 
 ## Core Principles
 
@@ -56,6 +61,7 @@ OVS automates structured vetting workflows:
 - Permissions determine what each account can view and modify.
 - Operational visibility is built in (health, logs, metrics, and events).
 - Billing and quotas are enforced server-side, not only in UI.
+- Public endpoints never expose internal vetting-only details.
 
 ## Who Should Read What First
 

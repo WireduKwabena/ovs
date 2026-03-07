@@ -41,9 +41,9 @@ const STATUS_LABELS: Record<AppointmentStatus, string> = {
   exited: "Exited",
 };
 const STATUS_TRANSITION_OPTIONS: Record<AppointmentStatus, AppointmentStatus[]> = {
-  nominated: ["under_vetting", "withdrawn", "rejected"],
-  under_vetting: ["committee_review", "withdrawn", "rejected"],
-  committee_review: ["confirmation_pending", "withdrawn", "rejected"],
+  nominated: ["under_vetting", "withdrawn"],
+  under_vetting: ["committee_review", "withdrawn"],
+  committee_review: ["confirmation_pending", "appointed", "rejected", "withdrawn"],
   confirmation_pending: ["appointed", "withdrawn", "rejected"],
   appointed: ["serving"],
   rejected: [],

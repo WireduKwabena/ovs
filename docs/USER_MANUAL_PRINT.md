@@ -1,4 +1,4 @@
-# OVS Comprehensive User Manual (Print Edition)
+# OVS + GAMS Comprehensive User Manual (Print Edition)
 
 Generated from chapter files in `docs/user-manual/`.
 
@@ -10,18 +10,18 @@ This edition is optimized for continuous reading and PDF export.
 
 # 1) Getting Started
 
-## 1.1 What OVS Is
+## 1.1 What the Platform Is
 
-OVS is a web-based vetting platform that combines:
+OVS-Redo is a web-based platform combining:
 
-- Process orchestration (campaigns, rubrics, case tracking),
+- OVS vetting orchestration (campaigns, rubrics, case tracking),
 - AI-assisted evidence analysis (documents and interviews),
-- Human final decisions (approve, reject, escalate),
-- Administrative control and operational monitoring.
+- GAMS appointment governance (positions, personnel, approval chain, publication),
+- Human final authority and operational monitoring.
 
 ## 1.2 Deployment Modes
 
-OVS can run in:
+The platform can run in:
 
 - Local development mode (Docker Compose, localhost),
 - Production mode (dedicated production compose stack and hosted services).
@@ -1016,6 +1016,7 @@ Notification APIs:
 - `GET /api/notifications/{id}/`
 - `POST /api/notifications/{id}/mark_read/`
 - `DELETE /api/notifications/{id}/archive/`
+- `POST /api/notifications/{id}/restore/`
 - `POST /api/notifications/mark-as-read/`
 - `POST /api/notifications/mark-all-as-read/`
 - `GET /api/notifications/unread-count/`
@@ -1026,11 +1027,12 @@ Notification APIs:
 - Case progress updates,
 - Interview scheduling/reminders,
 - Billing/subscription state changes,
-- Decision publication to candidates.
+- Candidate decision publication,
+- Government appointment lifecycle events (nomination, stage moves, decision, publication, revocation).
 
 ## 12.3 Decision Lifecycle Model
 
-Typical status progression:
+OVS case progression (typical):
 
 1. Candidate invited/enrolled.
 2. Evidence collection.
@@ -1042,6 +1044,21 @@ Typical status progression:
    - escalate/manual review.
 6. Candidate and stakeholders notified.
 
+GAMS appointment progression (service-enforced transitions):
+
+1. `nominated`
+2. `under_vetting`
+3. `committee_review`
+4. `confirmation_pending`
+5. `appointed`
+6. `serving`
+7. `exited`
+
+Alternative terminal outcomes:
+
+- `rejected`
+- `withdrawn`
+
 ## 12.4 Decision Quality Controls
 
 Before finalizing:
@@ -1050,6 +1067,7 @@ Before finalizing:
 - Check for unresolved high-risk flags.
 - Ensure all required evidence has completed processing.
 - Add reviewer notes where required by policy.
+- For appointments, ensure required approval stage context is attached when template policy requires it.
 
 ## 12.5 Notification Hygiene
 
@@ -1059,6 +1077,7 @@ Recommended team process:
 2. Archive obsolete notifications to reduce noise.
 3. Use filters and case links for triage.
 4. Correlate decision notifications with audit entries.
+5. For GAMS, track appointment event types in notification metadata (for example `appointment_published`, `appointment_revoked`).
 
 ---
 
@@ -1438,6 +1457,7 @@ Notifications:
 - `/api/notifications/{id}/`
 - `/api/notifications/{id}/mark_read/`
 - `/api/notifications/{id}/archive/`
+- `/api/notifications/{id}/restore/`
 - `/api/notifications/mark-as-read/`
 - `/api/notifications/mark-all-as-read/`
 - `/api/notifications/unread-count/`
@@ -1447,8 +1467,10 @@ Audit:
 - `/api/audit/logs/`
 - `/api/audit/logs/{id}/`
 - `/api/audit/logs/by_entity/`
+- `/api/audit/logs/by_user/`
 - `/api/audit/logs/recent_activity/`
 - `/api/audit/logs/statistics/`
+- `/api/audit/logs/event_catalog/`
 
 Fraud:
 
@@ -1504,6 +1526,49 @@ Background checks:
 - `/api/background-checks/checks/{id}/events/`
 - `/api/background-checks/checks/{id}/refresh/`
 - `/api/background-checks/providers/{provider_key}/webhook/`
+
+## 15.9 Government Appointments (GAMS)
+
+Positions:
+
+- `/api/positions/`
+- `/api/positions/{id}/`
+- `/api/positions/public/`
+- `/api/positions/vacant/`
+- `/api/positions/{id}/appointment-history/`
+
+Personnel:
+
+- `/api/personnel/`
+- `/api/personnel/{id}/`
+- `/api/personnel/officeholders/`
+- `/api/personnel/{id}/link-candidate/`
+- `/api/personnel/{id}/appointment-history/`
+
+Approval chain:
+
+- `/api/appointments/stage-templates/`
+- `/api/appointments/stage-templates/{id}/`
+- `/api/appointments/stages/`
+- `/api/appointments/stages/{id}/`
+
+Appointment lifecycle:
+
+- `/api/appointments/records/`
+- `/api/appointments/records/{id}/`
+- `/api/appointments/records/{id}/ensure-vetting-linkage/`
+- `/api/appointments/records/{id}/advance-stage/`
+- `/api/appointments/records/{id}/appoint/`
+- `/api/appointments/records/{id}/reject/`
+- `/api/appointments/records/{id}/stage-actions/`
+- `/api/appointments/records/{id}/publication/`
+- `/api/appointments/records/{id}/publish/`
+- `/api/appointments/records/{id}/revoke-publication/`
+
+Public feeds:
+
+- `/api/appointments/records/gazette-feed/`
+- `/api/appointments/records/open/`
 
 ---
 
