@@ -29,6 +29,33 @@ const STATUS_OPTIONS: AppointmentStatus[] = [
   "serving",
   "exited",
 ];
+const STATUS_LABELS: Record<AppointmentStatus, string> = {
+  nominated: "Nominated",
+  under_vetting: "Under Vetting",
+  committee_review: "Committee Review",
+  confirmation_pending: "Confirmation Pending",
+  appointed: "Appointed",
+  rejected: "Rejected",
+  withdrawn: "Withdrawn",
+  serving: "Serving",
+  exited: "Exited",
+};
+const STATUS_TRANSITION_OPTIONS: Record<AppointmentStatus, AppointmentStatus[]> = {
+  nominated: ["under_vetting", "withdrawn", "rejected"],
+  under_vetting: ["committee_review", "withdrawn", "rejected"],
+  committee_review: ["confirmation_pending", "withdrawn", "rejected"],
+  confirmation_pending: ["appointed", "withdrawn", "rejected"],
+  appointed: ["serving"],
+  rejected: [],
+  withdrawn: [],
+  serving: ["exited"],
+  exited: [],
+};
+const PUBLICATION_LABELS: Record<"draft" | "published" | "revoked", string> = {
+  draft: "Draft",
+  published: "Published",
+  revoked: "Revoked",
+};
 
 const EXERCISE_TYPE_OPTIONS = ["ministerial", "judicial", "board", "local_gov", "diplomatic", "security"];
 const REQUIRED_ROLE_OPTIONS = ["vetting_officer", "committee_member", "appointing_authority", "registry_admin"];
@@ -51,6 +78,24 @@ function parseEvidenceLinks(rawValue: string): string[] {
     .split(/[\n,]/g)
     .map((item) => item.trim())
     .filter((item) => Boolean(item));
+}
+
+function humanizeCode(value: string): string {
+  if (!value) {
+    return "";
+  }
+  return value
+    .split("_")
+    .map((part) => (part.length > 0 ? `${part[0].toUpperCase()}${part.slice(1)}` : part))
+    .join(" ");
+}
+
+function statusLabel(status: AppointmentStatus): string {
+  return STATUS_LABELS[status] || humanizeCode(status);
+}
+
+function publicationLabel(status: "draft" | "published" | "revoked"): string {
+  return PUBLICATION_LABELS[status] || humanizeCode(status);
 }
 
 const AppointmentsRegistryPage: React.FC = () => {
@@ -176,6 +221,22 @@ const AppointmentsRegistryPage: React.FC = () => {
     }
   }, [stageForm.template, stageTemplates]);
 
+  useEffect(() => {
+    if (!form.position && positions.length > 0) {
+      setForm((previous) => ({ ...previous, position: positions[0].id }));
+    }
+  }, [form.position, positions]);
+
+  useEffect(() => {
+    if (!form.nominee && personnel.length > 0) {
+      setForm((previous) => ({ ...previous, nominee: personnel[0].id }));
+    }
+  }, [form.nominee, personnel]);
+
+  const hasPositionOptions = positions.length > 0;
+  const hasNomineeOptions = personnel.length > 0;
+  const canCreateAppointment = isHrOrAdmin && hasPositionOptions && hasNomineeOptions;
+
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
@@ -190,6 +251,10 @@ const AppointmentsRegistryPage: React.FC = () => {
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!canCreateAppointment) {
+      toast.error("Create at least one government position and one personnel record before nominating.");
+      return;
+    }
     if (!form.position || !form.nominee || !form.nominated_by_display.trim()) {
       toast.error("Position, nominee, and nominated by display are required.");
       return;
@@ -315,6 +380,11 @@ const AppointmentsRegistryPage: React.FC = () => {
     },
     [campaignById, stagesByTemplate],
   );
+
+  const getStatusOptionsForRow = useCallback((currentStatus: AppointmentStatus): AppointmentStatus[] => {
+    const allowed = [currentStatus, ...(STATUS_TRANSITION_OPTIONS[currentStatus] || [])];
+    return STATUS_OPTIONS.filter((status) => allowed.includes(status));
+  }, []);
 
   const applyRowStatusAction = async (row: AppointmentRecord) => {
     const targetStatus = rowActionStatus[row.id];
@@ -597,7 +667,7 @@ const AppointmentsRegistryPage: React.FC = () => {
                   >
                     {STATUS_OPTIONS.map((status) => (
                       <option key={status} value={status}>
-                        {status}
+                        {statusLabel(status)}
                       </option>
                     ))}
                   </select>
@@ -650,7 +720,14 @@ const AppointmentsRegistryPage: React.FC = () => {
       ) : null}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-slate-900">Create Appointment Record</h2>
+        <h2 className="text-lg font-bold text-slate-900">Create Nomination Record</h2>
+        {!canCreateAppointment ? (
+          <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            {!hasPositionOptions || !hasNomineeOptions
+              ? "Create at least one position and one personnel profile before starting a nomination."
+              : "You do not have permission to create nomination records."}
+          </div>
+        ) : null}
         <form onSubmit={handleCreate} className="mt-4 grid gap-3 md:grid-cols-2">
           <div>
             <label htmlFor="position" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Position</label>
@@ -658,9 +735,10 @@ const AppointmentsRegistryPage: React.FC = () => {
               className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
               id="position"
               value={form.position}
+              disabled={!hasPositionOptions}
               onChange={(event) => setForm((p) => ({ ...p, position: event.target.value }))}
             >
-              <option value="">Select position</option>
+              <option value="">{hasPositionOptions ? "Select position" : "No positions available"}</option>
               {positions.map((position) => (
                 <option key={position.id} value={position.id}>
                   {position.title} - {position.institution}
@@ -674,9 +752,10 @@ const AppointmentsRegistryPage: React.FC = () => {
               className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
               id="nominee"
               value={form.nominee}
+              disabled={!hasNomineeOptions}
               onChange={(event) => setForm((p) => ({ ...p, nominee: event.target.value }))}
             >
-              <option value="">Select nominee</option>
+              <option value="">{hasNomineeOptions ? "Select nominee" : "No personnel available"}</option>
               {personnel.map((row) => (
                 <option key={row.id} value={row.id}>
                   {row.full_name}
@@ -736,9 +815,9 @@ const AppointmentsRegistryPage: React.FC = () => {
             Mark record public
           </label>
           <div className="md:col-span-2 flex justify-end">
-            <Button type="submit" disabled={creating}>
+            <Button type="submit" disabled={creating || !canCreateAppointment}>
               <Plus className="mr-2 h-4 w-4" />
-              {creating ? "Saving..." : "Create Appointment"}
+              {creating ? "Saving..." : canCreateAppointment ? "Create Nomination" : "Add Prerequisites First"}
             </Button>
           </div>
         </form>
@@ -756,7 +835,7 @@ const AppointmentsRegistryPage: React.FC = () => {
             <option value="all">All statuses</option>
             {STATUS_OPTIONS.map((status) => (
               <option key={status} value={status}>
-                {status}
+                {statusLabel(status)}
               </option>
             ))}
           </select>
@@ -766,12 +845,14 @@ const AppointmentsRegistryPage: React.FC = () => {
           <p className="mt-4 text-sm text-slate-700">Loading appointment records...</p>
         ) : rows.length === 0 ? (
           <div className="mt-4 rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-700">
-            No appointment records found.
+            No appointment records found. Create a nomination above or run `python manage.py setup_demo` to preload a
+            full demo workflow.
           </div>
         ) : (
           <div className="mt-4 space-y-4">
             {rows.map((row) => {
               const statusTarget = rowActionStatus[row.id] || row.status;
+              const lifecycleOptions = getStatusOptionsForRow(row.status);
               const stageChoices = getStageChoicesForRow(row, statusTarget);
               const selectedStageId = rowActionStageId[row.id] || stageChoices[0]?.id || "";
               const intent = rowActionIntent[row.id] || "note";
@@ -788,6 +869,13 @@ const AppointmentsRegistryPage: React.FC = () => {
               const templateStages = template
                 ? [...(stagesByTemplate[template.id] || [])].sort((left, right) => left.order - right.order)
                 : [];
+              const approvalChainStatus = !campaign
+                ? "No campaign linked"
+                : !template
+                  ? "Campaign missing approval template"
+                  : templateStages.length === 0
+                    ? "Template has no stages"
+                    : `${templateStages.length} stage${templateStages.length > 1 ? "s" : ""} configured`;
               const isAdvanceLoading = rowActionLoadingKey === `${row.id}:advance`;
               const isLinkageLoading = rowActionLoadingKey === `${row.id}:linkage`;
               const isPublishLoading = rowActionLoadingKey === `${row.id}:publish`;
@@ -800,7 +888,7 @@ const AppointmentsRegistryPage: React.FC = () => {
                       <p className="text-lg font-semibold text-slate-900">{row.position_title || row.position}</p>
                       <p className="text-sm text-slate-700">
                         Nominee: {row.nominee_name || row.nominee} | Status:{" "}
-                        <span className="font-semibold text-indigo-700">{row.status}</span>
+                        <span className="font-semibold text-indigo-700">{statusLabel(row.status)}</span>
                       </p>
                       <p className="text-xs text-slate-700">
                         Nominated by: {row.nominated_by_display} on {new Date(row.nomination_date).toLocaleDateString()}
@@ -829,7 +917,7 @@ const AppointmentsRegistryPage: React.FC = () => {
                                 : "bg-slate-100 text-slate-700"
                           }`}
                         >
-                          Publication: {publicationStatus}
+                          Publication: {publicationLabel(publicationStatus)}
                         </span>
                       </div>
                       <p className="mt-2 text-xs text-slate-700">
@@ -842,6 +930,7 @@ const AppointmentsRegistryPage: React.FC = () => {
                           ? ` | Stages: ${templateStages.map((item) => `${item.order}. ${item.name}`).join(", ")}`
                           : ""}
                       </p>
+                      <p className="text-xs text-slate-700">Approval chain status: {approvalChainStatus}</p>
                     </div>
                     <Button
                       type="button"
@@ -883,9 +972,9 @@ const AppointmentsRegistryPage: React.FC = () => {
                             });
                           }}
                         >
-                          {STATUS_OPTIONS.map((status) => (
+                          {lifecycleOptions.map((status) => (
                             <option key={status} value={status}>
-                              {status}
+                              {statusLabel(status)}
                             </option>
                           ))}
                         </select>
@@ -906,7 +995,7 @@ const AppointmentsRegistryPage: React.FC = () => {
                           }
                         >
                           {stageChoices.length === 0 ? (
-                            <option value="">No mapped stage for this status</option>
+                            <option value="">No mapped stage for selected transition</option>
                           ) : (
                             stageChoices.map((stage) => (
                               <option key={stage.id} value={stage.id}>
@@ -977,7 +1066,7 @@ const AppointmentsRegistryPage: React.FC = () => {
                           onClick={() => void applyRowStatusAction(row)}
                           disabled={isRowBusy || statusTarget === row.status}
                         >
-                          {isAdvanceLoading ? "Updating..." : "Apply Lifecycle Action"}
+                          {isAdvanceLoading ? "Updating..." : "Apply Transition"}
                         </Button>
                       </div>
                     </div>
@@ -990,7 +1079,7 @@ const AppointmentsRegistryPage: React.FC = () => {
                     </div>
                     <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-slate-700">
                       <span className="rounded bg-slate-100 px-2 py-1 font-semibold text-slate-700">
-                        Status: {publicationStatus}
+                        Status: {publicationLabel(publicationStatus)}
                       </span>
                       {publication?.published_at ? (
                         <span className="rounded bg-cyan-100 px-2 py-1 font-semibold text-cyan-800">
@@ -1125,9 +1214,9 @@ const AppointmentsRegistryPage: React.FC = () => {
                             {itemActions.map((item) => (
                               <li key={item.id} className="rounded border border-slate-200 bg-white p-2">
                                 <p className="font-semibold">
-                                  {item.previous_status}
+                                  {humanizeCode(item.previous_status)}
                                   {" -> "}
-                                  {item.new_status}
+                                  {humanizeCode(item.new_status)}
                                 </p>
                                 <p>Stage: {item.stage_name || "No explicit stage"}</p>
                                 <p>Actor: {item.actor_email || item.actor}</p>
