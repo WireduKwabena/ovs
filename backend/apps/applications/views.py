@@ -219,6 +219,13 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
 
         unresolved_flags = case.interrogation_flags.exclude(status__in=["resolved", "dismissed"])
         evaluation = getattr(case, "rubric_evaluation", None)
+        recommendation = None
+        if evaluation is not None:
+            recommendation = (
+                evaluation.decision_recommendations.filter(is_latest=True)
+                .order_by("-created_at")
+                .first()
+            )
         try:
             social_result = case.social_profile_result
         except Exception:
@@ -247,6 +254,17 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
                         "total_weighted_score": evaluation.total_weighted_score,
                         "passes_threshold": evaluation.passes_threshold,
                         "final_decision": evaluation.final_decision,
+                        "decision_recommendation": (
+                            {
+                                "id": recommendation.id,
+                                "recommendation_status": recommendation.recommendation_status,
+                                "advisory_only": recommendation.advisory_only,
+                                "blocking_issues_count": len(recommendation.blocking_issues or []),
+                                "warnings_count": len(recommendation.warnings or []),
+                            }
+                            if recommendation
+                            else None
+                        ),
                     }
                     if evaluation
                     else None

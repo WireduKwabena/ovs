@@ -234,6 +234,11 @@ class VettingCaseSerializer(serializers.ModelSerializer):
         evaluation = getattr(obj, "rubric_evaluation", None)
         if not evaluation:
             return None
+        recommendation = (
+            evaluation.decision_recommendations.filter(is_latest=True)
+            .order_by("-created_at")
+            .first()
+        )
         return {
             "id": evaluation.id,
             "rubric_id": evaluation.rubric_id,
@@ -241,6 +246,17 @@ class VettingCaseSerializer(serializers.ModelSerializer):
             "passes_threshold": evaluation.passes_threshold,
             "final_decision": evaluation.final_decision,
             "requires_manual_review": evaluation.requires_manual_review,
+            "decision_recommendation": (
+                {
+                    "id": recommendation.id,
+                    "recommendation_status": recommendation.recommendation_status,
+                    "advisory_only": recommendation.advisory_only,
+                    "blocking_issues_count": len(recommendation.blocking_issues or []),
+                    "warnings_count": len(recommendation.warnings or []),
+                }
+                if recommendation
+                else None
+            ),
         }
 
     @extend_schema_field(serializers.JSONField(allow_null=True))

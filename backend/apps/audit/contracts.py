@@ -22,6 +22,8 @@ APPOINTMENT_FINAL_DECISION_RECORDED_EVENT = "appointment_final_decision_recorded
 APPOINTMENT_VETTING_LINKAGE_ENSURED_EVENT = "appointment_vetting_linkage_ensured"
 APPOINTMENT_PUBLICATION_PUBLISHED_EVENT = "appointment_publication_published"
 APPOINTMENT_PUBLICATION_REVOKED_EVENT = "appointment_publication_revoked"
+VETTING_DECISION_RECOMMENDATION_GENERATED_EVENT = "vetting_decision_recommendation_generated"
+VETTING_DECISION_OVERRIDE_RECORDED_EVENT = "vetting_decision_override_recorded"
 
 GOVERNMENT_AUDIT_EVENT_CATALOG: list[dict[str, str]] = [
     {
@@ -126,6 +128,18 @@ GOVERNMENT_AUDIT_EVENT_CATALOG: list[dict[str, str]] = [
         "action": "update",
         "description": "Appointment record publication was revoked.",
     },
+    {
+        "key": VETTING_DECISION_RECOMMENDATION_GENERATED_EVENT,
+        "entity_type": "VettingDecisionRecommendation",
+        "action": "create",
+        "description": "Vetting decision recommendation generated from rubric/policy/evidence signals.",
+    },
+    {
+        "key": VETTING_DECISION_OVERRIDE_RECORDED_EVENT,
+        "entity_type": "VettingDecisionRecommendation",
+        "action": "update",
+        "description": "Human override recorded for a vetting decision recommendation.",
+    },
 ]
 
 __all__ = [
@@ -140,6 +154,8 @@ __all__ = [
     "APPOINTMENT_RECORD_UPDATED_EVENT",
     "APPOINTMENT_VETTING_LINKAGE_ENSURED_EVENT",
     "GOVERNMENT_AUDIT_EVENT_CATALOG",
+    "VETTING_DECISION_OVERRIDE_RECORDED_EVENT",
+    "VETTING_DECISION_RECOMMENDATION_GENERATED_EVENT",
     "GOVERNMENT_POSITION_CREATED_EVENT",
     "GOVERNMENT_POSITION_DELETED_EVENT",
     "GOVERNMENT_POSITION_UPDATED_EVENT",

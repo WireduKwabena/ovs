@@ -62,6 +62,7 @@ APPOINTMENT_NOTIFICATION_EVENT_REJECTED = "appointment_rejected"
 APPOINTMENT_NOTIFICATION_EVENT_APPOINTED = "appointment_appointed"
 APPOINTMENT_NOTIFICATION_EVENT_PUBLISHED = "appointment_published"
 APPOINTMENT_NOTIFICATION_EVENT_REVOKED = "appointment_revoked"
+VETTING_DECISION_GATED_STATUSES = {"committee_review", "confirmation_pending", "appointed"}
 
 
 def _safe_actor_display(actor) -> str:
@@ -265,6 +266,91 @@ def _enforce_required_stage_context(*, appointment: AppointmentRecord, new_statu
             raise InvalidTransitionError(
                 f"Cannot transition via stage '{stage.name}' before completing required prior stages: {pending}."
             )
+
+
+def _latest_vetting_decision_recommendation(*, appointment: AppointmentRecord):
+    linked_case = getattr(appointment, "vetting_case", None)
+    if linked_case is None:
+        return None
+
+    evaluation = getattr(linked_case, "rubric_evaluation", None)
+    if evaluation is None:
+        return None
+
+    return (
+        evaluation.decision_recommendations.prefetch_related("overrides")
+        .filter(is_latest=True)
+        .order_by("-created_at")
+        .first()
+    )
+
+
+def _vetting_decision_transition_context(recommendation) -> dict:
+    if recommendation is None:
+        return {}
+    blocking_issues = recommendation.blocking_issues if isinstance(recommendation.blocking_issues, list) else []
+    warnings = recommendation.warnings if isinstance(recommendation.warnings, list) else []
+    has_override = recommendation.overrides.exists()
+    return {
+        "vetting_recommendation_id": str(recommendation.id),
+        "vetting_recommendation_status": str(recommendation.recommendation_status),
+        "vetting_blocking_issues_count": int(len(blocking_issues)),
+        "vetting_warnings_count": int(len(warnings)),
+        "vetting_has_override": bool(has_override),
+        "vetting_advisory_only": bool(recommendation.advisory_only),
+    }
+
+
+def _enforce_vetting_decision_gate(*, appointment: AppointmentRecord, new_status: str, reason_note: str = "") -> dict:
+    """
+    Additive governance gate for late-stage transitions.
+
+    The decision engine remains advisory only:
+    - humans can proceed with explicit rationale, or
+    - humans can record a recommendation override first.
+    """
+    if new_status not in VETTING_DECISION_GATED_STATUSES:
+        return {}
+
+    linked_case = getattr(appointment, "vetting_case", None)
+    if linked_case is None:
+        # Backward compatibility for legacy appointment records without linked vetting case.
+        return {}
+
+    evaluation = getattr(linked_case, "rubric_evaluation", None)
+    if evaluation is None:
+        raise InvalidTransitionError(
+            "Linked vetting case must have a rubric evaluation before transitioning to governance decision stages."
+        )
+
+    recommendation = _latest_vetting_decision_recommendation(appointment=appointment)
+    if recommendation is None:
+        raise InvalidTransitionError(
+            "A latest vetting decision recommendation is required before transitioning to governance decision stages."
+        )
+
+    context = _vetting_decision_transition_context(recommendation)
+    has_override = bool(context.get("vetting_has_override"))
+    has_reason = bool(str(reason_note or "").strip())
+    status = str(context.get("vetting_recommendation_status", ""))
+    has_blocking_issues = int(context.get("vetting_blocking_issues_count", 0)) > 0
+
+    if new_status in {"confirmation_pending", "appointed"} and has_blocking_issues and not (has_override or has_reason):
+        raise InvalidTransitionError(
+            "Blocking vetting issues exist. Provide reason_note or record a decision override before advancing."
+        )
+
+    if new_status == "appointed" and status == "recommend_reject" and not has_override:
+        raise InvalidTransitionError(
+            "Latest vetting recommendation is reject. Record a decision override before appointing."
+        )
+
+    if new_status == "appointed" and status == "recommend_manual_review" and not (has_override or has_reason):
+        raise InvalidTransitionError(
+            "Manual-review recommendation requires explicit reason_note or decision override before appointing."
+        )
+
+    return context
 
 
 def _resolve_applicant_user(candidate: Candidate):
@@ -649,6 +735,11 @@ def advance_stage(
         raise InvalidTransitionError(f"{appointment.status} -> {new_status} is not permitted.")
 
     _enforce_required_stage_context(appointment=appointment, new_status=new_status, stage=stage)
+    vetting_decision_context = _enforce_vetting_decision_gate(
+        appointment=appointment,
+        new_status=new_status,
+        reason_note=reason_note,
+    )
 
     if stage is not None:
         if stage.maps_to_status != new_status:
@@ -743,6 +834,7 @@ def advance_stage(
                 "actor_id": _safe_str_id(getattr(actor, "id", None)),
                 "actor_display": _safe_actor_display(actor),
                 "decision_status": new_status if new_status in {"appointed", "rejected"} else "",
+                **vetting_decision_context,
             },
             idempotency_seed=str(stage_action.id),
         )
@@ -760,6 +852,7 @@ def advance_stage(
                     "stage_id": _safe_str_id(getattr(stage, "id", None)),
                     "stage_name": str(getattr(stage, "name", "")),
                     "has_reason_note": bool(str(reason_note or "").strip()),
+                    **vetting_decision_context,
                 },
             )
             log_event(
@@ -777,6 +870,7 @@ def advance_stage(
                     "actor_id": _safe_str_id(getattr(actor, "id", None)),
                     "actor_role": stage_action.actor_role,
                     "has_reason_note": bool(str(reason_note or "").strip()),
+                    **vetting_decision_context,
                 },
             )
             if new_status in {"appointed", "rejected"}:
@@ -790,6 +884,7 @@ def advance_stage(
                         "decision": new_status,
                         "decided_by": _safe_actor_display(actor),
                         "stage_action_id": str(stage_action.id),
+                        **vetting_decision_context,
                     },
                 )
 

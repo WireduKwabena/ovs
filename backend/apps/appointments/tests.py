@@ -1,4 +1,5 @@
 from datetime import date
+from uuid import uuid4
 from unittest.mock import patch
 
 from django.conf import settings
@@ -27,6 +28,9 @@ from apps.invitations.models import Invitation
 from apps.notifications.models import Notification
 from apps.personnel.models import PersonnelRecord
 from apps.positions.models import GovernmentPosition
+from apps.rubrics.decision_engine import VettingDecisionEngine
+from apps.rubrics.engine import RubricEvaluationEngine
+from apps.rubrics.models import VettingRubric
 
 from .models import AppointmentPublication, AppointmentRecord, ApprovalStage, ApprovalStageTemplate
 from .services import (
@@ -100,6 +104,58 @@ class AppointmentTransitionServiceTests(TestCase):
         self.hr_user.groups.add(self.vetting_group)
         self.committee_user.groups.add(self.committee_group)
 
+    def _attach_case_with_vetting_decision(
+        self,
+        *,
+        recommendation_status: str = "recommend_manual_review",
+        blocking_issues: list | None = None,
+    ):
+        applicant = User.objects.create_user(
+            email=f"decision.case.{uuid4().hex[:8]}@example.com",
+            password="Pass1234!",
+            first_name="Decision",
+            last_name="Applicant",
+            user_type="applicant",
+        )
+        case = VettingCase.objects.create(
+            applicant=applicant,
+            assigned_to=self.hr_user,
+            position_applied=self.position.title,
+            department=self.position.institution[:100],
+            priority="medium",
+            status="under_review",
+            documents_uploaded=True,
+            documents_verified=True,
+            interview_completed=True,
+            document_authenticity_score=88,
+            consistency_score=84,
+            fraud_risk_score=15,
+            interview_score=82,
+        )
+        self.appointment.vetting_case = case
+        self.appointment.save(update_fields=["vetting_case", "updated_at"])
+
+        rubric = VettingRubric.objects.create(
+            name=f"Decision Gate Rubric {uuid4().hex[:8]}",
+            is_active=True,
+            created_by=self.admin_user,
+        )
+        evaluation = RubricEvaluationEngine(case=case, rubric=rubric).evaluate(evaluated_by=self.admin_user)
+        recommendation = VettingDecisionEngine.generate_recommendation(
+            evaluation=evaluation,
+            actor=self.admin_user,
+        )
+        changed_fields = []
+        if recommendation_status:
+            recommendation.recommendation_status = recommendation_status
+            changed_fields.append("recommendation_status")
+        if blocking_issues is not None:
+            recommendation.blocking_issues = blocking_issues
+            changed_fields.append("blocking_issues")
+        if changed_fields:
+            recommendation.save(update_fields=[*changed_fields, "updated_at"])
+        return case, evaluation, recommendation
+
     def test_valid_transition_creates_stage_action(self):
         updated = advance_stage(
             appointment=self.appointment,
@@ -169,6 +225,96 @@ class AppointmentTransitionServiceTests(TestCase):
             appointment=self.appointment,
             new_status="appointed",
             actor=self.hr_user,
+        )
+        self.assertEqual(updated.status, "appointed")
+
+    def test_transition_with_linked_case_requires_rubric_evaluation(self):
+        applicant = User.objects.create_user(
+            email=f"missing.eval.{uuid4().hex[:8]}@example.com",
+            password="Pass1234!",
+            first_name="Missing",
+            last_name="Eval",
+            user_type="applicant",
+        )
+        case = VettingCase.objects.create(
+            applicant=applicant,
+            assigned_to=self.hr_user,
+            position_applied=self.position.title,
+            department=self.position.institution[:100],
+            priority="medium",
+            status="under_review",
+            documents_uploaded=True,
+            documents_verified=True,
+        )
+        self.appointment.vetting_case = case
+        self.appointment.status = "under_vetting"
+        self.appointment.save(update_fields=["vetting_case", "status", "updated_at"])
+
+        with self.assertRaises(InvalidTransitionError):
+            advance_stage(
+                appointment=self.appointment,
+                new_status="committee_review",
+                actor=self.admin_user,
+            )
+
+    def test_confirmation_pending_with_blocking_issues_requires_reason_or_override(self):
+        self._attach_case_with_vetting_decision(
+            recommendation_status="recommend_manual_review",
+            blocking_issues=[
+                {
+                    "code": "documents_unverified",
+                    "severity": "blocking",
+                    "source": "policy_rule",
+                    "message": "Documents are not fully verified.",
+                }
+            ],
+        )
+        self.appointment.status = "committee_review"
+        self.appointment.save(update_fields=["status", "updated_at"])
+
+        with self.assertRaises(InvalidTransitionError):
+            advance_stage(
+                appointment=self.appointment,
+                new_status="confirmation_pending",
+                actor=self.admin_user,
+            )
+
+        updated = advance_stage(
+            appointment=self.appointment,
+            new_status="confirmation_pending",
+            actor=self.admin_user,
+            reason_note="Committee accepted temporary blocker with explicit mitigation plan.",
+        )
+        self.assertEqual(updated.status, "confirmation_pending")
+
+    def test_appointed_transition_with_reject_recommendation_requires_override(self):
+        _case, _evaluation, recommendation = self._attach_case_with_vetting_decision(
+            recommendation_status="recommend_reject",
+            blocking_issues=[],
+        )
+        self.appointment.status = "confirmation_pending"
+        self.appointment.save(update_fields=["status", "updated_at"])
+
+        with self.assertRaises(InvalidTransitionError):
+            advance_stage(
+                appointment=self.appointment,
+                new_status="appointed",
+                actor=self.admin_user,
+                reason_note="Attempting to proceed without formal override.",
+            )
+
+        VettingDecisionEngine.record_human_override(
+            recommendation=recommendation,
+            actor=self.admin_user,
+            overridden_recommendation_status="recommend_approve",
+            rationale="Statutory appointing authority exercised after full human review.",
+        )
+
+        updated = advance_stage(
+            appointment=self.appointment,
+            new_status="appointed",
+            actor=self.admin_user,
+            reason_note="Override recorded and acknowledged.",
         )
         self.assertEqual(updated.status, "appointed")
 

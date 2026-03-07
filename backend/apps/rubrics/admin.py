@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import CriteriaOverride, RubricCriteria, RubricEvaluation, VettingRubric
+from .models import (
+    CriteriaOverride,
+    RubricCriteria,
+    RubricEvaluation,
+    VettingDecisionOverride,
+    VettingDecisionRecommendation,
+    VettingRubric,
+)
 
 
 @admin.register(VettingRubric)
@@ -73,3 +80,38 @@ class CriteriaOverrideAdmin(admin.ModelAdmin):
     search_fields = ("evaluation__case__case_id", "criteria__name", "justification")
     readonly_fields = ("created_at",)
     list_select_related = ("evaluation", "criteria", "overridden_by")
+
+
+@admin.register(VettingDecisionRecommendation)
+class VettingDecisionRecommendationAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "case",
+        "rubric_evaluation",
+        "recommendation_status",
+        "advisory_only",
+        "engine_version",
+        "is_latest",
+        "generated_by",
+        "created_at",
+    )
+    list_filter = ("recommendation_status", "advisory_only", "is_latest", "created_at")
+    search_fields = ("case__case_id", "rubric_evaluation__id")
+    readonly_fields = ("created_at", "updated_at")
+    list_select_related = ("case", "rubric_evaluation", "generated_by")
+
+
+@admin.register(VettingDecisionOverride)
+class VettingDecisionOverrideAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "recommendation",
+        "previous_recommendation_status",
+        "overridden_recommendation_status",
+        "overridden_by",
+        "created_at",
+    )
+    list_filter = ("overridden_recommendation_status", "created_at")
+    search_fields = ("recommendation__case__case_id", "rationale")
+    readonly_fields = ("created_at",)
+    list_select_related = ("recommendation", "overridden_by")

@@ -412,77 +412,149 @@ class RubricEvaluation(models.Model):
         ordering = ['-created_at']
         verbose_name = 'Rubric Evaluation'
         verbose_name_plural = 'Rubric Evaluations'
+
+    COMPONENT_SPECS = (
+        {
+            "key": "document_authenticity",
+            "raw_field": "document_authenticity_score",
+            "weighted_field": "weighted_document_score",
+            "rubric_weight_field": "document_authenticity_weight",
+            "invert": False,
+            "label": "Document authenticity",
+        },
+        {
+            "key": "consistency",
+            "raw_field": "consistency_score",
+            "weighted_field": "weighted_consistency_score",
+            "rubric_weight_field": "consistency_weight",
+            "invert": False,
+            "label": "Cross-document consistency",
+        },
+        {
+            "key": "fraud_detection",
+            "raw_field": "fraud_risk_score",
+            "weighted_field": "weighted_fraud_score",
+            "rubric_weight_field": "fraud_detection_weight",
+            "invert": True,
+            "label": "Fraud risk (inverted)",
+        },
+        {
+            "key": "interview",
+            "raw_field": "interview_score",
+            "weighted_field": "weighted_interview_score",
+            "rubric_weight_field": "interview_weight",
+            "invert": False,
+            "label": "Interview",
+        },
+        {
+            "key": "manual_review",
+            "raw_field": "manual_review_score",
+            "weighted_field": "weighted_manual_score",
+            "rubric_weight_field": "manual_review_weight",
+            "invert": False,
+            "label": "Manual review",
+        },
+    )
     
     def __str__(self):
         return f"Evaluation: {self.case.case_id} using {self.rubric.name}"
+
+    def _add_review_reason(self, reason: str) -> None:
+        """Append reason once to maintain concise traceability."""
+        if not reason:
+            return
+        reasons = list(self.review_reasons or [])
+        if reason not in reasons:
+            reasons.append(reason)
+        self.review_reasons = reasons
+
+    def get_component_breakdown(self):
+        """Return transparent component-level scoring details."""
+        components = {}
+        available_weight = 0
+        weighted_total = 0.0
+
+        for spec in self.COMPONENT_SPECS:
+            raw_score = getattr(self, spec["raw_field"])
+            rubric_weight = getattr(self.rubric, spec["rubric_weight_field"])
+            adjusted_score = None
+            weighted_score = getattr(self, spec["weighted_field"])
+
+            if raw_score is not None:
+                adjusted_score = 100 - raw_score if spec["invert"] else raw_score
+                available_weight += rubric_weight
+                weighted_total += weighted_score or 0.0
+
+            components[spec["key"]] = {
+                "label": spec["label"],
+                "raw_field": spec["raw_field"],
+                "weighted_field": spec["weighted_field"],
+                "rubric_weight_field": spec["rubric_weight_field"],
+                "raw_score": raw_score,
+                "adjusted_score": adjusted_score,
+                "weight": rubric_weight,
+                "weighted_score": weighted_score,
+                "missing": raw_score is None,
+            }
+
+        normalized_score = None
+        if available_weight > 0:
+            normalized_score = (weighted_total * 100) / available_weight
+
+        return {
+            "components": components,
+            "available_weight": available_weight,
+            "weighted_total": weighted_total,
+            "normalized_score": normalized_score,
+        }
     
     def calculate_weighted_scores(self):
         """Calculate weighted scores based on rubric weights."""
-        if self.document_authenticity_score is not None:
-            self.weighted_document_score = (
-                self.document_authenticity_score *
-                self.rubric.document_authenticity_weight / 100
-            )
-        
-        if self.consistency_score is not None:
-            self.weighted_consistency_score = (
-                self.consistency_score *
-                self.rubric.consistency_weight / 100
-            )
-        
-        if self.fraud_risk_score is not None:
-            # Invert fraud score (lower risk = higher score)
-            inverted_fraud = 100 - self.fraud_risk_score
-            self.weighted_fraud_score = (
-                inverted_fraud *
-                self.rubric.fraud_detection_weight / 100
-            )
-        
-        if self.interview_score is not None:
-            self.weighted_interview_score = (
-                self.interview_score *
-                self.rubric.interview_weight / 100
-            )
-        
-        if self.manual_review_score is not None:
-            self.weighted_manual_score = (
-                self.manual_review_score *
-                self.rubric.manual_review_weight / 100
-            )
+        for spec in self.COMPONENT_SPECS:
+            raw_score = getattr(self, spec["raw_field"])
+            weighted_field = spec["weighted_field"]
+            if raw_score is None:
+                setattr(self, weighted_field, None)
+                continue
+
+            rubric_weight = getattr(self.rubric, spec["rubric_weight_field"])
+            adjusted_score = 100 - raw_score if spec["invert"] else raw_score
+            setattr(self, weighted_field, adjusted_score * rubric_weight / 100)
     
     def calculate_total_score(self):
         """Calculate total weighted score."""
         self.calculate_weighted_scores()
-        
-        scores = [
-            self.weighted_document_score,
-            self.weighted_consistency_score,
-            self.weighted_fraud_score,
-            self.weighted_interview_score,
-            self.weighted_manual_score,
-        ]
-        
-        # Sum only non-None scores
-        valid_scores = [s for s in scores if s is not None]
-        
-        if valid_scores:
-            self.total_weighted_score = sum(valid_scores)
-            
-            # Determine if passes threshold
-            self.passes_threshold = (
-                self.total_weighted_score >= self.rubric.passing_score
-            )
-            
-            # Auto-decision logic
-            if not self.requires_manual_review:
-                if self.total_weighted_score >= self.rubric.auto_approve_threshold:
-                    self.final_decision = 'auto_approved'
-                elif self.total_weighted_score <= self.rubric.auto_reject_threshold:
-                    self.final_decision = 'auto_rejected'
-                else:
-                    self.final_decision = 'pending'
-                    self.requires_manual_review = True
-                    self.review_reasons.append('Score in manual review range')
+
+        scores = [getattr(self, spec["weighted_field"]) for spec in self.COMPONENT_SPECS]
+        valid_scores = [score for score in scores if score is not None]
+
+        if not valid_scores:
+            self.total_weighted_score = None
+            self.passes_threshold = None
+            if self.final_decision in {"auto_approved", "auto_rejected"}:
+                self.final_decision = "pending"
+            return
+
+        self.total_weighted_score = sum(valid_scores)
+        self.passes_threshold = self.total_weighted_score >= self.rubric.passing_score
+
+        # Preserve explicit manual decisions and hard auto-fail decisions.
+        if self.final_decision in {"manual_approved", "manual_rejected"}:
+            return
+        if self.final_decision == "auto_rejected" and self.critical_flags_present and self.rubric.critical_flags_auto_fail:
+            return
+        if self.requires_manual_review:
+            self.final_decision = "pending"
+            return
+
+        if self.total_weighted_score >= self.rubric.auto_approve_threshold:
+            self.final_decision = "auto_approved"
+        elif self.total_weighted_score <= self.rubric.auto_reject_threshold:
+            self.final_decision = "auto_rejected"
+        else:
+            self.final_decision = "pending"
+            self.requires_manual_review = True
+            self._add_review_reason("Score in manual review range")
     
     def check_mandatory_requirements(self):
         """Check if mandatory requirements are met."""
@@ -490,7 +562,7 @@ class RubricEvaluation(models.Model):
         if self.document_authenticity_score is not None:
             if self.document_authenticity_score < self.rubric.minimum_document_score:
                 self.requires_manual_review = True
-                self.review_reasons.append(
+                self._add_review_reason(
                     f'Document score below minimum ({self.rubric.minimum_document_score})'
                 )
         
@@ -498,29 +570,179 @@ class RubricEvaluation(models.Model):
         if self.fraud_risk_score is not None:
             if self.fraud_risk_score > self.rubric.maximum_fraud_score:
                 self.requires_manual_review = True
-                self.review_reasons.append(
+                self._add_review_reason(
                     f'Fraud risk above maximum ({self.rubric.maximum_fraud_score})'
                 )
+
+        if self.rubric.require_interview and self.interview_score is None:
+            self.requires_manual_review = True
+            self._add_review_reason('Interview score missing for interview-required rubric')
         
         # Check critical flags
         if self.critical_flags_present and self.rubric.critical_flags_auto_fail:
             self.final_decision = 'auto_rejected'
-            self.review_reasons.append('Critical flags detected')
+            self.passes_threshold = False
+            self.requires_manual_review = True
+            self._add_review_reason('Critical flags detected')
         
         # Check unresolved flags
         if self.unresolved_flags_count > self.rubric.max_unresolved_flags:
             self.requires_manual_review = True
-            self.review_reasons.append(
+            self._add_review_reason(
                 f'Too many unresolved flags ({self.unresolved_flags_count})'
             )
     
     def save(self, *args, **kwargs):
-        # Auto-calculate scores before saving
-        if self.document_authenticity_score or self.consistency_score:
-            self.calculate_total_score()
+        update_fields = kwargs.get("update_fields")
+        recalc_trigger_fields = {
+            "document_authenticity_score",
+            "consistency_score",
+            "fraud_risk_score",
+            "interview_score",
+            "manual_review_score",
+            "critical_flags_present",
+            "unresolved_flags_count",
+            "rubric_id",
+            "rubric",
+        }
+
+        has_any_input_score = any(
+            getattr(self, spec["raw_field"]) is not None
+            for spec in self.COMPONENT_SPECS
+        )
+        should_recalculate = (
+            has_any_input_score
+            or bool(self.critical_flags_present)
+            or int(self.unresolved_flags_count or 0) > 0
+            or bool(getattr(self.rubric, "require_interview", False))
+        )
+        if update_fields is not None:
+            normalized_update_fields = set(update_fields)
+            should_recalculate = bool(recalc_trigger_fields.intersection(normalized_update_fields))
+
+        # Auto-calculate scores only when scoring inputs change.
+        if should_recalculate:
             self.check_mandatory_requirements()
+            self.calculate_total_score()
         
         super().save(*args, **kwargs)
+
+
+class VettingDecisionRecommendation(models.Model):
+    """
+    Advisory recommendation generated from rubric + policy/evidence signals.
+
+    This sits above rubric scoring and remains decision-support only.
+    Human decision-makers retain final authority.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    RECOMMENDATION_CHOICES = [
+        ("recommend_approve", "Recommend Approve"),
+        ("recommend_reject", "Recommend Reject"),
+        ("recommend_manual_review", "Recommend Manual Review"),
+    ]
+
+    case = models.ForeignKey(
+        VettingCase,
+        on_delete=models.CASCADE,
+        related_name="decision_recommendations",
+    )
+    rubric_evaluation = models.ForeignKey(
+        RubricEvaluation,
+        on_delete=models.CASCADE,
+        related_name="decision_recommendations",
+    )
+    recommendation_status = models.CharField(
+        max_length=30,
+        choices=RECOMMENDATION_CHOICES,
+        default="recommend_manual_review",
+        db_index=True,
+    )
+    blocking_issues = models.JSONField(default=list, blank=True)
+    warnings = models.JSONField(default=list, blank=True)
+    decision_basis = models.JSONField(default=dict, blank=True)
+    explanation = models.JSONField(default=dict, blank=True)
+    policy_snapshot = models.JSONField(default=dict, blank=True)
+    evidence_snapshot = models.JSONField(default=dict, blank=True)
+    ai_signal_snapshot = models.JSONField(default=dict, blank=True)
+
+    advisory_only = models.BooleanField(default=True)
+    engine_version = models.CharField(max_length=20, default="v1")
+    generated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="generated_vetting_decision_recommendations",
+    )
+    is_latest = models.BooleanField(default=True, db_index=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["case"],
+                condition=models.Q(is_latest=True),
+                name="uniq_vetting_decision_latest_per_case",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["case", "is_latest"], name="idx_vdr_case_latest"),
+            models.Index(fields=["rubric_evaluation", "is_latest"], name="idx_vdr_eval_latest"),
+            models.Index(fields=["recommendation_status", "created_at"], name="idx_vdr_status_created"),
+        ]
+        verbose_name = "Vetting Decision Recommendation"
+        verbose_name_plural = "Vetting Decision Recommendations"
+
+    def __str__(self):
+        return f"Decision recommendation for {self.case.case_id}: {self.recommendation_status}"
+
+
+class VettingDecisionOverride(models.Model):
+    """
+    Tracks explicit human overrides to advisory recommendation output.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    recommendation = models.ForeignKey(
+        VettingDecisionRecommendation,
+        on_delete=models.CASCADE,
+        related_name="overrides",
+    )
+    previous_recommendation_status = models.CharField(max_length=30)
+    overridden_recommendation_status = models.CharField(
+        max_length=30,
+        choices=VettingDecisionRecommendation.RECOMMENDATION_CHOICES,
+    )
+    rationale = models.TextField()
+    overridden_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="vetting_decision_overrides",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["recommendation", "created_at"], name="idx_vdo_rec_created"),
+        ]
+        verbose_name = "Vetting Decision Override"
+        verbose_name_plural = "Vetting Decision Overrides"
+
+    def __str__(self):
+        return (
+            f"Decision override {self.previous_recommendation_status} -> "
+            f"{self.overridden_recommendation_status}"
+        )
 
 
 class CriteriaOverride(models.Model):

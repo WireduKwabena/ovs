@@ -17,6 +17,8 @@ from .contracts import (
     APPOINTMENT_VETTING_LINKAGE_ENSURED_EVENT,
     GOVERNMENT_AUDIT_EVENT_CATALOG,
     PERSONNEL_LINKED_CANDIDATE_EVENT,
+    VETTING_DECISION_OVERRIDE_RECORDED_EVENT,
+    VETTING_DECISION_RECOMMENDATION_GENERATED_EVENT,
 )
 from .events import log_event, request_ip_address
 from .models import AuditLog
@@ -291,6 +293,8 @@ class AuditApiTests(APITestCase):
         self.assertIn(APPOINTMENT_STAGE_ACTION_TAKEN_EVENT, keys)
         self.assertIn(APPOINTMENT_FINAL_DECISION_RECORDED_EVENT, keys)
         self.assertIn(APPOINTMENT_VETTING_LINKAGE_ENSURED_EVENT, keys)
+        self.assertIn(VETTING_DECISION_RECOMMENDATION_GENERATED_EVENT, keys)
+        self.assertIn(VETTING_DECISION_OVERRIDE_RECORDED_EVENT, keys)
 
 
     def test_log_event_creates_audit_row_with_request_metadata(self):

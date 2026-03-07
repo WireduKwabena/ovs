@@ -84,6 +84,22 @@ class TestServiceDelegation(SimpleTestCase):
             case_id="CASE-SOC-1",
         )
         self.assertEqual(result["overall_score"], 72.5)
+
+    @patch("ai_ml_services.service.get_ai_service", side_effect=ModuleNotFoundError("No module named 'cv2'"))
+    def test_check_social_profiles_falls_back_when_optional_dependency_missing(self, _mock_get_service):
+        profiles = [{"platform": "linkedin", "url": "https://linkedin.com/in/sample"}]
+
+        result = check_social_profiles(
+            profiles=profiles,
+            consent_provided=True,
+            case_id="CASE-SOC-FALLBACK",
+        )
+
+        self.assertEqual(result["recommendation"], "MANUAL_REVIEW")
+        self.assertFalse(result["automated_decision_allowed"])
+        self.assertEqual(result["profiles_checked"], 1)
+        self.assertEqual(result["case_id"], "CASE-SOC-FALLBACK")
+
     @patch("ai_ml_services.service.get_ai_service")
     def test_batch_verify_documents_delegates_to_orchestrator(self, mock_get_service):
         orchestrator = MagicMock()

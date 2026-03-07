@@ -6,8 +6,8 @@ from rest_framework.test import APITestCase
 
 from apps.applications.models import VettingCase
 from apps.authentication.models import User
-from apps.rubrics.models import RubricEvaluation, VettingRubric
-from apps.rubrics.tasks import auto_assign_rubric
+from apps.rubrics.models import RubricEvaluation, VettingDecisionOverride, VettingDecisionRecommendation, VettingRubric
+from apps.rubrics.tasks import auto_assign_rubric, evaluate_case_with_rubric
 
 
 class RubricsApiTests(APITestCase):
@@ -189,6 +189,222 @@ class RubricsApiTests(APITestCase):
         self.assertTrue(evaluation.requires_manual_review)
         self.assertEqual(evaluation.status, "requires_review")
 
+    def test_evaluate_case_returns_structured_trace_and_explanation(self):
+        rubric_id = self._create_rubric("Trace Rubric")
+        self.client.post(
+            f"/api/rubrics/vetting-rubrics/{rubric_id}/criteria/",
+            {
+                "name": "Document Trust",
+                "description": "Document authenticity confidence",
+                "criteria_type": "document",
+                "scoring_method": "ai_score",
+                "weight": 50,
+                "minimum_score": 65,
+                "is_mandatory": True,
+                "display_order": 1,
+            },
+            format="json",
+        )
+
+        response = self.client.post(
+            f"/api/rubrics/vetting-rubrics/{rubric_id}/evaluate-case/",
+            {"case_id": self.case.id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("decision_explanation", payload)
+        self.assertIn("evaluation_trace", payload)
+        self.assertIn("scoring", payload["evaluation_trace"])
+        self.assertIn("components", payload["evaluation_trace"])
+        self.assertEqual(payload["evaluation_trace"]["ai_signals"]["advisory_only"], True)
+        self.assertIsNotNone(payload.get("decision_recommendation"))
+        self.assertTrue(payload["decision_recommendation"]["advisory_only"])
+        self.assertIn(
+            payload["decision_recommendation"]["recommendation_status"],
+            {"recommend_approve", "recommend_reject", "recommend_manual_review"},
+        )
+
+    def test_async_evaluation_rejects_ai_signals_payload(self):
+        rubric_id = self._create_rubric("Async AI Rubric")
+        response = self.client.post(
+            f"/api/rubrics/vetting-rubrics/{rubric_id}/evaluate-case/",
+            {
+                "case_id": self.case.id,
+                "async": True,
+                "ai_signals": {"source": "test-agent", "criteria": {}},
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("ai_signals", response.json()["error"])
+
+    def test_ai_signals_are_advisory_only_and_do_not_auto_approve(self):
+        rubric_id = self._create_rubric("Advisory AI Rubric")
+        low_case = VettingCase.objects.create(
+            applicant=self.applicant,
+            assigned_to=self.hr,
+            position_applied="Assistant Analyst",
+            department="Compliance",
+            priority="medium",
+            status="under_review",
+            document_authenticity_score=25,
+            consistency_score=20,
+            fraud_risk_score=80,
+            interview_score=20,
+        )
+        self.client.post(
+            f"/api/rubrics/vetting-rubrics/{rubric_id}/criteria/",
+            {
+                "name": "Behavioral Fit",
+                "description": "Behavioral signal",
+                "criteria_type": "behavioral",
+                "scoring_method": "ai_score",
+                "weight": 30,
+                "minimum_score": 60,
+                "is_mandatory": False,
+                "display_order": 1,
+            },
+            format="json",
+        )
+
+        response = self.client.post(
+            f"/api/rubrics/vetting-rubrics/{rubric_id}/evaluate-case/",
+            {
+                "case_id": low_case.id,
+                "ai_signals": {
+                    "source": "ai-assessor-v1",
+                    "summary": "High confidence potential despite low baseline.",
+                    "criteria": {"behavioral fit": {"score": 98, "confidence": 0.92}},
+                },
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertNotEqual(payload["final_decision"], "auto_approved")
+        self.assertTrue(payload["evaluation_trace"]["ai_signals"]["advisory_only"])
+        self.assertEqual(payload["evaluation_trace"]["ai_signals"]["source"], "ai-assessor-v1")
+        self.assertEqual(payload["decision_recommendation"]["advisory_only"], True)
+
+    def test_decision_recommendation_endpoint_returns_latest_recommendation(self):
+        rubric_id = self._create_rubric("Decision Endpoint Rubric")
+        evaluate = self.client.post(
+            f"/api/rubrics/vetting-rubrics/{rubric_id}/evaluate-case/",
+            {"case_id": self.case.id},
+            format="json",
+        )
+        self.assertEqual(evaluate.status_code, 200)
+        evaluation_id = evaluate.json()["id"]
+        recommendation_id = evaluate.json()["decision_recommendation"]["id"]
+
+        detail = self.client.get(f"/api/rubrics/evaluations/{evaluation_id}/decision-recommendation/")
+        self.assertEqual(detail.status_code, 200)
+        self.assertEqual(detail.json()["id"], recommendation_id)
+        self.assertTrue(detail.json()["is_latest"])
+
+    def test_rerun_creates_new_latest_decision_recommendation(self):
+        rubric_id = self._create_rubric("Decision Rerun Rubric")
+        evaluate = self.client.post(
+            f"/api/rubrics/vetting-rubrics/{rubric_id}/evaluate-case/",
+            {"case_id": self.case.id},
+            format="json",
+        )
+        self.assertEqual(evaluate.status_code, 200)
+        evaluation_id = evaluate.json()["id"]
+
+        first_recommendation = VettingDecisionRecommendation.objects.filter(
+            rubric_evaluation_id=evaluation_id,
+            is_latest=True,
+        ).first()
+        self.assertIsNotNone(first_recommendation)
+
+        rerun = self.client.post(
+            f"/api/rubrics/evaluations/{evaluation_id}/rerun/",
+            {},
+            format="json",
+        )
+        self.assertEqual(rerun.status_code, 200)
+
+        latest = VettingDecisionRecommendation.objects.filter(
+            rubric_evaluation_id=evaluation_id,
+            is_latest=True,
+        ).first()
+        self.assertIsNotNone(latest)
+        self.assertNotEqual(latest.id, first_recommendation.id)
+        first_recommendation.refresh_from_db()
+        self.assertFalse(first_recommendation.is_latest)
+
+    def test_override_decision_endpoint_records_override(self):
+        rubric_id = self._create_rubric("Decision Override Rubric")
+        evaluate = self.client.post(
+            f"/api/rubrics/vetting-rubrics/{rubric_id}/evaluate-case/",
+            {"case_id": self.case.id},
+            format="json",
+        )
+        self.assertEqual(evaluate.status_code, 200)
+        evaluation_id = evaluate.json()["id"]
+
+        override = self.client.post(
+            f"/api/rubrics/evaluations/{evaluation_id}/override-decision/",
+            {
+                "recommendation_status": "recommend_manual_review",
+                "rationale": "Final governance review requested by committee secretariat.",
+            },
+            format="json",
+        )
+        self.assertEqual(override.status_code, 200)
+        recommendation = VettingDecisionRecommendation.objects.filter(
+            rubric_evaluation_id=evaluation_id,
+            is_latest=True,
+        ).first()
+        self.assertIsNotNone(recommendation)
+        self.assertEqual(recommendation.recommendation_status, "recommend_manual_review")
+        self.assertEqual(
+            VettingDecisionOverride.objects.filter(recommendation=recommendation).count(),
+            1,
+        )
+
+    def test_override_records_trace_event(self):
+        rubric_id = self._create_rubric("Override Trace Rubric")
+        criterion_response = self.client.post(
+            f"/api/rubrics/vetting-rubrics/{rubric_id}/criteria/",
+            {
+                "name": "Document Trust",
+                "description": "Validate document authenticity confidence",
+                "criteria_type": "document",
+                "scoring_method": "ai_score",
+                "weight": 40,
+                "minimum_score": 65,
+                "is_mandatory": True,
+                "display_order": 1,
+            },
+            format="json",
+        )
+        criterion_id = criterion_response.json()["id"]
+
+        evaluate_response = self.client.post(
+            f"/api/rubrics/vetting-rubrics/{rubric_id}/evaluate-case/",
+            {"case_id": self.case.id},
+            format="json",
+        )
+        evaluation_id = evaluate_response.json()["id"]
+
+        override_response = self.client.post(
+            f"/api/rubrics/evaluations/{evaluation_id}/override-criterion/",
+            {
+                "criterion_id": criterion_id,
+                "overridden_score": 52,
+                "justification": "Manual correction for source document artifact.",
+            },
+            format="json",
+        )
+        self.assertEqual(override_response.status_code, 201)
+        evaluation = RubricEvaluation.objects.get(id=evaluation_id)
+        trace = evaluation.criterion_scores.get("__trace__", {})
+        events = trace.get("events", [])
+        self.assertTrue(any(event.get("event_type") == "override_applied" for event in events))
+
     def test_override_rejects_out_of_range_score(self):
         rubric_id = self._create_rubric("Negative Test Rubric")
         criterion = self.client.post(
@@ -335,6 +551,18 @@ class RubricTaskTests(TestCase):
         self.assertTrue(result["success"])
         evaluation = RubricEvaluation.objects.get(case=self.case)
         self.assertEqual(evaluation.rubric_id, self.default_rubric.id)
+        self.assertIn("decision_recommendation_id", result)
+        self.assertIn(
+            result.get("decision_recommendation_status"),
+            {"recommend_approve", "recommend_reject", "recommend_manual_review"},
+        )
+
+    def test_evaluate_case_with_rubric_task_returns_decision_recommendation(self):
+        result = evaluate_case_with_rubric.run(self.case.id, self.default_rubric.id, self.hr.id)
+        self.assertTrue(result["success"])
+        self.assertIn("decision_recommendation_id", result)
+        recommendation = VettingDecisionRecommendation.objects.get(id=result["decision_recommendation_id"])
+        self.assertEqual(recommendation.case_id, self.case.id)
 
     def test_auto_assign_rubric_returns_error_for_missing_case(self):
         result = auto_assign_rubric.run(case_id=999999)

@@ -1,7 +1,14 @@
 from django.db import transaction
 from rest_framework import serializers
 
-from .models import CriteriaOverride, RubricCriteria, RubricEvaluation, VettingRubric
+from .models import (
+    CriteriaOverride,
+    RubricCriteria,
+    RubricEvaluation,
+    VettingDecisionOverride,
+    VettingDecisionRecommendation,
+    VettingRubric,
+)
 
 
 class RubricCriteriaSerializer(serializers.ModelSerializer):
@@ -159,10 +166,68 @@ class CriteriaOverrideSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "overridden_by", "overridden_by_email", "created_at"]
 
 
+class VettingDecisionOverrideSerializer(serializers.ModelSerializer):
+    overridden_by_email = serializers.EmailField(source="overridden_by.email", read_only=True)
+
+    class Meta:
+        model = VettingDecisionOverride
+        fields = [
+            "id",
+            "recommendation",
+            "previous_recommendation_status",
+            "overridden_recommendation_status",
+            "rationale",
+            "overridden_by",
+            "overridden_by_email",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class VettingDecisionRecommendationSerializer(serializers.ModelSerializer):
+    generated_by_email = serializers.EmailField(source="generated_by.email", read_only=True)
+    overrides = VettingDecisionOverrideSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = VettingDecisionRecommendation
+        fields = [
+            "id",
+            "case",
+            "rubric_evaluation",
+            "recommendation_status",
+            "blocking_issues",
+            "warnings",
+            "decision_basis",
+            "explanation",
+            "policy_snapshot",
+            "evidence_snapshot",
+            "ai_signal_snapshot",
+            "advisory_only",
+            "engine_version",
+            "generated_by",
+            "generated_by_email",
+            "is_latest",
+            "created_at",
+            "updated_at",
+            "overrides",
+        ]
+        read_only_fields = fields
+
+
+class VettingDecisionOverrideRequestSerializer(serializers.Serializer):
+    recommendation_status = serializers.ChoiceField(
+        choices=VettingDecisionRecommendation.RECOMMENDATION_CHOICES,
+    )
+    rationale = serializers.CharField(required=True, allow_blank=False)
+
+
 class RubricEvaluationSerializer(serializers.ModelSerializer):
     rubric_name = serializers.CharField(source="rubric.name", read_only=True)
     case_id = serializers.CharField(source="case.case_id", read_only=True)
     overrides = CriteriaOverrideSerializer(many=True, read_only=True)
+    decision_explanation = serializers.SerializerMethodField(read_only=True)
+    evaluation_trace = serializers.SerializerMethodField(read_only=True)
+    decision_recommendation = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = RubricEvaluation
@@ -191,6 +256,9 @@ class RubricEvaluationSerializer(serializers.ModelSerializer):
             "requires_manual_review",
             "review_reasons",
             "criterion_scores",
+            "decision_explanation",
+            "evaluation_trace",
+            "decision_recommendation",
             "evaluation_summary",
             "recommendations",
             "evaluated_at",
@@ -215,4 +283,45 @@ class RubricEvaluationSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "overrides",
+            "decision_explanation",
+            "evaluation_trace",
+            "decision_recommendation",
         ]
+
+    def get_decision_explanation(self, obj):
+        if not isinstance(obj.criterion_scores, dict):
+            return {
+                "headline": "Manual HR decision required.",
+                "score_statement": "",
+                "decision_basis": [],
+                "review_reasons": list(obj.review_reasons or []),
+                "advisory_only_ai": True,
+            }
+        payload = obj.criterion_scores.get("__decision_explanation__")
+        if isinstance(payload, dict):
+            return payload
+        return {
+            "headline": "Manual HR decision required." if obj.final_decision == "pending" else "",
+            "score_statement": "",
+            "decision_basis": [],
+            "review_reasons": list(obj.review_reasons or []),
+            "advisory_only_ai": True,
+        }
+
+    def get_evaluation_trace(self, obj):
+        if not isinstance(obj.criterion_scores, dict):
+            return {}
+        payload = obj.criterion_scores.get("__trace__")
+        return payload if isinstance(payload, dict) else {}
+
+    def get_decision_recommendation(self, obj):
+        latest = (
+            obj.decision_recommendations.filter(is_latest=True)
+            .select_related("generated_by")
+            .prefetch_related("overrides__overridden_by")
+            .order_by("-created_at")
+            .first()
+        )
+        if latest is None:
+            return None
+        return VettingDecisionRecommendationSerializer(latest, context=self.context).data

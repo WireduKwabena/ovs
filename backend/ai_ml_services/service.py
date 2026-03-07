@@ -816,6 +816,35 @@ class AIOrchestrator:
 _orchestrator: Optional[AIOrchestrator] = None
 
 
+def _iter_exception_chain(exc: Exception):
+    current: Exception | None = exc
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen:
+        yield current
+        seen.add(id(current))
+        current = current.__cause__ or current.__context__
+
+
+def _is_optional_dependency_failure(exc: Exception) -> bool:
+    return any(isinstance(item, (ImportError, ModuleNotFoundError)) for item in _iter_exception_chain(exc))
+
+
+def _build_social_profile_checker():
+    from ai_ml_services.social.profile_checker import SocialProfileChecker
+
+    allowed_social_platforms = [
+        item.strip()
+        for item in str(getattr(settings, "AI_ML_SOCIAL_ALLOWED_PLATFORMS", "") or "").split(",")
+        if item.strip()
+    ]
+    return SocialProfileChecker(
+        verify_urls=bool(getattr(settings, "AI_ML_SOCIAL_VERIFY_URLS", False)),
+        request_timeout=float(getattr(settings, "AI_ML_SOCIAL_HTTP_TIMEOUT", 5.0)),
+        require_consent=bool(getattr(settings, "AI_ML_SOCIAL_CONSENT_REQUIRED", True)),
+        allowed_platforms=allowed_social_platforms or None,
+    )
+
+
 def get_ai_service() -> AIOrchestrator:
     """
     Get the global AI orchestrator instance.
@@ -857,11 +886,26 @@ def check_social_profiles(
     case_id: Optional[str] = None,
 ) -> Dict:
     """Convenience function to run social profile checks."""
-    return get_ai_service().check_social_profiles(
-        profiles=profiles,
-        consent_provided=consent_provided,
-        case_id=case_id,
-    )
+    try:
+        return get_ai_service().check_social_profiles(
+            profiles=profiles,
+            consent_provided=consent_provided,
+            case_id=case_id,
+        )
+    except Exception as exc:
+        if not _is_optional_dependency_failure(exc):
+            raise
+
+        logger.warning(
+            "Falling back to lightweight social checker because optional AI dependencies are unavailable: %s",
+            exc,
+        )
+        checker = _build_social_profile_checker()
+        return checker.check_profiles(
+            profiles=profiles or [],
+            consent_provided=bool(consent_provided),
+            case_id=case_id or "unknown",
+        )
 
 
 def batch_verify_documents(
