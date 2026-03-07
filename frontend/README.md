@@ -1,73 +1,55 @@
-# React + TypeScript + Vite
+# Frontend Overview (OVS + GAMS)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This frontend is a React + TypeScript app for both:
 
-Currently, two official plugins are available:
+- OVS vetting workflows (campaigns, applications, interviews, rubrics, monitoring).
+- GAMS government workflows (positions, personnel, appointments, approval chain, publication lifecycle).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Core Government Pages
 
-## React Compiler
+- `src/pages/GovernmentPositionsPage.tsx`
+  - Register and browse `GovernmentPosition` records.
+  - Public/vacancy flags shown in registry table.
+- `src/pages/GovernmentPersonnelPage.tsx`
+  - Register and browse `PersonnelRecord` records.
+  - Officeholder/public flags and candidate linkage visibility.
+- `src/pages/AppointmentsRegistryPage.tsx`
+  - Create nominations (`AppointmentRecord`).
+  - Manage approval-stage templates and stages.
+  - Execute lifecycle transitions, stage actions, publish/revoke actions.
+  - View publication status and stage-action history.
 
-The React Compiler is currently not compatible with SWC. See [this issue](https://github.com/vitejs/vite-plugin-react/issues/428) for tracking the progress.
+## Government API Service Layer
 
-## Expanding the ESLint configuration
+- `src/services/government.service.ts`
+  - Positions: list/create
+  - Personnel: list/create
+  - Appointments: list/create, stage transitions, appoint/reject, vetting linkage
+  - Approval chain: stage templates + stages
+  - Publication lifecycle: publication detail, publish, revoke
+  - Public feeds: gazette feed + open appointments
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Route Integration
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Protected routes in `src/App.tsx`:
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- `/government/positions`
+- `/government/personnel`
+- `/government/appointments`
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+These routes are behind authentication and excluded for applicant-only users.
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Data Exposure Rules in UI
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- Internal appointment registry views are for authenticated HR/admin government actors.
+- Public feeds use separate backend serializers and should not include vetting-case internals.
+- UI labels and state controls are lifecycle-aware, but backend remains source of truth for transition policy.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Dev Commands
+
+```bash
+npm install
+npm run dev
+npm run type-check
+npm test
 ```

@@ -25,7 +25,7 @@ export const EmergencyBackupCodesCard: React.FC<EmergencyBackupCodesCardProps> =
   const downloadCodes = () => {
     const timestamp = generatedIso.replace(/[:]/g, "-").slice(0, 19);
     const content = [
-      "OVS Backup Recovery Codes",
+      "OVS + GAMS Backup Recovery Codes",
       `Generated: ${generatedIso}`,
       "",
       "Store these securely. Each code can be used only once.",

@@ -114,7 +114,7 @@ export const RegisterForm: React.FC = () => {
           <div className="relative flex h-full flex-col justify-between gap-6">
             <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide">
               <ShieldCheck className="h-4 w-4" />
-              OVS Organization Setup
+              OVS + GAMS Organization Setup
             </div>
 
             <div>

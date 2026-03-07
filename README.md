@@ -1,170 +1,190 @@
-# AI-Powered Vetting System
+# OVS-Redo (OVS + GAMS)
 
-## University Final Year Project
-
-> **Automated background verification using Machine Learning and Computer Vision**
+> Automated vetting and government appointment governance in one platform.
 
 [![Python](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)
-[![Django](https://img.shields.io/badge/Django-4.2-green.svg)](https://www.djangoproject.com/)
+[![Django](https://img.shields.io/badge/Django-5.x-green.svg)](https://www.djangoproject.com/)
 [![React](https://img.shields.io/badge/React-18.2-61dafb.svg)](https://reactjs.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
-## 📋 Project Overview
+## System Overview
 
-An intelligent vetting system that automates background verification for HR processes using:
+This repository preserves the original OVS vetting engine while extending it into GAMS
+(Government Appointment Management System).
 
-- **Document Analysis**: OCR, authenticity detection, and fraud detection
-- **Video Interviews**: Automated transcription, sentiment analysis, and response evaluation
-- **Dynamic Rubrics**: Configurable scoring system with human oversight
+Implemented today:
 
-### Academic Focus
+- OVS subsystems: campaigns, cases/applications, document verification, interviews, rubrics, fraud checks, notifications, audit.
+- GAMS subsystems: position registry, personnel registry, appointment lifecycle, approval-chain governance, publication/gazette lifecycle, public feeds.
 
-This project explores:
+Key design rule:
 
-1. Multi-modal AI (combining document, audio, and video analysis)
-2. Human-in-the-loop machine learning
-3. Scalable microservices architecture
-4. Real-world application of NLP and Computer Vision
-
-### Integration Guide
-
-See `INTEGRATION_MAP.md` for the repo-specific ownership model showing how
-`campaigns` orchestrates `applications`, `rubrics`, and `interviews` without
-replacing their responsibilities.
-
-### Re-enabled Domain APIs
-
-The legacy domain apps are now wired back into runtime:
-
-- `GET/POST /api/applications/cases/`
-- `POST /api/applications/cases/{id}/upload-document/`
-- `GET /api/applications/cases/{id}/verification-status/`
-- `GET /api/applications/documents/`
-- `GET/POST /api/interviews/sessions/`
-- `POST /api/interviews/sessions/{id}/start/`
-- `POST /api/interviews/sessions/{id}/complete/`
-- `GET/POST /api/interviews/questions/`
-- `GET/POST /api/interviews/responses/`
-- `POST /api/interviews/responses/{id}/analyze/`
-- `GET/POST /api/interviews/feedback/`
-- `GET/POST /api/rubrics/vetting-rubrics/`
-- `POST /api/rubrics/vetting-rubrics/{id}/criteria/`
-- `POST /api/rubrics/vetting-rubrics/{id}/evaluate-case/`
-- `GET /api/rubrics/criteria/`
-- `GET /api/rubrics/evaluations/`
-- `POST /api/rubrics/evaluations/{id}/rerun/`
-- `POST /api/rubrics/evaluations/{id}/override-criterion/`
-- `GET /api/audit/logs/`
-- `GET /api/audit/logs/recent-activity/`
-- `GET /api/audit/logs/statistics/`
-- `GET /api/fraud/results/`
-- `GET /api/fraud/results/statistics/`
-- `GET /api/fraud/consistency/`
-- `GET /api/fraud/consistency/statistics/`
-- `GET /api/ml-monitoring/`
-- `GET /api/ml-monitoring/latest/`
-- `GET /api/ml-monitoring/performance-summary/`
-- `GET /api/ml-monitoring/history/?model_name=<name>`
-- `GET /api/ml-monitoring/metrics/` (legacy alias)
+- Extend existing OVS modules; do not replace them.
 
 ---
 
-## 🎯 Key Features
+## Architecture Overview
 
-### Document Vetting
+### Backend (Django + DRF)
 
-- ✅ OCR text extraction (Tesseract + EasyOCR)
-- ✅ Document authenticity detection (CNN)
-- ✅ Cross-document consistency checking
-- ✅ Fraud risk assessment (ML classifier)
-- ✅ Automatic flag generation for suspicious documents
+- `apps/campaigns`: appointment exercises and campaign-level governance metadata.
+- `apps/applications`: vetting cases and document workflow.
+- `apps/interviews`: AI-assisted interview sessions and analysis.
+- `apps/rubrics`: rubric definitions and scoring outputs.
+- `apps/positions`: `GovernmentPosition` registry and public/vacant views.
+- `apps/personnel`: `PersonnelRecord` registry and controlled officeholder views.
+- `apps/appointments`: `AppointmentRecord`, approval stages/templates, stage actions, publication lifecycle.
+- `apps/notifications`: in-app/email/sms delivery + appointment lifecycle notifications.
+- `apps/audit`: immutable operational history + event catalog.
 
-### Video Interview Analysis
+### Frontend (React + TypeScript)
 
-- ✅ Automated transcription (OpenAI Whisper)
-- ✅ Sentiment analysis (HuggingFace Transformers)
-- ✅ Face detection and presence tracking (OpenCV)
-- ✅ LLM-based response evaluation (GPT-4/Claude)
-- ✅ Dynamic question generation based on document flags
-
-### Rubric System
-
-- ✅ Configurable evaluation criteria
-- ✅ Weighted scoring with customizable thresholds
-- ✅ Automatic approve/reject with manual review option
-- ✅ HR manager override capability
-- ✅ Audit trail for all decisions
-
----
-
-## 🚧 Phase 1 API (Implemented)
-
-The backend now includes a phase-1 orchestration layer for campaign-driven vetting:
-
-- `POST /api/campaigns/` - create campaign
-- `POST /api/campaigns/{id}/rubrics/versions/` - create rubric version
-- `GET /api/campaigns/{id}/dashboard/` - campaign progress summary
-- `POST /api/campaigns/{id}/candidates/import/` - bulk candidate import (+ optional invitations)
-- `GET/POST /api/candidates/` - candidate management
-- `GET/POST /api/enrollments/` - candidate enrollment management
-- `GET/POST /api/invitations/` - invitation creation/listing
-- `POST /api/invitations/{id}/send/` - resend invitation
-- `POST /api/invitations/accept/` - candidate invitation acceptance
-- `POST /api/invitations/access/consume/` - candidate token/session bootstrap
-- `GET /api/invitations/access/me/` - candidate session context
-- `GET /api/invitations/access/results/` - candidate results endpoint
-- `POST /api/invitations/access/logout/` - candidate session close
-- `GET /api/audit/logs/` - audit history and statistics
-- `GET /api/fraud/results/` - fraud model outputs per case
-- `GET /api/fraud/consistency/` - consistency outputs per case
-- `GET /api/ml-monitoring/` - current model metrics (admin/staff)
+- Government routes:
+  - `/government/positions`
+  - `/government/personnel`
+  - `/government/appointments`
+- Service contract:
+  - `frontend/src/services/government.service.ts`
+- Core government pages:
+  - `frontend/src/pages/GovernmentPositionsPage.tsx`
+  - `frontend/src/pages/GovernmentPersonnelPage.tsx`
+  - `frontend/src/pages/AppointmentsRegistryPage.tsx`
 
 ---
 
-## 🏗️ System Architecture
+## Implemented GAMS Workflow
 
-```
-┌─────────────────────────────────────────┐
-│      React Frontend (TypeScript)        │
-│  - Document upload                      │
-│  - Video recorder                       │
-│  - Results dashboard                    │
-└────────────┬────────────────────────────┘
-             │ REST API (HTTP)
-┌────────────┴────────────────────────────┐
-│       Django Backend + DRF              │
-│  - PostgreSQL database                  │
-│  - Celery async tasks                   │
-│  - AI/ML processing                     │
-└─────────────────────────────────────────┘
-```
+### Appointment States
 
-### Technology Stack
+`AppointmentRecord.status` values:
 
-**Backend:**
+- `nominated`
+- `under_vetting`
+- `committee_review`
+- `confirmation_pending`
+- `appointed`
+- `rejected`
+- `withdrawn`
+- `serving`
+- `exited`
 
-- Django 4.2 (Web framework)
-- Django REST Framework (API)
-- PostgreSQL (Database)
-- Celery + Redis (Async processing)
-- PyTorch & TensorFlow (ML models)
+Allowed transitions (service-enforced):
 
-**Frontend:**
+- `nominated -> under_vetting | withdrawn`
+- `under_vetting -> committee_review | withdrawn`
+- `committee_review -> confirmation_pending | appointed | rejected | withdrawn`
+- `confirmation_pending -> appointed | rejected | withdrawn`
+- `appointed -> serving`
+- `serving -> exited`
 
-- React 18 (UI framework)
-- TypeScript (Type safety)
-- Tailwind CSS (Styling)
-- Axios (HTTP client)
+### Approval Chain
 
-**AI/ML:**
+Approval chain is template-driven:
 
-- OpenAI Whisper (Speech-to-text)
-- HuggingFace Transformers (NLP)
-- OpenCV (Computer vision)
-- Tesseract & EasyOCR (OCR)
-- Scikit-learn (ML algorithms)
+- `ApprovalStageTemplate` defines chain per exercise type.
+- `ApprovalStage` defines ordered stages with:
+  - `order`
+  - `required_role`
+  - `is_required`
+  - `maps_to_status`
+
+Hardening behavior implemented:
+
+- Stage context is mandatory when moving to a status that has required mapped stages.
+- Stage must belong to the appointment's approval template.
+- Stage must map to requested target status.
+- Required prior stages must already be completed.
+- Actor must satisfy stage role; final decision (`appointed`/`rejected`) requires appointing-authority/admin privileges.
+
+### Publication/Gazette Lifecycle
+
+`AppointmentPublication` is 1:1 with `AppointmentRecord`:
+
+- States: `draft`, `published`, `revoked`
+- Provenance fields:
+  - `published_by`, `published_at`
+  - `revoked_by`, `revoked_at`, `revocation_reason`
+  - `publication_reference`, `publication_document_hash`, `publication_notes`
+
+Publication actions:
+
+- Publish sets publication state to `published` and marks appointment public.
+- Revoke requires `revocation_reason`; optionally makes appointment private (`make_private`, default `true`).
+
+### Officeholder Integrity
+
+Serving/exited transitions update linked registries:
+
+- `serving`: position holder + vacancy state updated; nominee set to active officeholder.
+- `exited`: exit date enforced; position vacancy/holder updated; nominee officeholder flag recalculated.
+
+DB guardrails include:
+
+- one serving appointment per position,
+- unique active appointment per position+nominee,
+- serving/exited require appointment date,
+- exited requires exit date.
+
+---
+
+## Public vs Internal Data Rules
+
+Internal endpoints (HR/admin restricted):
+
+- `/api/positions/`
+- `/api/personnel/`
+- `/api/appointments/records/`
+- stage actions, publish/revoke, linkage actions.
+
+Public endpoints (safe serializers only):
+
+- `/api/positions/public/`
+- `/api/positions/vacant/`
+- `/api/personnel/officeholders/`
+- `/api/appointments/records/gazette-feed/`
+- `/api/appointments/records/open/`
+
+Public appointment feeds are additionally filtered to:
+
+- `is_public=True`
+- publication status `published`
+- no internal vetting fields in response serializer.
+
+Authenticated non-HR/admin users calling appointment history endpoints only receive records with `is_public=True`.
+
+---
+
+## Key API Endpoints (Current)
+
+Government registries and lifecycle:
+
+- `GET/POST /api/positions/`
+- `GET /api/positions/public/`
+- `GET /api/positions/vacant/`
+- `GET /api/positions/{id}/appointment-history/`
+- `GET/POST /api/personnel/`
+- `GET /api/personnel/officeholders/`
+- `POST /api/personnel/{id}/link-candidate/`
+- `GET /api/personnel/{id}/appointment-history/`
+- `GET/POST /api/appointments/records/`
+- `POST /api/appointments/records/{id}/ensure-vetting-linkage/`
+- `POST /api/appointments/records/{id}/advance-stage/`
+- `POST /api/appointments/records/{id}/appoint/`
+- `POST /api/appointments/records/{id}/reject/`
+- `GET /api/appointments/records/{id}/stage-actions/`
+- `GET /api/appointments/records/{id}/publication/`
+- `POST /api/appointments/records/{id}/publish/`
+- `POST /api/appointments/records/{id}/revoke-publication/`
+- `GET /api/appointments/records/gazette-feed/`
+- `GET /api/appointments/records/open/`
+- `GET/POST /api/appointments/stage-templates/`
+- `GET/POST /api/appointments/stages/`
+
+Reused OVS core:
+
+- campaigns, cases, interviews, rubrics, invitations, notifications, audit, fraud, monitoring endpoints remain active.
 
 ---
 
@@ -540,10 +560,9 @@ How to access:
 
 ## 📖 Documentation
 
-- **[Project Structure](PROJECT_STRUCTURE.md)**: Complete codebase documentation
-- **[API Documentation](docs/API.md)**: REST API endpoints (auto-generated)
-- **[User Manual](docs/USER_MANUAL.md)**: How to use the system
-- **[Development Guide](docs/DEVELOPMENT.md)**: Contributing guidelines
+- **[User Manual](docs/USER_MANUAL.md)**: Operator-facing workflows and API quick map.
+- **[Frontend Notes](frontend/README.md)**: Frontend module layout and government pages.
+- **[Backend OpenAPI Snapshot](backend/openapi.yaml)**: Generated API contract snapshot.
 
 User manual export (PDF/DOCX/HTML) via Pandoc:
 
@@ -592,39 +611,23 @@ docker compose -f docker-compose.prod.yml up -d
 
 ### Manual Deployment
 
-See [DEPLOYMENT.md](docs/DEPLOYMENT.md) for production deployment guide.
+See `docs/user-manual/13_operational_procedures.md` for operational command reference.
 
 ---
 
-## 🛣️ Roadmap
+## 🛣️ Current Status
 
-### Phase 1: MVP (Weeks 1-4) ✅
+This repository currently ships both OVS and GAMS flows in the same runtime:
 
-- [x] Database models
-- [x] Django settings and configuration
-- [ ] REST API endpoints
-- [ ] Basic document upload
+- OVS: campaigns/cases/documents/interviews/rubrics/fraud/monitoring remain active.
+- GAMS: positions/personnel/appointments/approval-chain/publication lifecycle are implemented and integrated.
+- Audit + notifications include appointment-specific event coverage.
+- Public government endpoints expose only curated serializer fields; internal vetting fields remain restricted.
 
-### Phase 2: Document Vetting (Weeks 5-8)
+Still evolving:
 
-- [ ] OCR implementation
-- [ ] Train authenticity CNN
-- [ ] Train fraud classifier
-- [ ] Consistency checker
-
-### Phase 3: Video Interviews (Weeks 9-10)
-
-- [ ] Whisper integration
-- [ ] Sentiment analysis
-- [ ] Face detection
-- [ ] LLM evaluation
-
-### Phase 4: Integration (Weeks 11-12)
-
-- [ ] Frontend completion
-- [ ] End-to-end testing
-- [ ] Performance optimization
-- [ ] Documentation
+- Legacy naming/content in some non-government UX text and manual chapters remains OVS-oriented.
+- Additional end-to-end demo polish and documentation harmonization can continue incrementally.
 
 ---
 

@@ -487,8 +487,8 @@ export const Navbar: React.FC = () => {
               <div className="flex items-center">
               <Shield className="h-7 w-7 text-indigo-600 sm:h-8 sm:w-8" />
               <span className="ml-2 text-lg leading-none font-bold text-gray-900 sm:text-xl xl:text-2xl">
-                <span className="sm:hidden">OVS</span>
-                <span className="hidden sm:inline">VettingSystem</span>
+                <span className="sm:hidden">OVS+</span>
+                <span className="hidden sm:inline">OVS + GAMS</span>
               </span>
             </div>
             </Link>

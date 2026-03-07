@@ -134,6 +134,7 @@ Notifications:
 - `/api/notifications/{id}/`
 - `/api/notifications/{id}/mark_read/`
 - `/api/notifications/{id}/archive/`
+- `/api/notifications/{id}/restore/`
 - `/api/notifications/mark-as-read/`
 - `/api/notifications/mark-all-as-read/`
 - `/api/notifications/unread-count/`
@@ -143,8 +144,10 @@ Audit:
 - `/api/audit/logs/`
 - `/api/audit/logs/{id}/`
 - `/api/audit/logs/by_entity/`
+- `/api/audit/logs/by_user/`
 - `/api/audit/logs/recent_activity/`
 - `/api/audit/logs/statistics/`
+- `/api/audit/logs/event_catalog/`
 
 Fraud:
 
@@ -201,3 +204,45 @@ Background checks:
 - `/api/background-checks/checks/{id}/refresh/`
 - `/api/background-checks/providers/{provider_key}/webhook/`
 
+## 15.9 Government Appointments (GAMS)
+
+Positions:
+
+- `/api/positions/`
+- `/api/positions/{id}/`
+- `/api/positions/public/`
+- `/api/positions/vacant/`
+- `/api/positions/{id}/appointment-history/`
+
+Personnel:
+
+- `/api/personnel/`
+- `/api/personnel/{id}/`
+- `/api/personnel/officeholders/`
+- `/api/personnel/{id}/link-candidate/`
+- `/api/personnel/{id}/appointment-history/`
+
+Approval chain:
+
+- `/api/appointments/stage-templates/`
+- `/api/appointments/stage-templates/{id}/`
+- `/api/appointments/stages/`
+- `/api/appointments/stages/{id}/`
+
+Appointment lifecycle:
+
+- `/api/appointments/records/`
+- `/api/appointments/records/{id}/`
+- `/api/appointments/records/{id}/ensure-vetting-linkage/`
+- `/api/appointments/records/{id}/advance-stage/`
+- `/api/appointments/records/{id}/appoint/`
+- `/api/appointments/records/{id}/reject/`
+- `/api/appointments/records/{id}/stage-actions/`
+- `/api/appointments/records/{id}/publication/`
+- `/api/appointments/records/{id}/publish/`
+- `/api/appointments/records/{id}/revoke-publication/`
+
+Public feeds:
+
+- `/api/appointments/records/gazette-feed/`
+- `/api/appointments/records/open/`

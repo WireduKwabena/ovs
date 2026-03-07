@@ -1,20 +1,20 @@
 <#
-  Export OVS user manual to PDF/DOCX/HTML using Pandoc.
+  Export OVS + GAMS user manual to PDF/DOCX/HTML using Pandoc.
 
   Examples:
     powershell -ExecutionPolicy Bypass -File docs/scripts/export_user_manual.ps1
     powershell -ExecutionPolicy Bypass -File docs/scripts/export_user_manual.ps1 -Formats docx,html
-    powershell -ExecutionPolicy Bypass -File docs/scripts/export_user_manual.ps1 -OutputDir docs/exports -Title "OVS User Manual"
+    powershell -ExecutionPolicy Bypass -File docs/scripts/export_user_manual.ps1 -OutputDir docs/exports -Title "OVS + GAMS User Manual"
 #>
 
 [CmdletBinding()]
 param(
     [string]$InputPath = "docs/USER_MANUAL_PRINT.md",
     [string]$OutputDir = "docs/exports",
-    [string]$BaseName = "OVS_USER_MANUAL",
+    [string]$BaseName = "OVS_GAMS_USER_MANUAL",
     [string]$Formats = "pdf,docx,html",
-    [string]$Title = "OVS User Manual",
-    [string]$Author = "OVS Project Team",
+    [string]$Title = "OVS + GAMS User Manual",
+    [string]$Author = "OVS + GAMS Project Team",
     [switch]$Strict
 )
 
@@ -90,7 +90,11 @@ Write-Info "Using input: $resolvedInput"
 Write-Info "Output directory: $resolvedOutputDir"
 Write-Info "Pandoc: $pandoc"
 
-$requestedFormats = $Formats.Split(",") | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ }
+$requestedFormats = @(
+    $Formats.Split(",") |
+        ForEach-Object { $_.Trim().ToLowerInvariant() } |
+        Where-Object { $_ }
+)
 if ($requestedFormats.Count -eq 0) {
     throw "No output formats requested."
 }
