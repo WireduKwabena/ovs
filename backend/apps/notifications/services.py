@@ -9,6 +9,7 @@ from typing import Any
 from django.conf import settings
 from django.core.mail import send_mail
 from django.core.serializers.json import DjangoJSONEncoder
+from django.db.models import Q
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 
@@ -31,6 +32,59 @@ if TwilioClient and getattr(settings, "TWILIO_ACCOUNT_SID", None) and getattr(se
 
 class NotificationService:
     """Service methods used by workflow tasks to notify users."""
+
+    APPOINTMENT_EVENT_TEMPLATES: dict[str, dict[str, str]] = {
+        "appointment_nomination_created": {
+            "subject": "Nomination Created: {position_title}",
+            "message": "A nomination has been created for {nominee_name} to {position_title}.",
+            "priority": "high",
+        },
+        "appointment_moved_to_intake_check": {
+            "subject": "Appointment Intake Check Started: {position_title}",
+            "message": "Appointment nomination for {nominee_name} entered intake check.",
+            "priority": "high",
+        },
+        "appointment_moved_to_under_vetting": {
+            "subject": "Appointment Under Vetting: {position_title}",
+            "message": "Appointment nomination for {nominee_name} moved to under vetting.",
+            "priority": "high",
+        },
+        "appointment_moved_to_committee_review": {
+            "subject": "Appointment in Committee Review: {position_title}",
+            "message": "Appointment nomination for {nominee_name} moved to committee review.",
+            "priority": "high",
+        },
+        "appointment_moved_to_approval_chain": {
+            "subject": "Appointment in Approval Chain: {position_title}",
+            "message": "Appointment nomination for {nominee_name} moved to approval chain.",
+            "priority": "high",
+        },
+        "appointment_approved": {
+            "subject": "Appointment Approved: {position_title}",
+            "message": "Appointment nomination for {nominee_name} was approved.",
+            "priority": "high",
+        },
+        "appointment_rejected": {
+            "subject": "Appointment Rejected: {position_title}",
+            "message": "Appointment nomination for {nominee_name} was rejected.",
+            "priority": "high",
+        },
+        "appointment_appointed": {
+            "subject": "Appointment Finalized: {position_title}",
+            "message": "{nominee_name} has been formally appointed to {position_title}.",
+            "priority": "urgent",
+        },
+        "appointment_published": {
+            "subject": "Appointment Published: {position_title}",
+            "message": "Appointment record for {nominee_name} has been published to gazette/public feed.",
+            "priority": "high",
+        },
+        "appointment_revoked": {
+            "subject": "Appointment Publication Revoked: {position_title}",
+            "message": "Appointment publication for {nominee_name} has been revoked/unpublished.",
+            "priority": "urgent",
+        },
+    }
 
     @staticmethod
     def _json_sanitize(value: Any) -> Any:
@@ -286,6 +340,154 @@ class NotificationService:
         case = application
         recipient = getattr(case, "applicant", None)
         return case, recipient
+
+    @staticmethod
+    def _appointment_event_group_names(*, event_type: str, stage_role: str = "") -> set[str]:
+        mapping = {
+            "appointment_nomination_created": {"vetting_officer"},
+            "appointment_moved_to_intake_check": {"vetting_officer"},
+            "appointment_moved_to_under_vetting": {"vetting_officer"},
+            "appointment_moved_to_committee_review": {"committee_member"},
+            "appointment_moved_to_approval_chain": {"appointing_authority"},
+            "appointment_approved": {"appointing_authority"},
+            "appointment_rejected": {"appointing_authority"},
+            "appointment_appointed": {"appointing_authority", "registry_admin"},
+            "appointment_published": {"appointing_authority", "registry_admin"},
+            "appointment_revoked": {"appointing_authority", "registry_admin"},
+        }
+        group_names = set(mapping.get(event_type, set()))
+        normalized_stage_role = str(stage_role or "").strip().lower()
+        if normalized_stage_role:
+            group_names.add(normalized_stage_role)
+        return group_names
+
+    @staticmethod
+    def _appointment_notification_recipients(*, appointment, event_type: str, actor=None, stage_role: str = ""):
+        from apps.authentication.models import User
+
+        recipient_ids = set()
+        for candidate_user in (
+            getattr(appointment, "nominated_by_user", None),
+            getattr(getattr(appointment, "appointment_exercise", None), "initiated_by", None),
+            getattr(appointment, "final_decision_by_user", None),
+            actor,
+        ):
+            if candidate_user is None:
+                continue
+            if not getattr(candidate_user, "is_active", True):
+                continue
+            recipient_ids.add(candidate_user.id)
+
+        group_names = NotificationService._appointment_event_group_names(
+            event_type=event_type,
+            stage_role=stage_role,
+        )
+        if group_names:
+            recipient_ids.update(
+                User.objects.filter(is_active=True, groups__name__in=group_names).values_list("id", flat=True)
+            )
+
+        recipient_ids.update(
+            User.objects.filter(is_active=True)
+            .filter(Q(user_type="admin") | Q(is_staff=True) | Q(is_superuser=True))
+            .values_list("id", flat=True)
+        )
+
+        if actor is not None:
+            recipient_ids.discard(getattr(actor, "id", None))
+
+        if not recipient_ids:
+            return User.objects.none()
+        return User.objects.filter(id__in=recipient_ids, is_active=True).distinct()
+
+    @staticmethod
+    def send_appointment_lifecycle_notification(
+        *,
+        appointment,
+        event_type: str,
+        actor=None,
+        previous_status: str = "",
+        new_status: str = "",
+        stage=None,
+        metadata: Any | None = None,
+        idempotency_key: str | None = None,
+    ):
+        """Notify government actors about appointment lifecycle events."""
+        if appointment is None:
+            return None
+
+        template = NotificationService.APPOINTMENT_EVENT_TEMPLATES.get(event_type)
+        if template is None:
+            logger.warning("Unsupported appointment lifecycle notification event: %s", event_type)
+            return None
+
+        recipients = NotificationService._appointment_notification_recipients(
+            appointment=appointment,
+            event_type=event_type,
+            actor=actor,
+            stage_role=getattr(stage, "required_role", ""),
+        )
+        if not recipients.exists():
+            return None
+
+        position_title = str(getattr(getattr(appointment, "position", None), "title", "") or "appointment")
+        nominee_name = str(getattr(getattr(appointment, "nominee", None), "full_name", "") or "nominee")
+        subject = template["subject"].format(position_title=position_title, nominee_name=nominee_name)
+        message = template["message"].format(position_title=position_title, nominee_name=nominee_name)
+        priority = template.get("priority", "normal")
+
+        event_metadata = {
+            "event_type": event_type,
+            "appointment_id": str(getattr(appointment, "id", "")),
+            "position_id": str(getattr(appointment, "position_id", "")),
+            "position_title": position_title,
+            "nominee_id": str(getattr(appointment, "nominee_id", "")),
+            "nominee_name": nominee_name,
+            "previous_status": str(previous_status or ""),
+            "new_status": str(new_status or ""),
+            "stage_id": str(getattr(stage, "id", "")) if stage is not None else "",
+            "stage_name": str(getattr(stage, "name", "")) if stage is not None else "",
+        }
+        event_metadata.update(NotificationService._normalize_metadata(metadata))
+        event_idempotency_key = idempotency_key or (
+            "appointment"
+            f":{event_metadata['appointment_id']}"
+            f":{event_type}"
+            f":{event_metadata['previous_status']}"
+            f":{event_metadata['new_status']}"
+            f":{event_metadata['stage_id']}"
+        )
+
+        related_case = getattr(appointment, "vetting_case", None)
+        for recipient in recipients:
+            NotificationService._create_in_app_notification(
+                recipient=recipient,
+                subject=subject,
+                message=message,
+                related_case=related_case,
+                metadata=event_metadata,
+                priority=priority,
+                idempotency_key=event_idempotency_key,
+            )
+            NotificationService._send_email_notification(
+                recipient=recipient,
+                subject=subject,
+                fallback_message=message,
+                related_case=related_case,
+                metadata=event_metadata,
+                priority=priority,
+                idempotency_key=event_idempotency_key,
+            )
+            NotificationService._send_sms_notification_record(
+                recipient=recipient,
+                subject=subject,
+                message=message,
+                related_case=related_case,
+                metadata=event_metadata,
+                priority=priority,
+                idempotency_key=event_idempotency_key,
+            )
+        return True
 
     @staticmethod
     def send_application_submitted(application):

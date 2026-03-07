@@ -1,11 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Clock3, Plus, RefreshCw, ShieldAlert } from "lucide-react";
+import { CheckCircle2, Clock3, Plus, RefreshCw, ShieldAlert, Stamp, Workflow } from "lucide-react";
 import { toast } from "react-toastify";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/useAuth";
 import { governmentService } from "@/services/government.service";
 import type {
+  ApprovalStage,
+  ApprovalStageTemplate,
+  AppointmentPublication,
   AppointmentRecord,
   AppointmentStageAction,
   AppointmentStatus,
@@ -26,11 +30,41 @@ const STATUS_OPTIONS: AppointmentStatus[] = [
   "exited",
 ];
 
+const EXERCISE_TYPE_OPTIONS = ["ministerial", "judicial", "board", "local_gov", "diplomatic", "security"];
+const REQUIRED_ROLE_OPTIONS = ["vetting_officer", "committee_member", "appointing_authority", "registry_admin"];
+const todayIso = new Date().toISOString().slice(0, 10);
+
+type StageActionIntent = "note" | "approve" | "reject" | "return";
+
+const STAGE_ACTION_INTENT_OPTIONS: Array<{ value: StageActionIntent; label: string }> = [
+  { value: "note", label: "Note / progress" },
+  { value: "approve", label: "Approve intent" },
+  { value: "reject", label: "Reject intent" },
+  { value: "return", label: "Return intent" },
+];
+
+function parseEvidenceLinks(rawValue: string): string[] {
+  if (!rawValue.trim()) {
+    return [];
+  }
+  return rawValue
+    .split(/[\n,]/g)
+    .map((item) => item.trim())
+    .filter((item) => Boolean(item));
+}
+
 const AppointmentsRegistryPage: React.FC = () => {
+  const { isAdmin, isHrOrAdmin } = useAuth();
+
   const [rows, setRows] = useState<AppointmentRecord[]>([]);
   const [positions, setPositions] = useState<GovernmentPosition[]>([]);
   const [personnel, setPersonnel] = useState<PersonnelRecord[]>([]);
   const [campaigns, setCampaigns] = useState<VettingCampaign[]>([]);
+  const [stageTemplates, setStageTemplates] = useState<ApprovalStageTemplate[]>([]);
+  const [stages, setStages] = useState<ApprovalStage[]>([]);
+  const [publicationsByAppointment, setPublicationsByAppointment] = useState<Record<string, AppointmentPublication>>(
+    {},
+  );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -42,30 +76,85 @@ const AppointmentsRegistryPage: React.FC = () => {
     appointment_exercise: "",
     nominated_by_display: "",
     nominated_by_org: "",
-    nomination_date: new Date().toISOString().slice(0, 10),
+    nomination_date: todayIso,
     is_public: false,
   });
 
-  const [rowActionLoadingId, setRowActionLoadingId] = useState<string | null>(null);
+  const [templateCreating, setTemplateCreating] = useState(false);
+  const [templateForm, setTemplateForm] = useState({
+    name: "",
+    exercise_type: "ministerial",
+  });
+  const [stageCreating, setStageCreating] = useState(false);
+  const [stageForm, setStageForm] = useState({
+    template: "",
+    order: 1,
+    name: "",
+    required_role: "vetting_officer",
+    is_required: true,
+    maps_to_status: "under_vetting" as AppointmentStatus,
+  });
+
+  const [rowActionLoadingKey, setRowActionLoadingKey] = useState<string | null>(null);
   const [rowActionStatus, setRowActionStatus] = useState<Record<string, AppointmentStatus>>({});
+  const [rowActionStageId, setRowActionStageId] = useState<Record<string, string>>({});
+  const [rowActionIntent, setRowActionIntent] = useState<Record<string, StageActionIntent>>({});
   const [rowActionReason, setRowActionReason] = useState<Record<string, string>>({});
+  const [rowActionEvidence, setRowActionEvidence] = useState<Record<string, string>>({});
+  const [publishDraftByAppointment, setPublishDraftByAppointment] = useState<Record<string, Record<string, string>>>(
+    {},
+  );
+  const [revokeDraftByAppointment, setRevokeDraftByAppointment] = useState<
+    Record<string, { reason: string; make_private: boolean }>
+  >({});
   const [stageActions, setStageActions] = useState<Record<string, AppointmentStageAction[]>>({});
   const [openActionsFor, setOpenActionsFor] = useState<string | null>(null);
 
+  const loadPublicationState = useCallback(async (appointments: AppointmentRecord[]) => {
+    if (appointments.length === 0) {
+      setPublicationsByAppointment({});
+      return;
+    }
+
+    const entries = await Promise.all(
+      appointments.map(async (row) => {
+        try {
+          const publication = await governmentService.getAppointmentPublication(row.id);
+          return [row.id, publication] as const;
+        } catch {
+          return [row.id, null] as const;
+        }
+      }),
+    );
+
+    const nextMap: Record<string, AppointmentPublication> = {};
+    for (const [appointmentId, publication] of entries) {
+      if (publication) {
+        nextMap[appointmentId] = publication;
+      }
+    }
+    setPublicationsByAppointment(nextMap);
+  }, []);
+
   const loadAll = useCallback(async () => {
-    const [appointments, positionRows, personnelRows, campaignRows] = await Promise.all([
+    const [appointments, positionRows, personnelRows, campaignRows, templateRows, stageRows] = await Promise.all([
       governmentService.listAppointments({
         status: statusFilter === "all" ? undefined : statusFilter,
       }),
       governmentService.listPositions(),
       governmentService.listPersonnel(),
       governmentService.listCampaignsForAppointments(),
+      governmentService.listApprovalStageTemplates(),
+      governmentService.listApprovalStages(),
     ]);
     setRows(appointments);
     setPositions(positionRows);
     setPersonnel(personnelRows);
     setCampaigns(campaignRows);
-  }, [statusFilter]);
+    setStageTemplates(templateRows);
+    setStages(stageRows);
+    void loadPublicationState(appointments);
+  }, [loadPublicationState, statusFilter]);
 
   useEffect(() => {
     const run = async () => {
@@ -80,6 +169,12 @@ const AppointmentsRegistryPage: React.FC = () => {
     };
     void run();
   }, [loadAll]);
+
+  useEffect(() => {
+    if (!stageForm.template && stageTemplates.length > 0) {
+      setStageForm((previous) => ({ ...previous, template: stageTemplates[0].id }));
+    }
+  }, [stageForm.template, stageTemplates]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -111,7 +206,7 @@ const AppointmentsRegistryPage: React.FC = () => {
         nomination_date: form.nomination_date,
         is_public: form.is_public,
       });
-      toast.success("Appointment record created and vetting linkage ensured.");
+      toast.success("Appointment record created.");
       setForm((previous) => ({
         ...previous,
         nominated_by_display: "",
@@ -126,37 +221,148 @@ const AppointmentsRegistryPage: React.FC = () => {
     }
   };
 
+  const handleCreateTemplate = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!templateForm.name.trim()) {
+      toast.error("Template name is required.");
+      return;
+    }
+
+    setTemplateCreating(true);
+    try {
+      const created = await governmentService.createApprovalStageTemplate({
+        name: templateForm.name.trim(),
+        exercise_type: templateForm.exercise_type,
+      });
+      setTemplateForm((previous) => ({ ...previous, name: "" }));
+      setStageForm((previous) => ({ ...previous, template: created.id }));
+      toast.success("Approval template created.");
+      await loadAll();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to create approval template.");
+    } finally {
+      setTemplateCreating(false);
+    }
+  };
+
+  const handleCreateStage = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!stageForm.template || !stageForm.name.trim() || Number(stageForm.order) <= 0) {
+      toast.error("Template, stage name, and order are required.");
+      return;
+    }
+
+    setStageCreating(true);
+    try {
+      await governmentService.createApprovalStage({
+        template: stageForm.template,
+        order: Number(stageForm.order),
+        name: stageForm.name.trim(),
+        required_role: stageForm.required_role.trim(),
+        is_required: stageForm.is_required,
+        maps_to_status: stageForm.maps_to_status,
+      });
+      setStageForm((previous) => ({
+        ...previous,
+        order: Number(previous.order) + 1,
+        name: "",
+      }));
+      toast.success("Approval stage created.");
+      await loadAll();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to create approval stage.");
+    } finally {
+      setStageCreating(false);
+    }
+  };
+
+  const campaignById = useMemo(() => {
+    return campaigns.reduce<Record<string, VettingCampaign>>((accumulator, campaign) => {
+      accumulator[campaign.id] = campaign;
+      return accumulator;
+    }, {});
+  }, [campaigns]);
+
+  const templateById = useMemo(() => {
+    return stageTemplates.reduce<Record<string, ApprovalStageTemplate>>((accumulator, template) => {
+      accumulator[template.id] = template;
+      return accumulator;
+    }, {});
+  }, [stageTemplates]);
+
+  const stagesByTemplate = useMemo(() => {
+    return stages.reduce<Record<string, ApprovalStage[]>>((accumulator, stage) => {
+      if (!accumulator[stage.template]) {
+        accumulator[stage.template] = [];
+      }
+      accumulator[stage.template].push(stage);
+      return accumulator;
+    }, {});
+  }, [stages]);
+
+  const getStageChoicesForRow = useCallback(
+    (row: AppointmentRecord, targetStatus: AppointmentStatus): ApprovalStage[] => {
+      if (!row.appointment_exercise) {
+        return [];
+      }
+      const campaign = campaignById[row.appointment_exercise];
+      if (!campaign?.approval_template) {
+        return [];
+      }
+      const templateStages = stagesByTemplate[campaign.approval_template] || [];
+      const matching = templateStages.filter((stage) => stage.maps_to_status === targetStatus);
+      return (matching.length > 0 ? matching : templateStages).sort((left, right) => left.order - right.order);
+    },
+    [campaignById, stagesByTemplate],
+  );
+
   const applyRowStatusAction = async (row: AppointmentRecord) => {
     const targetStatus = rowActionStatus[row.id];
     if (!targetStatus || targetStatus === row.status) {
       toast.info("Choose a different status to advance.");
       return;
     }
-    const reason = rowActionReason[row.id] || "";
+    const stageChoices = getStageChoicesForRow(row, targetStatus);
+    const stageId = rowActionStageId[row.id] || stageChoices[0]?.id || undefined;
+    const evidenceLinks = parseEvidenceLinks(rowActionEvidence[row.id] || "");
+    const actionIntent = rowActionIntent[row.id] || "note";
+    const trimmedReason = (rowActionReason[row.id] || "").trim();
+    const reasonWithIntent =
+      actionIntent === "note" ? trimmedReason : `${actionIntent.toUpperCase()}: ${trimmedReason || "No note provided."}`;
 
-    setRowActionLoadingId(row.id);
+    setRowActionLoadingKey(`${row.id}:advance`);
     try {
       if (targetStatus === "appointed") {
-        await governmentService.appoint(row.id, reason);
+        await governmentService.appoint(row.id, {
+          stage_id: stageId,
+          reason_note: reasonWithIntent,
+          evidence_links: evidenceLinks,
+        });
       } else if (targetStatus === "rejected") {
-        await governmentService.reject(row.id, reason);
+        await governmentService.reject(row.id, {
+          stage_id: stageId,
+          reason_note: reasonWithIntent,
+          evidence_links: evidenceLinks,
+        });
       } else {
         await governmentService.advanceAppointmentStage(row.id, {
           status: targetStatus,
-          reason_note: reason,
+          stage_id: stageId,
+          reason_note: reasonWithIntent,
+          evidence_links: evidenceLinks,
         });
       }
-      toast.success("Appointment stage updated.");
+      toast.success("Appointment lifecycle updated.");
       await loadAll();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to advance appointment stage.");
+      toast.error(error instanceof Error ? error.message : "Failed to apply lifecycle action.");
     } finally {
-      setRowActionLoadingId(null);
+      setRowActionLoadingKey(null);
     }
   };
 
   const handleEnsureLinkage = async (row: AppointmentRecord) => {
-    setRowActionLoadingId(row.id);
+    setRowActionLoadingKey(`${row.id}:linkage`);
     try {
       await governmentService.ensureVettingLinkage(row.id);
       toast.success("Vetting linkage ensured.");
@@ -164,7 +370,48 @@ const AppointmentsRegistryPage: React.FC = () => {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to ensure linkage.");
     } finally {
-      setRowActionLoadingId(null);
+      setRowActionLoadingKey(null);
+    }
+  };
+
+  const handlePublish = async (row: AppointmentRecord) => {
+    const draft = publishDraftByAppointment[row.id] || {};
+    setRowActionLoadingKey(`${row.id}:publish`);
+    try {
+      await governmentService.publishAppointment(row.id, {
+        publication_reference: draft.publication_reference?.trim(),
+        publication_document_hash: draft.publication_document_hash?.trim().toLowerCase(),
+        publication_notes: draft.publication_notes?.trim(),
+        gazette_number: draft.gazette_number?.trim(),
+        gazette_date: draft.gazette_date?.trim() || undefined,
+      });
+      toast.success("Appointment publication recorded.");
+      await loadAll();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to publish appointment.");
+    } finally {
+      setRowActionLoadingKey(null);
+    }
+  };
+
+  const handleRevoke = async (row: AppointmentRecord) => {
+    const draft = revokeDraftByAppointment[row.id] || { reason: "", make_private: true };
+    if (!draft.reason.trim()) {
+      toast.error("Revocation reason is required.");
+      return;
+    }
+    setRowActionLoadingKey(`${row.id}:revoke`);
+    try {
+      await governmentService.revokeAppointmentPublication(row.id, {
+        revocation_reason: draft.reason.trim(),
+        make_private: draft.make_private,
+      });
+      toast.success("Appointment publication revoked.");
+      await loadAll();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to revoke publication.");
+    } finally {
+      setRowActionLoadingKey(null);
     }
   };
 
@@ -182,9 +429,33 @@ const AppointmentsRegistryPage: React.FC = () => {
       const actions = await governmentService.listStageActions(row.id);
       setStageActions((previous) => ({ ...previous, [row.id]: actions }));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to load stage actions.");
+      toast.error(error instanceof Error ? error.message : "You are not permitted to view stage actions for this record.");
     }
   };
+
+  const setPublishDraftField = useCallback((appointmentId: string, field: string, value: string) => {
+    setPublishDraftByAppointment((previous) => ({
+      ...previous,
+      [appointmentId]: {
+        ...(previous[appointmentId] || {}),
+        [field]: value,
+      },
+    }));
+  }, []);
+
+  const setRevokeDraft = useCallback(
+    (appointmentId: string, patch: Partial<{ reason: string; make_private: boolean }>) => {
+      setRevokeDraftByAppointment((previous) => ({
+        ...previous,
+        [appointmentId]: {
+          reason: previous[appointmentId]?.reason || "",
+          make_private: previous[appointmentId]?.make_private ?? true,
+          ...patch,
+        },
+      }));
+    },
+    [],
+  );
 
   const stats = useMemo(() => {
     const total = rows.length;
@@ -192,9 +463,9 @@ const AppointmentsRegistryPage: React.FC = () => {
       ["nominated", "under_vetting", "committee_review", "confirmation_pending"].includes(row.status),
     ).length;
     const appointed = rows.filter((row) => row.status === "appointed" || row.status === "serving").length;
-    const rejected = rows.filter((row) => row.status === "rejected").length;
-    return { total, active, appointed, rejected };
-  }, [rows]);
+    const published = Object.values(publicationsByAppointment).filter((row) => row.status === "published").length;
+    return { total, active, appointed, published };
+  }, [publicationsByAppointment, rows]);
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 space-y-6">
@@ -203,7 +474,7 @@ const AppointmentsRegistryPage: React.FC = () => {
           <div>
             <h1 className="text-3xl font-black tracking-tight text-slate-900">Appointment Registry</h1>
             <p className="mt-1 text-sm text-slate-700">
-              Manage nomination, vetting progression, and appointment decisions.
+              Govern nomination, approval-chain transitions, and publication lifecycle.
             </p>
           </div>
           <Button type="button" variant="outline" onClick={() => void handleRefresh()} disabled={refreshing}>
@@ -227,18 +498,165 @@ const AppointmentsRegistryPage: React.FC = () => {
           <p className="mt-2 text-3xl font-black text-emerald-700">{stats.appointed}</p>
         </article>
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-700">Rejected</p>
-          <p className="mt-2 text-3xl font-black text-rose-700">{stats.rejected}</p>
+          <p className="text-sm text-slate-700">Published</p>
+          <p className="mt-2 text-3xl font-black text-cyan-700">{stats.published}</p>
         </article>
       </section>
+
+      {isHrOrAdmin ? (
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <Workflow className="h-5 w-5 text-indigo-700" />
+            <h2 className="text-lg font-bold text-slate-900">Initialize Approval Chain</h2>
+          </div>
+          <p className="mb-4 text-sm text-slate-700">
+            Define approval-stage templates and stage roles used by campaign-linked appointment workflows.
+          </p>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <form onSubmit={handleCreateTemplate} className="rounded-lg border border-slate-200 p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Create Stage Template</h3>
+              <div className="mt-3 space-y-3">
+                <div>
+                  <label htmlFor="template-name" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Template Name</label>
+                  <Input
+                    id="template-name"
+                    value={templateForm.name}
+                    onChange={(event) => setTemplateForm((previous) => ({ ...previous, name: event.target.value }))}
+                    placeholder="Ministerial Standard Chain"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="template-exercise-type" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Exercise Type</label>
+                  <select
+                    className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+                    id="template-exercise-type"
+                    value={templateForm.exercise_type}
+                    onChange={(event) =>
+                      setTemplateForm((previous) => ({ ...previous, exercise_type: event.target.value }))
+                    }
+                  >
+                    {EXERCISE_TYPE_OPTIONS.map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={templateCreating}>
+                    {templateCreating ? "Saving..." : "Create Template"}
+                  </Button>
+                </div>
+              </div>
+            </form>
+
+            <form onSubmit={handleCreateStage} className="rounded-lg border border-slate-200 p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Create Stage</h3>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <label htmlFor="stage-template" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Template</label>
+                  <select
+                    className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+                    id="stage-template"
+                    value={stageForm.template}
+                    onChange={(event) => setStageForm((previous) => ({ ...previous, template: event.target.value }))}
+                  >
+                    <option value="">Select template</option>
+                    {stageTemplates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="stage-order" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Order</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    id="stage-order"
+                    value={stageForm.order}
+                    onChange={(event) =>
+                      setStageForm((previous) => ({ ...previous, order: Number(event.target.value) || 1 }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label htmlFor="stage-maps-to-status" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Maps To Status</label>
+                  <select
+                    className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+                    id="stage-maps-to-status"
+                    value={stageForm.maps_to_status}
+                    onChange={(event) =>
+                      setStageForm((previous) => ({
+                        ...previous,
+                        maps_to_status: event.target.value as AppointmentStatus,
+                      }))
+                    }
+                  >
+                    {STATUS_OPTIONS.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="sm:col-span-2">
+                  <label htmlFor="stage-name" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Stage Name</label>
+                  <Input
+                    id="stage-name"
+                    value={stageForm.name}
+                    onChange={(event) => setStageForm((previous) => ({ ...previous, name: event.target.value }))}
+                    placeholder="Committee Review"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="stage-required-role" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Required Role</label>
+                  <select
+                    className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+                    id="stage-required-role"
+                    value={stageForm.required_role}
+                    onChange={(event) =>
+                      setStageForm((previous) => ({ ...previous, required_role: event.target.value }))
+                    }
+                  >
+                    {REQUIRED_ROLE_OPTIONS.map((roleName) => (
+                      <option key={roleName} value={roleName}>
+                        {roleName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <label className="inline-flex items-center gap-2 self-end text-sm text-slate-800">
+                  <input
+                    type="checkbox"
+                    checked={stageForm.is_required}
+                    onChange={(event) =>
+                      setStageForm((previous) => ({ ...previous, is_required: event.target.checked }))
+                    }
+                  />
+                  Required stage
+                </label>
+                <div className="flex justify-end sm:col-span-2">
+                  <Button type="submit" disabled={stageCreating}>
+                    {stageCreating ? "Saving..." : "Create Stage"}
+                  </Button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </section>
+      ) : null}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-bold text-slate-900">Create Appointment Record</h2>
         <form onSubmit={handleCreate} className="mt-4 grid gap-3 md:grid-cols-2">
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase text-slate-700">Position</label>
+            <label htmlFor="position" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Position</label>
             <select
               className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+              id="position"
               value={form.position}
               onChange={(event) => setForm((p) => ({ ...p, position: event.target.value }))}
             >
@@ -251,9 +669,10 @@ const AppointmentsRegistryPage: React.FC = () => {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase text-slate-700">Nominee</label>
+            <label htmlFor="nominee" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Nominee</label>
             <select
               className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+              id="nominee"
               value={form.nominee}
               onChange={(event) => setForm((p) => ({ ...p, nominee: event.target.value }))}
             >
@@ -266,9 +685,10 @@ const AppointmentsRegistryPage: React.FC = () => {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase text-slate-700">Appointment Exercise (Campaign)</label>
+            <label htmlFor="appointment-exercise" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Appointment Exercise (Campaign)</label>
             <select
               className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+              id="appointment-exercise"
               value={form.appointment_exercise}
               onChange={(event) => setForm((p) => ({ ...p, appointment_exercise: event.target.value }))}
             >
@@ -281,24 +701,27 @@ const AppointmentsRegistryPage: React.FC = () => {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase text-slate-700">Nomination Date</label>
+            <label htmlFor="nomination-date" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Nomination Date</label>
             <Input
               type="date"
+              id="nomination-date"
               value={form.nomination_date}
               onChange={(event) => setForm((p) => ({ ...p, nomination_date: event.target.value }))}
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase text-slate-700">Nominated By (Display)</label>
+            <label htmlFor="nominated-by-display" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Nominated By (Display)</label>
             <Input
+              id="nominated-by-display"
               value={form.nominated_by_display}
               onChange={(event) => setForm((p) => ({ ...p, nominated_by_display: event.target.value }))}
               placeholder="H.E. President"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase text-slate-700">Nominating Organization</label>
+            <label htmlFor="nominating-organization" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Nominating Organization</label>
             <Input
+              id="nominating-organization"
               value={form.nominated_by_org}
               onChange={(event) => setForm((p) => ({ ...p, nominated_by_org: event.target.value }))}
               placeholder="Office of the President"
@@ -325,6 +748,7 @@ const AppointmentsRegistryPage: React.FC = () => {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-bold text-slate-900">Appointment Records</h2>
           <select
+            title="Filter by status"
             className="h-10 rounded-md border border-slate-300 px-3 text-sm text-slate-900"
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value)}
@@ -348,9 +772,27 @@ const AppointmentsRegistryPage: React.FC = () => {
           <div className="mt-4 space-y-4">
             {rows.map((row) => {
               const statusTarget = rowActionStatus[row.id] || row.status;
+              const stageChoices = getStageChoicesForRow(row, statusTarget);
+              const selectedStageId = rowActionStageId[row.id] || stageChoices[0]?.id || "";
+              const intent = rowActionIntent[row.id] || "note";
               const reason = rowActionReason[row.id] || "";
+              const evidenceInput = rowActionEvidence[row.id] || "";
               const actionsOpen = openActionsFor === row.id;
               const itemActions = stageActions[row.id] || [];
+              const publishDraft = publishDraftByAppointment[row.id] || {};
+              const revokeDraft = revokeDraftByAppointment[row.id] || { reason: "", make_private: true };
+              const publication = publicationsByAppointment[row.id];
+              const publicationStatus = publication?.status || "draft";
+              const campaign = row.appointment_exercise ? campaignById[row.appointment_exercise] : undefined;
+              const template = campaign?.approval_template ? templateById[campaign.approval_template] : undefined;
+              const templateStages = template
+                ? [...(stagesByTemplate[template.id] || [])].sort((left, right) => left.order - right.order)
+                : [];
+              const isAdvanceLoading = rowActionLoadingKey === `${row.id}:advance`;
+              const isLinkageLoading = rowActionLoadingKey === `${row.id}:linkage`;
+              const isPublishLoading = rowActionLoadingKey === `${row.id}:publish`;
+              const isRevokeLoading = rowActionLoadingKey === `${row.id}:revoke`;
+              const isRowBusy = Boolean(rowActionLoadingKey && rowActionLoadingKey.startsWith(`${row.id}:`));
               return (
                 <article key={row.id} className="rounded-xl border border-slate-200 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-4">
@@ -378,56 +820,295 @@ const AppointmentsRegistryPage: React.FC = () => {
                         {row.is_public ? (
                           <span className="inline-flex rounded bg-indigo-100 px-2 py-1 font-semibold text-indigo-800">Public</span>
                         ) : null}
+                        <span
+                          className={`inline-flex rounded px-2 py-1 font-semibold ${
+                            publicationStatus === "published"
+                              ? "bg-cyan-100 text-cyan-800"
+                              : publicationStatus === "revoked"
+                                ? "bg-rose-100 text-rose-800"
+                                : "bg-slate-100 text-slate-700"
+                          }`}
+                        >
+                          Publication: {publicationStatus}
+                        </span>
                       </div>
+                      <p className="mt-2 text-xs text-slate-700">
+                        Campaign: {campaign ? campaign.name : "Not linked"}{" "}
+                        {campaign?.exercise_type ? `(${campaign.exercise_type})` : ""}
+                      </p>
+                      <p className="text-xs text-slate-700">
+                        Approval template: {template ? template.name : "Not configured"}
+                        {templateStages.length > 0
+                          ? ` | Stages: ${templateStages.map((item) => `${item.order}. ${item.name}`).join(", ")}`
+                          : ""}
+                      </p>
                     </div>
                     <Button
                       type="button"
                       variant="outline"
                       onClick={() => void handleEnsureLinkage(row)}
-                      disabled={rowActionLoadingId === row.id}
+                      disabled={isRowBusy}
                     >
                       <Clock3 className="mr-2 h-4 w-4" />
-                      Ensure Linkage
+                      {isLinkageLoading ? "Linking..." : "Ensure Linkage"}
                     </Button>
                   </div>
 
-                  <div className="mt-3 grid gap-2 md:grid-cols-3">
-                    <select
-                      className="h-10 rounded-md border border-slate-300 px-3 text-sm text-slate-900"
-                      value={statusTarget}
-                      onChange={(event) =>
-                        setRowActionStatus((previous) => ({
-                          ...previous,
-                          [row.id]: event.target.value as AppointmentStatus,
-                        }))
-                      }
-                    >
-                      {STATUS_OPTIONS.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </select>
-                    <Input
-                      value={reason}
-                      onChange={(event) =>
-                        setRowActionReason((previous) => ({
-                          ...previous,
-                          [row.id]: event.target.value,
-                        }))
-                      }
-                      placeholder="Reason note (optional)"
-                    />
-                    <Button
-                      type="button"
-                      onClick={() => void applyRowStatusAction(row)}
-                      disabled={rowActionLoadingId === row.id}
-                    >
-                      {rowActionLoadingId === row.id ? "Updating..." : "Apply Status"}
-                    </Button>
+                  <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div className="mb-3 flex items-center gap-2">
+                      <Workflow className="h-4 w-4 text-indigo-700" />
+                      <p className="text-sm font-semibold text-slate-900">Lifecycle and Stage Action</p>
+                    </div>
+
+                    <div className="grid gap-3 lg:grid-cols-2">
+                      <div>
+                        <label htmlFor={`target-status-${row.id}`} className="mb-1 block text-xs font-semibold uppercase text-slate-700">Target Status</label>
+                        <select
+                          id={`target-status-${row.id}`}
+                          className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+                          value={statusTarget}
+                          onChange={(event) => {
+                            const nextStatus = event.target.value as AppointmentStatus;
+                            setRowActionStatus((previous) => ({ ...previous, [row.id]: nextStatus }));
+                            const nextStages = getStageChoicesForRow(row, nextStatus);
+                            setRowActionStageId((previous) => {
+                              const current = previous[row.id];
+                              if (nextStages.length === 0) {
+                                return { ...previous, [row.id]: "" };
+                              }
+                              if (current && nextStages.some((item) => item.id === current)) {
+                                return previous;
+                              }
+                              return { ...previous, [row.id]: nextStages[0].id };
+                            });
+                          }}
+                        >
+                          {STATUS_OPTIONS.map((status) => (
+                            <option key={status} value={status}>
+                              {status}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label htmlFor={`stage-${row.id}`}  className="mb-1 block text-xs font-semibold uppercase text-slate-700">Approval Stage</label>
+                        <select
+                          id={`stage-${row.id}`}  
+                          className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+                          value={selectedStageId}
+                          disabled={stageChoices.length === 0}
+                          onChange={(event) =>
+                            setRowActionStageId((previous) => ({
+                              ...previous,
+                              [row.id]: event.target.value,
+                            }))
+                          }
+                        >
+                          {stageChoices.length === 0 ? (
+                            <option value="">No mapped stage for this status</option>
+                          ) : (
+                            stageChoices.map((stage) => (
+                              <option key={stage.id} value={stage.id}>
+                                {stage.order}. {stage.name} ({stage.required_role})
+                              </option>
+                            ))
+                          )}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label htmlFor={`intent-${row.id}`} className="mb-1 block text-xs font-semibold uppercase text-slate-700">Action Intent</label>
+                        <select
+                          className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+                          id={`intent-${row.id}`}
+                          value={intent}
+                          onChange={(event) =>
+                            setRowActionIntent((previous) => ({
+                              ...previous,
+                              [row.id]: event.target.value as StageActionIntent,
+                            }))
+                          }
+                        >
+                          {STAGE_ACTION_INTENT_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label htmlFor={`reason-${row.id}`} className="mb-1 block text-xs font-semibold uppercase text-slate-700">Reason / Note</label>
+                        <Input
+                          id={`reason-${row.id}`}
+                          value={reason}
+                          onChange={(event) =>
+                            setRowActionReason((previous) => ({
+                              ...previous,
+                              [row.id]: event.target.value,
+                            }))
+                          }
+                          placeholder="Decision note or rationale"
+                        />
+                      </div>
+
+                      <div className="lg:col-span-2">
+                        <label htmlFor={`evidence-${row.id}`} className="mb-1 block text-xs font-semibold uppercase text-slate-700">
+                          Evidence Links (comma or newline separated URLs)
+                        </label>
+                        <textarea
+                          className="min-h-[84px] w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                          id={`evidence-${row.id}`}
+                          value={evidenceInput}
+                          onChange={(event) =>
+                            setRowActionEvidence((previous) => ({
+                              ...previous,
+                              [row.id]: event.target.value,
+                            }))
+                          }
+                          placeholder="https://example.gov/document-1, https://example.gov/document-2"
+                        />
+                      </div>
+
+                      <div className="lg:col-span-2 flex justify-end">
+                        <Button
+                          type="button"
+                          onClick={() => void applyRowStatusAction(row)}
+                          disabled={isRowBusy || statusTarget === row.status}
+                        >
+                          {isAdvanceLoading ? "Updating..." : "Apply Lifecycle Action"}
+                        </Button>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="mt-3">
+                  <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
+                    <div className="mb-3 flex items-center gap-2">
+                      <Stamp className="h-4 w-4 text-cyan-700" />
+                      <p className="text-sm font-semibold text-slate-900">Publication and Gazette</p>
+                    </div>
+                    <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-slate-700">
+                      <span className="rounded bg-slate-100 px-2 py-1 font-semibold text-slate-700">
+                        Status: {publicationStatus}
+                      </span>
+                      {publication?.published_at ? (
+                        <span className="rounded bg-cyan-100 px-2 py-1 font-semibold text-cyan-800">
+                          Published {new Date(publication.published_at).toLocaleString()}
+                        </span>
+                      ) : null}
+                      {publication?.revoked_at ? (
+                        <span className="rounded bg-rose-100 px-2 py-1 font-semibold text-rose-800">
+                          Revoked {new Date(publication.revoked_at).toLocaleString()}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {isHrOrAdmin ? (
+                      <div className="grid gap-3 lg:grid-cols-2">
+                        <div>
+                          <label htmlFor={`publishDraft.publication_reference-${row.id}`} className="mb-1 block text-xs font-semibold uppercase text-slate-700">Publication Reference</label>
+                          <Input
+                            id={`publishDraft.publication_reference-${row.id}`}
+                            value={publishDraft.publication_reference ?? publication?.publication_reference ?? ""}
+                            onChange={(event) => setPublishDraftField(row.id, "publication_reference", event.target.value)}
+                            placeholder="Gazette reference number"
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor={`publishDraft.publication_document_hash-${row.id}`} className="mb-1 block text-xs font-semibold uppercase text-slate-700">Document Hash</label>
+                          <Input
+                            id={`publishDraft.publication_document_hash-${row.id}`}
+                            value={publishDraft.publication_document_hash ?? publication?.publication_document_hash ?? ""}
+                            onChange={(event) => setPublishDraftField(row.id, "publication_document_hash", event.target.value)}
+                            placeholder="sha256/sha512 hash"
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor={`publishDraft.gazette_number-${row.id}`} className="mb-1 block text-xs font-semibold uppercase text-slate-700">Gazette Number</label>
+                          <Input
+                            id={`publishDraft.gazette_number-${row.id}`}
+                            value={publishDraft.gazette_number ?? row.gazette_number ?? ""}
+                            onChange={(event) => setPublishDraftField(row.id, "gazette_number", event.target.value)}
+                            placeholder="Official gazette number"
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor={`publishDraft.gazette_date-${row.id}`} className="mb-1 block text-xs font-semibold uppercase text-slate-700">Gazette Date</label>
+                          <Input
+                            id={`publishDraft.gazette_date-${row.id}`}
+                            type="date"
+                            value={publishDraft.gazette_date ?? row.gazette_date ?? ""}
+                            onChange={(event) => setPublishDraftField(row.id, "gazette_date", event.target.value)}
+                          />
+                        </div>
+                        <div className="lg:col-span-2">
+                          <label htmlFor={`publishDraft.publication_notes-${row.id}`} className="mb-1 block text-xs font-semibold uppercase text-slate-700">Publication Notes</label>
+                          <Input
+                            id={`publishDraft.publication_notes-${row.id}`}
+                            value={publishDraft.publication_notes ?? publication?.publication_notes ?? ""}
+                            onChange={(event) => setPublishDraftField(row.id, "publication_notes", event.target.value)}
+                            placeholder="Reference notes (public-safe)"
+                          />
+                        </div>
+                        <div className="lg:col-span-2 flex flex-wrap justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => void handlePublish(row)}
+                            disabled={isRowBusy}
+                          >
+                            {isPublishLoading
+                              ? "Publishing..."
+                              : publicationStatus === "published"
+                                ? "Update Publication"
+                                : "Publish Appointment"}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {isHrOrAdmin && publicationStatus === "published" ? (
+                      <div className="mt-3 grid gap-2 rounded-md border border-rose-200 bg-rose-50 p-3 lg:grid-cols-2">
+                        <div className="lg:col-span-2">
+                          <label htmlFor={`revocation-reason-${row.id}`} className="mb-1 block text-xs font-semibold uppercase text-rose-700">Revocation Reason</label>
+                          <Input
+                            id={`revocation-reason-${row.id}`}
+                            value={revokeDraft.reason}
+                            onChange={(event) => setRevokeDraft(row.id, { reason: event.target.value })}
+                            placeholder="Regulatory correction or legal reason"
+                          />
+                        </div>
+                        <label className="inline-flex items-center gap-2 text-sm text-rose-800">
+                          <input
+                            type="checkbox"
+                            checked={revokeDraft.make_private}
+                            onChange={(event) => setRevokeDraft(row.id, { make_private: event.target.checked })}
+                          />
+                          Make record private after revocation
+                        </label>
+                        <div className="flex justify-end">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => void handleRevoke(row)}
+                            disabled={isRowBusy}
+                          >
+                            {isRevokeLoading ? "Revoking..." : "Revoke Publication"}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {publicationStatus === "revoked" ? (
+                      <p className="mt-3 text-xs text-rose-700">
+                        Revoked by {publication?.revoked_by_email || publication?.revoked_by || "system"}.
+                        {isAdmin && publication?.revocation_reason ? ` Reason: ${publication.revocation_reason}` : ""}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-4">
                     <button
                       type="button"
                       className="text-sm font-semibold text-indigo-700 hover:text-indigo-800"
@@ -448,10 +1129,11 @@ const AppointmentsRegistryPage: React.FC = () => {
                                   {" -> "}
                                   {item.new_status}
                                 </p>
+                                <p>Stage: {item.stage_name || "No explicit stage"}</p>
                                 <p>Actor: {item.actor_email || item.actor}</p>
                                 <p>Role: {item.actor_role}</p>
                                 <p>At: {new Date(item.acted_at).toLocaleString()}</p>
-                                {item.reason_note ? <p>Reason: {item.reason_note}</p> : null}
+                                {isAdmin && item.reason_note ? <p>Internal note: {item.reason_note}</p> : null}
                               </li>
                             ))}
                           </ul>

@@ -1,15 +1,29 @@
 from datetime import timedelta
+import logging
 
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
-from apps.audit.contracts import APPOINTMENT_STAGE_TRANSITION_EVENT
+from apps.audit.contracts import (
+    APPOINTMENT_FINAL_DECISION_RECORDED_EVENT,
+    APPOINTMENT_NOMINATION_CREATED_EVENT,
+    APPOINTMENT_PUBLICATION_PUBLISHED_EVENT,
+    APPOINTMENT_PUBLICATION_REVOKED_EVENT,
+    APPOINTMENT_STAGE_ACTION_TAKEN_EVENT,
+    APPOINTMENT_STAGE_TRANSITION_EVENT,
+)
 from apps.audit.events import log_event
 from apps.billing.quotas import enforce_candidate_quota
 from apps.candidates.models import Candidate, CandidateEnrollment
+try:
+    from apps.notifications.services import NotificationService
+except Exception:  # pragma: no cover - notifications app may be optional in some setups
+    NotificationService = None  # type: ignore[assignment]
 
-from .models import AppointmentRecord, AppointmentStageAction
+from .models import AppointmentPublication, AppointmentRecord, AppointmentStageAction
+
+logger = logging.getLogger(__name__)
 
 
 class InvalidTransitionError(Exception):
@@ -24,6 +38,10 @@ class LinkageValidationError(Exception):
     """Raised when appointment campaign/case linkage is inconsistent."""
 
 
+class PublicationLifecycleError(Exception):
+    """Raised when appointment publication lifecycle action is invalid."""
+
+
 ALLOWED_TRANSITIONS = {
     "nominated": {"under_vetting", "withdrawn"},
     "under_vetting": {"committee_review", "withdrawn"},
@@ -32,6 +50,89 @@ ALLOWED_TRANSITIONS = {
     "appointed": {"serving"},
     "serving": {"exited"},
 }
+
+
+APPOINTMENT_NOTIFICATION_EVENT_NOMINATION_CREATED = "appointment_nomination_created"
+APPOINTMENT_NOTIFICATION_EVENT_MOVED_TO_INTAKE_CHECK = "appointment_moved_to_intake_check"
+APPOINTMENT_NOTIFICATION_EVENT_MOVED_TO_UNDER_VETTING = "appointment_moved_to_under_vetting"
+APPOINTMENT_NOTIFICATION_EVENT_MOVED_TO_COMMITTEE_REVIEW = "appointment_moved_to_committee_review"
+APPOINTMENT_NOTIFICATION_EVENT_MOVED_TO_APPROVAL_CHAIN = "appointment_moved_to_approval_chain"
+APPOINTMENT_NOTIFICATION_EVENT_APPROVED = "appointment_approved"
+APPOINTMENT_NOTIFICATION_EVENT_REJECTED = "appointment_rejected"
+APPOINTMENT_NOTIFICATION_EVENT_APPOINTED = "appointment_appointed"
+APPOINTMENT_NOTIFICATION_EVENT_PUBLISHED = "appointment_published"
+APPOINTMENT_NOTIFICATION_EVENT_REVOKED = "appointment_revoked"
+
+
+def _safe_actor_display(actor) -> str:
+    if actor is None:
+        return ""
+    return getattr(actor, "get_full_name", lambda: "")() or getattr(actor, "email", "")
+
+
+def _safe_str_id(value) -> str:
+    return str(value) if value is not None else ""
+
+
+def _appointment_transition_notification_events(*, previous_status: str, new_status: str) -> list[str]:
+    if previous_status == "nominated" and new_status == "under_vetting":
+        return [
+            APPOINTMENT_NOTIFICATION_EVENT_MOVED_TO_INTAKE_CHECK,
+            APPOINTMENT_NOTIFICATION_EVENT_MOVED_TO_UNDER_VETTING,
+        ]
+    if new_status == "under_vetting":
+        return [APPOINTMENT_NOTIFICATION_EVENT_MOVED_TO_UNDER_VETTING]
+    if new_status == "committee_review":
+        return [APPOINTMENT_NOTIFICATION_EVENT_MOVED_TO_COMMITTEE_REVIEW]
+    if new_status == "confirmation_pending":
+        return [APPOINTMENT_NOTIFICATION_EVENT_MOVED_TO_APPROVAL_CHAIN]
+    if new_status == "appointed":
+        return [
+            APPOINTMENT_NOTIFICATION_EVENT_APPROVED,
+            APPOINTMENT_NOTIFICATION_EVENT_APPOINTED,
+        ]
+    if new_status == "rejected":
+        return [APPOINTMENT_NOTIFICATION_EVENT_REJECTED]
+    return []
+
+
+def _emit_appointment_notifications(
+    *,
+    appointment: AppointmentRecord,
+    event_types: list[str],
+    actor,
+    previous_status: str = "",
+    new_status: str = "",
+    stage=None,
+    metadata: dict | None = None,
+    idempotency_seed: str = "",
+) -> None:
+    if not event_types or NotificationService is None:
+        return
+
+    for event_type in event_types:
+        try:
+            NotificationService.send_appointment_lifecycle_notification(
+                appointment=appointment,
+                event_type=event_type,
+                actor=actor,
+                previous_status=previous_status,
+                new_status=new_status,
+                stage=stage,
+                metadata=metadata or {},
+                idempotency_key=(
+                    f"appointment:{appointment.id}:{event_type}:{idempotency_seed}"
+                    if idempotency_seed
+                    else None
+                ),
+            )
+        except Exception:
+            logger.warning(
+                "Failed to send appointment lifecycle notification event=%s appointment_id=%s",
+                event_type,
+                appointment.id,
+                exc_info=True,
+            )
 
 
 def _has_named_group(user, group_name: str) -> bool:
@@ -288,6 +389,210 @@ def ensure_vetting_linkage_for_appointment(*, appointment: AppointmentRecord, ac
     return appointment
 
 
+def notify_nomination_created(*, appointment: AppointmentRecord, actor, request=None) -> None:
+    """Emit nomination-created notification + additive lifecycle audit event."""
+    _emit_appointment_notifications(
+        appointment=appointment,
+        event_types=[APPOINTMENT_NOTIFICATION_EVENT_NOMINATION_CREATED],
+        actor=actor,
+        previous_status="",
+        new_status=appointment.status,
+        metadata={
+            "event": APPOINTMENT_NOMINATION_CREATED_EVENT,
+            "campaign_id": _safe_str_id(appointment.appointment_exercise_id),
+        },
+        idempotency_seed=str(appointment.id),
+    )
+
+    if request is None:
+        return
+    log_event(
+        request=request,
+        action="create",
+        entity_type="AppointmentRecord",
+        entity_id=str(appointment.id),
+        changes={
+            "event": APPOINTMENT_NOMINATION_CREATED_EVENT,
+            "position_id": _safe_str_id(appointment.position_id),
+            "nominee_id": _safe_str_id(appointment.nominee_id),
+            "status": appointment.status,
+            "campaign_id": _safe_str_id(appointment.appointment_exercise_id),
+            "nominated_by": _safe_actor_display(actor),
+        },
+    )
+
+
+def ensure_publication_record_for_appointment(*, appointment: AppointmentRecord) -> AppointmentPublication:
+    publication, _created = AppointmentPublication.objects.get_or_create(
+        appointment=appointment,
+        defaults={
+            "status": "draft",
+            "publication_reference": appointment.gazette_number or "",
+            "publication_document_hash": "",
+            "publication_notes": "",
+            "published_by_id": None,
+            "published_at": None,
+        },
+    )
+    return publication
+
+
+def publish_appointment_record(
+    *,
+    appointment: AppointmentRecord,
+    actor,
+    publication_reference: str = "",
+    publication_document_hash: str = "",
+    publication_notes: str = "",
+    gazette_number: str | None = None,
+    gazette_date=None,
+    request=None,
+) -> AppointmentPublication:
+    publication_reference = (publication_reference or "").strip()
+    publication_document_hash = (publication_document_hash or "").strip().lower()
+    publication_notes = (publication_notes or "").strip()
+    now = timezone.now()
+
+    with transaction.atomic():
+        publication = ensure_publication_record_for_appointment(appointment=appointment)
+        previous_publication_status = publication.status
+        publication.status = "published"
+        publication.published_by = actor if getattr(actor, "is_authenticated", False) else None
+        if previous_publication_status == "published":
+            publication.published_at = publication.published_at or now
+        else:
+            publication.published_at = now
+        publication.revoked_by = None
+        publication.revoked_at = None
+        publication.revocation_reason = ""
+        if publication_reference:
+            publication.publication_reference = publication_reference
+        if publication_document_hash:
+            publication.publication_document_hash = publication_document_hash
+        if publication_notes:
+            publication.publication_notes = publication_notes
+        publication.save(
+            update_fields=[
+                "status",
+                "published_by",
+                "published_at",
+                "revoked_by",
+                "revoked_at",
+                "revocation_reason",
+                "publication_reference",
+                "publication_document_hash",
+                "publication_notes",
+                "updated_at",
+            ]
+        )
+
+        appointment.is_public = True
+        if gazette_number is not None:
+            appointment.gazette_number = str(gazette_number).strip()
+        elif publication_reference and not appointment.gazette_number:
+            appointment.gazette_number = publication_reference
+        if gazette_date is not None:
+            appointment.gazette_date = gazette_date
+        appointment.save(update_fields=["is_public", "gazette_number", "gazette_date", "updated_at"])
+
+        if previous_publication_status != "published":
+            _emit_appointment_notifications(
+                appointment=appointment,
+                event_types=[APPOINTMENT_NOTIFICATION_EVENT_PUBLISHED],
+                actor=actor,
+                new_status=appointment.status,
+                metadata={
+                    "publication_status": publication.status,
+                    "publication_reference": publication.publication_reference,
+                    "published_at": publication.published_at.isoformat() if publication.published_at else "",
+                },
+                idempotency_seed=publication.published_at.isoformat() if publication.published_at else str(appointment.id),
+            )
+
+        if request is not None:
+            log_event(
+                request=request,
+                action="update",
+                entity_type="AppointmentRecord",
+                entity_id=str(appointment.id),
+                changes={
+                    "event": APPOINTMENT_PUBLICATION_PUBLISHED_EVENT,
+                    "publication_status": publication.status,
+                    "publication_reference": publication.publication_reference,
+                    "published_at": publication.published_at.isoformat() if publication.published_at else "",
+                    "was_status": previous_publication_status,
+                },
+            )
+
+    return publication
+
+
+def revoke_appointment_publication(
+    *,
+    appointment: AppointmentRecord,
+    actor,
+    revocation_reason: str,
+    make_private: bool = True,
+    request=None,
+) -> AppointmentPublication:
+    reason = (revocation_reason or "").strip()
+    if not reason:
+        raise PublicationLifecycleError("revocation_reason is required to revoke publication.")
+
+    now = timezone.now()
+    with transaction.atomic():
+        publication = ensure_publication_record_for_appointment(appointment=appointment)
+        if publication.status != "published":
+            raise PublicationLifecycleError("Only published appointments can be revoked.")
+
+        publication.status = "revoked"
+        publication.revoked_by = actor if getattr(actor, "is_authenticated", False) else None
+        publication.revoked_at = now
+        publication.revocation_reason = reason
+        publication.save(
+            update_fields=[
+                "status",
+                "revoked_by",
+                "revoked_at",
+                "revocation_reason",
+                "updated_at",
+            ]
+        )
+
+        if make_private and appointment.is_public:
+            appointment.is_public = False
+            appointment.save(update_fields=["is_public", "updated_at"])
+
+        _emit_appointment_notifications(
+            appointment=appointment,
+            event_types=[APPOINTMENT_NOTIFICATION_EVENT_REVOKED],
+            actor=actor,
+            new_status=appointment.status,
+            metadata={
+                "publication_status": publication.status,
+                "revoked_at": publication.revoked_at.isoformat() if publication.revoked_at else "",
+                "make_private": bool(make_private),
+            },
+            idempotency_seed=publication.revoked_at.isoformat() if publication.revoked_at else str(appointment.id),
+        )
+
+        if request is not None:
+            log_event(
+                request=request,
+                action="update",
+                entity_type="AppointmentRecord",
+                entity_id=str(appointment.id),
+                changes={
+                    "event": APPOINTMENT_PUBLICATION_REVOKED_EVENT,
+                    "publication_status": publication.status,
+                    "revoked_at": publication.revoked_at.isoformat() if publication.revoked_at else "",
+                    "revocation_reason_present": bool(publication.revocation_reason),
+                },
+            )
+
+    return publication
+
+
 def _ensure_nominee_invitation(*, enrollment, actor):
     from apps.invitations.models import Invitation
     from apps.invitations.tasks import send_invitation_task
@@ -317,7 +622,15 @@ def _ensure_nominee_invitation(*, enrollment, actor):
         expires_at=timezone.now() + timedelta(hours=ttl_hours),
         created_by=actor if getattr(actor, "is_authenticated", False) else None,
     )
-    send_invitation_task.delay(invitation.id)
+    try:
+        send_invitation_task.delay(invitation.id)
+    except Exception as exc:
+        logger.warning(
+            "Failed to dispatch invitation task for enrollment_id=%s invitation_id=%s error=%s",
+            getattr(enrollment, "id", None),
+            invitation.id,
+            exc,
+        )
     return invitation
 
 
@@ -366,6 +679,8 @@ def advance_stage(
                 appointment.final_decision_by_display = getattr(actor, "get_full_name", lambda: "")() or getattr(
                     actor, "email", ""
                 )
+        if new_status in {"serving", "exited"} and appointment.appointment_date is None:
+            appointment.appointment_date = now.date()
         if new_status == "serving":
             position = appointment.position
             position.current_holder = appointment.nominee
@@ -399,7 +714,7 @@ def advance_stage(
             "updated_at",
         ])
 
-        AppointmentStageAction.objects.create(
+        stage_action = AppointmentStageAction.objects.create(
             appointment=appointment,
             stage=stage,
             actor=actor,
@@ -409,6 +724,25 @@ def advance_stage(
             evidence_links=evidence_links or [],
             previous_status=previous_status,
             new_status=new_status,
+        )
+
+        _emit_appointment_notifications(
+            appointment=appointment,
+            event_types=_appointment_transition_notification_events(
+                previous_status=previous_status,
+                new_status=new_status,
+            ),
+            actor=actor,
+            previous_status=previous_status,
+            new_status=new_status,
+            stage=stage,
+            metadata={
+                "stage_action_id": str(stage_action.id),
+                "actor_id": _safe_str_id(getattr(actor, "id", None)),
+                "actor_display": _safe_actor_display(actor),
+                "decision_status": new_status if new_status in {"appointed", "rejected"} else "",
+            },
+            idempotency_seed=str(stage_action.id),
         )
 
         if request is not None:
@@ -421,8 +755,40 @@ def advance_stage(
                     "event": APPOINTMENT_STAGE_TRANSITION_EVENT,
                     "from": previous_status,
                     "to": new_status,
-                    "reason_note": reason_note,
+                    "stage_id": _safe_str_id(getattr(stage, "id", None)),
+                    "stage_name": str(getattr(stage, "name", "")),
+                    "has_reason_note": bool(str(reason_note or "").strip()),
                 },
             )
+            log_event(
+                request=request,
+                action="update",
+                entity_type="AppointmentRecord",
+                entity_id=str(appointment.id),
+                changes={
+                    "event": APPOINTMENT_STAGE_ACTION_TAKEN_EVENT,
+                    "stage_action_id": str(stage_action.id),
+                    "from": previous_status,
+                    "to": new_status,
+                    "stage_id": _safe_str_id(getattr(stage, "id", None)),
+                    "stage_name": str(getattr(stage, "name", "")),
+                    "actor_id": _safe_str_id(getattr(actor, "id", None)),
+                    "actor_role": stage_action.actor_role,
+                    "has_reason_note": bool(str(reason_note or "").strip()),
+                },
+            )
+            if new_status in {"appointed", "rejected"}:
+                log_event(
+                    request=request,
+                    action="update",
+                    entity_type="AppointmentRecord",
+                    entity_id=str(appointment.id),
+                    changes={
+                        "event": APPOINTMENT_FINAL_DECISION_RECORDED_EVENT,
+                        "decision": new_status,
+                        "decided_by": _safe_actor_display(actor),
+                        "stage_action_id": str(stage_action.id),
+                    },
+                )
 
     return appointment

@@ -164,6 +164,63 @@ class AppointmentRecord(models.Model):
         return f"{self.position.title} :: {self.nominee.full_name} ({self.status})"
 
 
+class AppointmentPublication(models.Model):
+    STATUS_CHOICES = [
+        ("draft", "Draft"),
+        ("published", "Published"),
+        ("revoked", "Revoked"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    appointment = models.OneToOneField(
+        AppointmentRecord,
+        on_delete=models.CASCADE,
+        related_name="publication",
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="draft", db_index=True)
+    publication_reference = models.CharField(max_length=150, blank=True)
+    publication_document_hash = models.CharField(max_length=128, blank=True)
+    publication_notes = models.TextField(blank=True)
+    published_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="published_appointment_records",
+    )
+    published_at = models.DateTimeField(null=True, blank=True)
+    revoked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="revoked_appointment_records",
+    )
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revocation_reason = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=~Q(status="published") | Q(published_at__isnull=False),
+                name="chk_apptpub_pub_has_ts",
+            ),
+            models.CheckConstraint(
+                condition=~Q(status="revoked") | Q(revoked_at__isnull=False),
+                name="chk_apptpub_rev_has_ts",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["status", "published_at"], name="idx_apptpub_status_pubat"),
+        ]
+
+    def __str__(self):
+        return f"{self.appointment_id} :: {self.status}"
+
+
 class AppointmentStageAction(models.Model):
     ACTION_CHOICES = [
         ("approved", "Approved"),
