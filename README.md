@@ -32,10 +32,10 @@ Key design rule:
 - `apps/campaigns`: appointment exercises and campaign-level governance metadata.
 - `apps/applications`: vetting cases and document workflow.
 - `apps/interviews`: AI-assisted interview sessions and analysis.
-- `apps/rubrics`: rubric definitions and scoring outputs.
+- `apps/rubrics`: rubric definitions, weighted scoring engine, evaluation trace/explanation outputs, and advisory decision recommendations.
 - `apps/positions`: `GovernmentPosition` registry and public/vacant views.
 - `apps/personnel`: `PersonnelRecord` registry and controlled officeholder views.
-- `apps/appointments`: `AppointmentRecord`, approval stages/templates, stage actions, publication lifecycle.
+- `apps/appointments`: `AppointmentRecord`, approval stages/templates, stage actions, decision-context stage gating, publication lifecycle.
 - `apps/notifications`: in-app/email/sms delivery + appointment lifecycle notifications.
 - `apps/audit`: immutable operational history + event catalog.
 
@@ -97,6 +97,42 @@ Hardening behavior implemented:
 - Stage must map to requested target status.
 - Required prior stages must already be completed.
 - Actor must satisfy stage role; final decision (`appointed`/`rejected`) requires appointing-authority/admin privileges.
+
+### Rubric + Vetting Decision Engine (Advisory)
+
+Rubric scoring and recommendation generation are separate layers:
+
+1. Rubric scoring layer (`RubricEvaluationEngine`):
+   - computes weighted scores from case evidence and rubric policy,
+   - persists criterion-level scoring,
+   - emits `evaluation_trace` and `decision_explanation` payloads.
+2. Decision recommendation layer (`VettingDecisionEngine`):
+   - consumes rubric outputs, policy rules, evidence completeness, and optional AI advisory signals,
+   - generates `VettingDecisionRecommendation` with:
+     - `recommendation_status` (`recommend_approve`, `recommend_reject`, `recommend_manual_review`)
+     - `blocking_issues`, `warnings`, `decision_basis`, `explanation`
+     - `policy_snapshot`, `evidence_snapshot`, `ai_signal_snapshot`
+   - stores one latest recommendation per case (`is_latest=True` constraint).
+3. Human override support:
+   - `VettingDecisionOverride` records explicit override status + rationale + actor.
+   - request-driven override actions are audit logged.
+
+AI signals remain advisory-only (`advisory_only=True`) and never auto-finalize a human appointment decision.
+
+### Recommendation-Context Gating For Appointment Stages
+
+For appointments linked to a vetting case, transitions into governance decision stages are guarded by recommendation context:
+
+- gated statuses: `committee_review`, `confirmation_pending`, `appointed`
+- required inputs:
+  - linked rubric evaluation
+  - latest decision recommendation
+- enforcement rules:
+  - blocking issues require `reason_note` or recorded recommendation override before `confirmation_pending`/`appointed`
+  - `recommend_reject` requires override before `appointed`
+  - `recommend_manual_review` requires `reason_note` or override before `appointed`
+
+This gate is additive and advisory-aware: humans still make the final decision, with explicit rationale/override traceability.
 
 ### Publication/Gazette Lifecycle
 
@@ -181,6 +217,16 @@ Government registries and lifecycle:
 - `GET /api/appointments/records/open/`
 - `GET/POST /api/appointments/stage-templates/`
 - `GET/POST /api/appointments/stages/`
+
+Rubric scoring and decision recommendation:
+
+- `POST /api/rubrics/vetting-rubrics/{id}/evaluate-case/`
+- `POST /api/rubrics/vetting-rubrics/{id}/evaluate_application/`
+- `GET /api/rubrics/evaluations/{id}/`
+- `POST /api/rubrics/evaluations/{id}/rerun/`
+- `GET /api/rubrics/evaluations/{id}/decision-recommendation/`
+- `POST /api/rubrics/evaluations/{id}/override-decision/`
+- `POST /api/rubrics/evaluations/{id}/override-criterion/`
 
 Reused OVS core:
 
@@ -351,7 +397,7 @@ For interview realtime communication, keep Redis enabled and run an ASGI server.
 
 ## 🗄️ Database Schema
 
-The system uses 26 models across 6 Django apps:
+The platform uses additive OVS + GAMS schemas across backend apps.
 
 ### Core Models
 
@@ -361,8 +407,12 @@ The system uses 26 models across 6 Django apps:
 - **InterviewSession**: Video interview sessions
 - **InterviewResponse**: Individual Q&A with analysis
 - **VettingRubric**: Scoring configuration
+- **RubricEvaluation**: Persisted weighted scoring outputs + trace/explanation payloads
+- **VettingDecisionRecommendation**: Advisory recommendation derived from rubric/policy/evidence context
+- **VettingDecisionOverride**: Human override record with rationale/auditability
+- **AppointmentRecord**: Government appointment lifecycle record with stage/publication links
 
-See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for complete schema documentation.
+See backend model modules under `backend/apps/*/models.py` and the user manual in `docs/`.
 
 ---
 

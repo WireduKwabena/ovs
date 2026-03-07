@@ -109,6 +109,7 @@ Video calls:
 
 ## 15.6 Rubrics and Scoring
 
+- Rubric scoring endpoints:
 - `/api/rubrics/vetting-rubrics/`
 - `/api/rubrics/vetting-rubrics/{id}/`
 - `/api/rubrics/vetting-rubrics/{id}/activate/`
@@ -119,11 +120,14 @@ Video calls:
 - `/api/rubrics/vetting-rubrics/create_from_template/`
 - `/api/rubrics/vetting-rubrics/templates/`
 
+- Evaluation + decision recommendation endpoints:
 - `/api/rubrics/criteria/`
 - `/api/rubrics/criteria/{id}/`
 - `/api/rubrics/evaluations/`
 - `/api/rubrics/evaluations/{id}/`
 - `/api/rubrics/evaluations/{id}/rerun/`
+- `/api/rubrics/evaluations/{id}/decision-recommendation/`
+- `/api/rubrics/evaluations/{id}/override-decision/`
 - `/api/rubrics/evaluations/{id}/override-criterion/`
 
 ## 15.7 Notifications, Audit, Fraud, Monitoring
