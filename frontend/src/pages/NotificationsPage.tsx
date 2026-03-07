@@ -3,6 +3,7 @@ import { Archive, ArrowRight, Eye, RefreshCw } from "lucide-react";
 import { toast } from "react-toastify";
 import { Link } from "react-router-dom";
 
+import "./NotificationsPage.css";
 import { Loader } from "@/components/common/Loader";
 import { useNotifications } from "@/hooks/useNotifications";
 import type { Notification } from "@/types";
@@ -13,13 +14,6 @@ import {
 } from "@/utils/notificationActions";
 
 type StatusFilter = "all" | "unread" | "read" | "archived";
-
-const previewClampStyle: React.CSSProperties = {
-  display: "-webkit-box",
-  WebkitLineClamp: 3,
-  WebkitBoxOrient: "vertical",
-  overflow: "hidden",
-};
 
 export const NotificationsPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -235,14 +229,13 @@ export const NotificationsPage: React.FC = () => {
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-gray-900 break-words">
+                        <h3 className="font-semibold text-gray-900 wrap-break-word">
                           {notification.title ||
                             notification.subject ||
                             "Notification"}
                         </h3>
                         <p
-                          className="mt-1 text-slate-800 break-words whitespace-pre-wrap"
-                          style={previewClampStyle}
+                          className="notification-preview-clamp mt-1 text-slate-800 wrap-break-word whitespace-pre-wrap"
                         >
                           {notification.message}
                         </p>
