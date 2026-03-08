@@ -335,10 +335,10 @@ export const Analytics: React.FC = () => {
               <p className="mt-1 text-sm text-slate-800">Docs per Application</p>
             </div>
 
-            <div className="text-center p-4 bg-purple-50 rounded-lg">
-              <Activity className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-purple-600">{data.performanceMetrics.aiAccuracy.toFixed(1)}%</p>
-              <p className="mt-1 text-sm text-slate-800">Rubric Avg Score</p>
+            <div className="rounded-lg border border-border bg-card p-4 text-center">
+              <Activity className="mx-auto mb-2 h-8 w-8 text-primary" />
+              <p className="text-2xl font-bold text-foreground">{data.performanceMetrics.aiAccuracy.toFixed(1)}%</p>
+              <p className="mt-1 text-sm text-muted-foreground">Rubric Avg Score</p>
             </div>
 
             <div className="text-center p-4 bg-red-50 rounded-lg">

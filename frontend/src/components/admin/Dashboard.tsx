@@ -286,12 +286,12 @@ export const AdminDashboard: React.FC = () => {
 
           <button
             onClick={() => navigate('/rubrics')}
-            className="group p-6 bg-linear-to-br from-violet-100 to-violet-200 rounded-lg border-2 border-violet-300 hover:border-violet-400 hover:shadow-md transition-all text-left"
+            className="group rounded-lg border border-border bg-card p-6 text-left transition-all hover:border-ring/40 hover:bg-accent/60 hover:shadow-md"
           >
-            <TrendingUp className="w-10 h-10 text-violet-900 mb-3 group-hover:scale-110 transition-transform" />
-            <h3 className="font-bold text-lg text-gray-900">Manage Rubrics</h3>
-            <p className="text-sm text-slate-800 mt-1">Configure evaluation criteria and rules</p>
-            <div className="mt-4 flex items-center text-violet-900 font-semibold text-sm">
+            <TrendingUp className="mb-3 h-10 w-10 text-primary transition-transform group-hover:scale-110" />
+            <h3 className="text-lg font-bold text-foreground">Manage Rubrics</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Configure evaluation criteria and rules</p>
+            <div className="mt-4 flex items-center text-sm font-semibold text-primary">
               <span>Configure</span>
               <span className="ml-2 group-hover:ml-3 transition-all">→</span>
             </div>

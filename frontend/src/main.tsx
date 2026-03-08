@@ -9,6 +9,7 @@ import { store, persistor } from './app/store';  // Import persistor
 import 'react-toastify/dist/ReactToastify.css'; // ✅ Make sure this is imported
 import '@livekit/components-styles';
 import App from './App';
+import { ThemeProvider, useTheme } from './hooks/useTheme';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -21,14 +22,14 @@ const queryClient = new QueryClient({
   },
 });
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
+const AppBootstrap: React.FC = () => {
+  const { resolvedTheme } = useTheme();
+
+  return (
     <Provider store={store}>
       <PersistGate loading={<div>Loading...</div>} persistor={persistor}>  {/* Wrap for persistence */}
         <QueryClientProvider client={queryClient}>
-          
-            <App />
-          
+          <App />
           <ToastContainer
             position="top-right"
             autoClose={5000}
@@ -39,10 +40,18 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             pauseOnFocusLoss
             draggable
             pauseOnHover
-            theme="light"
+            theme={resolvedTheme}
           />
         </QueryClientProvider>
       </PersistGate>
     </Provider>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <ThemeProvider>
+      <AppBootstrap />
+    </ThemeProvider>
   </React.StrictMode>
 );

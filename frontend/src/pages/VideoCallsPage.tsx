@@ -65,6 +65,13 @@ const meetingEventScopeClass: Record<string, string> = {
   all: "bg-orange-100 text-orange-700 border border-orange-200",
 };
 
+const SELECT_FIELD_CLASS =
+  "w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
+const SELECT_FIELD_DISABLED_CLASS = `${SELECT_FIELD_CLASS} disabled:bg-muted disabled:text-muted-foreground`;
+const SELECT_FIELD_COMPACT_CLASS =
+  "rounded-md border border-border bg-input px-2 py-1 text-xs text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
+const SELECT_FIELD_INLINE_CLASS = "bg-transparent text-xs text-foreground focus:outline-none";
+
 type MeetingTemplate = "custom" | "one_on_one" | "panel_screening" | "final_panel";
 type RecurrencePattern = "none" | "daily" | "weekly";
 type SeriesScope = "future" | "all";
@@ -977,7 +984,7 @@ const VideoCallsPage: React.FC = () => {
                 <select
                   value={form.template}
                   onChange={(event) => applyTemplatePreset(event.target.value as MeetingTemplate)}
-                  className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className={SELECT_FIELD_CLASS}
                 >
                   <option value="custom">Custom</option>
                   <option value="one_on_one">1v1 Screening</option>
@@ -1030,7 +1037,7 @@ const VideoCallsPage: React.FC = () => {
                   value={form.caseId}
                   onChange={(event) => setForm((prev) => ({ ...prev, caseId: event.target.value }))}
                   disabled={loadingCaseOptions}
-                  className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:bg-slate-100 disabled:text-slate-700"
+                  className={SELECT_FIELD_DISABLED_CLASS}
                 >
                   <option value="">{loadingCaseOptions ? "Loading cases..." : "No linked case"}</option>
                   {caseOptions.map((option) => (
@@ -1131,7 +1138,7 @@ const VideoCallsPage: React.FC = () => {
                       recurrenceCount: event.target.value === "none" ? "1" : prev.recurrenceCount,
                     }))
                   }
-                  className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className={SELECT_FIELD_CLASS}
                 >
                   <option value="none">No recurrence</option>
                   <option value="daily">Daily</option>
@@ -1215,7 +1222,7 @@ const VideoCallsPage: React.FC = () => {
                 <select
                   value={statusFilter}
                   onChange={(event) => setStatusFilter(event.target.value as "all" | VideoMeeting["status"])}
-                  className="rounded-md border border-slate-700 bg-white px-2 py-1 text-xs text-slate-700"
+                  className={SELECT_FIELD_COMPACT_CLASS}
                 >
                   <option value="all">All</option>
                   <option value="scheduled">Scheduled</option>
@@ -1333,7 +1340,7 @@ const VideoCallsPage: React.FC = () => {
                           <select
                             value={getSeriesScope(meeting.id)}
                             onChange={(event) => updateSeriesScope(meeting.id, event.target.value as SeriesScope)}
-                            className="bg-transparent text-xs text-slate-700 focus:outline-none"
+                            className={SELECT_FIELD_INLINE_CLASS}
                           >
                             <option value="future">Future</option>
                             <option value="all">All</option>
@@ -1513,7 +1520,7 @@ const VideoCallsPage: React.FC = () => {
                             <select
                               value={getTimelineFilterMode(meeting)}
                               onChange={(event) => void updateTimelineFilterMode(meeting, event.target.value as TimelineFilterMode)}
-                              className="bg-transparent text-xs text-slate-700 focus:outline-none"
+                              className={SELECT_FIELD_INLINE_CLASS}
                             >
                               <option value="all">All history</option>
                               <option value="meeting">This meeting</option>
@@ -1526,7 +1533,7 @@ const VideoCallsPage: React.FC = () => {
                             <select
                               value={getTimelineTimeRange(meeting)}
                               onChange={(event) => updateTimelineTimeRange(meeting, event.target.value as TimelineTimeRange)}
-                              className="bg-transparent text-xs text-slate-700 focus:outline-none"
+                              className={SELECT_FIELD_INLINE_CLASS}
                             >
                               <option value="all">All</option>
                               <option value="24h">Last 24h</option>

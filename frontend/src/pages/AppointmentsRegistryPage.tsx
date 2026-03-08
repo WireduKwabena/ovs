@@ -108,6 +108,10 @@ function publicationLabel(status: "draft" | "published" | "revoked"): string {
 
 const RECENT_AUTH_REQUIRED_MESSAGE =
   "Recent authentication is required for this sensitive action. Please sign in again and retry.";
+const SELECT_FIELD_CLASS =
+  "h-10 w-full rounded-md border border-border bg-input px-3 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-60";
+const SELECT_FIELD_COMPACT_CLASS =
+  "h-10 rounded-md border border-border bg-input px-3 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-60";
 
 const AppointmentsRegistryPage: React.FC = () => {
   const {
@@ -651,7 +655,7 @@ const AppointmentsRegistryPage: React.FC = () => {
                 <div>
                   <label htmlFor="template-exercise-type" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Exercise Type</label>
                   <select
-                    className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+                    className={SELECT_FIELD_CLASS}
                     id="template-exercise-type"
                     value={templateForm.exercise_type}
                     onChange={(event) =>
@@ -679,7 +683,7 @@ const AppointmentsRegistryPage: React.FC = () => {
                 <div className="sm:col-span-2">
                   <label htmlFor="stage-template" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Template</label>
                   <select
-                    className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+                    className={SELECT_FIELD_CLASS}
                     id="stage-template"
                     value={stageForm.template}
                     onChange={(event) => setStageForm((previous) => ({ ...previous, template: event.target.value }))}
@@ -707,7 +711,7 @@ const AppointmentsRegistryPage: React.FC = () => {
                 <div>
                   <label htmlFor="stage-maps-to-status" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Maps To Status</label>
                   <select
-                    className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+                    className={SELECT_FIELD_CLASS}
                     id="stage-maps-to-status"
                     value={stageForm.maps_to_status}
                     onChange={(event) =>
@@ -736,7 +740,7 @@ const AppointmentsRegistryPage: React.FC = () => {
                 <div>
                   <label htmlFor="stage-required-role" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Required Role</label>
                   <select
-                    className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+                    className={SELECT_FIELD_CLASS}
                     id="stage-required-role"
                     value={stageForm.required_role}
                     onChange={(event) =>
@@ -784,7 +788,7 @@ const AppointmentsRegistryPage: React.FC = () => {
           <div>
             <label htmlFor="position" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Position</label>
             <select
-              className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+              className={SELECT_FIELD_CLASS}
               id="position"
               value={form.position}
               disabled={!hasPositionOptions}
@@ -801,7 +805,7 @@ const AppointmentsRegistryPage: React.FC = () => {
           <div>
             <label htmlFor="nominee" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Nominee</label>
             <select
-              className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+              className={SELECT_FIELD_CLASS}
               id="nominee"
               value={form.nominee}
               disabled={!hasNomineeOptions}
@@ -818,7 +822,7 @@ const AppointmentsRegistryPage: React.FC = () => {
           <div>
             <label htmlFor="appointment-exercise" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Appointment Exercise (Campaign)</label>
             <select
-              className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+              className={SELECT_FIELD_CLASS}
               id="appointment-exercise"
               value={form.appointment_exercise}
               onChange={(event) => setForm((p) => ({ ...p, appointment_exercise: event.target.value }))}
@@ -880,7 +884,7 @@ const AppointmentsRegistryPage: React.FC = () => {
           <h2 className="text-lg font-bold text-slate-900">Appointment Records</h2>
           <select
             title="Filter by status"
-            className="h-10 rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+            className={SELECT_FIELD_COMPACT_CLASS}
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value)}
           >
@@ -1018,7 +1022,7 @@ const AppointmentsRegistryPage: React.FC = () => {
                           <label htmlFor={`target-status-${row.id}`} className="mb-1 block text-xs font-semibold uppercase text-slate-700">Target Status</label>
                           <select
                             id={`target-status-${row.id}`}
-                            className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+                            className={SELECT_FIELD_CLASS}
                             value={statusTarget}
                             onChange={(event) => {
                               const nextStatus = event.target.value as AppointmentStatus;
@@ -1048,7 +1052,7 @@ const AppointmentsRegistryPage: React.FC = () => {
                           <label htmlFor={`stage-${row.id}`}  className="mb-1 block text-xs font-semibold uppercase text-slate-700">Approval Stage</label>
                           <select
                             id={`stage-${row.id}`}  
-                            className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+                            className={SELECT_FIELD_CLASS}
                             value={selectedStageId}
                             disabled={stageChoices.length === 0}
                             onChange={(event) =>
@@ -1073,7 +1077,7 @@ const AppointmentsRegistryPage: React.FC = () => {
                         <div>
                           <label htmlFor={`intent-${row.id}`} className="mb-1 block text-xs font-semibold uppercase text-slate-700">Action Intent</label>
                           <select
-                            className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+                            className={SELECT_FIELD_CLASS}
                             id={`intent-${row.id}`}
                             value={intent}
                             onChange={(event) =>
@@ -1312,3 +1316,4 @@ const AppointmentsRegistryPage: React.FC = () => {
 };
 
 export default AppointmentsRegistryPage;
+

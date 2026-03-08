@@ -16,6 +16,8 @@ const branchOptions: Array<{ value: BranchOption; label: string }> = [
   { value: "independent", label: "Independent" },
   { value: "local", label: "Local Government" },
 ];
+const SELECT_FIELD_CLASS =
+  "h-10 w-full rounded-md border border-border bg-input px-3 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-60";
 
 const GovernmentPositionsPage: React.FC = () => {
   const [rows, setRows] = useState<GovernmentPosition[]>([]);
@@ -156,7 +158,7 @@ const GovernmentPositionsPage: React.FC = () => {
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase text-slate-700">Branch</label>
             <select
-              className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+              className={SELECT_FIELD_CLASS}
               value={form.branch}
               onChange={(event) => setForm((p) => ({ ...p, branch: event.target.value as BranchOption }))}
             >
