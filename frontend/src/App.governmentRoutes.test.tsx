@@ -34,7 +34,18 @@ vi.mock("./pages/DashboardPage", () => ({
 
 type AuthUserType = "applicant" | "hr_manager" | "admin" | null;
 
-const buildStore = (userType: AuthUserType) => {
+const buildStore = (userType: AuthUserType, capabilitiesOverride?: string[]) => {
+  const defaultCapabilities =
+    userType === "admin" || userType === "hr_manager"
+      ? [
+          "gams.registry.manage",
+          "gams.appointment.stage",
+          "gams.appointment.decide",
+          "gams.appointment.publish",
+          "gams.appointment.view_internal",
+        ]
+      : [];
+  const capabilities = Array.isArray(capabilitiesOverride) ? capabilitiesOverride : defaultCapabilities;
   const preloadedState = {
     auth: {
       user: {
@@ -51,6 +62,8 @@ const buildStore = (userType: AuthUserType) => {
       tokens: null,
       isAuthenticated: true,
       userType,
+      roles: [],
+      capabilities,
       loading: false,
       error: null,
       twoFactorRequired: false,
@@ -73,9 +86,9 @@ const buildStore = (userType: AuthUserType) => {
   });
 };
 
-const renderAppAt = (path: string, userType: AuthUserType) => {
+const renderAppAt = (path: string, userType: AuthUserType, capabilitiesOverride?: string[]) => {
   window.history.pushState({}, "", path);
-  const store = buildStore(userType);
+  const store = buildStore(userType, capabilitiesOverride);
   return render(
     <Provider store={store}>
       <App />
@@ -91,6 +104,11 @@ describe("App government route access", () => {
 
   it("allows hr_manager to access government appointments route", async () => {
     renderAppAt("/government/appointments", "hr_manager");
+    expect(await screen.findByText("Mock Appointments Registry Page")).toBeTruthy();
+  });
+
+  it("allows hr_manager to access government appointments when capability payload is stale", async () => {
+    renderAppAt("/government/appointments", "hr_manager", []);
     expect(await screen.findByText("Mock Appointments Registry Page")).toBeTruthy();
   });
 

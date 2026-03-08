@@ -108,13 +108,23 @@ const normalizeStringArray = (value: unknown): string[] => {
 
 const resolveRoles = (payload: {
   roles?: unknown;
+  group_roles?: unknown;
   user?: User | AdminUser;
 }): string[] => {
   const fromPayload = normalizeStringArray(payload.roles);
   if (fromPayload.length > 0) {
     return fromPayload;
   }
-  return normalizeStringArray((payload.user as (User & { roles?: unknown }) | undefined)?.roles);
+  const fromPayloadGroups = normalizeStringArray(payload.group_roles);
+  if (fromPayloadGroups.length > 0) {
+    return fromPayloadGroups;
+  }
+
+  const fromUserRoles = normalizeStringArray((payload.user as (User & { roles?: unknown }) | undefined)?.roles);
+  if (fromUserRoles.length > 0) {
+    return fromUserRoles;
+  }
+  return normalizeStringArray((payload.user as (User & { group_roles?: unknown }) | undefined)?.group_roles);
 };
 
 const resolveCapabilities = (payload: {

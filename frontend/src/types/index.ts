@@ -8,6 +8,7 @@ export interface User {
   full_name: string;
   user_type?: 'applicant' | 'hr_manager' | 'admin';
   roles?: string[];
+  group_roles?: string[];
   capabilities?: string[];
   is_internal_operator?: boolean;
   phone_number: string;
@@ -34,6 +35,7 @@ export interface AdminUser {
   department?: string;
   user_type?: 'applicant' | 'hr_manager' | 'admin';
   roles?: string[];
+  group_roles?: string[];
   capabilities?: string[];
   is_internal_operator?: boolean;
   role_display?: string;

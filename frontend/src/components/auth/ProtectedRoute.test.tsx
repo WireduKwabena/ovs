@@ -92,7 +92,7 @@ const renderWithState = (
           <Route
             path="/applications"
             element={
-              <ProtectedRoute disallowUserTypes={["admin", "applicant"]}>
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
                 <div>Applications page</div>
               </ProtectedRoute>
             }
@@ -100,7 +100,7 @@ const renderWithState = (
           <Route
             path="/applications/:caseId"
             element={
-              <ProtectedRoute disallowUserTypes={["admin", "applicant"]}>
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
                 <div>Application detail page</div>
               </ProtectedRoute>
             }
@@ -140,7 +140,11 @@ const renderWithState = (
           <Route
             path="/government/positions"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredCapabilities={["gams.registry.manage"]}
+                legacyUserTypeFallback={["hr_manager", "admin"]}
+              >
                 <div>Government positions page</div>
               </ProtectedRoute>
             }
@@ -148,7 +152,11 @@ const renderWithState = (
           <Route
             path="/government/personnel"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredCapabilities={["gams.registry.manage"]}
+                legacyUserTypeFallback={["hr_manager", "admin"]}
+              >
                 <div>Government personnel page</div>
               </ProtectedRoute>
             }
@@ -156,7 +164,17 @@ const renderWithState = (
           <Route
             path="/government/appointments"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredCapabilities={[
+                  "gams.registry.manage",
+                  "gams.appointment.stage",
+                  "gams.appointment.decide",
+                  "gams.appointment.publish",
+                  "gams.appointment.view_internal",
+                ]}
+                legacyUserTypeFallback={["hr_manager", "admin"]}
+              >
                 <div>Government appointments page</div>
               </ProtectedRoute>
             }
@@ -164,7 +182,10 @@ const renderWithState = (
           <Route
             path="/audit-logs"
             element={
-              <ProtectedRoute requiredCapabilities={["gams.audit.view"]}>
+              <ProtectedRoute
+                requiredCapabilities={["gams.audit.view"]}
+                legacyUserTypeFallback={["admin"]}
+              >
                 <div>Audit logs page</div>
               </ProtectedRoute>
             }
@@ -266,7 +287,7 @@ describe("ProtectedRoute integration", () => {
     expect(screen.queryByText("2FA page")).toBeNull();
   });
 
-  it("redirects admin users away from /applications to dashboard", () => {
+  it("allows admin users on /applications", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
@@ -274,7 +295,7 @@ describe("ProtectedRoute integration", () => {
       }),
       "/applications",
     );
-    expect(screen.getByText("Dashboard page")).toBeTruthy();
+    expect(screen.getByText("Applications page")).toBeTruthy();
   });
 
   it("allows hr_manager users on /applications", () => {
@@ -299,7 +320,7 @@ describe("ProtectedRoute integration", () => {
     expect(screen.getByText("Dashboard page")).toBeTruthy();
   });
 
-  it("redirects admin users away from /applications/:caseId routes", () => {
+  it("allows admin users on /applications/:caseId routes", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
@@ -307,7 +328,7 @@ describe("ProtectedRoute integration", () => {
       }),
       "/applications/case-001",
     );
-    expect(screen.getByText("Dashboard page")).toBeTruthy();
+    expect(screen.getByText("Application detail page")).toBeTruthy();
   });
 
   it("redirects applicants away from /campaigns", () => {
@@ -401,6 +422,7 @@ describe("ProtectedRoute integration", () => {
       createGuardState({
         isAuthenticated: true,
         userType: "hr_manager",
+        capabilities: ["gams.appointment.stage"],
       }),
       "/government/appointments",
     );
@@ -412,6 +434,19 @@ describe("ProtectedRoute integration", () => {
       createGuardState({
         isAuthenticated: true,
         userType: "admin",
+        capabilities: ["gams.appointment.stage"],
+      }),
+      "/government/appointments",
+    );
+    expect(screen.getByText("Government appointments page")).toBeTruthy();
+  });
+
+  it("allows hr_manager on /government/appointments even when capabilities are stale", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "hr_manager",
+        capabilities: [],
       }),
       "/government/appointments",
     );
@@ -439,5 +474,17 @@ describe("ProtectedRoute integration", () => {
       "/audit-logs",
     );
     expect(screen.getByText("Dashboard page")).toBeTruthy();
+  });
+
+  it("allows admin on /audit-logs even when capabilities are stale", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "admin",
+        capabilities: [],
+      }),
+      "/audit-logs",
+    );
+    expect(screen.getByText("Audit logs page")).toBeTruthy();
   });
 });

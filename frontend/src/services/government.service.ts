@@ -14,6 +14,7 @@ import type {
 } from "@/types";
 
 type ResultEnvelope<T> = PaginatedResponse<T> | T[];
+const RECENT_AUTH_REQUIRED_CODE = "RECENT_AUTH_REQUIRED";
 
 export interface AppointmentAdvancePayload {
   status: AppointmentStatus;
@@ -42,30 +43,125 @@ function extractResults<T>(payload: ResultEnvelope<T>): T[] {
   return Array.isArray(payload.results) ? payload.results : [];
 }
 
-function toErrorMessage(error: unknown, fallback: string): string {
-  if (typeof error !== "object" || error === null) {
+type ServiceErrorShape = {
+  message: string;
+  code: string | null;
+  status: number | null;
+  details: unknown;
+};
+
+export class GovernmentServiceError extends Error {
+  code: string | null;
+  status: number | null;
+  details: unknown;
+
+  constructor(payload: ServiceErrorShape) {
+    super(payload.message);
+    this.name = "GovernmentServiceError";
+    this.code = payload.code;
+    this.status = payload.status;
+    this.details = payload.details;
+  }
+}
+
+function normalizeCode(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const normalized = value.trim().toUpperCase();
+  return normalized || null;
+}
+
+function extractErrorCode(raw: unknown): string | null {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+  const payload = raw as Record<string, unknown>;
+  const fromTopLevel = normalizeCode(payload.code);
+  if (fromTopLevel) {
+    return fromTopLevel;
+  }
+
+  const detail = payload.detail;
+  if (detail && typeof detail === "object" && !Array.isArray(detail)) {
+    const nested = normalizeCode((detail as Record<string, unknown>).code);
+    if (nested) {
+      return nested;
+    }
+  }
+  return null;
+}
+
+function extractErrorMessage(raw: unknown, fallback: string): string {
+  if (!raw || typeof raw !== "object") {
     return fallback;
   }
-  const maybeResponse = (error as any).response?.data;
-  if (!maybeResponse) {
-    return (error as any).message || fallback;
+  const payload = raw as Record<string, unknown>;
+
+  if (typeof payload.error === "string" && payload.error.trim()) {
+    return payload.error.trim();
   }
-  if (typeof maybeResponse.error === "string") {
-    return maybeResponse.error;
+  if (typeof payload.detail === "string" && payload.detail.trim()) {
+    return payload.detail.trim();
   }
-  if (typeof maybeResponse.detail === "string") {
-    return maybeResponse.detail;
+  if (Array.isArray(payload.detail) && typeof payload.detail[0] === "string") {
+    return payload.detail[0];
   }
-  if (Array.isArray(maybeResponse) && typeof maybeResponse[0] === "string") {
-    return maybeResponse[0];
+  if (typeof payload.message === "string" && payload.message.trim()) {
+    return payload.message.trim();
   }
-  if (typeof maybeResponse.message === "string") {
-    return maybeResponse.message;
+  if (Array.isArray(raw) && typeof raw[0] === "string") {
+    return raw[0];
   }
-  if (typeof maybeResponse.code === "string") {
-    return maybeResponse.code;
+  return fallback;
+}
+
+function toServiceError(error: unknown, fallback: string): GovernmentServiceError {
+  if (error instanceof GovernmentServiceError) {
+    return error;
   }
-  return (error as any).message || fallback;
+
+  if (typeof error !== "object" || error === null) {
+    return new GovernmentServiceError({
+      message: fallback,
+      code: null,
+      status: null,
+      details: null,
+    });
+  }
+
+  const maybeResponse = (error as { response?: { data?: unknown; status?: number } }).response;
+  const responsePayload = maybeResponse?.data;
+  const message = extractErrorMessage(responsePayload, (error as { message?: string }).message || fallback);
+  const code = extractErrorCode(responsePayload);
+  const status = typeof maybeResponse?.status === "number" ? maybeResponse.status : null;
+
+  return new GovernmentServiceError({
+    message,
+    code,
+    status,
+    details: responsePayload,
+  });
+}
+
+export function isRecentAuthRequiredError(error: unknown): boolean {
+  if (error instanceof GovernmentServiceError && error.code === RECENT_AUTH_REQUIRED_CODE) {
+    return true;
+  }
+  if (typeof error === "object" && error !== null) {
+    const maybeCode = normalizeCode((error as { code?: unknown }).code);
+    if (maybeCode === RECENT_AUTH_REQUIRED_CODE) {
+      return true;
+    }
+    const responseCode = extractErrorCode(
+      (error as { response?: { data?: unknown } }).response?.data,
+    );
+    if (responseCode === RECENT_AUTH_REQUIRED_CODE) {
+      return true;
+    }
+  }
+  const message = error instanceof Error ? error.message.toUpperCase() : "";
+  return message.includes(RECENT_AUTH_REQUIRED_CODE);
 }
 
 export const governmentService = {
@@ -79,7 +175,7 @@ export const governmentService = {
       const response = await api.get<ResultEnvelope<GovernmentPosition>>("/positions/", { params });
       return extractResults(response.data);
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to fetch government positions."));
+      throw toServiceError(error, "Failed to fetch government positions.");
     }
   },
 
@@ -88,7 +184,7 @@ export const governmentService = {
       const response = await api.post<GovernmentPosition>("/positions/", payload);
       return response.data;
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to create government position."));
+      throw toServiceError(error, "Failed to create government position.");
     }
   },
 
@@ -101,7 +197,7 @@ export const governmentService = {
       const response = await api.get<ResultEnvelope<PersonnelRecord>>("/personnel/", { params });
       return extractResults(response.data);
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to fetch personnel records."));
+      throw toServiceError(error, "Failed to fetch personnel records.");
     }
   },
 
@@ -110,7 +206,7 @@ export const governmentService = {
       const response = await api.post<PersonnelRecord>("/personnel/", payload);
       return response.data;
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to create personnel record."));
+      throw toServiceError(error, "Failed to create personnel record.");
     }
   },
 
@@ -125,7 +221,7 @@ export const governmentService = {
       const response = await api.get<ResultEnvelope<AppointmentRecord>>("/appointments/records/", { params });
       return extractResults(response.data);
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to fetch appointment records."));
+      throw toServiceError(error, "Failed to fetch appointment records.");
     }
   },
 
@@ -142,7 +238,7 @@ export const governmentService = {
       const response = await api.post<AppointmentRecord>("/appointments/records/", payload);
       return response.data;
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to create appointment record."));
+      throw toServiceError(error, "Failed to create appointment record.");
     }
   },
 
@@ -154,7 +250,7 @@ export const governmentService = {
       const response = await api.get<ResultEnvelope<ApprovalStageTemplate>>("/appointments/stage-templates/", { params });
       return extractResults(response.data);
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to fetch approval stage templates."));
+      throw toServiceError(error, "Failed to fetch approval stage templates.");
     }
   },
 
@@ -166,7 +262,7 @@ export const governmentService = {
       const response = await api.post<ApprovalStageTemplate>("/appointments/stage-templates/", payload);
       return response.data;
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to create approval stage template."));
+      throw toServiceError(error, "Failed to create approval stage template.");
     }
   },
 
@@ -181,7 +277,7 @@ export const governmentService = {
       const response = await api.get<ResultEnvelope<ApprovalStage>>("/appointments/stages/", { params });
       return extractResults(response.data);
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to fetch approval stages."));
+      throw toServiceError(error, "Failed to fetch approval stages.");
     }
   },
 
@@ -197,7 +293,7 @@ export const governmentService = {
       const response = await api.post<ApprovalStage>("/appointments/stages/", payload);
       return response.data;
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to create approval stage."));
+      throw toServiceError(error, "Failed to create approval stage.");
     }
   },
 
@@ -209,7 +305,7 @@ export const governmentService = {
       );
       return response.data;
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to advance appointment stage."));
+      throw toServiceError(error, "Failed to advance appointment stage.");
     }
   },
 
@@ -232,7 +328,7 @@ export const governmentService = {
       );
       return response.data;
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to finalize appointment."));
+      throw toServiceError(error, "Failed to finalize appointment.");
     }
   },
 
@@ -255,7 +351,7 @@ export const governmentService = {
       );
       return response.data;
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to reject appointment."));
+      throw toServiceError(error, "Failed to reject appointment.");
     }
   },
 
@@ -264,7 +360,7 @@ export const governmentService = {
       const response = await api.get<AppointmentStageAction[]>(`/appointments/records/${appointmentId}/stage-actions/`);
       return Array.isArray(response.data) ? response.data : [];
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to fetch stage actions."));
+      throw toServiceError(error, "Failed to fetch stage actions.");
     }
   },
 
@@ -273,7 +369,7 @@ export const governmentService = {
       const response = await api.get<AppointmentPublication>(`/appointments/records/${appointmentId}/publication/`);
       return response.data;
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to fetch appointment publication state."));
+      throw toServiceError(error, "Failed to fetch appointment publication state.");
     }
   },
 
@@ -285,7 +381,7 @@ export const governmentService = {
       const response = await api.post<AppointmentPublication>(`/appointments/records/${appointmentId}/publish/`, payload);
       return response.data;
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to publish appointment."));
+      throw toServiceError(error, "Failed to publish appointment.");
     }
   },
 
@@ -300,7 +396,7 @@ export const governmentService = {
       );
       return response.data;
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to revoke appointment publication."));
+      throw toServiceError(error, "Failed to revoke appointment publication.");
     }
   },
 
@@ -309,7 +405,7 @@ export const governmentService = {
       const response = await api.get<PublicAppointmentRecord[]>("/appointments/records/gazette-feed/");
       return Array.isArray(response.data) ? response.data : [];
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to fetch gazette feed."));
+      throw toServiceError(error, "Failed to fetch gazette feed.");
     }
   },
 
@@ -318,7 +414,7 @@ export const governmentService = {
       const response = await api.get<PublicAppointmentRecord[]>("/appointments/records/open/");
       return Array.isArray(response.data) ? response.data : [];
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to fetch open appointments feed."));
+      throw toServiceError(error, "Failed to fetch open appointments feed.");
     }
   },
 
@@ -327,7 +423,7 @@ export const governmentService = {
       const response = await api.post<AppointmentRecord>(`/appointments/records/${appointmentId}/ensure-vetting-linkage/`);
       return response.data;
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to ensure vetting linkage."));
+      throw toServiceError(error, "Failed to ensure vetting linkage.");
     }
   },
 
@@ -336,7 +432,7 @@ export const governmentService = {
       const response = await api.get<ResultEnvelope<VettingCampaign>>("/campaigns/");
       return extractResults(response.data);
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to fetch campaign options."));
+      throw toServiceError(error, "Failed to fetch campaign options.");
     }
   },
 };

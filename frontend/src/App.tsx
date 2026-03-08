@@ -256,7 +256,10 @@ const AppShell: React.FC = () => {
           <Route
             path="/audit-logs"
             element={
-              <ProtectedRoute requiredCapabilities={["gams.audit.view"]}>
+              <ProtectedRoute
+                requiredCapabilities={["gams.audit.view"]}
+                legacyUserTypeFallback={["admin"]}
+              >
                 <AuditLogsPage />
               </ProtectedRoute>
             }
@@ -280,7 +283,7 @@ const AppShell: React.FC = () => {
           <Route
             path="/applications"
             element={
-              <ProtectedRoute disallowUserTypes={["admin", "applicant"]}>
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
                 <ApplicationsPage />
               </ProtectedRoute>
             }
@@ -288,7 +291,7 @@ const AppShell: React.FC = () => {
           <Route
             path="/applications/:caseId"
             element={
-              <ProtectedRoute disallowUserTypes={["admin", "applicant"]}>
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
                 <ApplicationDetailPage />
               </ProtectedRoute>
             }
@@ -336,7 +339,11 @@ const AppShell: React.FC = () => {
           <Route
             path="/government/positions"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredCapabilities={["gams.registry.manage"]}
+                legacyUserTypeFallback={["hr_manager", "admin"]}
+              >
                 <GovernmentPositionsPage />
               </ProtectedRoute>
             }
@@ -344,7 +351,11 @@ const AppShell: React.FC = () => {
           <Route
             path="/government/personnel"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredCapabilities={["gams.registry.manage"]}
+                legacyUserTypeFallback={["hr_manager", "admin"]}
+              >
                 <GovernmentPersonnelPage />
               </ProtectedRoute>
             }
@@ -352,7 +363,17 @@ const AppShell: React.FC = () => {
           <Route
             path="/government/appointments"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredCapabilities={[
+                  "gams.registry.manage",
+                  "gams.appointment.stage",
+                  "gams.appointment.decide",
+                  "gams.appointment.publish",
+                  "gams.appointment.view_internal",
+                ]}
+                legacyUserTypeFallback={["hr_manager", "admin"]}
+              >
                 <AppointmentsRegistryPage />
               </ProtectedRoute>
             }
