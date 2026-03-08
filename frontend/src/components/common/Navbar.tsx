@@ -11,6 +11,7 @@ import { createSelector } from '@reduxjs/toolkit';
 import { useAuth } from '@/hooks/useAuth';
 import { getUserDisplayName, getUserInitial } from '@/utils/userDisplay';
 import { videoCallService } from '@/services/videoCall.service';
+import { ThemeToggle } from './ThemeToggle';
 
 // ✅ CRITICAL: Define selectors OUTSIDE the component
 const selectAuthState = (state: RootState) => state.auth;
@@ -556,6 +557,7 @@ export const Navbar: React.FC = () => {
               </div>
             )}
             {renderRuntimePopover()}
+            <ThemeToggle compact />
             <Link
               to="/notifications"
               className={`relative rounded-lg p-2 ${
@@ -774,6 +776,9 @@ export const Navbar: React.FC = () => {
                   </button>
                 </div>
               ) : null}
+              <div>
+                <ThemeToggle className="w-full justify-center" />
+              </div>
               {canManageTwoFactor && (
                 <Link
                   to="/security"

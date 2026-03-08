@@ -60,6 +60,10 @@ const CAMPAIGN_PULSE_SORT_OPTIONS: Array<{ value: CampaignPulseSort; label: stri
   { value: 'approval', label: 'Approval Rate' },
   { value: 'in_progress', label: 'In Progress' },
 ];
+const SELECT_FIELD_CLASS =
+  'w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-60';
+const SELECT_FIELD_COMPACT_CLASS =
+  'rounded-md border border-border bg-input px-2 py-1 text-xs text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]';
 
 const statusPillClass: Record<string, string> = {
   draft: 'bg-slate-200 text-slate-800',
@@ -1162,7 +1166,7 @@ const OperationsDashboardPage: React.FC = () => {
               id="operations-status-filter"
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as DashboardStatusFilter)}
-              className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none"
+              className={SELECT_FIELD_CLASS}
             >
               <option value="all">All statuses</option>
               <option value="draft">Draft</option>
@@ -1179,7 +1183,7 @@ const OperationsDashboardPage: React.FC = () => {
               id="operations-window-filter"
               value={windowFilter}
               onChange={(event) => setWindowFilter(event.target.value as DashboardWindowFilter)}
-              className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none"
+              className={SELECT_FIELD_CLASS}
             >
               <option value="all">All time</option>
               <option value="30">Last 30 days</option>
@@ -1289,7 +1293,7 @@ const OperationsDashboardPage: React.FC = () => {
                 id="campaign-pulse-sort"
                 value={campaignPulseSort}
                 onChange={(event) => setCampaignPulseSort(event.target.value as CampaignPulseSort)}
-                className="rounded-md border border-slate-700 bg-white px-2 py-1 text-xs text-slate-700"
+                className={SELECT_FIELD_COMPACT_CLASS}
               >
                 {CAMPAIGN_PULSE_SORT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>

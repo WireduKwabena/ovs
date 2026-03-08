@@ -19,6 +19,7 @@ const Navbar = React.lazy(() =>
   import("./components/common/Navbar").then((module) => ({ default: module.Navbar })),
 );
 const HomePage = React.lazy(() => import("./pages/HomePage"));
+const PublicGazettePage = React.lazy(() => import("./pages/PublicGazettePage"));
 const SubscriptionPlansPage = React.lazy(() => import("./pages/SubscriptionPlansPage"));
 const LoginPage = React.lazy(() => import("./pages/LoginPage"));
 const TwoFactorPage = React.lazy(() => import("./pages/TwoFactorPage"));
@@ -81,6 +82,7 @@ const HeyGenInterrogation = React.lazy(() =>
 
 const HIDE_NAVBAR_PREFIXES = [
   "/",
+  "/gazette",
   "/subscribe",
   "/login",
   "/register",
@@ -123,7 +125,7 @@ const AppShell: React.FC = () => {
   const hideNavbar = shouldHideNavbar(location.pathname);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background text-foreground">
       {isAuthenticated && userType !== "applicant" && !hideNavbar ? (
         <Suspense fallback={<div className="h-16 border-b border-slate-200 bg-slate-50" />}>
           <Navbar />
@@ -139,6 +141,7 @@ const AppShell: React.FC = () => {
       >
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/gazette" element={<PublicGazettePage />} />
           <Route path="/subscribe" element={<SubscriptionPlansPage />} />
           <Route
             path="/login"
