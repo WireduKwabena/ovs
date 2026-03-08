@@ -23,6 +23,7 @@ const selectUserData = createSelector(
     user: auth.user,
     isAuthenticated: auth.isAuthenticated,
     userType: auth.userType,
+    roles: auth.roles ?? [],
     capabilities: auth.capabilities ?? [],
   })
 );
@@ -46,7 +47,7 @@ export const Navbar: React.FC = () => {
 
   
   // ✅ Line 14 should be around here - use memoized selectors
-  const { user, isAuthenticated, userType, capabilities } = useSelector(selectUserData);
+  const { user, isAuthenticated, userType, roles, capabilities } = useSelector(selectUserData);
   const unreadCount = useSelector(selectUnreadCount);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [reminderRuntimeStatus, setReminderRuntimeStatus] = useState<ReminderRuntimeStatus>('unknown');
@@ -59,6 +60,38 @@ export const Navbar: React.FC = () => {
   const runtimePopoverRef = useRef<HTMLDivElement>(null);
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const mobileDrawerRef = useRef<HTMLDivElement>(null);
+  const resolvedRoles = Array.isArray(roles) ? roles : [];
+  const resolvedCapabilities = Array.isArray(capabilities) ? capabilities : [];
+
+  const hasRole = (role: string): boolean => resolvedRoles.includes(role);
+  const hasAnyRole = (requiredRoles: string[]): boolean =>
+    requiredRoles.some((role) => resolvedRoles.includes(role));
+  const hasCapability = (capability: string): boolean => resolvedCapabilities.includes(capability);
+  const hasAnyCapability = (requiredCapabilities: string[]): boolean =>
+    requiredCapabilities.some((capability) => resolvedCapabilities.includes(capability));
+
+  const hasAdminAccess =
+    userType === "admin" || hasRole("admin") || Boolean((user as User | null)?.is_superuser);
+  const canAccessAudit = hasAdminAccess || hasCapability("gams.audit.view");
+  const canAccessRegistry = hasAdminAccess || hasCapability("gams.registry.manage");
+  const canAccessAppointments =
+    hasAdminAccess ||
+    hasAnyCapability([
+      "gams.registry.manage",
+      "gams.appointment.stage",
+      "gams.appointment.decide",
+      "gams.appointment.publish",
+      "gams.appointment.view_internal",
+    ]) ||
+    hasAnyRole([
+      "registry_admin",
+      "vetting_officer",
+      "committee_member",
+      "committee_chair",
+      "appointing_authority",
+      "publication_officer",
+      "auditor",
+    ]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -256,9 +289,15 @@ export const Navbar: React.FC = () => {
 
   const displayName = getUserDisplayName(user, 'User');
 
-  const roleLabel = userType === 'admin' ? 'Admin' : userType === 'hr_manager' ? 'Operations User' : userType === 'applicant' ? 'Candidate Access' : 'User';
+  const roleLabel = hasAdminAccess
+    ? 'Admin'
+    : userType === 'hr_manager'
+      ? 'Operations User'
+      : userType === 'applicant'
+        ? 'Candidate Access'
+        : 'User';
   const canManageTwoFactor = userType !== 'applicant';
-  const canViewReminderRuntime = userType === 'admin';
+  const canViewReminderRuntime = hasAdminAccess;
   const reminderStatusMeta: Record<ReminderRuntimeStatus, { dotClass: string; label: string }> = {
     unknown: { dotClass: 'bg-slate-500', label: 'Unknown' },
     healthy: { dotClass: 'bg-emerald-500', label: 'Healthy' },
@@ -393,94 +432,66 @@ export const Navbar: React.FC = () => {
     );
   };
 
-  const hasAuditCapability = Array.isArray(capabilities) && capabilities.includes("gams.audit.view");
+  const candidateLinks = [{ to: '/candidate/access', label: 'Candidate Access' }];
+  const internalPrimaryLinks = [
+    { to: '/dashboard', label: 'Dashboard' },
+    { to: '/campaigns', label: 'Campaigns' },
+    { to: '/applications', label: 'Cases' },
+    { to: '/rubrics', label: 'Rubrics' },
+    { to: '/video-calls', label: 'Video Calls' },
+  ];
+  const internalOverflowLinks = [
+    ...(canAccessAppointments ? [{ to: '/government/appointments', label: 'Appointments' }] : []),
+    ...(canAccessRegistry ? [{ to: '/government/positions', label: 'Positions' }] : []),
+    ...(canAccessRegistry ? [{ to: '/government/personnel', label: 'Personnel' }] : []),
+    { to: '/fraud-insights', label: 'Fraud' },
+    { to: '/background-checks', label: 'Checks' },
+    ...(canAccessAudit ? [{ to: '/audit-logs', label: 'Audit' }] : []),
+  ];
+  const adminPrimaryLinks = [
+    { to: '/admin/dashboard', label: 'Dashboard' },
+    { to: '/admin/cases', label: 'Cases' },
+    { to: '/admin/users', label: 'Users' },
+    { to: '/rubrics', label: 'Rubrics' },
+  ];
+  const adminOverflowLinks = [
+    { to: '/government/appointments', label: 'Appointments' },
+    { to: '/government/positions', label: 'Positions' },
+    { to: '/government/personnel', label: 'Personnel' },
+    { to: '/video-calls', label: 'Video Calls' },
+    { to: '/admin/control-center', label: 'Admin Control' },
+    { to: '/fraud-insights', label: 'Fraud' },
+    { to: '/background-checks', label: 'Checks' },
+    { to: '/audit-logs', label: 'Audit' },
+    { to: '/ml-monitoring', label: 'ML Ops' },
+    { to: '/ai-monitor', label: 'AI Monitor' },
+    { to: '/admin/analytics', label: 'Analytics' },
+  ];
 
-  const navLinks =
-    userType === 'admin'
-      ? [
-          { to: '/admin/dashboard', label: 'Dashboard' },
-          { to: '/admin/cases', label: 'Cases' },
-          { to: '/admin/users', label: 'Users' },
-          { to: '/government/appointments', label: 'Appointments' },
-          { to: '/government/positions', label: 'Positions' },
-          { to: '/government/personnel', label: 'Personnel' },
-          { to: '/rubrics', label: 'Rubrics' },
-          { to: '/video-calls', label: 'Video Calls' },
-          { to: '/admin/control-center', label: 'Admin Control' },
-          { to: '/fraud-insights', label: 'Fraud' },
-          { to: '/background-checks', label: 'Checks' },
-          { to: '/audit-logs', label: 'Audit' },
-          { to: '/ml-monitoring', label: 'ML Ops' },
-          { to: '/ai-monitor', label: 'AI Monitor' },
-          { to: '/admin/analytics', label: 'Analytics' },
-        ]
-      : userType === 'applicant'
-        ? [
-            { to: '/candidate/access', label: 'Candidate Access' },
-          ]
-        : [
-            { to: '/dashboard', label: 'Dashboard' },
-            { to: '/campaigns', label: 'Campaigns' },
-            { to: '/applications', label: 'Cases' },
-            { to: '/rubrics', label: 'Rubrics' },
-            { to: '/video-calls', label: 'Video Calls' },
-            { to: '/government/appointments', label: 'Appointments' },
-            { to: '/government/positions', label: 'Positions' },
-            { to: '/government/personnel', label: 'Personnel' },
-            { to: '/fraud-insights', label: 'Fraud' },
-            { to: '/background-checks', label: 'Checks' },
-          ];
+  const navLinks = hasAdminAccess
+    ? [...adminPrimaryLinks, ...adminOverflowLinks]
+    : userType === 'applicant'
+      ? candidateLinks
+      : [...internalPrimaryLinks, ...internalOverflowLinks];
 
-  const desktopPrimaryLinks =
-    userType === 'admin'
-      ? [
-          { to: '/admin/dashboard', label: 'Dashboard' },
-          { to: '/admin/cases', label: 'Cases' },
-          { to: '/admin/users', label: 'Users' },
-          { to: '/rubrics', label: 'Rubrics' },
-        ]
-      : userType === 'hr_manager'
-        ? [
-            { to: '/dashboard', label: 'Dashboard' },
-            { to: '/campaigns', label: 'Campaigns' },
-            { to: '/applications', label: 'Cases' },
-            { to: '/rubrics', label: 'Rubrics' },
-            { to: '/video-calls', label: 'Video Calls' },
-          ]
-        : navLinks;
+  const desktopPrimaryLinks = hasAdminAccess
+    ? adminPrimaryLinks
+    : userType === 'applicant'
+      ? candidateLinks
+      : internalPrimaryLinks;
 
-  const desktopOverflowLinks =
-    userType === 'admin'
-      ? [
-          { to: '/government/appointments', label: 'Appointments' },
-          { to: '/government/positions', label: 'Positions' },
-          { to: '/government/personnel', label: 'Personnel' },
-          { to: '/video-calls', label: 'Video Calls' },
-          { to: '/admin/control-center', label: 'Admin Control' },
-          { to: '/fraud-insights', label: 'Fraud' },
-          { to: '/background-checks', label: 'Checks' },
-          { to: '/audit-logs', label: 'Audit' },
-          { to: '/ml-monitoring', label: 'ML Ops' },
-          { to: '/ai-monitor', label: 'AI Monitor' },
-          { to: '/admin/analytics', label: 'Analytics' },
-        ]
-      : userType === 'hr_manager'
-        ? [
-            { to: '/government/appointments', label: 'Appointments' },
-            { to: '/government/positions', label: 'Positions' },
-            { to: '/government/personnel', label: 'Personnel' },
-            { to: '/fraud-insights', label: 'Fraud' },
-            { to: '/background-checks', label: 'Checks' },
-            ...(hasAuditCapability ? [{ to: '/audit-logs', label: 'Audit' }] : []),
-          ]
-        : [];
+  const desktopOverflowLinks = hasAdminAccess
+    ? adminOverflowLinks
+    : userType === 'applicant'
+      ? []
+      : internalOverflowLinks;
   const hasActiveOverflowLink = desktopOverflowLinks.some((item) => isRouteActive(item.to));
   
   const initial = getUserInitial(user, '?');
 
   const profile_picture_url = (user as User)?.profile_picture_url || "";
 
-  const homePath = userType === "admin" ? "/admin/dashboard" : userType === "applicant" ? "/candidate/access" : "/dashboard";
+  const homePath = hasAdminAccess ? "/admin/dashboard" : userType === "applicant" ? "/candidate/access" : "/dashboard";
 
   return (
     <nav className="bg-slate-50 border-b border-slate-200 shadow-sm sticky top-0 z-50">

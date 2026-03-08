@@ -10,7 +10,7 @@ vi.mock("./api", () => ({
   },
 }));
 
-import { governmentService } from "./government.service";
+import { GovernmentServiceError, governmentService, isRecentAuthRequiredError } from "./government.service";
 
 describe("governmentService stage/publication API contract", () => {
   afterEach(() => {
@@ -146,5 +146,45 @@ describe("governmentService stage/publication API contract", () => {
     expect(apiGetMock).toHaveBeenCalledWith("/appointments/records/gazette-feed/");
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ id: "appointment-public-1", publication_status: "published" });
+  });
+
+  it("detects RECENT_AUTH_REQUIRED responses for sensitive actions", async () => {
+    apiPostMock.mockRejectedValueOnce({
+      response: {
+        status: 403,
+        data: {
+          detail: {
+            code: "RECENT_AUTH_REQUIRED",
+            error: "Recent authentication is required for this action.",
+          },
+        },
+      },
+    });
+
+    let capturedError: unknown = null;
+    try {
+      await governmentService.publishAppointment("appointment-4", {
+        publication_reference: "GAZ-2026-111",
+      });
+    } catch (error) {
+      capturedError = error;
+    }
+
+    expect(capturedError).toBeInstanceOf(GovernmentServiceError);
+    expect((capturedError as GovernmentServiceError).code).toBe("RECENT_AUTH_REQUIRED");
+    expect((capturedError as GovernmentServiceError).status).toBe(403);
+    expect(isRecentAuthRequiredError(capturedError)).toBe(true);
+  });
+
+  it("does not mark unrelated failures as recent-auth errors", () => {
+    const genericError = {
+      response: {
+        status: 400,
+        data: {
+          error: "invalid_transition",
+        },
+      },
+    };
+    expect(isRecentAuthRequiredError(genericError)).toBe(false);
   });
 });

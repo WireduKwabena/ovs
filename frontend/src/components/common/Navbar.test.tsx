@@ -280,6 +280,55 @@ describe("Navbar runtime + active tab behavior", () => {
     expect(screen.getAllByRole("link", { name: /rubrics/i }).length).toBeGreaterThan(0);
   });
 
+  it("hides government workflow links when hr_manager lacks workflow capabilities", async () => {
+    renderNavbar("/dashboard", {
+      auth: {
+        userType: "hr_manager",
+        capabilities: [],
+        user: {
+          user_type: "hr_manager",
+          email: "operator@example.com",
+          full_name: "Ops User",
+          first_name: "Ops",
+          last_name: "User",
+        },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
+    });
+
+    expect(screen.queryByRole("link", { name: /appointments/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /positions/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /personnel/i })).toBeNull();
+  });
+
+  it("shows government workflow links when hr_manager has registry capability", async () => {
+    renderNavbar("/dashboard", {
+      auth: {
+        userType: "hr_manager",
+        capabilities: ["gams.registry.manage"],
+        user: {
+          user_type: "hr_manager",
+          email: "registry@example.com",
+          full_name: "Registry User",
+          first_name: "Registry",
+          last_name: "User",
+        },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /more/i }));
+    expect(screen.getAllByRole("link", { name: /appointments/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /positions/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /personnel/i }).length).toBeGreaterThan(0);
+  });
+
   it("shows audit link for hr_manager users with audit capability", async () => {
     renderNavbar("/dashboard", {
       auth: {

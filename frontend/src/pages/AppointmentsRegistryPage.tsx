@@ -5,7 +5,7 @@ import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
-import { governmentService } from "@/services/government.service";
+import { governmentService, isRecentAuthRequiredError } from "@/services/government.service";
 import type {
   ApprovalStage,
   ApprovalStageTemplate,
@@ -106,8 +106,18 @@ function publicationLabel(status: "draft" | "published" | "revoked"): string {
   return PUBLICATION_LABELS[status] || humanizeCode(status);
 }
 
+const RECENT_AUTH_REQUIRED_MESSAGE =
+  "Recent authentication is required for this sensitive action. Please sign in again and retry.";
+
 const AppointmentsRegistryPage: React.FC = () => {
-  const { isAdmin, isHrOrAdmin } = useAuth();
+  const {
+    isAdmin,
+    isHrOrAdmin,
+    canAdvanceAppointmentStage,
+    canFinalizeAppointment,
+    canPublishAppointment,
+    canViewAppointmentStageActions,
+  } = useAuth();
 
   const [rows, setRows] = useState<AppointmentRecord[]>([]);
   const [positions, setPositions] = useState<GovernmentPosition[]>([]);
@@ -395,9 +405,18 @@ const AppointmentsRegistryPage: React.FC = () => {
   }, []);
 
   const applyRowStatusAction = async (row: AppointmentRecord) => {
+    if (!canAdvanceAppointmentStage) {
+      toast.error("You are not authorized to transition appointment records.");
+      return;
+    }
+
     const targetStatus = rowActionStatus[row.id];
     if (!targetStatus || targetStatus === row.status) {
       toast.info("Choose a different status to advance.");
+      return;
+    }
+    if ((targetStatus === "appointed" || targetStatus === "rejected") && !canFinalizeAppointment) {
+      toast.error("Only appointing authority or admins can finalize appointment decisions.");
       return;
     }
     const stageChoices = getStageChoicesForRow(row, targetStatus);
@@ -433,7 +452,11 @@ const AppointmentsRegistryPage: React.FC = () => {
       toast.success("Appointment lifecycle updated.");
       await loadAll();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to apply lifecycle action.");
+      if (isRecentAuthRequiredError(error)) {
+        toast.error(RECENT_AUTH_REQUIRED_MESSAGE);
+      } else {
+        toast.error(error instanceof Error ? error.message : "Failed to apply lifecycle action.");
+      }
     } finally {
       setRowActionLoadingKey(null);
     }
@@ -453,6 +476,10 @@ const AppointmentsRegistryPage: React.FC = () => {
   };
 
   const handlePublish = async (row: AppointmentRecord) => {
+    if (!canPublishAppointment) {
+      toast.error("You are not authorized to publish appointment records.");
+      return;
+    }
     const draft = publishDraftByAppointment[row.id] || {};
     setRowActionLoadingKey(`${row.id}:publish`);
     try {
@@ -466,13 +493,21 @@ const AppointmentsRegistryPage: React.FC = () => {
       toast.success("Appointment publication recorded.");
       await loadAll();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to publish appointment.");
+      if (isRecentAuthRequiredError(error)) {
+        toast.error(RECENT_AUTH_REQUIRED_MESSAGE);
+      } else {
+        toast.error(error instanceof Error ? error.message : "Failed to publish appointment.");
+      }
     } finally {
       setRowActionLoadingKey(null);
     }
   };
 
   const handleRevoke = async (row: AppointmentRecord) => {
+    if (!canPublishAppointment) {
+      toast.error("You are not authorized to revoke appointment publications.");
+      return;
+    }
     const draft = revokeDraftByAppointment[row.id] || { reason: "", make_private: true };
     if (!draft.reason.trim()) {
       toast.error("Revocation reason is required.");
@@ -487,13 +522,22 @@ const AppointmentsRegistryPage: React.FC = () => {
       toast.success("Appointment publication revoked.");
       await loadAll();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to revoke publication.");
+      if (isRecentAuthRequiredError(error)) {
+        toast.error(RECENT_AUTH_REQUIRED_MESSAGE);
+      } else {
+        toast.error(error instanceof Error ? error.message : "Failed to revoke publication.");
+      }
     } finally {
       setRowActionLoadingKey(null);
     }
   };
 
   const handleToggleActions = async (row: AppointmentRecord) => {
+    if (!canViewAppointmentStageActions) {
+      toast.error("Only committee members/chairs and admins can view stage actions.");
+      return;
+    }
+
     if (openActionsFor === row.id) {
       setOpenActionsFor(null);
       return;
@@ -859,8 +903,16 @@ const AppointmentsRegistryPage: React.FC = () => {
         ) : (
           <div className="mt-4 space-y-4">
             {rows.map((row) => {
-              const statusTarget = rowActionStatus[row.id] || row.status;
-              const lifecycleOptions = getStatusOptionsForRow(row.status);
+              const requestedStatusTarget = rowActionStatus[row.id] || row.status;
+              const lifecycleOptions = getStatusOptionsForRow(row.status).filter((candidateStatus) => {
+                if (candidateStatus === "appointed" || candidateStatus === "rejected") {
+                  return canFinalizeAppointment || candidateStatus === row.status;
+                }
+                return true;
+              });
+              const statusTarget = lifecycleOptions.includes(requestedStatusTarget)
+                ? requestedStatusTarget
+                : row.status;
               const stageChoices = getStageChoicesForRow(row, statusTarget);
               const selectedStageId = rowActionStageId[row.id] || stageChoices[0]?.id || "";
               const intent = rowActionIntent[row.id] || "note";
@@ -889,6 +941,9 @@ const AppointmentsRegistryPage: React.FC = () => {
               const isPublishLoading = rowActionLoadingKey === `${row.id}:publish`;
               const isRevokeLoading = rowActionLoadingKey === `${row.id}:revoke`;
               const isRowBusy = Boolean(rowActionLoadingKey && rowActionLoadingKey.startsWith(`${row.id}:`));
+              const canManageLifecycle = canAdvanceAppointmentStage;
+              const canManagePublication = canPublishAppointment;
+              const canViewStageActions = canViewAppointmentStageActions;
               return (
                 <article key={row.id} className="rounded-xl border border-slate-200 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-4">
@@ -957,127 +1012,133 @@ const AppointmentsRegistryPage: React.FC = () => {
                       <p className="text-sm font-semibold text-slate-900">Lifecycle and Stage Action</p>
                     </div>
 
-                    <div className="grid gap-3 lg:grid-cols-2">
-                      <div>
-                        <label htmlFor={`target-status-${row.id}`} className="mb-1 block text-xs font-semibold uppercase text-slate-700">Target Status</label>
-                        <select
-                          id={`target-status-${row.id}`}
-                          className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
-                          value={statusTarget}
-                          onChange={(event) => {
-                            const nextStatus = event.target.value as AppointmentStatus;
-                            setRowActionStatus((previous) => ({ ...previous, [row.id]: nextStatus }));
-                            const nextStages = getStageChoicesForRow(row, nextStatus);
-                            setRowActionStageId((previous) => {
-                              const current = previous[row.id];
-                              if (nextStages.length === 0) {
-                                return { ...previous, [row.id]: "" };
-                              }
-                              if (current && nextStages.some((item) => item.id === current)) {
-                                return previous;
-                              }
-                              return { ...previous, [row.id]: nextStages[0].id };
-                            });
-                          }}
-                        >
-                          {lifecycleOptions.map((status) => (
-                            <option key={status} value={status}>
-                              {statusLabel(status)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label htmlFor={`stage-${row.id}`}  className="mb-1 block text-xs font-semibold uppercase text-slate-700">Approval Stage</label>
-                        <select
-                          id={`stage-${row.id}`}  
-                          className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
-                          value={selectedStageId}
-                          disabled={stageChoices.length === 0}
-                          onChange={(event) =>
-                            setRowActionStageId((previous) => ({
-                              ...previous,
-                              [row.id]: event.target.value,
-                            }))
-                          }
-                        >
-                          {stageChoices.length === 0 ? (
-                            <option value="">No mapped stage for selected transition</option>
-                          ) : (
-                            stageChoices.map((stage) => (
-                              <option key={stage.id} value={stage.id}>
-                                {stage.order}. {stage.name} ({stage.required_role})
+                    {canManageLifecycle ? (
+                      <div className="grid gap-3 lg:grid-cols-2">
+                        <div>
+                          <label htmlFor={`target-status-${row.id}`} className="mb-1 block text-xs font-semibold uppercase text-slate-700">Target Status</label>
+                          <select
+                            id={`target-status-${row.id}`}
+                            className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+                            value={statusTarget}
+                            onChange={(event) => {
+                              const nextStatus = event.target.value as AppointmentStatus;
+                              setRowActionStatus((previous) => ({ ...previous, [row.id]: nextStatus }));
+                              const nextStages = getStageChoicesForRow(row, nextStatus);
+                              setRowActionStageId((previous) => {
+                                const current = previous[row.id];
+                                if (nextStages.length === 0) {
+                                  return { ...previous, [row.id]: "" };
+                                }
+                                if (current && nextStages.some((item) => item.id === current)) {
+                                  return previous;
+                                }
+                                return { ...previous, [row.id]: nextStages[0].id };
+                              });
+                            }}
+                          >
+                            {lifecycleOptions.map((status) => (
+                              <option key={status} value={status}>
+                                {statusLabel(status)}
                               </option>
-                            ))
-                          )}
-                        </select>
-                      </div>
+                            ))}
+                          </select>
+                        </div>
 
-                      <div>
-                        <label htmlFor={`intent-${row.id}`} className="mb-1 block text-xs font-semibold uppercase text-slate-700">Action Intent</label>
-                        <select
-                          className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
-                          id={`intent-${row.id}`}
-                          value={intent}
-                          onChange={(event) =>
-                            setRowActionIntent((previous) => ({
-                              ...previous,
-                              [row.id]: event.target.value as StageActionIntent,
-                            }))
-                          }
-                        >
-                          {STAGE_ACTION_INTENT_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                        <div>
+                          <label htmlFor={`stage-${row.id}`}  className="mb-1 block text-xs font-semibold uppercase text-slate-700">Approval Stage</label>
+                          <select
+                            id={`stage-${row.id}`}  
+                            className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+                            value={selectedStageId}
+                            disabled={stageChoices.length === 0}
+                            onChange={(event) =>
+                              setRowActionStageId((previous) => ({
+                                ...previous,
+                                [row.id]: event.target.value,
+                              }))
+                            }
+                          >
+                            {stageChoices.length === 0 ? (
+                              <option value="">No mapped stage for selected transition</option>
+                            ) : (
+                              stageChoices.map((stage) => (
+                                <option key={stage.id} value={stage.id}>
+                                  {stage.order}. {stage.name} ({stage.required_role})
+                                </option>
+                              ))
+                            )}
+                          </select>
+                        </div>
 
-                      <div>
-                        <label htmlFor={`reason-${row.id}`} className="mb-1 block text-xs font-semibold uppercase text-slate-700">Reason / Note</label>
-                        <Input
-                          id={`reason-${row.id}`}
-                          value={reason}
-                          onChange={(event) =>
-                            setRowActionReason((previous) => ({
-                              ...previous,
-                              [row.id]: event.target.value,
-                            }))
-                          }
-                          placeholder="Decision note or rationale"
-                        />
-                      </div>
+                        <div>
+                          <label htmlFor={`intent-${row.id}`} className="mb-1 block text-xs font-semibold uppercase text-slate-700">Action Intent</label>
+                          <select
+                            className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+                            id={`intent-${row.id}`}
+                            value={intent}
+                            onChange={(event) =>
+                              setRowActionIntent((previous) => ({
+                                ...previous,
+                                [row.id]: event.target.value as StageActionIntent,
+                              }))
+                            }
+                          >
+                            {STAGE_ACTION_INTENT_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
 
-                      <div className="lg:col-span-2">
-                        <label htmlFor={`evidence-${row.id}`} className="mb-1 block text-xs font-semibold uppercase text-slate-700">
-                          Evidence Links (comma or newline separated URLs)
-                        </label>
-                        <textarea
-                          className="min-h-[84px] w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900"
-                          id={`evidence-${row.id}`}
-                          value={evidenceInput}
-                          onChange={(event) =>
-                            setRowActionEvidence((previous) => ({
-                              ...previous,
-                              [row.id]: event.target.value,
-                            }))
-                          }
-                          placeholder="https://example.gov/document-1, https://example.gov/document-2"
-                        />
-                      </div>
+                        <div>
+                          <label htmlFor={`reason-${row.id}`} className="mb-1 block text-xs font-semibold uppercase text-slate-700">Reason / Note</label>
+                          <Input
+                            id={`reason-${row.id}`}
+                            value={reason}
+                            onChange={(event) =>
+                              setRowActionReason((previous) => ({
+                                ...previous,
+                                [row.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="Decision note or rationale"
+                          />
+                        </div>
 
-                      <div className="lg:col-span-2 flex justify-end">
-                        <Button
-                          type="button"
-                          onClick={() => void applyRowStatusAction(row)}
-                          disabled={isRowBusy || statusTarget === row.status}
-                        >
-                          {isAdvanceLoading ? "Updating..." : "Apply Transition"}
-                        </Button>
+                        <div className="lg:col-span-2">
+                          <label htmlFor={`evidence-${row.id}`} className="mb-1 block text-xs font-semibold uppercase text-slate-700">
+                            Evidence Links (comma or newline separated URLs)
+                          </label>
+                          <textarea
+                            className="min-h-[84px] w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                            id={`evidence-${row.id}`}
+                            value={evidenceInput}
+                            onChange={(event) =>
+                              setRowActionEvidence((previous) => ({
+                                ...previous,
+                                [row.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="https://example.gov/document-1, https://example.gov/document-2"
+                          />
+                        </div>
+
+                        <div className="lg:col-span-2 flex justify-end">
+                          <Button
+                            type="button"
+                            onClick={() => void applyRowStatusAction(row)}
+                            disabled={isRowBusy || statusTarget === row.status}
+                          >
+                            {isAdvanceLoading ? "Updating..." : "Apply Transition"}
+                          </Button>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <p className="text-xs text-slate-700">
+                        Stage transition controls are restricted to authorized stage actors.
+                      </p>
+                    )}
                   </div>
 
                   <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
@@ -1101,7 +1162,7 @@ const AppointmentsRegistryPage: React.FC = () => {
                       ) : null}
                     </div>
 
-                    {isHrOrAdmin ? (
+                    {canManagePublication ? (
                       <div className="grid gap-3 lg:grid-cols-2">
                         <div>
                           <label htmlFor={`publishDraft.publication_reference-${row.id}`} className="mb-1 block text-xs font-semibold uppercase text-slate-700">Publication Reference</label>
@@ -1165,7 +1226,7 @@ const AppointmentsRegistryPage: React.FC = () => {
                       </div>
                     ) : null}
 
-                    {isHrOrAdmin && publicationStatus === "published" ? (
+                    {canManagePublication && publicationStatus === "published" ? (
                       <div className="mt-3 grid gap-2 rounded-md border border-rose-200 bg-rose-50 p-3 lg:grid-cols-2">
                         <div className="lg:col-span-2">
                           <label htmlFor={`revocation-reason-${row.id}`} className="mb-1 block text-xs font-semibold uppercase text-rose-700">Revocation Reason</label>
@@ -1205,39 +1266,41 @@ const AppointmentsRegistryPage: React.FC = () => {
                     ) : null}
                   </div>
 
-                  <div className="mt-4">
-                    <button
-                      type="button"
-                      className="text-sm font-semibold text-indigo-700 hover:text-indigo-800"
-                      onClick={() => void handleToggleActions(row)}
-                    >
-                      {actionsOpen ? "Hide stage actions" : "Show stage actions"}
-                    </button>
-                    {actionsOpen ? (
-                      <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                        {itemActions.length === 0 ? (
-                          <p className="text-xs text-slate-700">No stage actions available yet.</p>
-                        ) : (
-                          <ul className="space-y-2 text-xs text-slate-800">
-                            {itemActions.map((item) => (
-                              <li key={item.id} className="rounded border border-slate-200 bg-white p-2">
-                                <p className="font-semibold">
-                                  {humanizeCode(item.previous_status)}
-                                  {" -> "}
-                                  {humanizeCode(item.new_status)}
-                                </p>
-                                <p>Stage: {item.stage_name || "No explicit stage"}</p>
-                                <p>Actor: {item.actor_email || item.actor}</p>
-                                <p>Role: {item.actor_role}</p>
-                                <p>At: {new Date(item.acted_at).toLocaleString()}</p>
-                                {isAdmin && item.reason_note ? <p>Internal note: {item.reason_note}</p> : null}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    ) : null}
-                  </div>
+                  {canViewStageActions ? (
+                    <div className="mt-4">
+                      <button
+                        type="button"
+                        className="text-sm font-semibold text-indigo-700 hover:text-indigo-800"
+                        onClick={() => void handleToggleActions(row)}
+                      >
+                        {actionsOpen ? "Hide stage actions" : "Show stage actions"}
+                      </button>
+                      {actionsOpen ? (
+                        <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                          {itemActions.length === 0 ? (
+                            <p className="text-xs text-slate-700">No stage actions available yet.</p>
+                          ) : (
+                            <ul className="space-y-2 text-xs text-slate-800">
+                              {itemActions.map((item) => (
+                                <li key={item.id} className="rounded border border-slate-200 bg-white p-2">
+                                  <p className="font-semibold">
+                                    {humanizeCode(item.previous_status)}
+                                    {" -> "}
+                                    {humanizeCode(item.new_status)}
+                                  </p>
+                                  <p>Stage: {item.stage_name || "No explicit stage"}</p>
+                                  <p>Actor: {item.actor_email || item.actor}</p>
+                                  <p>Role: {item.actor_role}</p>
+                                  <p>At: {new Date(item.acted_at).toLocaleString()}</p>
+                                  {isAdmin && item.reason_note ? <p>Internal note: {item.reason_note}</p> : null}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </article>
               );
             })}

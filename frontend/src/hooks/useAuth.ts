@@ -13,19 +13,58 @@ export const useAuth = () => {
   const resolvedRoles = Array.isArray(roles) ? roles : [];
   const resolvedCapabilities = Array.isArray(capabilities) ? capabilities : [];
 
-  const hasAdminRole = resolvedRoles.includes("admin");
-  const isAdmin = userType === "admin" || hasAdminRole || Boolean(user && user.is_superuser);
-  const hasGovernmentCapability = resolvedCapabilities.some((capability) =>
-    [
-      "gams.registry.manage",
-      "gams.appointment.stage",
-      "gams.appointment.decide",
-      "gams.appointment.publish",
-      "gams.appointment.view_internal",
-    ].includes(capability),
+  const hasRole = useCallback(
+    (role: string) => resolvedRoles.includes(role),
+    [resolvedRoles],
   );
+  const hasAnyRole = useCallback(
+    (requiredRoles: string[]) => requiredRoles.some((role) => resolvedRoles.includes(role)),
+    [resolvedRoles],
+  );
+  const hasCapability = useCallback(
+    (capability: string) => resolvedCapabilities.includes(capability),
+    [resolvedCapabilities],
+  );
+  const hasAnyCapability = useCallback(
+    (requiredCapabilities: string[]) =>
+      requiredCapabilities.some((capability) => resolvedCapabilities.includes(capability)),
+    [resolvedCapabilities],
+  );
+
+  const hasAdminRole = hasRole("admin");
+  const isAdmin = userType === "admin" || hasAdminRole || Boolean(user && user.is_superuser);
+  const hasGovernmentCapability = hasAnyCapability([
+    "gams.registry.manage",
+    "gams.appointment.stage",
+    "gams.appointment.decide",
+    "gams.appointment.publish",
+    "gams.appointment.view_internal",
+  ]);
   const isHrOrAdmin = userType === 'admin' || userType === 'hr_manager' || hasGovernmentCapability;
   const isApplicant = userType === 'applicant';
+  const canViewAuditLogs = isAdmin || hasCapability("gams.audit.view");
+  const canManageRegistry = isAdmin || hasCapability("gams.registry.manage");
+  const canAccessAppointments = isAdmin || hasAnyCapability([
+    "gams.registry.manage",
+    "gams.appointment.stage",
+    "gams.appointment.decide",
+    "gams.appointment.publish",
+    "gams.appointment.view_internal",
+  ]);
+  const canAdvanceAppointmentStage =
+    isAdmin ||
+    hasAnyRole([
+      "vetting_officer",
+      "committee_member",
+      "committee_chair",
+      "appointing_authority",
+      "registry_admin",
+    ]);
+  const canFinalizeAppointment = isAdmin || hasRole("appointing_authority");
+  const canPublishAppointment =
+    isAdmin || hasAnyRole(["publication_officer", "appointing_authority"]);
+  const canViewAppointmentStageActions =
+    isAdmin || hasAnyRole(["committee_member", "committee_chair"]);
 
   const authLogin = useCallback(
     async (credentials: LoginCredentials) => {
@@ -68,9 +107,20 @@ export const useAuth = () => {
     userType,
     roles: resolvedRoles,
     capabilities: resolvedCapabilities,
+    hasRole,
+    hasAnyRole,
+    hasCapability,
+    hasAnyCapability,
     isAdmin,
     isHrOrAdmin: isHrOrAdmin,
     isApplicant,
+    canViewAuditLogs,
+    canManageRegistry,
+    canAccessAppointments,
+    canAdvanceAppointmentStage,
+    canFinalizeAppointment,
+    canPublishAppointment,
+    canViewAppointmentStageActions,
     loading,
     error,
     login: authLogin,

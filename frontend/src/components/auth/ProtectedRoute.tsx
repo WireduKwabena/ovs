@@ -12,6 +12,7 @@ interface ProtectedRouteProps {
   disallowUserTypes?: Array<"applicant" | "hr_manager" | "admin">;
   requiredRoles?: string[];
   requiredCapabilities?: string[];
+  legacyUserTypeFallback?: Array<"hr_manager" | "admin">;
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
@@ -20,6 +21,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   disallowUserTypes = [],
   requiredRoles = [],
   requiredCapabilities = [],
+  legacyUserTypeFallback = [],
 }) => {
   const { isAuthenticated, userType, user, roles, capabilities, twoFactorRequired, twoFactorToken } = useSelector(
     (state: RootState) => state.auth,
@@ -47,6 +49,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     new Set([
       ...(Array.isArray(roles) ? roles : []),
       ...((user as { roles?: string[] } | null)?.roles ?? []),
+      ...((user as { group_roles?: string[] } | null)?.group_roles ?? []),
     ]),
   );
   const hasAdminAccess =
@@ -76,6 +79,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     requiredCapabilities.length > 0 &&
     !requiredCapabilities.some((capability) => resolvedCapabilities.includes(capability))
   ) {
+    const fallbackSet = new Set(legacyUserTypeFallback);
+    const canUseLegacyFallback =
+      (hasAdminAccess && fallbackSet.has("admin")) ||
+      (userType === "hr_manager" && fallbackSet.has("hr_manager"));
+    if (canUseLegacyFallback) {
+      return <>{children}</>;
+    }
     return <Navigate to="/dashboard" replace />;
   }
 
