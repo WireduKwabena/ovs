@@ -5,7 +5,13 @@ from pathlib import Path
 from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from apps.billing.quotas import (
+    VETTING_OPERATION_INTERVIEW_ANALYSIS,
+    enforce_vetting_operation_quota,
+    resolve_case_organization_id,
+)
 from .case_sync import sync_case_interview_outcome
 from .models import InterviewResponse, InterviewSession, VideoAnalysis
 
@@ -143,6 +149,24 @@ def analyze_response_task(self, response_id: int):
         ).get(id=response_id)
     except InterviewResponse.DoesNotExist:
         return {"success": False, "error": f"InterviewResponse {response_id} not found"}
+
+    resolved_org_id = resolve_case_organization_id(response.session.case)
+    try:
+        enforce_vetting_operation_quota(
+            operation=VETTING_OPERATION_INTERVIEW_ANALYSIS,
+            user=None,
+            organization_id=resolved_org_id,
+            additional=0 if response.processed_at is not None else 1,
+        )
+    except DRFValidationError as exc:
+        detail = exc.detail if isinstance(exc.detail, dict) else {"detail": exc.detail}
+        return {
+            "success": False,
+            "response_id": str(response.id),
+            "error": detail.get("detail"),
+            "code": detail.get("code"),
+            "quota": detail.get("quota"),
+        }
 
     transcript = (response.transcript or "").strip()
     if not transcript:
