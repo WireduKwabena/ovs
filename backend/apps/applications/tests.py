@@ -554,6 +554,52 @@ class ApplicationsApiTests(APITestCase):
         self.assertIn(str(legacy_org.id), str((result.get("quota") or {}).get("scope", "")))
         self.assertEqual(document.status, "failed")
 
+    @override_settings(
+        BILLING_VETTING_OPERATION_QUOTA_ENFORCEMENT_ENABLED=True,
+        BILLING_VETTING_REQUIRE_SCOPE_RESOLUTION=True,
+    )
+    def test_verify_document_task_blocks_when_org_context_cannot_be_resolved(self):
+        unscoped_hr = User.objects.create_user(
+            email="unscoped_hr_apps@example.com",
+            password="Pass1234!",
+            first_name="Unscoped",
+            last_name="HR",
+            user_type="hr_manager",
+        )
+        unscoped_applicant = User.objects.create_user(
+            email="unscoped_app_apps@example.com",
+            password="Pass1234!",
+            first_name="Unscoped",
+            last_name="Applicant",
+            user_type="applicant",
+        )
+        case = VettingCase.objects.create(
+            applicant=unscoped_applicant,
+            assigned_to=unscoped_hr,
+            position_applied="Analyst",
+            department="Operations",
+            priority="medium",
+            status="document_analysis",
+        )
+        file_obj = SimpleUploadedFile("unscoped.pdf", b"%PDF-1.4 blocked", content_type="application/pdf")
+        document = Document.objects.create(
+            case=case,
+            document_type="degree",
+            file=file_obj,
+            original_filename="unscoped.pdf",
+            file_size=file_obj.size,
+            mime_type="application/pdf",
+            status="uploaded",
+        )
+
+        result = verify_document_async.run(document.id)
+
+        document.refresh_from_db()
+        self.assertFalse(result["success"])
+        self.assertEqual(result.get("code"), "organization_context_required")
+        self.assertEqual((result.get("quota") or {}).get("operation"), "document_verification")
+        self.assertEqual(document.status, "failed")
+
     def test_verify_document_task_persists_social_profile_result_when_candidate_data_present(self):
         if "apps.fraud" not in settings.INSTALLED_APPS:
             self.skipTest("Fraud app disabled in INSTALLED_APPS")

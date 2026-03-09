@@ -1091,6 +1091,23 @@ def get_vetting_operation_quota_snapshot(
                     period_start=period_start,
                     period_end=period_end,
                 )
+            strict_scope_resolution = bool(
+                getattr(settings, "BILLING_VETTING_REQUIRE_SCOPE_RESOLUTION", True)
+            ) and bool(getattr(settings, "BILLING_VETTING_OPERATION_QUOTA_ENFORCEMENT_ENABLED", True))
+            if strict_scope_resolution:
+                return VettingOperationQuotaSnapshot(
+                    enforced=True,
+                    operation=normalized_operation,
+                    scope=scope,
+                    reason="organization_context_required",
+                    plan_id=None,
+                    plan_name=None,
+                    limit=0,
+                    used=used,
+                    remaining=0,
+                    period_start=period_start,
+                    period_end=period_end,
+                )
             return VettingOperationQuotaSnapshot(
                 enforced=False,
                 operation=normalized_operation,
@@ -1224,6 +1241,25 @@ def enforce_vetting_operation_quota(
                     "Complete subscription setup before running this vetting operation."
                 ),
                 "code": "subscription_required",
+                "quota": {
+                    "operation": snapshot.operation,
+                    "scope": snapshot.scope,
+                    "used": snapshot.used,
+                    "limit": snapshot.limit,
+                    "remaining": snapshot.remaining,
+                    "period_start": snapshot.period_start.isoformat(),
+                    "period_end": snapshot.period_end.isoformat(),
+                },
+            }
+        )
+    if snapshot.reason == "organization_context_required":
+        raise ValidationError(
+            {
+                "detail": (
+                    "Organization context could not be resolved for this vetting operation. "
+                    "Assign the record to an organization-scoped actor or set organization ownership before retrying."
+                ),
+                "code": "organization_context_required",
                 "quota": {
                     "operation": snapshot.operation,
                     "scope": snapshot.scope,
