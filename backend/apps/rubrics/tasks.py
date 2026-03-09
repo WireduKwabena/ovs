@@ -37,7 +37,10 @@ def evaluate_case_with_rubric(self, case_id: int, rubric_id: int, evaluator_id: 
 
     existing_evaluation = RubricEvaluation.objects.filter(case=case).exists()
     resolved_org_id = resolve_case_organization_id(case, actor=evaluated_by)
-    quota_actor = evaluated_by if (resolved_org_id is None and getattr(evaluated_by, "is_authenticated", False)) else None
+    fallback_actor = evaluated_by
+    if fallback_actor is None and resolved_org_id is None:
+        fallback_actor = getattr(case, "assigned_to", None) or getattr(case, "applicant", None)
+    quota_actor = fallback_actor if (resolved_org_id is None and getattr(fallback_actor, "is_authenticated", False)) else None
     enforce_vetting_operation_quota(
         operation=VETTING_OPERATION_RUBRIC_EVALUATION,
         user=quota_actor,

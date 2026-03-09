@@ -4,6 +4,7 @@ from uuid import UUID
 
 from django.test import TestCase, override_settings
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.test import APITestCase
 
 from apps.applications.models import VettingCase
@@ -691,6 +692,20 @@ class RubricTaskTests(TestCase):
             created_by=self.hr,
         )
 
+    def _create_org_subscription(self, organization, *, status="complete", payment_status="paid", plan_id="starter"):
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            organization=organization,
+            status=status,
+            payment_status=payment_status,
+            plan_id=plan_id,
+            plan_name=plan_id.title(),
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference=f"OVS-RUBTASK-{plan_id.upper()}-{str(organization.id)[:8]}-{status.upper()}",
+        )
+
     def test_auto_assign_rubric_uses_default_rubric(self):
         result = auto_assign_rubric.run(self.case.id)
 
@@ -715,6 +730,33 @@ class RubricTaskTests(TestCase):
 
         self.assertFalse(result["success"])
         self.assertIn("not found", result["error"].lower())
+
+    @override_settings(BILLING_VETTING_OPERATION_QUOTA_ENFORCEMENT_ENABLED=True)
+    def test_evaluate_case_with_rubric_task_blocks_with_legacy_org_mapping_when_case_has_no_org(self):
+        legacy_org = Organization.objects.create(
+            code="rubric-task-legacy-org",
+            name="Rubric Task Legacy Org",
+            organization_type="agency",
+            is_active=True,
+        )
+        self.hr.organization = legacy_org.name
+        self.hr.save(update_fields=["organization", "updated_at"])
+        self._create_org_subscription(
+            legacy_org,
+            status="canceled",
+            payment_status="unpaid",
+            plan_id="starter",
+        )
+        self.case.organization = None
+        self.case.save(update_fields=["organization", "updated_at"])
+
+        with self.assertRaises(DRFValidationError) as context:
+            evaluate_case_with_rubric.run(self.case.id, self.default_rubric.id, evaluator_id=None)
+
+        detail = context.exception.detail if isinstance(context.exception.detail, dict) else {}
+        self.assertEqual(detail.get("code"), "subscription_required")
+        self.assertEqual((detail.get("quota") or {}).get("operation"), "rubric_evaluation")
+        self.assertIn(str(legacy_org.id), str((detail.get("quota") or {}).get("scope", "")))
 
 
 class RubricsOrganizationScopeTests(APITestCase):

@@ -810,3 +810,31 @@ class InterviewTaskIdentityMatchTests(APITestCase):
         self.assertFalse(result["success"])
         self.assertEqual(result.get("code"), "subscription_required")
         self.assertEqual((result.get("quota") or {}).get("operation"), "interview_analysis")
+
+    @override_settings(BILLING_VETTING_OPERATION_QUOTA_ENFORCEMENT_ENABLED=True)
+    def test_analyze_response_task_blocks_with_legacy_org_mapping_when_case_has_no_org(self):
+        legacy_org = Organization.objects.create(
+            code="interview-task-legacy-org",
+            name="Interview Task Legacy Org",
+            organization_type="agency",
+            is_active=True,
+        )
+        self.hr.organization = legacy_org.name
+        self.hr.save(update_fields=["organization", "updated_at"])
+        self._create_org_subscription(
+            legacy_org,
+            status="canceled",
+            payment_status="unpaid",
+            plan_id="starter",
+        )
+        self.case.organization = None
+        self.case.save(update_fields=["organization", "updated_at"])
+        self.response.processed_at = None
+        self.response.save(update_fields=["processed_at"])
+
+        result = analyze_response_task.run(self.response.id)
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result.get("code"), "subscription_required")
+        self.assertEqual((result.get("quota") or {}).get("operation"), "interview_analysis")
+        self.assertIn(str(legacy_org.id), str((result.get("quota") or {}).get("scope", "")))

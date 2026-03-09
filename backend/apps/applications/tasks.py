@@ -165,7 +165,8 @@ def _ensure_interview_session_for_case(case):
 
 
 def _sync_case_social_profile_result(document: Document) -> None:
-    outcome = run_case_social_profile_check(document.case)
+    fallback_actor = getattr(document.case, "assigned_to", None) or getattr(document.case, "applicant", None)
+    outcome = run_case_social_profile_check(document.case, actor=fallback_actor)
     if not outcome.get("success") and outcome.get("reason") != "no_profiles":
         logger.warning(
             "Social profile sync did not complete for case %s: %s",
@@ -187,9 +188,12 @@ def verify_document_async(self, document_id: int):
 
     try:
         resolved_org_id = resolve_case_organization_id(document.case)
+        fallback_actor = None
+        if not resolved_org_id:
+            fallback_actor = getattr(document.case, "assigned_to", None) or getattr(document.case, "applicant", None)
         enforce_vetting_operation_quota(
             operation=VETTING_OPERATION_DOCUMENT_VERIFICATION,
-            user=None,
+            user=fallback_actor if (not resolved_org_id and getattr(fallback_actor, "is_authenticated", False)) else None,
             organization_id=resolved_org_id,
             additional=0,
         )

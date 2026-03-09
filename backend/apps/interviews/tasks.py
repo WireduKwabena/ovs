@@ -152,10 +152,14 @@ def analyze_response_task(self, response_id: int):
 
     resolved_org_id = resolve_case_organization_id(response.session.case)
     reserve_additional = 0 if response.answered_at is not None else 1
+    fallback_actor = None
+    if not resolved_org_id:
+        case = response.session.case
+        fallback_actor = getattr(case, "assigned_to", None) or getattr(case, "applicant", None)
     try:
         enforce_vetting_operation_quota(
             operation=VETTING_OPERATION_INTERVIEW_ANALYSIS,
-            user=None,
+            user=fallback_actor if (not resolved_org_id and getattr(fallback_actor, "is_authenticated", False)) else None,
             organization_id=resolved_org_id,
             additional=reserve_additional,
         )

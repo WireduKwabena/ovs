@@ -503,6 +503,57 @@ class ApplicationsApiTests(APITestCase):
         self.assertEqual(result.get("code"), "subscription_required")
         self.assertEqual(document.status, "failed")
 
+    @override_settings(BILLING_VETTING_OPERATION_QUOTA_ENFORCEMENT_ENABLED=True)
+    def test_verify_document_task_blocks_with_legacy_org_mapping_when_case_has_no_org(self):
+        legacy_org = Organization.objects.create(
+            code="apps-doc-legacy-task-org",
+            name="Apps Document Legacy Task Org",
+            organization_type="agency",
+            is_active=True,
+        )
+        legacy_hr = User.objects.create_user(
+            email="legacy_task_hr_apps@example.com",
+            password="Pass1234!",
+            first_name="Legacy",
+            last_name="TaskHR",
+            user_type="hr_manager",
+            organization=legacy_org.name,
+        )
+        self._create_org_subscription(
+            legacy_org,
+            status="canceled",
+            payment_status="unpaid",
+            plan_id="starter",
+        )
+
+        case = VettingCase.objects.create(
+            applicant=self.applicant,
+            assigned_to=legacy_hr,
+            position_applied="Analyst",
+            department="Operations",
+            priority="medium",
+            status="document_analysis",
+        )
+        file_obj = SimpleUploadedFile("legacy-task.pdf", b"%PDF-1.4 blocked", content_type="application/pdf")
+        document = Document.objects.create(
+            case=case,
+            document_type="degree",
+            file=file_obj,
+            original_filename="legacy-task.pdf",
+            file_size=file_obj.size,
+            mime_type="application/pdf",
+            status="uploaded",
+        )
+
+        result = verify_document_async.run(document.id)
+
+        document.refresh_from_db()
+        self.assertFalse(result["success"])
+        self.assertEqual(result.get("code"), "subscription_required")
+        self.assertEqual((result.get("quota") or {}).get("operation"), "document_verification")
+        self.assertIn(str(legacy_org.id), str((result.get("quota") or {}).get("scope", "")))
+        self.assertEqual(document.status, "failed")
+
     def test_verify_document_task_persists_social_profile_result_when_candidate_data_present(self):
         if "apps.fraud" not in settings.INSTALLED_APPS:
             self.skipTest("Fraud app disabled in INSTALLED_APPS")
