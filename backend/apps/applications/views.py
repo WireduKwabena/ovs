@@ -20,7 +20,7 @@ from apps.core.permissions import (
     get_request_active_organization_id,
     get_user_allowed_organization_ids,
     is_platform_admin_user,
-    scope_queryset_to_user_organizations,
+    scope_internal_queryset_to_tenant,
 )
 from apps.governance.models import Organization
 from apps.invitations.permissions import IsAuthenticatedOrCandidateAccessSession
@@ -94,11 +94,13 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
         if getattr(user, "user_type", None) == "hr_manager":
             membership_org_ids = get_user_allowed_organization_ids(user)
             if membership_org_ids:
-                queryset = scope_queryset_to_user_organizations(
+                queryset = scope_internal_queryset_to_tenant(
                     queryset,
                     request=self.request,
                     organization_field="organization_id",
                 )
+            else:
+                queryset = queryset.filter(assigned_to=user, organization_id__isnull=True)
             if getattr(user, "user_type", None) == "hr_manager" and scope in {"assigned", "mine", "my"}:
                 return queryset.filter(assigned_to=user).order_by("-created_at")
             return queryset.order_by("-created_at")
@@ -154,15 +156,32 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
                 resolved_org_id = get_request_active_organization_id(self.request)
 
             if not is_admin:
-                if requested_org is not None and not can_access_organization_id(user, requested_org.id):
+                if requested_org is not None and not can_access_organization_id(
+                    user,
+                    requested_org.id,
+                    allow_membershipless_fallback=False,
+                ):
                     raise PermissionDenied("You cannot create vetting cases for another organization.")
-                if resolved_org_id and not can_access_organization_id(user, resolved_org_id):
+                if resolved_org_id and not can_access_organization_id(
+                    user,
+                    resolved_org_id,
+                    allow_membershipless_fallback=False,
+                ):
                     raise PermissionDenied("You cannot create vetting cases for another organization.")
+                if is_hr_manager and not resolved_org_id:
+                    raise PermissionDenied("Active organization context is required to create vetting cases.")
 
             if is_hr_manager and candidate_enrollment is not None:
                 campaign_owner_id = getattr(candidate_enrollment.campaign, "initiated_by_id", None)
                 campaign_org_id = getattr(candidate_enrollment.campaign, "organization_id", None)
-                if campaign_owner_id != user.id and not (campaign_org_id and can_access_organization_id(user, campaign_org_id)):
+                if campaign_owner_id != user.id and not (
+                    campaign_org_id
+                    and can_access_organization_id(
+                        user,
+                        campaign_org_id,
+                        allow_membershipless_fallback=False,
+                    )
+                ):
                     raise PermissionDenied("You cannot create cases for enrollments outside your campaigns.")
 
             # Legacy/manual case creation path can bypass enrollment quota checks,
@@ -182,12 +201,18 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         instance = serializer.instance
         user = self.request.user
-        if not is_platform_admin_user(user) and not can_access_organization_id(user, instance.organization_id):
+        if not is_platform_admin_user(user) and not can_access_organization_id(
+            user,
+            instance.organization_id,
+            allow_membershipless_fallback=False,
+        ):
             raise PermissionDenied("You cannot update vetting cases outside your organization scope.")
 
         requested_org = serializer.validated_data.get("organization")
         if not is_platform_admin_user(user) and requested_org is not None and not can_access_organization_id(
-            user, requested_org.id
+            user,
+            requested_org.id,
+            allow_membershipless_fallback=False,
         ):
             raise PermissionDenied("You cannot move this vetting case to another organization.")
 
@@ -204,7 +229,11 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         user = self.request.user
-        if not is_platform_admin_user(user) and not can_access_organization_id(user, instance.organization_id):
+        if not is_platform_admin_user(user) and not can_access_organization_id(
+            user,
+            instance.organization_id,
+            allow_membershipless_fallback=False,
+        ):
             raise PermissionDenied("You cannot delete vetting cases outside your organization scope.")
         super().perform_destroy(instance)
 
@@ -451,11 +480,13 @@ class DocumentViewSet(viewsets.ReadOnlyModelViewSet):
         if getattr(user, "user_type", None) == "hr_manager":
             membership_org_ids = get_user_allowed_organization_ids(user)
             if membership_org_ids:
-                queryset = scope_queryset_to_user_organizations(
+                queryset = scope_internal_queryset_to_tenant(
                     queryset,
                     request=self.request,
                     organization_field="case__organization_id",
                 )
+            else:
+                queryset = queryset.filter(case__assigned_to=user, case__organization_id__isnull=True)
             return queryset.order_by("-uploaded_at")
         return queryset.filter(Q(case__applicant=user) | Q(case__assigned_to=user)).order_by("-uploaded_at")
 

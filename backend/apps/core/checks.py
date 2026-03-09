@@ -7,7 +7,10 @@ from urllib.parse import urlparse
 from django.apps import apps
 from django.conf import settings
 from django.core.checks import Error, Warning, register
-from django.db import models
+from django.db import connections, models
+from django.db.migrations.executor import MigrationExecutor
+from django.db.models import F, Q
+from django.db.utils import OperationalError, ProgrammingError
 
 
 @register()
@@ -151,3 +154,130 @@ def enforce_production_origin_hardening(app_configs, **kwargs):
             )
 
     return findings
+
+
+@register()
+def enforce_tenant_internal_org_integrity(app_configs, **kwargs):
+    """
+    Tenant integrity check for organization-scoped internal models.
+
+    This remains additive/non-destructive:
+    - warns (or errors via settings) when null-org legacy rows still exist
+    - warns (or errors via settings) when appointment linkage has cross-org mismatches
+    """
+    if not bool(getattr(settings, "TENANT_ORG_INTEGRITY_CHECK_ENABLED", True)):
+        return []
+
+    findings = []
+    try:
+        if _has_pending_migrations():
+            findings.append(
+                Warning(
+                    (
+                        "Tenant organization integrity check skipped because pending migrations exist. "
+                        "Apply pending migrations before relying on tenant integrity checks."
+                    ),
+                    id="core.W012",
+                )
+            )
+            return findings
+    except (ProgrammingError, OperationalError):
+        findings.append(
+            Warning(
+                (
+                    "Tenant organization integrity check skipped because migration state could not be resolved. "
+                    "Apply pending migrations before relying on tenant integrity checks."
+                ),
+                id="core.W012",
+            )
+        )
+        return findings
+    target_models = (
+        ("positions", "GovernmentPosition"),
+        ("personnel", "PersonnelRecord"),
+        ("campaigns", "VettingCampaign"),
+        ("applications", "VettingCase"),
+        ("appointments", "ApprovalStageTemplate"),
+        ("appointments", "AppointmentRecord"),
+        ("rubrics", "VettingRubric"),
+    )
+
+    null_org_summary: list[str] = []
+    null_org_total = 0
+
+    for app_label, model_name in target_models:
+        model = apps.get_model(app_label, model_name)
+        if model is None:
+            continue
+        if not any(field.name == "organization" for field in model._meta.get_fields()):
+            continue
+        try:
+            count = model.objects.filter(organization__isnull=True).count()
+        except (ProgrammingError, OperationalError):
+            findings.append(
+                Warning(
+                    (
+                        "Tenant organization integrity check skipped because tenant columns are unavailable. "
+                        "Apply pending migrations before relying on tenant integrity checks."
+                    ),
+                    id="core.W012",
+                )
+            )
+            return findings
+        if count > 0:
+            null_org_total += int(count)
+            null_org_summary.append(f"{model._meta.label}:{count}")
+
+    if null_org_total > 0:
+        message = (
+            "Organization-scoped internal models still contain null-organization records. "
+            f"Total={null_org_total} ({', '.join(null_org_summary)})."
+        )
+        hint = (
+            "Backfill organization ownership for legacy records. "
+            "Set TENANT_FAIL_ON_NULL_ORG_INTERNAL_RECORDS=true to fail closed at startup."
+        )
+        if bool(getattr(settings, "TENANT_FAIL_ON_NULL_ORG_INTERNAL_RECORDS", False)):
+            findings.append(Error(message, hint=hint, id="core.E010"))
+        else:
+            findings.append(Warning(message, hint=hint, id="core.W010"))
+
+    AppointmentRecord = apps.get_model("appointments", "AppointmentRecord")
+    if AppointmentRecord is not None:
+        try:
+            mismatch_count = AppointmentRecord.objects.filter(
+                Q(organization_id__isnull=False, position__organization_id__isnull=False)
+                & ~Q(organization_id=F("position__organization_id"))
+                | Q(organization_id__isnull=False, nominee__organization_id__isnull=False)
+                & ~Q(organization_id=F("nominee__organization_id"))
+                | Q(organization_id__isnull=False, appointment_exercise__organization_id__isnull=False)
+                & ~Q(organization_id=F("appointment_exercise__organization_id"))
+                | Q(organization_id__isnull=False, vetting_case__organization_id__isnull=False)
+                & ~Q(organization_id=F("vetting_case__organization_id"))
+            ).count()
+        except (ProgrammingError, OperationalError):
+            mismatch_count = 0
+
+        if mismatch_count > 0:
+            message = (
+                "Appointment records contain cross-organization linkage mismatches "
+                f"(count={mismatch_count})."
+            )
+            hint = (
+                "Normalize appointment.organization against linked position/nominee/exercise/vetting_case ownership. "
+                "Set TENANT_FAIL_ON_CROSS_ORG_LINKAGE_MISMATCH=true to fail closed at startup."
+            )
+            if bool(getattr(settings, "TENANT_FAIL_ON_CROSS_ORG_LINKAGE_MISMATCH", False)):
+                findings.append(Error(message, hint=hint, id="core.E011"))
+            else:
+                findings.append(Warning(message, hint=hint, id="core.W011"))
+
+    return findings
+
+
+def _has_pending_migrations(using: str = "default") -> bool:
+    connection = connections[using]
+    executor = MigrationExecutor(connection)
+    targets = executor.loader.graph.leaf_nodes()
+    plan = executor.migration_plan(targets)
+    return bool(plan)

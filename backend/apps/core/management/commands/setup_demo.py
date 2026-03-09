@@ -74,10 +74,10 @@ class Command(BaseCommand):
         with transaction.atomic():
             groups = self._ensure_groups()
             users = self._ensure_users(options=options, groups=groups)
-            self._ensure_governance_foundation(users=users)
+            organizations = self._ensure_governance_foundation(users=users)
 
             if not options["skip_sample_data"]:
-                self._ensure_sample_data(users=users)
+                self._ensure_sample_data(users=users, organizations=organizations)
 
         self.stdout.write(self.style.SUCCESS("GAMS demo setup completed."))
         self.stdout.write("Demo sign-in accounts:")
@@ -231,7 +231,7 @@ class Command(BaseCommand):
             "auditor": auditor_user,
         }
 
-    def _ensure_governance_foundation(self, *, users: dict[str, User]) -> None:
+    def _ensure_governance_foundation(self, *, users: dict[str, User]) -> dict[str, Organization]:
         organization_specs = {
             "admin": {
                 "name": "Public Service Commission",
@@ -339,6 +339,8 @@ class Command(BaseCommand):
             committee_role="member",
             can_vote=True,
         )
+
+        return organizations
 
     def _upsert_organization(
         self,
@@ -542,12 +544,27 @@ class Command(BaseCommand):
 
         return user
 
-    def _ensure_sample_data(self, *, users: dict[str, User]) -> None:
+    def _ensure_sample_data(self, *, users: dict[str, User], organizations: dict[str, Organization]) -> None:
         authority_user = users["authority"]
+        workflow_org = organizations.get("admin")
         primary_committee = Committee.objects.filter(code="parliamentary-appointments-main", is_active=True).first()
-        stage_template = self._ensure_stage_template(created_by=users["admin"], committee=primary_committee)
+        committee_for_records = (
+            primary_committee
+            if (
+                workflow_org is not None
+                and primary_committee is not None
+                and primary_committee.organization_id == workflow_org.id
+            )
+            else None
+        )
+        stage_template = self._ensure_stage_template(
+            created_by=users["admin"],
+            committee=committee_for_records,
+            organization=workflow_org,
+        )
 
         minister_position = self._ensure_position(
+            organization=workflow_org,
             title="GAMS Demo Minister of Health",
             branch="executive",
             institution="Ministry of Health",
@@ -556,6 +573,7 @@ class Command(BaseCommand):
             is_public=True,
         )
         justice_position = self._ensure_position(
+            organization=workflow_org,
             title="GAMS Demo Chief Justice",
             branch="judicial",
             institution="Judiciary",
@@ -565,12 +583,14 @@ class Command(BaseCommand):
         )
 
         nominee_pending = self._ensure_personnel(
+            organization=workflow_org,
             full_name="GAMS Demo Dr. Ama Mensah",
             contact_email="ama.mensah@demo.local",
             is_active_officeholder=False,
             is_public=True,
         )
         nominee_serving = self._ensure_personnel(
+            organization=workflow_org,
             full_name="GAMS Demo Hon. Kojo Asante",
             contact_email="kojo.asante@demo.local",
             is_active_officeholder=True,
@@ -578,38 +598,56 @@ class Command(BaseCommand):
         )
 
         campaign = self._ensure_campaign(
+            organization=workflow_org,
             initiated_by=users["admin"],
             stage_template=stage_template,
             positions=[minister_position, justice_position],
         )
 
         nomination_record = self._ensure_nomination_record(
+            organization=workflow_org,
             position=minister_position,
             nominee=nominee_pending,
             campaign=campaign,
             nominated_by=authority_user,
-            committee=primary_committee,
+            committee=committee_for_records,
         )
         self._ensure_draft_publication(nomination_record)
 
         serving_record = self._ensure_serving_record(
+            organization=workflow_org,
             position=justice_position,
             nominee=nominee_serving,
             campaign=campaign,
             decided_by=authority_user,
-            committee=primary_committee,
+            committee=committee_for_records,
         )
         self._ensure_published_publication(serving_record, publisher=authority_user)
 
-    def _ensure_stage_template(self, *, created_by: User, committee: Committee | None = None) -> ApprovalStageTemplate:
+    def _ensure_stage_template(
+        self,
+        *,
+        created_by: User,
+        committee: Committee | None = None,
+        organization: Organization | None = None,
+    ) -> ApprovalStageTemplate:
         template, created = ApprovalStageTemplate.objects.get_or_create(
             name="GAMS Demo Ministerial Chain",
             exercise_type="ministerial",
-            defaults={"created_by": created_by},
+            defaults={"created_by": created_by, "organization": organization},
         )
+        template_update_fields: list[str] = []
         if not created and template.created_by_id is None:
             template.created_by = created_by
-            template.save(update_fields=["created_by"])
+            template_update_fields.append("created_by")
+        if template.organization_id != getattr(organization, "id", None):
+            template.organization = organization
+            template_update_fields.append("organization")
+        if template_update_fields:
+            template.save(update_fields=template_update_fields)
+
+        if committee is not None and organization is not None and committee.organization_id != organization.id:
+            committee = None
 
         stage_specs = [
             (1, "Intake Check", "vetting_officer", "under_vetting", None),
@@ -650,6 +688,7 @@ class Command(BaseCommand):
     def _ensure_position(
         self,
         *,
+        organization: Organization | None,
         title: str,
         branch: str,
         institution: str,
@@ -660,6 +699,7 @@ class Command(BaseCommand):
         position = GovernmentPosition.objects.filter(title=title, institution=institution).order_by("created_at").first()
         if position is None:
             return GovernmentPosition.objects.create(
+                organization=organization,
                 title=title,
                 branch=branch,
                 institution=institution,
@@ -672,6 +712,7 @@ class Command(BaseCommand):
 
         updated_fields: list[str] = []
         for field, value in {
+            "organization": organization,
             "branch": branch,
             "appointment_authority": appointment_authority,
             "confirmation_required": confirmation_required,
@@ -687,6 +728,7 @@ class Command(BaseCommand):
     def _ensure_personnel(
         self,
         *,
+        organization: Organization | None,
         full_name: str,
         contact_email: str,
         is_active_officeholder: bool,
@@ -695,6 +737,7 @@ class Command(BaseCommand):
         record = PersonnelRecord.objects.filter(full_name=full_name, contact_email=contact_email).order_by("created_at").first()
         if record is None:
             return PersonnelRecord.objects.create(
+                organization=organization,
                 full_name=full_name,
                 contact_email=contact_email,
                 nationality="Ghanaian",
@@ -705,6 +748,7 @@ class Command(BaseCommand):
 
         updated_fields: list[str] = []
         for field, value in {
+            "organization": organization,
             "is_active_officeholder": is_active_officeholder,
             "is_public": is_public,
             "nationality": "Ghanaian",
@@ -719,6 +763,7 @@ class Command(BaseCommand):
     def _ensure_campaign(
         self,
         *,
+        organization: Organization | None,
         initiated_by: User,
         stage_template: ApprovalStageTemplate,
         positions: list[GovernmentPosition],
@@ -726,6 +771,7 @@ class Command(BaseCommand):
         campaign = VettingCampaign.objects.filter(name="GAMS Demo Ministerial Exercise").order_by("created_at").first()
         if campaign is None:
             campaign = VettingCampaign.objects.create(
+                organization=organization,
                 name="GAMS Demo Ministerial Exercise",
                 description="Demo campaign linking appointments to vetting and approval-chain governance.",
                 status="active",
@@ -738,6 +784,7 @@ class Command(BaseCommand):
                 initiated_by=initiated_by,
             )
         else:
+            campaign.organization = organization
             campaign.description = "Demo campaign linking appointments to vetting and approval-chain governance."
             campaign.status = "active"
             campaign.exercise_type = "ministerial"
@@ -749,6 +796,7 @@ class Command(BaseCommand):
             campaign.save(
                 update_fields=[
                     "description",
+                    "organization",
                     "status",
                     "exercise_type",
                     "jurisdiction",
@@ -766,6 +814,7 @@ class Command(BaseCommand):
     def _ensure_nomination_record(
         self,
         *,
+        organization: Organization | None,
         position: GovernmentPosition,
         nominee: PersonnelRecord,
         campaign: VettingCampaign,
@@ -783,6 +832,7 @@ class Command(BaseCommand):
         )
         if record is None:
             record = AppointmentRecord.objects.create(
+                organization=organization,
                 position=position,
                 nominee=nominee,
                 appointment_exercise=campaign,
@@ -795,6 +845,7 @@ class Command(BaseCommand):
                 committee=committee,
             )
         else:
+            record.organization = organization
             record.appointment_exercise = campaign
             record.status = "nominated"
             record.nominated_by_user = nominated_by
@@ -815,6 +866,7 @@ class Command(BaseCommand):
             record.is_public = False
             record.save(
                 update_fields=[
+                    "organization",
                     "appointment_exercise",
                     "status",
                     "nominated_by_user",
@@ -849,6 +901,7 @@ class Command(BaseCommand):
     def _ensure_serving_record(
         self,
         *,
+        organization: Organization | None,
         position: GovernmentPosition,
         nominee: PersonnelRecord,
         campaign: VettingCampaign,
@@ -865,6 +918,7 @@ class Command(BaseCommand):
 
         if record is None:
             record = AppointmentRecord.objects.create(
+                organization=organization,
                 position=position,
                 nominee=nominee,
                 appointment_exercise=campaign,
@@ -882,6 +936,7 @@ class Command(BaseCommand):
                 committee=committee,
             )
         else:
+            record.organization = organization
             record.status = "serving"
             record.appointment_exercise = campaign
             record.nominee = nominee
@@ -897,6 +952,7 @@ class Command(BaseCommand):
             record.exit_reason = ""
             record.save(
                 update_fields=[
+                    "organization",
                     "status",
                     "appointment_exercise",
                     "nominee",

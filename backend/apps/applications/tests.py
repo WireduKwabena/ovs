@@ -1112,3 +1112,60 @@ class ApplicationsOrganizationScopeTests(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 403)
+
+    def test_membershipless_hr_list_only_shows_assigned_legacy_cases(self):
+        membershipless_hr = User.objects.create_user(
+            email="apps_scope_legacy_only@example.com",
+            password="Pass1234!",
+            first_name="Apps",
+            last_name="LegacyOnly",
+            user_type="hr_manager",
+        )
+        legacy_case = VettingCase.objects.create(
+            applicant=self.applicant,
+            assigned_to=membershipless_hr,
+            position_applied="Legacy Analyst",
+            department="Secretariat",
+            priority="medium",
+            status="under_review",
+        )
+        org_case = VettingCase.objects.create(
+            organization=self.org_a,
+            applicant=self.applicant,
+            assigned_to=membershipless_hr,
+            position_applied="Scoped Analyst",
+            department="Secretariat",
+            priority="medium",
+            status="under_review",
+        )
+
+        self.client.force_authenticate(membershipless_hr)
+        response = self.client.get("/api/applications/cases/")
+        self.assertEqual(response.status_code, 200)
+        ids = {item["id"] for item in self._extract_results(response)}
+        self.assertIn(str(legacy_case.id), ids)
+        self.assertNotIn(str(org_case.id), ids)
+        self.assertNotIn(str(self.case_org_a.id), ids)
+        self.assertNotIn(str(self.case_org_b.id), ids)
+
+    def test_membershipless_hr_cannot_create_case_without_org_context(self):
+        membershipless_hr = User.objects.create_user(
+            email="apps_scope_create_denied@example.com",
+            password="Pass1234!",
+            first_name="Apps",
+            last_name="CreateDenied",
+            user_type="hr_manager",
+        )
+        self.client.force_authenticate(membershipless_hr)
+        response = self.client.post(
+            "/api/applications/cases/",
+            {
+                "applicant": str(self.applicant.id),
+                "position_applied": "Membershipless Case",
+                "department": "Operations",
+                "job_description": "Should require org context",
+                "priority": "medium",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)

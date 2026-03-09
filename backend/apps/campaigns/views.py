@@ -14,7 +14,7 @@ from apps.core.permissions import (
     get_request_active_organization_id,
     get_user_allowed_organization_ids,
     is_platform_admin_user,
-    scope_queryset_to_user_organizations,
+    scope_internal_queryset_to_tenant,
 )
 from apps.invitations.models import Invitation
 from apps.invitations.tasks import send_invitation_task
@@ -68,7 +68,7 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
 
         membership_org_ids = get_user_allowed_organization_ids(user)
         if membership_org_ids:
-            queryset = scope_queryset_to_user_organizations(
+            queryset = scope_internal_queryset_to_tenant(
                 queryset,
                 request=self.request,
                 organization_field="organization_id",
@@ -82,9 +82,15 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Only HR managers/admins can create campaigns.")
         requested_org = serializer.validated_data.get("organization")
         if not is_platform_admin_user(user):
-            if requested_org is not None and not can_access_organization_id(user, requested_org.id):
+            if requested_org is not None and not can_access_organization_id(
+                user,
+                requested_org.id,
+                allow_membershipless_fallback=False,
+            ):
                 raise PermissionDenied("You cannot create campaigns for another organization.")
             active_org_id = get_request_active_organization_id(self.request)
+            if requested_org is None and not active_org_id:
+                raise PermissionDenied("Active organization context is required to create campaigns.")
             if requested_org is None and active_org_id:
                 serializer.save(initiated_by=self.request.user, organization_id=active_org_id)
                 return
@@ -93,10 +99,18 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         instance = serializer.instance
         user = self.request.user
-        if not is_platform_admin_user(user) and not can_access_organization_id(user, instance.organization_id):
+        if not is_platform_admin_user(user) and not can_access_organization_id(
+            user,
+            instance.organization_id,
+            allow_membershipless_fallback=False,
+        ):
             raise PermissionDenied("You cannot update campaigns outside your organization scope.")
         requested_org = serializer.validated_data.get("organization")
-        if not is_platform_admin_user(user) and requested_org is not None and not can_access_organization_id(user, requested_org.id):
+        if not is_platform_admin_user(user) and requested_org is not None and not can_access_organization_id(
+            user,
+            requested_org.id,
+            allow_membershipless_fallback=False,
+        ):
             raise PermissionDenied("You cannot move this campaign to another organization.")
         save_kwargs = {}
         if (
@@ -111,7 +125,11 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         user = self.request.user
-        if not is_platform_admin_user(user) and not can_access_organization_id(user, instance.organization_id):
+        if not is_platform_admin_user(user) and not can_access_organization_id(
+            user,
+            instance.organization_id,
+            allow_membershipless_fallback=False,
+        ):
             raise PermissionDenied("You cannot delete campaigns outside your organization scope.")
         super().perform_destroy(instance)
 

@@ -1,3 +1,4 @@
+from django.core.exceptions import FieldError
 from django.db import migrations
 
 
@@ -26,16 +27,21 @@ def backfill_campaign_organization(apps, schema_editor):
             # schema may not yet include ``organization`` during graph resolution.
             position_fields = {field.name for field in campaign.positions.model._meta.get_fields()}
             if "organization" in position_fields:
-                position_org_ids = {
-                    str(org_id)
-                    for org_id in campaign.positions.exclude(organization_id__isnull=True).values_list(
-                        "organization_id", flat=True
-                    )
-                    if org_id
-                }
-                has_unscoped_positions = campaign.positions.filter(organization_id__isnull=True).exists()
-                if len(position_org_ids) == 1 and not has_unscoped_positions:
-                    resolved_org_id = next(iter(position_org_ids))
+                try:
+                    position_org_ids = {
+                        str(org_id)
+                        for org_id in campaign.positions.exclude(organization_id__isnull=True).values_list(
+                            "organization_id", flat=True
+                        )
+                        if org_id
+                    }
+                    has_unscoped_positions = campaign.positions.filter(organization_id__isnull=True).exists()
+                    if len(position_org_ids) == 1 and not has_unscoped_positions:
+                        resolved_org_id = next(iter(position_org_ids))
+                except FieldError:
+                    # Some historical graph states may still resolve ``positions``
+                    # without ``organization`` despite dependency ordering.
+                    pass
 
         if resolved_org_id is None and getattr(campaign, "initiated_by_id", None):
             memberships = (

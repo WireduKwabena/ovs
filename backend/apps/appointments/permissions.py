@@ -1,57 +1,15 @@
 from rest_framework.permissions import BasePermission
 
-from apps.core.authz import (
-    ROLE_APPOINTING_AUTHORITY,
-    ROLE_COMMITTEE_CHAIR,
-    ROLE_COMMITTEE_MEMBER,
-    ROLE_PUBLICATION_OFFICER,
-    ROLE_REGISTRY_ADMIN,
-    ROLE_VETTING_OFFICER,
-    has_any_role,
+from apps.core.policies.appointment_policy import (
+    can_advance_stage,
+    can_appoint,
+    can_publish,
+    can_take_committee_action,
 )
-from apps.core.permissions import is_admin_user
 
 
 def _is_appointment_record(obj) -> bool:
     return getattr(getattr(obj, "_meta", None), "model_name", "") == "appointmentrecord"
-
-
-def _has_eligible_committee_membership(*, user, committee) -> bool:
-    try:
-        from apps.governance.models import CommitteeMembership
-    except Exception:  # pragma: no cover - governance app may be optional in some setups
-        return False
-
-    membership = (
-        CommitteeMembership.objects.filter(
-            user=user,
-            committee_id=getattr(committee, "id", None),
-            is_active=True,
-            committee__is_active=True,
-            committee__organization__is_active=True,
-        )
-        .exclude(committee_role="observer")
-        .first()
-    )
-    return membership is not None
-
-
-def _has_eligible_committee_membership_for_ids(*, user, committee_ids) -> bool:
-    normalized_committee_ids = [value for value in committee_ids if value]
-    if not normalized_committee_ids:
-        return False
-    try:
-        from apps.governance.models import CommitteeMembership
-    except Exception:  # pragma: no cover - governance app may be optional in some setups
-        return False
-
-    return CommitteeMembership.objects.filter(
-        user=user,
-        committee_id__in=normalized_committee_ids,
-        is_active=True,
-        committee__is_active=True,
-        committee__organization__is_active=True,
-    ).exclude(committee_role="observer").exists()
 
 
 def _history_committee_ids_for_appointment(obj) -> set:
@@ -77,19 +35,7 @@ class IsStageActorOrAdmin(BasePermission):
 
     def has_permission(self, request, view):
         user = getattr(request, "user", None)
-        return bool(
-            is_admin_user(user)
-            or has_any_role(
-                user,
-                (
-                    ROLE_VETTING_OFFICER,
-                    ROLE_COMMITTEE_MEMBER,
-                    ROLE_COMMITTEE_CHAIR,
-                    ROLE_APPOINTING_AUTHORITY,
-                    ROLE_REGISTRY_ADMIN,
-                ),
-            )
-        )
+        return can_advance_stage(user)
 
 
 class IsCommitteeMemberOrAdmin(BasePermission):
@@ -97,15 +43,13 @@ class IsCommitteeMemberOrAdmin(BasePermission):
 
     def has_permission(self, request, view):
         user = getattr(request, "user", None)
-        return bool(
-            is_admin_user(user)
-            or has_any_role(user, (ROLE_COMMITTEE_MEMBER, ROLE_COMMITTEE_CHAIR))
+        return can_take_committee_action(
+            user,
+            allow_history_fallback=True,
         )
 
     def has_object_permission(self, request, view, obj):
         user = getattr(request, "user", None)
-        if is_admin_user(user):
-            return True
 
         if not _is_appointment_record(obj):
             return self.has_permission(request, view)
@@ -115,16 +59,18 @@ class IsCommitteeMemberOrAdmin(BasePermission):
             history_committee_ids = _history_committee_ids_for_appointment(obj)
             if not history_committee_ids:
                 return self.has_permission(request, view)
-            return _has_eligible_committee_membership_for_ids(
+            return can_take_committee_action(
                 user=user,
                 committee_ids=history_committee_ids,
+                allow_history_fallback=False,
             )
 
-        if getattr(obj, "organization_id", None) and getattr(committee, "organization_id", None):
-            if obj.organization_id != committee.organization_id:
-                return False
-
-        return _has_eligible_committee_membership(user=user, committee=committee)
+        return can_take_committee_action(
+            user=user,
+            committee=committee,
+            appointment_organization_id=getattr(obj, "organization_id", None),
+            allow_history_fallback=False,
+        )
 
 
 class IsAppointingAuthorityOrAdmin(BasePermission):
@@ -132,7 +78,7 @@ class IsAppointingAuthorityOrAdmin(BasePermission):
 
     def has_permission(self, request, view):
         user = getattr(request, "user", None)
-        return bool(is_admin_user(user) or has_any_role(user, (ROLE_APPOINTING_AUTHORITY,)))
+        return can_appoint(user)
 
 
 class IsPublicationOfficerOrAuthorityOrAdmin(BasePermission):
@@ -140,7 +86,4 @@ class IsPublicationOfficerOrAuthorityOrAdmin(BasePermission):
 
     def has_permission(self, request, view):
         user = getattr(request, "user", None)
-        return bool(
-            is_admin_user(user)
-            or has_any_role(user, (ROLE_PUBLICATION_OFFICER, ROLE_APPOINTING_AUTHORITY))
-        )
+        return can_publish(user)

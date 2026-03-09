@@ -1,3 +1,4 @@
+from django.core.exceptions import FieldError
 from django.db import migrations
 
 
@@ -41,11 +42,20 @@ def backfill_appointment_and_template_organization(apps, schema_editor):
     )
     template_rows = []
     for template in templates.iterator(chunk_size=200):
-        org_ids = {
-            str(org_id)
-            for org_id in template.campaigns.exclude(organization_id__isnull=True).values_list("organization_id", flat=True)
-            if org_id
-        }
+        campaigns_fields = {field.name for field in template.campaigns.model._meta.get_fields()}
+        if "organization" not in campaigns_fields:
+            continue
+        try:
+            org_ids = {
+                str(org_id)
+                for org_id in template.campaigns.exclude(organization_id__isnull=True).values_list(
+                    "organization_id",
+                    flat=True,
+                )
+                if org_id
+            }
+        except FieldError:
+            continue
         if len(org_ids) == 1:
             template.organization_id = next(iter(org_ids))
             template_rows.append(template)

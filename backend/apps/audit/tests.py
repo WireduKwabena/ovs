@@ -418,6 +418,50 @@ class AuditApiTests(APITestCase):
         returned_ids = {row["id"] for row in response.data["results"]}
         self.assertIn(str(legacy_log.id), returned_ids)
 
+    def test_auditor_cannot_view_legacy_event_for_null_org_entity(self):
+        from apps.appointments.models import AppointmentRecord
+        from apps.candidates.models import Candidate
+        from apps.personnel.models import PersonnelRecord
+        from apps.positions.models import GovernmentPosition
+
+        candidate = Candidate.objects.create(
+            first_name="Null",
+            last_name="Scoped",
+            email="null.scope.audit.candidate@example.com",
+        )
+        nominee = PersonnelRecord.objects.create(
+            full_name="Null Scoped Nominee",
+            linked_candidate=candidate,
+        )
+        position = GovernmentPosition.objects.create(
+            title="Null Scoped Position",
+            branch="executive",
+            institution="Unscoped Institution",
+            appointment_authority="President",
+            is_vacant=True,
+        )
+        appointment = AppointmentRecord.objects.create(
+            position=position,
+            nominee=nominee,
+            nominated_by_user=self.admin_user,
+            nominated_by_display="Audit Admin",
+            nomination_date=date.today(),
+            status="nominated",
+        )
+        legacy_log = AuditLog.objects.create(
+            admin_user=self.admin_user,
+            action="update",
+            entity_type="AppointmentRecord",
+            entity_id=str(appointment.id),
+            changes={"event": "legacy_missing_null_org_context"},
+        )
+
+        self.client.force_authenticate(self.auditor_user)
+        response = self.client.get("/api/audit/logs/", {"changes__event": "legacy_missing_null_org_context"})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        returned_ids = {row["id"] for row in response.data["results"]}
+        self.assertNotIn(str(legacy_log.id), returned_ids)
+
 
     def test_log_event_creates_audit_row_with_request_metadata(self):
         request = RequestFactory().post(

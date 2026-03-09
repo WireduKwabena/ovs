@@ -7,6 +7,96 @@ import uuid
 from django.db.models import Q
 
 
+def normalize_legacy_billingsubscription_uuid_pk(apps, schema_editor):
+    """
+    Compatibility bridge for legacy environments where billing subscription PK is bigint.
+
+    Historical local/demo databases may still have ``billing_billingsubscription.id`` as
+    bigint even though migration state expects UUID. The onboarding-token FK added in this
+    migration requires UUID compatibility, so we normalize legacy bigint PK rows before
+    the FK-bearing model is created.
+    """
+    connection = schema_editor.connection
+    if connection.vendor != "postgresql":
+        return
+
+    table_name = "billing_billingsubscription"
+    quoted_table = schema_editor.quote_name(table_name)
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT data_type
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = %s
+              AND column_name = 'id'
+            """,
+            [table_name],
+        )
+        row = cursor.fetchone()
+        id_data_type = str(row[0] if row else "").strip().lower()
+        if id_data_type == "uuid":
+            return
+        if id_data_type not in {"bigint", "integer", "smallint", "numeric"}:
+            return
+
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM pg_constraint
+            WHERE confrelid = %s::regclass
+            """,
+            [table_name],
+        )
+        dependent_fk_count = int(cursor.fetchone()[0] or 0)
+        if dependent_fk_count > 0:
+            raise RuntimeError(
+                "Cannot normalize billing_billingsubscription.id from bigint to UUID "
+                "because dependent foreign keys exist."
+            )
+
+        cursor.execute(
+            """
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = %s
+              AND column_name = 'id_uuid'
+            """,
+            [table_name],
+        )
+        if cursor.fetchone() is None:
+            cursor.execute(f"ALTER TABLE {quoted_table} ADD COLUMN id_uuid uuid")
+
+        cursor.execute(f"SELECT id FROM {quoted_table}")
+        for (legacy_id,) in cursor.fetchall():
+            cursor.execute(
+                f"UPDATE {quoted_table} SET id_uuid = %s WHERE id = %s AND id_uuid IS NULL",
+                [uuid.uuid4(), legacy_id],
+            )
+
+        cursor.execute(
+            """
+            SELECT conname
+            FROM pg_constraint
+            WHERE conrelid = %s::regclass
+              AND contype = 'p'
+            """,
+            [table_name],
+        )
+        pk_row = cursor.fetchone()
+        if pk_row and pk_row[0]:
+            cursor.execute(
+                f"ALTER TABLE {quoted_table} DROP CONSTRAINT {schema_editor.quote_name(pk_row[0])}"
+            )
+
+        cursor.execute(f"ALTER TABLE {quoted_table} DROP COLUMN id")
+        cursor.execute(f"ALTER TABLE {quoted_table} RENAME COLUMN id_uuid TO id")
+        cursor.execute(f"ALTER TABLE {quoted_table} ALTER COLUMN id SET NOT NULL")
+        cursor.execute(f"ALTER TABLE {quoted_table} ADD PRIMARY KEY (id)")
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -16,6 +106,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(
+            normalize_legacy_billingsubscription_uuid_pk,
+            migrations.RunPython.noop,
+        ),
         migrations.CreateModel(
             name="OrganizationOnboardingToken",
             fields=[

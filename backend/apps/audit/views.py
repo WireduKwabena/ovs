@@ -77,7 +77,7 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
                 continue
             values = (
                 model.objects.filter(
-                    Q(organization_id__in=list(allowed_org_ids)) | Q(organization_id__isnull=True)
+                    organization_id__in=list(allowed_org_ids)
                 )
                 .values_list("id", flat=True)
             )

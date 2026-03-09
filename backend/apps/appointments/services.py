@@ -17,17 +17,16 @@ from apps.audit.events import log_event
 from apps.billing.quotas import enforce_candidate_quota
 from apps.candidates.models import Candidate, CandidateEnrollment
 from apps.core.authz import (
-    ROLE_ADMIN,
     ROLE_APPOINTING_AUTHORITY,
     ROLE_COMMITTEE_CHAIR,
     ROLE_COMMITTEE_MEMBER,
-    ROLE_PUBLICATION_OFFICER,
-    ROLE_REGISTRY_ADMIN,
-    ROLE_VETTING_OFFICER,
-    has_any_role,
-    has_role,
     resolve_actor_role,
 )
+from apps.core.policies.appointment_policy import (
+    actor_matches_stage_role,
+    can_appoint,
+)
+from apps.core.policies.committee_policy import get_active_committee_membership
 try:
     from apps.notifications.services import NotificationService
 except Exception:  # pragma: no cover - notifications app may be optional in some setups
@@ -170,25 +169,7 @@ def _emit_appointment_notifications(
 
 
 def _actor_matches_stage_role(actor, required_role: str) -> bool:
-    role = str(required_role or "").strip().lower()
-    if not role:
-        return True
-
-    if has_role(actor, ROLE_ADMIN):
-        return True
-
-    if role == ROLE_VETTING_OFFICER:
-        return has_any_role(actor, (ROLE_VETTING_OFFICER,))
-    if role in {ROLE_COMMITTEE_MEMBER, ROLE_COMMITTEE_CHAIR}:
-        return has_any_role(actor, (ROLE_COMMITTEE_MEMBER, ROLE_COMMITTEE_CHAIR))
-    if role == ROLE_APPOINTING_AUTHORITY:
-        return has_any_role(actor, (ROLE_APPOINTING_AUTHORITY,))
-    if role == ROLE_REGISTRY_ADMIN:
-        return has_any_role(actor, (ROLE_REGISTRY_ADMIN,))
-    if role == ROLE_PUBLICATION_OFFICER:
-        return has_any_role(actor, (ROLE_PUBLICATION_OFFICER,))
-
-    return has_role(actor, role)
+    return actor_matches_stage_role(actor, required_role)
 
 
 def _is_committee_sensitive_transition(*, stage, new_status: str) -> bool:
@@ -231,29 +212,15 @@ def _enforce_committee_stage_authorization(*, appointment: AppointmentRecord, ac
     if exercise_org_id and committee.organization_id and exercise_org_id != committee.organization_id:
         raise StageAuthorizationError("Assigned committee does not belong to the appointment exercise organization.")
 
-    try:
-        from apps.governance.models import CommitteeMembership
-    except Exception as exc:  # pragma: no cover - governance app should be installed in production/demo
-        raise StageAuthorizationError("Committee authorization subsystem is unavailable.") from exc
-
-    membership = (
-        CommitteeMembership.objects.select_related("committee")
-        .filter(
-            user=actor,
-            committee_id=committee.id,
-            is_active=True,
-            committee__is_active=True,
-            committee__organization__is_active=True,
-        )
-        .order_by("-created_at")
-        .first()
+    membership = get_active_committee_membership(
+        user=actor,
+        committee=committee,
+        allow_observer=False,
     )
     if membership is None:
         raise StageAuthorizationError("Actor is not an active member of the committee assigned to this stage.")
 
     committee_role = str(getattr(membership, "committee_role", "") or "").strip().lower()
-    if committee_role == "observer":
-        raise StageAuthorizationError("Observer committee members cannot take committee-stage actions.")
 
     required_role = str(getattr(stage, "required_role", "") or "").strip().lower() if stage is not None else ""
     if required_role == ROLE_COMMITTEE_CHAIR and committee_role != "chair":
@@ -892,9 +859,9 @@ def advance_stage(
         if not _actor_matches_stage_role(actor, stage.required_role):
             raise StageAuthorizationError(f"Actor lacks required role '{stage.required_role}' for stage '{stage.name}'.")
 
-    if new_status in {"appointed", "rejected"} and not (
-        has_role(actor, ROLE_ADMIN)
-        or has_any_role(actor, (ROLE_APPOINTING_AUTHORITY,))
+    if new_status in {"appointed", "rejected"} and not can_appoint(
+        actor,
+        organization_id=getattr(appointment, "organization_id", None),
     ):
         raise StageAuthorizationError("Only appointing authority/admin can finalize appointment decisions.")
 

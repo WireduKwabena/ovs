@@ -12,11 +12,11 @@ from apps.billing.quotas import (
     resolve_case_organization_id,
 )
 from apps.core.permissions import (
-    can_access_organization_id,
     get_request_active_organization_id,
-    is_platform_admin_user,
-    scope_queryset_to_user_organizations,
+    scope_internal_queryset_to_tenant,
 )
+from apps.core.policies.appointment_policy import can_view_internal_record
+from apps.core.policies.registry_policy import can_manage_registry, is_platform_admin_actor
 
 from .decision_engine import VettingDecisionEngine
 from .engine import RubricEvaluationEngine
@@ -64,7 +64,7 @@ class VettingRubricViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = VettingRubric.objects.prefetch_related("criteria").all()
-        queryset = scope_queryset_to_user_organizations(
+        queryset = scope_internal_queryset_to_tenant(
             queryset,
             request=self.request,
             organization_field="organization_id",
@@ -80,10 +80,16 @@ class VettingRubricViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         requested_org = serializer.validated_data.get("organization")
-        if not is_platform_admin_user(user):
-            if requested_org is not None and not can_access_organization_id(user, requested_org.id):
+        if not is_platform_admin_actor(user):
+            if requested_org is not None and not can_manage_registry(
+                user,
+                organization_id=requested_org.id,
+                allow_membershipless_fallback=False,
+            ):
                 raise PermissionDenied("You cannot create rubrics for another organization.")
             active_org_id = get_request_active_organization_id(self.request)
+            if requested_org is None and not active_org_id:
+                raise PermissionDenied("Active organization context is required to create rubrics.")
             if requested_org is None and active_org_id:
                 serializer.save(created_by=self.request.user, organization_id=active_org_id)
                 return
@@ -178,8 +184,12 @@ class VettingRubricViewSet(viewsets.ModelViewSet):
         except ValueError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not is_platform_admin_user(request.user):
-            if not can_access_organization_id(request.user, rubric.organization_id):
+        if not is_platform_admin_actor(request.user):
+            if not can_manage_registry(
+                request.user,
+                organization_id=rubric.organization_id,
+                allow_membershipless_fallback=False,
+            ):
                 rubric.delete()
                 return Response({"error": "You cannot create rubrics for another organization."}, status=status.HTTP_403_FORBIDDEN)
             if rubric.organization_id is None:
@@ -215,8 +225,11 @@ class VettingRubricViewSet(viewsets.ModelViewSet):
             case = VettingCase.objects.get(id=case_id)
         except VettingCase.DoesNotExist:
             return Response({"error": "Case not found"}, status=status.HTTP_404_NOT_FOUND)
-        if not is_platform_admin_user(request.user) and not can_access_organization_id(
-            request.user, case.organization_id
+        if not is_platform_admin_actor(request.user) and not can_view_internal_record(
+            request.user,
+            organization_id=case.organization_id,
+            allow_membershipless_fallback=False,
+            enforce_org_scope_for_null=True,
         ):
             raise PermissionDenied("You cannot evaluate cases outside your organization scope.")
 
@@ -276,8 +289,11 @@ class VettingRubricViewSet(viewsets.ModelViewSet):
                 case = VettingCase.objects.get(id=case_ref)
             except (VettingCase.DoesNotExist, ValueError, TypeError):
                 return Response({"error": "Case not found"}, status=status.HTTP_404_NOT_FOUND)
-        if not is_platform_admin_user(request.user) and not can_access_organization_id(
-            request.user, case.organization_id
+        if not is_platform_admin_actor(request.user) and not can_view_internal_record(
+            request.user,
+            organization_id=case.organization_id,
+            allow_membershipless_fallback=False,
+            enforce_org_scope_for_null=True,
         ):
             raise PermissionDenied("You cannot evaluate cases outside your organization scope.")
 
@@ -319,7 +335,7 @@ class RubricCriteriaViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = RubricCriteria.objects.select_related("rubric").all()
-        queryset = scope_queryset_to_user_organizations(
+        queryset = scope_internal_queryset_to_tenant(
             queryset,
             request=self.request,
             organization_field="rubric__organization_id",
@@ -340,7 +356,7 @@ class RubricEvaluationViewSet(viewsets.ReadOnlyModelViewSet):
             "decision_recommendations__generated_by",
             "decision_recommendations__overrides__overridden_by",
         )
-        queryset = scope_queryset_to_user_organizations(
+        queryset = scope_internal_queryset_to_tenant(
             queryset,
             request=self.request,
             organization_field="case__organization_id",

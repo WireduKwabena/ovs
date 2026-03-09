@@ -22,7 +22,7 @@ from apps.core.permissions import (
     can_access_organization_id,
     get_request_active_organization_id,
     is_platform_admin_user,
-    scope_queryset_to_user_organizations,
+    scope_internal_queryset_to_tenant,
 )
 from apps.authentication.permissions import RequiresRecentAuth
 
@@ -68,15 +68,25 @@ class ApprovalStageTemplateViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        return scope_queryset_to_user_organizations(queryset, request=self.request, organization_field="organization_id")
+        return scope_internal_queryset_to_tenant(
+            queryset,
+            request=self.request,
+            organization_field="organization_id",
+        )
 
     def perform_create(self, serializer):
         user = self.request.user
         requested_org = serializer.validated_data.get("organization")
         if not is_platform_admin_user(user):
-            if requested_org is not None and not can_access_organization_id(user, requested_org.id):
+            if requested_org is not None and not can_access_organization_id(
+                user,
+                requested_org.id,
+                allow_membershipless_fallback=False,
+            ):
                 raise PermissionDenied("You cannot create approval templates for another organization.")
             active_org_id = get_request_active_organization_id(self.request)
+            if requested_org is None and not active_org_id:
+                raise PermissionDenied("Active organization context is required to create approval templates.")
             if requested_org is None and active_org_id:
                 serializer.save(created_by=self.request.user, organization_id=active_org_id)
                 return
@@ -93,7 +103,7 @@ class ApprovalStageViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        return scope_queryset_to_user_organizations(
+        return scope_internal_queryset_to_tenant(
             queryset,
             request=self.request,
             organization_field="template__organization_id",
@@ -104,13 +114,19 @@ class ApprovalStageViewSet(viewsets.ModelViewSet):
         template = serializer.validated_data.get("template")
         committee = serializer.validated_data.get("committee")
         if not is_platform_admin_user(user) and template is not None and not can_access_organization_id(
-            user, template.organization_id
+            user,
+            template.organization_id,
+            allow_membershipless_fallback=False,
         ):
             raise PermissionDenied("You cannot create stages for templates outside your organization.")
         if (
             not is_platform_admin_user(user)
             and committee is not None
-            and not can_access_organization_id(user, committee.organization_id)
+            and not can_access_organization_id(
+                user,
+                committee.organization_id,
+                allow_membershipless_fallback=False,
+            )
         ):
             raise PermissionDenied("You cannot assign a committee outside your organization.")
         serializer.save()
@@ -121,13 +137,19 @@ class ApprovalStageViewSet(viewsets.ModelViewSet):
         template = serializer.validated_data.get("template") or instance.template
         committee = serializer.validated_data.get("committee") if "committee" in serializer.validated_data else instance.committee
         if not is_platform_admin_user(user) and template is not None and not can_access_organization_id(
-            user, template.organization_id
+            user,
+            template.organization_id,
+            allow_membershipless_fallback=False,
         ):
             raise PermissionDenied("You cannot update stages for templates outside your organization.")
         if (
             not is_platform_admin_user(user)
             and committee is not None
-            and not can_access_organization_id(user, committee.organization_id)
+            and not can_access_organization_id(
+                user,
+                committee.organization_id,
+                allow_membershipless_fallback=False,
+            )
         ):
             raise PermissionDenied("You cannot assign a committee outside your organization.")
         serializer.save()
@@ -171,7 +193,7 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        return scope_queryset_to_user_organizations(
+        return scope_internal_queryset_to_tenant(
             queryset,
             request=self.request,
             organization_field="organization_id",
@@ -197,15 +219,29 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
                 resolved_org_id = resolved_org_id or None
 
                 if not is_platform_admin_user(user):
-                    if requested_org is not None and not can_access_organization_id(user, requested_org.id):
+                    if requested_org is not None and not can_access_organization_id(
+                        user,
+                        requested_org.id,
+                        allow_membershipless_fallback=False,
+                    ):
                         raise ValidationError("You cannot create appointments for another organization.")
                     if (
                         requested_committee is not None
-                        and not can_access_organization_id(user, requested_committee.organization_id)
+                        and not can_access_organization_id(
+                            user,
+                            requested_committee.organization_id,
+                            allow_membershipless_fallback=False,
+                        )
                     ):
                         raise ValidationError("You cannot assign an appointment committee outside your organization.")
-                    if resolved_org_id and not can_access_organization_id(user, resolved_org_id):
+                    if resolved_org_id and not can_access_organization_id(
+                        user,
+                        resolved_org_id,
+                        allow_membershipless_fallback=False,
+                    ):
                         raise ValidationError("You cannot create appointments for another organization.")
+                    if not resolved_org_id:
+                        raise ValidationError("Active organization context is required to create appointments.")
 
                 if resolved_org_id:
                     appointment = serializer.save(
@@ -237,17 +273,29 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         instance = serializer.instance
         user = self.request.user
-        if not is_platform_admin_user(user) and not can_access_organization_id(user, instance.organization_id):
+        if not is_platform_admin_user(user) and not can_access_organization_id(
+            user,
+            instance.organization_id,
+            allow_membershipless_fallback=False,
+        ):
             raise PermissionDenied("You cannot update appointments outside your organization scope.")
 
         requested_org = serializer.validated_data.get("organization")
         requested_committee = serializer.validated_data.get("committee")
-        if not is_platform_admin_user(user) and requested_org is not None and not can_access_organization_id(user, requested_org.id):
+        if not is_platform_admin_user(user) and requested_org is not None and not can_access_organization_id(
+            user,
+            requested_org.id,
+            allow_membershipless_fallback=False,
+        ):
             raise PermissionDenied("You cannot move this appointment to another organization.")
         if (
             not is_platform_admin_user(user)
             and requested_committee is not None
-            and not can_access_organization_id(user, requested_committee.organization_id)
+            and not can_access_organization_id(
+                user,
+                requested_committee.organization_id,
+                allow_membershipless_fallback=False,
+            )
         ):
             raise PermissionDenied("You cannot assign appointment committee outside your organization.")
 
@@ -282,7 +330,11 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         user = self.request.user
-        if not is_platform_admin_user(user) and not can_access_organization_id(user, instance.organization_id):
+        if not is_platform_admin_user(user) and not can_access_organization_id(
+            user,
+            instance.organization_id,
+            allow_membershipless_fallback=False,
+        ):
             raise PermissionDenied("You cannot delete appointments outside your organization scope.")
         snapshot = {
             "organization_id": str(instance.organization_id) if instance.organization_id else "",
@@ -490,16 +542,18 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny], url_path="gazette-feed")
     def gazette_feed(self, request):
+        public_queryset = AppointmentRecord.objects.select_related("position", "nominee", "publication")
         queryset = self.filter_queryset(
-            self.get_queryset().filter(is_public=True, publication__status="published").exclude(gazette_number="")
+            public_queryset.filter(is_public=True, publication__status="published").exclude(gazette_number="")
         )
         serializer = PublicAppointmentRecordSerializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny], url_path="open")
     def open_appointments(self, request):
+        public_queryset = AppointmentRecord.objects.select_related("position", "nominee", "publication")
         queryset = self.filter_queryset(
-            self.get_queryset().filter(
+            public_queryset.filter(
                 status__in={"nominated", "under_vetting", "committee_review", "confirmation_pending"},
                 is_public=True,
                 publication__status="published",

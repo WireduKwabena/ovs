@@ -55,7 +55,11 @@ from apps.core.authz import (
     has_role,
     requires_two_factor_for_user,
 )
-from apps.core.permissions import ACTIVE_ORGANIZATION_SESSION_KEY, resolve_active_organization_context
+from apps.core.permissions import (
+    ACTIVE_ORGANIZATION_SESSION_KEY,
+    clear_request_tenant_context_cache,
+    get_request_tenant_context,
+)
 from apps.billing.models import BillingSubscription
 from apps.billing.quotas import enforce_organization_seat_quota
 from apps.billing.services import validate_organization_onboarding_token
@@ -116,7 +120,7 @@ def _mark_recent_auth(request, refresh_token: RefreshToken) -> int:
 
 
 def _profile_governance_context(*, request, user) -> dict:
-    resolved = resolve_active_organization_context(request)
+    resolved = get_request_tenant_context(request)
     active_organization = resolved.get("active_organization")
     committees = get_user_committees(
         user,
@@ -702,6 +706,7 @@ def set_active_organization_view(request):
     if clear or organization_id is None:
         session.pop(ACTIVE_ORGANIZATION_SESSION_KEY, None)
         session.modified = True
+        clear_request_tenant_context_cache(request)
         context = _profile_governance_context(request=request, user=request.user)
         return Response(
             {
@@ -714,7 +719,7 @@ def set_active_organization_view(request):
         )
 
     requested_org_id = str(organization_id)
-    organization_context = resolve_active_organization_context(request)
+    organization_context = get_request_tenant_context(request)
     allowed_org_ids = {str(item.get("id")) for item in organization_context.get("organizations", [])}
     if requested_org_id not in allowed_org_ids:
         return Response(
@@ -724,6 +729,7 @@ def set_active_organization_view(request):
 
     session[ACTIVE_ORGANIZATION_SESSION_KEY] = requested_org_id
     session.modified = True
+    clear_request_tenant_context_cache(request)
     context = _profile_governance_context(request=request, user=request.user)
     return Response(
         {

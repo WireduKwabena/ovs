@@ -370,3 +370,19 @@ class CampaignOrganizationScopeTests(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 403)
+
+    def test_membershipless_hr_cannot_create_campaign_without_org_context(self):
+        membershipless_hr = User.objects.create_user(
+            email="campaign_scope_create_denied@example.com",
+            password="Pass1234!",
+            first_name="Campaign",
+            last_name="CreateDenied",
+            user_type="hr_manager",
+        )
+        self.client.force_authenticate(membershipless_hr)
+        response = self.client.post(
+            "/api/campaigns/",
+            {"name": "Membershipless Create Campaign"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)

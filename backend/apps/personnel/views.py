@@ -4,13 +4,16 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from apps.candidates.models import Candidate
-from apps.core.authz import CAPABILITY_APPOINTMENT_VIEW_INTERNAL, has_capability
 from apps.core.permissions import (
     IsRegistryOperatorOrAdmin,
-    can_access_organization_id,
     get_request_active_organization_id,
-    is_platform_admin_user,
-    scope_queryset_to_user_organizations,
+    scope_internal_queryset_to_tenant,
+)
+from apps.core.policies.appointment_policy import can_view_internal_record
+from apps.core.policies.registry_policy import (
+    can_manage_registry,
+    can_manage_registry_record,
+    is_platform_admin_actor,
 )
 from apps.audit.contracts import (
     PERSONNEL_LINKED_CANDIDATE_EVENT,
@@ -38,15 +41,25 @@ class PersonnelRecordViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        return scope_queryset_to_user_organizations(queryset, request=self.request, organization_field="organization_id")
+        return scope_internal_queryset_to_tenant(
+            queryset,
+            request=self.request,
+            organization_field="organization_id",
+        )
 
     def perform_create(self, serializer):
         user = self.request.user
         requested_org = serializer.validated_data.get("organization")
-        if not is_platform_admin_user(user):
-            if requested_org is not None and not can_access_organization_id(user, requested_org.id):
+        if not is_platform_admin_actor(user):
+            if requested_org is not None and not can_manage_registry(
+                user,
+                organization_id=requested_org.id,
+                allow_membershipless_fallback=False,
+            ):
                 raise PermissionDenied("You cannot create personnel records for another organization.")
             active_org_id = get_request_active_organization_id(self.request)
+            if requested_org is None and not active_org_id:
+                raise PermissionDenied("Active organization context is required to create personnel records.")
             if requested_org is None and active_org_id:
                 record = serializer.save(organization_id=active_org_id)
             else:
@@ -70,17 +83,29 @@ class PersonnelRecordViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         instance = serializer.instance
         user = self.request.user
-        if not is_platform_admin_user(user) and not can_access_organization_id(user, instance.organization_id):
+        if not is_platform_admin_actor(user) and not can_manage_registry_record(
+            user,
+            instance,
+            allow_membershipless_fallback=False,
+        ):
             raise PermissionDenied("You cannot update personnel records outside your organization scope.")
         requested_org = serializer.validated_data.get("organization")
-        if not is_platform_admin_user(user) and requested_org is not None and not can_access_organization_id(user, requested_org.id):
+        if (
+            not is_platform_admin_actor(user)
+            and requested_org is not None
+            and not can_manage_registry(
+                user,
+                organization_id=requested_org.id,
+                allow_membershipless_fallback=False,
+            )
+        ):
             raise PermissionDenied("You cannot move this personnel record to another organization.")
 
         changed_fields = list(serializer.validated_data.keys())
         before = {field: getattr(instance, field, None) for field in changed_fields}
         save_kwargs = {}
         if (
-            not is_platform_admin_user(user)
+            not is_platform_admin_actor(user)
             and instance.organization_id is None
             and "organization" not in serializer.validated_data
         ):
@@ -105,7 +130,11 @@ class PersonnelRecordViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         user = self.request.user
-        if not is_platform_admin_user(user) and not can_access_organization_id(user, instance.organization_id):
+        if not is_platform_admin_actor(user) and not can_manage_registry_record(
+            user,
+            instance,
+            allow_membershipless_fallback=False,
+        ):
             raise PermissionDenied("You cannot delete personnel records outside your organization scope.")
         snapshot = {
             "full_name": instance.full_name,
@@ -129,17 +158,21 @@ class PersonnelRecordViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny], url_path="officeholders")
     def officeholders(self, request):
-        queryset = self.filter_queryset(
-            self.get_queryset().filter(is_active_officeholder=True, is_public=True)
+        queryset = PersonnelRecord.objects.select_related("organization", "linked_candidate").filter(
+            is_active_officeholder=True,
+            is_public=True,
         )
+        queryset = self.filter_queryset(queryset)
         serializer = PublicPersonnelRecordSerializer(queryset, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"], permission_classes=[IsRegistryOperatorOrAdmin], url_path="link-candidate")
     def link_candidate(self, request, pk=None):
         personnel = self.get_object()
-        if not is_platform_admin_user(request.user) and not can_access_organization_id(
-            request.user, personnel.organization_id
+        if not is_platform_admin_actor(request.user) and not can_manage_registry_record(
+            request.user,
+            personnel,
+            allow_membershipless_fallback=False,
         ):
             raise PermissionDenied("You cannot link candidates for personnel outside your organization scope.")
         candidate_id = request.data.get("candidate_id")
@@ -171,7 +204,10 @@ class PersonnelRecordViewSet(viewsets.ModelViewSet):
     def appointment_history(self, request, pk=None):
         personnel = self.get_object()
         rows = personnel.appointment_records.select_related("position").order_by("-created_at")
-        if not has_capability(request.user, CAPABILITY_APPOINTMENT_VIEW_INTERNAL):
+        if not can_view_internal_record(
+            request.user,
+            organization_id=getattr(personnel, "organization_id", None),
+        ):
             rows = rows.filter(is_public=True)
         data = [
             {

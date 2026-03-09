@@ -314,13 +314,13 @@ class PersonnelOrganizationScopeTests(APITestCase):
             return payload["results"]
         return payload
 
-    def test_list_is_scoped_to_membership_org_with_legacy_null_fallback(self):
+    def test_list_is_scoped_to_membership_org_and_excludes_legacy_null_scope(self):
         self.client.force_authenticate(self.hr_a)
         response = self.client.get("/api/personnel/")
         self.assertEqual(response.status_code, 200)
         ids = {item["id"] for item in self._extract_results(response)}
         self.assertIn(str(self.record_org_a.id), ids)
-        self.assertIn(str(self.record_legacy.id), ids)
+        self.assertNotIn(str(self.record_legacy.id), ids)
         self.assertNotIn(str(self.record_org_b.id), ids)
 
     def test_delete_outside_org_is_denied_for_hr_but_allowed_for_admin(self):
@@ -331,3 +331,39 @@ class PersonnelOrganizationScopeTests(APITestCase):
         self.client.force_authenticate(self.admin_user)
         allowed = self.client.delete(f"/api/personnel/{self.record_org_b.id}/")
         self.assertEqual(allowed.status_code, 204)
+
+    def test_membershipless_hr_list_is_limited_to_legacy_null_scope(self):
+        membershipless_hr = User.objects.create_user(
+            email="personnel_scope_legacy_only@example.com",
+            password="Pass1234!",
+            first_name="Personnel",
+            last_name="LegacyOnly",
+            user_type="hr_manager",
+        )
+        self.client.force_authenticate(membershipless_hr)
+        response = self.client.get("/api/personnel/")
+        self.assertEqual(response.status_code, 200)
+        ids = {item["id"] for item in self._extract_results(response)}
+        self.assertIn(str(self.record_legacy.id), ids)
+        self.assertNotIn(str(self.record_org_a.id), ids)
+        self.assertNotIn(str(self.record_org_b.id), ids)
+
+    def test_membershipless_hr_cannot_create_personnel_without_org_context(self):
+        membershipless_hr = User.objects.create_user(
+            email="personnel_scope_create_denied@example.com",
+            password="Pass1234!",
+            first_name="Personnel",
+            last_name="CreateDenied",
+            user_type="hr_manager",
+        )
+        self.client.force_authenticate(membershipless_hr)
+        response = self.client.post(
+            "/api/personnel/",
+            {
+                "full_name": "Membershipless Create Personnel",
+                "is_public": True,
+                "is_active_officeholder": False,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)

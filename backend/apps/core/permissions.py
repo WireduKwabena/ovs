@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from django.db.models import Q
 from rest_framework.permissions import BasePermission
 
 from .authz import (
@@ -11,7 +10,6 @@ from .authz import (
     CAPABILITY_APPOINTMENT_PUBLISH,
     CAPABILITY_APPOINTMENT_STAGE,
     CAPABILITY_APPOINTMENT_VIEW_INTERNAL,
-    CAPABILITY_AUDIT_VIEW,
     CAPABILITY_REGISTRY_MANAGE,
     ROLE_ADMIN,
     get_user_default_organization,
@@ -23,10 +21,14 @@ from .authz import (
     has_role,
     is_internal_operator,
 )
+from .policies.appointment_policy import can_view_internal_record
+from .policies.audit_policy import can_view_audit
 
 ACTIVE_ORGANIZATION_SESSION_KEY = "auth_active_organization_id"
 ACTIVE_ORGANIZATION_HEADER_KEY = "HTTP_X_ACTIVE_ORGANIZATION_ID"
 ACTIVE_ORGANIZATION_QUERY_PARAM = "active_organization_id"
+ACTIVE_ORGANIZATION_CONTEXT_CACHE_ATTR = "_active_organization_context"
+TENANT_CONTEXT_CACHE_ATTR = "_tenant_context"
 
 
 def is_hr_or_admin_user(user) -> bool:
@@ -98,7 +100,7 @@ class IsAuditReaderOrAdmin(BasePermission):
 
     def has_permission(self, request, view):
         user = getattr(request, "user", None)
-        return bool(is_admin_user(user) or has_capability(user, CAPABILITY_AUDIT_VIEW))
+        return can_view_audit(user)
 
 
 class CanViewInternalAppointmentData(BasePermission):
@@ -106,7 +108,7 @@ class CanViewInternalAppointmentData(BasePermission):
 
     def has_permission(self, request, view):
         user = getattr(request, "user", None)
-        return bool(is_admin_user(user) or has_capability(user, CAPABILITY_APPOINTMENT_VIEW_INTERNAL))
+        return can_view_internal_record(user)
 
 
 def user_roles(user) -> list[str]:
@@ -123,7 +125,7 @@ def user_organization_scope(user) -> list[str]:
     return sorted(get_user_organization_names(user))
 
 
-def resolve_active_organization_context(request) -> dict:
+def _build_active_organization_context(request) -> dict:
     """
     Resolve active organization for the current request without enforcing global data scoping.
 
@@ -194,6 +196,21 @@ def resolve_active_organization_context(request) -> dict:
     }
 
 
+def resolve_active_organization_context(request) -> dict:
+    cached = getattr(request, ACTIVE_ORGANIZATION_CONTEXT_CACHE_ATTR, None)
+    if isinstance(cached, dict):
+        return cached
+    context = _build_active_organization_context(request)
+    setattr(request, ACTIVE_ORGANIZATION_CONTEXT_CACHE_ATTR, context)
+    return context
+
+
+def clear_request_tenant_context_cache(request) -> None:
+    for attr_name in (ACTIVE_ORGANIZATION_CONTEXT_CACHE_ATTR, TENANT_CONTEXT_CACHE_ATTR):
+        if hasattr(request, attr_name):
+            delattr(request, attr_name)
+
+
 def get_request_active_organization_id(request) -> str | None:
     active = resolve_active_organization_context(request).get("active_organization")
     if isinstance(active, dict):
@@ -203,25 +220,66 @@ def get_request_active_organization_id(request) -> str | None:
     return None
 
 
+def get_request_tenant_context(request) -> dict:
+    cached = getattr(request, TENANT_CONTEXT_CACHE_ATTR, None)
+    if isinstance(cached, dict):
+        return cached
+
+    organization_context = resolve_active_organization_context(request)
+    user = getattr(request, "user", None)
+    allowed_org_ids = get_user_allowed_organization_ids(user)
+    active_org = organization_context.get("active_organization")
+    active_org_id = ""
+    if isinstance(active_org, dict):
+        active_org_id = str(active_org.get("id", "") or "").strip()
+    context = {
+        **organization_context,
+        "active_organization_id": active_org_id or None,
+        "allowed_organization_ids": allowed_org_ids,
+        "has_memberships": bool(allowed_org_ids),
+        "is_platform_admin": bool(is_platform_admin_user(user)),
+    }
+    setattr(request, TENANT_CONTEXT_CACHE_ATTR, context)
+    return context
+
+
 def get_user_allowed_organization_ids(user) -> set[str]:
     return set(get_user_organization_ids(user))
 
 
-def can_access_organization_id(user, organization_id) -> bool:
+def can_access_organization_id(
+    user,
+    organization_id,
+    *,
+    allow_membershipless_fallback: bool = False,
+) -> bool:
     if is_platform_admin_user(user):
         return True
 
     normalized_org_id = str(organization_id or "").strip()
     if not normalized_org_id:
-        # Legacy null-scoped records remain accessible during transition.
-        return True
+        if allow_membershipless_fallback:
+            # Compatibility mode can keep null-scoped records writable.
+            return True
+        allowed_org_ids = get_user_allowed_organization_ids(user)
+        # In strict mode, null-scoped records are writable only for legacy users
+        # who have not yet been migrated to org memberships.
+        return not bool(allowed_org_ids)
 
     allowed_org_ids = get_user_allowed_organization_ids(user)
     if not allowed_org_ids:
-        # Legacy users without memberships remain backward-compatible.
-        return True
+        # Compatibility mode for legacy users without governance memberships.
+        return bool(allow_membershipless_fallback)
 
     return normalized_org_id in allowed_org_ids
+
+
+def can_access_organization_id_strict(user, organization_id) -> bool:
+    return can_access_organization_id(
+        user,
+        organization_id,
+        allow_membershipless_fallback=False,
+    )
 
 
 def scope_queryset_to_user_organizations(
@@ -230,6 +288,7 @@ def scope_queryset_to_user_organizations(
     request,
     organization_field: str = "organization_id",
     include_null_legacy: bool = True,
+    allow_membershipless_fallback: bool = False,
 ):
     """
     Scope queryset by active org (preferred) or membership org set, with null legacy fallback.
@@ -240,21 +299,38 @@ def scope_queryset_to_user_organizations(
     if is_platform_admin_user(user):
         return queryset
 
-    allowed_org_ids = get_user_allowed_organization_ids(user)
+    tenant_context = get_request_tenant_context(request)
+    allowed_org_ids = set(tenant_context.get("allowed_organization_ids") or set())
     if not allowed_org_ids:
-        return queryset
-
-    active_org_id = get_request_active_organization_id(request)
-    if active_org_id and active_org_id in allowed_org_ids:
+        if allow_membershipless_fallback:
+            return queryset
         if include_null_legacy:
-            return queryset.filter(
-                Q(**{organization_field: active_org_id}) | Q(**{f"{organization_field}__isnull": True})
-            )
+            return queryset.filter(**{f"{organization_field}__isnull": True})
+        return queryset.none()
+
+    active_org_id = str(tenant_context.get("active_organization_id") or "").strip()
+    if active_org_id and active_org_id in allowed_org_ids:
         return queryset.filter(**{organization_field: active_org_id})
 
-    if include_null_legacy:
-        return queryset.filter(
-            Q(**{f"{organization_field}__in": list(allowed_org_ids)})
-            | Q(**{f"{organization_field}__isnull": True})
-        )
     return queryset.filter(**{f"{organization_field}__in": list(allowed_org_ids)})
+
+
+def scope_internal_queryset_to_tenant(
+    queryset,
+    *,
+    request,
+    organization_field: str = "organization_id",
+    include_null_legacy: bool = True,
+):
+    """
+    Strict tenant scoping for internal workflows.
+
+    Unlike compatibility scoping, membership-less internal users are denied queryset access.
+    """
+    return scope_queryset_to_user_organizations(
+        queryset,
+        request=request,
+        organization_field=organization_field,
+        include_null_legacy=include_null_legacy,
+        allow_membershipless_fallback=False,
+    )
