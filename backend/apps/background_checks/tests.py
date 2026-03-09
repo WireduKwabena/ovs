@@ -4,10 +4,13 @@ from unittest.mock import Mock, patch
 from django.conf import settings
 from django.test import TestCase, override_settings
 from rest_framework import status
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.test import APITestCase
 
 from apps.applications.models import VettingCase
 from apps.authentication.models import User
+from apps.billing.models import BillingSubscription
+from apps.governance.models import Organization, OrganizationMembership
 
 from .services import refresh_background_check, submit_background_check
 
@@ -32,6 +35,20 @@ class BackgroundCheckServiceTests(TestCase):
             status="under_review",
         )
 
+    def _create_org_subscription(self, organization, *, status="complete", payment_status="paid", plan_id="starter"):
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            organization=organization,
+            status=status,
+            payment_status=payment_status,
+            plan_id=plan_id,
+            plan_name=plan_id.title(),
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference=f"OVS-BGCHECK-{plan_id.upper()}-{str(organization.id)[:8]}-{status.upper()}",
+        )
+
     @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True)
     def test_submit_requires_consent(self):
         with self.assertRaises(ValueError):
@@ -41,6 +58,42 @@ class BackgroundCheckServiceTests(TestCase):
                 submitted_by=self.user,
                 consent_evidence={"granted": False},
             )
+
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True, BILLING_VETTING_OPERATION_QUOTA_ENFORCEMENT_ENABLED=True)
+    def test_submit_blocks_when_org_subscription_is_inactive(self):
+        organization = Organization.objects.create(
+            code="bg-check-sub-inactive",
+            name="Background Check Inactive Subscription Org",
+            organization_type="agency",
+            is_active=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.user,
+            organization=organization,
+            membership_role="nominee",
+            is_active=True,
+            is_default=True,
+        )
+        self._create_org_subscription(
+            organization,
+            status="canceled",
+            payment_status="unpaid",
+            plan_id="starter",
+        )
+        self.case.organization = organization
+        self.case.save(update_fields=["organization", "updated_at"])
+
+        with self.assertRaises(DRFValidationError) as context:
+            submit_background_check(
+                case=self.case,
+                check_type="kyc_aml",
+                submitted_by=self.user,
+                consent_evidence={"granted": True},
+            )
+
+        detail = context.exception.detail if isinstance(context.exception.detail, dict) else {}
+        self.assertEqual(detail.get("code"), "subscription_required")
+        self.assertEqual((detail.get("quota") or {}).get("operation"), "background_check_submission")
 
     @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True, BACKGROUND_CHECK_DEFAULT_PROVIDER="mock")
     def test_submit_then_refresh_completes(self):
@@ -190,6 +243,20 @@ class BackgroundCheckApiTests(APITestCase):
             status="under_review",
         )
 
+    def _create_org_subscription(self, organization, *, status="complete", payment_status="paid", plan_id="starter"):
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            organization=organization,
+            status=status,
+            payment_status=payment_status,
+            plan_id=plan_id,
+            plan_name=plan_id.title(),
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference=f"OVS-BGAPI-{plan_id.upper()}-{str(organization.id)[:8]}-{status.upper()}",
+        )
+
     def test_applicant_cannot_list_background_checks(self):
         self.client.force_authenticate(self.user)
         response = self.client.get("/api/background-checks/checks/")
@@ -213,6 +280,47 @@ class BackgroundCheckApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["case"], self.case.id)
         self.assertEqual(response.data["status"], "submitted")
+
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True, BILLING_VETTING_OPERATION_QUOTA_ENFORCEMENT_ENABLED=True)
+    def test_hr_manager_create_blocks_when_org_subscription_is_inactive(self):
+        organization = Organization.objects.create(
+            code="bg-api-sub-inactive",
+            name="Background Check API Inactive Subscription Org",
+            organization_type="agency",
+            is_active=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr_user,
+            organization=organization,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
+        )
+        self._create_org_subscription(
+            organization,
+            status="canceled",
+            payment_status="unpaid",
+            plan_id="starter",
+        )
+        self.case.organization = organization
+        self.case.save(update_fields=["organization", "updated_at"])
+
+        self.client.force_authenticate(self.hr_user)
+        response = self.client.post(
+            "/api/background-checks/checks/",
+            {
+                "case": self.case.id,
+                "check_type": "kyc_aml",
+                "provider_key": "mock",
+                "request_payload": {"country": "US"},
+                "consent_evidence": {"granted": True},
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data.get("code"), "subscription_required")
+        self.assertEqual((response.data.get("quota") or {}).get("operation"), "background_check_submission")
 
     @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True)
     def test_applicant_cannot_create_background_check(self):

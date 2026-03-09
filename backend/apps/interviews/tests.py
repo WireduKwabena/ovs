@@ -4,6 +4,8 @@ from unittest.mock import Mock, patch
 
 from apps.applications.models import InterrogationFlag, VettingCase
 from apps.authentication.models import User
+from apps.billing.models import BillingSubscription
+from apps.governance.models import Organization, OrganizationMembership
 from apps.interviews.models import (
     InterviewQuestion,
     InterviewResponse,
@@ -58,6 +60,20 @@ class InterviewsApiTests(APITestCase):
         self.assertEqual(question_response.status_code, 201)
         self.question_id = question_response.json()["id"]
 
+    def _create_org_subscription(self, organization, *, status="complete", payment_status="paid", plan_id="starter"):
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            organization=organization,
+            status=status,
+            payment_status=payment_status,
+            plan_id=plan_id,
+            plan_name=plan_id.title(),
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference=f"OVS-INT-{plan_id.upper()}-{str(organization.id)[:8]}-{status.upper()}",
+        )
+
     def test_session_lifecycle_and_response_analysis(self):
         create_session = self.client.post(
             "/api/interviews/sessions/",
@@ -102,6 +118,56 @@ class InterviewsApiTests(APITestCase):
         self.case.refresh_from_db()
         self.assertTrue(self.case.interview_completed)
         self.assertIsNotNone(self.case.interview_score)
+
+    @override_settings(BILLING_VETTING_OPERATION_QUOTA_ENFORCEMENT_ENABLED=True)
+    def test_analyze_endpoint_blocks_when_org_subscription_is_inactive(self):
+        organization = Organization.objects.create(
+            code="interview-quota-org",
+            name="Interview Quota Org",
+            organization_type="agency",
+            is_active=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr,
+            organization=organization,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
+        )
+        self._create_org_subscription(
+            organization,
+            status="canceled",
+            payment_status="unpaid",
+            plan_id="starter",
+        )
+
+        scoped_case = VettingCase.objects.create(
+            applicant=self.applicant,
+            assigned_to=self.hr,
+            organization=organization,
+            position_applied="QA Engineer",
+            department="Quality",
+            priority="medium",
+            status="interview_in_progress",
+        )
+        session = InterviewSession.objects.create(
+            case=scoped_case,
+            status="in_progress",
+            max_questions=5,
+        )
+        interview_response = InterviewResponse.objects.create(
+            session=session,
+            question=InterviewQuestion.objects.get(id=self.question_id),
+            sequence_number=1,
+            transcript="I validate data lineage and verify evidence chains.",
+            response_duration_seconds=20,
+        )
+
+        response = self.client.post(f"/api/interviews/responses/{interview_response.id}/analyze/")
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertEqual(payload.get("code"), "subscription_required")
+        self.assertEqual((payload.get("quota") or {}).get("operation"), "interview_analysis")
 
     @patch("apps.interviews.signals.NotificationService.send_interview_scheduled")
     def test_session_creation_triggers_candidate_interview_scheduled_notification(
@@ -619,6 +685,20 @@ class InterviewTaskIdentityMatchTests(APITestCase):
             response_duration_seconds=30,
         )
 
+    def _create_org_subscription(self, organization, *, status="complete", payment_status="paid", plan_id="starter"):
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            organization=organization,
+            status=status,
+            payment_status=payment_status,
+            plan_id=plan_id,
+            plan_name=plan_id.title(),
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference=f"OVS-INTTASK-{plan_id.upper()}-{str(organization.id)[:8]}-{status.upper()}",
+        )
+
     @patch("apps.interviews.tasks._run_identity_match")
     def test_task_persists_identity_match_payload(self, mock_identity):
         mock_identity.return_value = {
@@ -644,3 +724,35 @@ class InterviewTaskIdentityMatchTests(APITestCase):
             video_analysis.raw_analysis_data["identity_match"]["similarity_score"],
             0.42,
         )
+
+    @override_settings(BILLING_VETTING_OPERATION_QUOTA_ENFORCEMENT_ENABLED=True)
+    def test_analyze_response_task_blocks_when_org_subscription_is_inactive(self):
+        organization = Organization.objects.create(
+            code="interview-task-sub-inactive",
+            name="Interview Task Subscription Inactive Org",
+            organization_type="agency",
+            is_active=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr,
+            organization=organization,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
+        )
+        self._create_org_subscription(
+            organization,
+            status="canceled",
+            payment_status="unpaid",
+            plan_id="starter",
+        )
+        self.case.organization = organization
+        self.case.save(update_fields=["organization", "updated_at"])
+        self.response.processed_at = None
+        self.response.save(update_fields=["processed_at"])
+
+        result = analyze_response_task.run(self.response.id)
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result.get("code"), "subscription_required")
+        self.assertEqual((result.get("quota") or {}).get("operation"), "interview_analysis")
