@@ -169,6 +169,60 @@ class InterviewsApiTests(APITestCase):
         self.assertEqual(payload.get("code"), "subscription_required")
         self.assertEqual((payload.get("quota") or {}).get("operation"), "interview_analysis")
 
+    @override_settings(BILLING_VETTING_OPERATION_QUOTA_ENFORCEMENT_ENABLED=True)
+    def test_create_response_blocks_when_org_subscription_is_inactive(self):
+        organization = Organization.objects.create(
+            code="interview-create-sub-inactive",
+            name="Interview Create Inactive Subscription Org",
+            organization_type="agency",
+            is_active=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr,
+            organization=organization,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
+        )
+        self._create_org_subscription(
+            organization,
+            status="canceled",
+            payment_status="unpaid",
+            plan_id="starter",
+        )
+
+        scoped_case = VettingCase.objects.create(
+            applicant=self.applicant,
+            assigned_to=self.hr,
+            organization=organization,
+            position_applied="QA Engineer",
+            department="Quality",
+            priority="medium",
+            status="interview_in_progress",
+        )
+        session = InterviewSession.objects.create(
+            case=scoped_case,
+            status="in_progress",
+            max_questions=5,
+        )
+
+        response = self.client.post(
+            "/api/interviews/responses/",
+            {
+                "session": str(session.id),
+                "question": str(self.question_id),
+                "sequence_number": 1,
+                "transcript": "I validate chain-of-custody records against source systems.",
+                "response_duration_seconds": 22,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertEqual(payload.get("code"), "subscription_required")
+        self.assertEqual((payload.get("quota") or {}).get("operation"), "interview_analysis")
+
     @patch("apps.interviews.signals.NotificationService.send_interview_scheduled")
     def test_session_creation_triggers_candidate_interview_scheduled_notification(
         self, mock_send_interview_scheduled

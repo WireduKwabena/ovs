@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -21,6 +22,7 @@ from apps.core.permissions import (
     is_platform_admin_user,
     scope_queryset_to_user_organizations,
 )
+from apps.governance.models import Organization
 from apps.invitations.permissions import IsAuthenticatedOrCandidateAccessSession
 
 from .models import Document, VettingCase
@@ -209,16 +211,10 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="upload-document")
     def upload_document(self, request, pk=None):
         case = self.get_object()
-        resolved_org_id = resolve_case_organization_id(case)
+        resolved_org_id = resolve_case_organization_id(case, actor=request.user)
         quota_actor = None
         if not resolved_org_id and getattr(request.user, "is_authenticated", False):
             quota_actor = request.user
-        enforce_vetting_operation_quota(
-            operation=VETTING_OPERATION_DOCUMENT_VERIFICATION,
-            user=quota_actor,
-            organization_id=resolved_org_id,
-            additional=1,
-        )
         payload = request.data.copy()
         if "file" not in payload and "document" in request.FILES:
             payload["file"] = request.FILES["document"]
@@ -252,28 +248,44 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
             )
 
         file = serializer.validated_data["file"]
-        document = Document.objects.create(
-            case=case,
-            document_type=requested_document_type,
-            file=file,
-            original_filename=file.name,
-            file_size=file.size,
-            mime_type=getattr(file, "content_type", "") or "application/octet-stream",
-            status="queued",
-        )
+        def _reserve_and_create_document():
+            enforce_vetting_operation_quota(
+                operation=VETTING_OPERATION_DOCUMENT_VERIFICATION,
+                user=quota_actor,
+                organization_id=resolved_org_id,
+                additional=1,
+            )
 
-        case.documents_uploaded = True
-        if case.status in {"pending", "document_upload"}:
-            case.status = "document_analysis"
-        case.save(update_fields=["documents_uploaded", "status", "updated_at"])
+            created_document = Document.objects.create(
+                case=case,
+                document_type=requested_document_type,
+                file=file,
+                original_filename=file.name,
+                file_size=file.size,
+                mime_type=getattr(file, "content_type", "") or "application/octet-stream",
+                status="queued",
+            )
 
-        if enrollment and enrollment.status in {"invited", "registered"}:
-            enrollment.status = "in_progress"
-            if not enrollment.registered_at:
-                enrollment.registered_at = timezone.now()
-            enrollment.save(update_fields=["status", "registered_at", "updated_at"])
+            case.documents_uploaded = True
+            if case.status in {"pending", "document_upload"}:
+                case.status = "document_analysis"
+            case.save(update_fields=["documents_uploaded", "status", "updated_at"])
 
-        verify_document_async.delay(document.id)
+            if enrollment and enrollment.status in {"invited", "registered"}:
+                enrollment.status = "in_progress"
+                if not enrollment.registered_at:
+                    enrollment.registered_at = timezone.now()
+                enrollment.save(update_fields=["status", "registered_at", "updated_at"])
+            return created_document
+
+        if resolved_org_id:
+            with transaction.atomic():
+                Organization.objects.select_for_update().filter(id=resolved_org_id).exists()
+                document = _reserve_and_create_document()
+        else:
+            document = _reserve_and_create_document()
+
+        transaction.on_commit(lambda: verify_document_async.delay(document.id))
 
         output = DocumentSerializer(document, context=self.get_serializer_context())
         return Response(output.data, status=status.HTTP_201_CREATED)
@@ -391,7 +403,7 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
         except Exception:
             existing_social_result = None
 
-        resolved_org_id = resolve_case_organization_id(case)
+        resolved_org_id = resolve_case_organization_id(case, actor=user)
         quota_actor = None if resolved_org_id else user
         enforce_vetting_operation_quota(
             operation=VETTING_OPERATION_SOCIAL_PROFILE_CHECK,

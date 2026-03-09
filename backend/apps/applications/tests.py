@@ -400,6 +400,61 @@ class ApplicationsApiTests(APITestCase):
         mock_verify_delay.assert_not_called()
 
     @override_settings(BILLING_VETTING_OPERATION_QUOTA_ENFORCEMENT_ENABLED=True)
+    @patch("apps.applications.views.verify_document_async.delay")
+    def test_upload_document_uses_legacy_user_org_mapping_for_quota_scope(self, mock_verify_delay):
+        legacy_org = Organization.objects.create(
+            code="legacy-user-org-map",
+            name="Legacy User Organization Map",
+            organization_type="agency",
+            is_active=True,
+        )
+        legacy_hr = User.objects.create_user(
+            email="legacy_org_hr_apps@example.com",
+            password="Pass1234!",
+            first_name="Legacy",
+            last_name="Org",
+            user_type="hr_manager",
+            organization=legacy_org.name,
+        )
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            organization=legacy_org,
+            status="canceled",
+            payment_status="unpaid",
+            plan_id="starter",
+            plan_name="Starter",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference="OVS-LEGACY-ORG-MAP-INACTIVE",
+        )
+        case = VettingCase.objects.create(
+            applicant=self.applicant,
+            assigned_to=legacy_hr,
+            position_applied="Analyst",
+            department="Operations",
+            priority="medium",
+            status="document_upload",
+        )
+
+        self.client.force_authenticate(legacy_hr)
+        response = self.client.post(
+            f"/api/applications/cases/{case.id}/upload-document/",
+            {
+                "document_type": "id_card",
+                "file": SimpleUploadedFile("legacy-map.pdf", b"%PDF-1.4 legacy", content_type="application/pdf"),
+            },
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertEqual(payload.get("code"), "subscription_required")
+        self.assertEqual((payload.get("quota") or {}).get("operation"), "document_verification")
+        self.assertIn(str(legacy_org.id), str((payload.get("quota") or {}).get("scope", "")))
+        mock_verify_delay.assert_not_called()
+
+    @override_settings(BILLING_VETTING_OPERATION_QUOTA_ENFORCEMENT_ENABLED=True)
     def test_verify_document_task_blocks_when_org_subscription_is_inactive(self):
         organization = Organization.objects.create(
             code="apps-doc-sub-inactive",

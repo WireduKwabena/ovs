@@ -148,26 +148,42 @@ def submit_background_check(
     if require_consent and not _consent_granted(normalized_consent):
         raise ValueError("Consent is required before running third-party background checks.")
 
-    resolved_org_id = resolve_case_organization_id(case)
-    quota_actor = submitted_by if (resolved_org_id is None and getattr(submitted_by, "is_authenticated", False)) else None
-    enforce_vetting_operation_quota(
-        operation=VETTING_OPERATION_BACKGROUND_CHECK_SUBMISSION,
-        user=quota_actor,
-        organization_id=resolved_org_id,
-        additional=1,
-    )
-
     provider = get_provider(provider_key)
+    active_submission_statuses = {"pending", "submitted", "in_progress"}
+    with transaction.atomic():
+        locked_case = case.__class__.objects.select_for_update().get(pk=case.pk)
+        existing_active_check = (
+            BackgroundCheck.objects.select_for_update()
+            .filter(
+                case=locked_case,
+                check_type=check_type,
+                provider_key=provider.key,
+                status__in=active_submission_statuses,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+        if existing_active_check is not None:
+            return existing_active_check
 
-    check = BackgroundCheck.objects.create(
-        case=case,
-        check_type=check_type,
-        provider_key=provider.key,
-        status="pending",
-        request_payload=_normalize_payload(request_payload),
-        consent_evidence=normalized_consent,
-        submitted_by=submitted_by,
-    )
+        resolved_org_id = resolve_case_organization_id(locked_case, actor=submitted_by)
+        quota_actor = submitted_by if (resolved_org_id is None and getattr(submitted_by, "is_authenticated", False)) else None
+        enforce_vetting_operation_quota(
+            operation=VETTING_OPERATION_BACKGROUND_CHECK_SUBMISSION,
+            user=quota_actor,
+            organization_id=resolved_org_id,
+            additional=1,
+        )
+
+        check = BackgroundCheck.objects.create(
+            case=locked_case,
+            check_type=check_type,
+            provider_key=provider.key,
+            status="pending",
+            request_payload=_normalize_payload(request_payload),
+            consent_evidence=normalized_consent,
+            submitted_by=submitted_by,
+        )
 
     status_before = check.status
     try:

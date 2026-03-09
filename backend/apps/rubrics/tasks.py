@@ -36,7 +36,7 @@ def evaluate_case_with_rubric(self, case_id: int, rubric_id: int, evaluator_id: 
             logger.warning("Rubric evaluation requested with invalid evaluator_id=%s", evaluator_id)
 
     existing_evaluation = RubricEvaluation.objects.filter(case=case).exists()
-    resolved_org_id = resolve_case_organization_id(case)
+    resolved_org_id = resolve_case_organization_id(case, actor=evaluated_by)
     quota_actor = evaluated_by if (resolved_org_id is None and getattr(evaluated_by, "is_authenticated", False)) else None
     enforce_vetting_operation_quota(
         operation=VETTING_OPERATION_RUBRIC_EVALUATION,

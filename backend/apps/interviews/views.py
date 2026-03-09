@@ -2,6 +2,7 @@ import uuid
 import logging
 
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Q
 from django.core.files.storage import default_storage
 from django.shortcuts import get_object_or_404
@@ -20,6 +21,7 @@ from apps.billing.quotas import (
     enforce_vetting_operation_quota,
     resolve_case_organization_id,
 )
+from apps.governance.models import Organization
 
 try:
     from drf_spectacular.utils import extend_schema
@@ -77,6 +79,29 @@ def _candidate_enrollment_id(request) -> int | None:
 
 def _is_service_authenticated_request(request) -> bool:
     return bool(getattr(request, "service_authenticated", False))
+
+
+def _reserve_interview_analysis_quota(*, case, actor, additional: int) -> None:
+    resolved_org_id = resolve_case_organization_id(case, actor=actor)
+    quota_actor = actor if (resolved_org_id is None and getattr(actor, "is_authenticated", False)) else None
+
+    if resolved_org_id:
+        with transaction.atomic():
+            Organization.objects.select_for_update().filter(id=resolved_org_id).exists()
+            enforce_vetting_operation_quota(
+                operation=VETTING_OPERATION_INTERVIEW_ANALYSIS,
+                user=quota_actor,
+                organization_id=resolved_org_id,
+                additional=additional,
+            )
+        return
+
+    enforce_vetting_operation_quota(
+        operation=VETTING_OPERATION_INTERVIEW_ANALYSIS,
+        user=quota_actor,
+        organization_id=resolved_org_id,
+        additional=additional,
+    )
 
 
 def _queue_interview_task_safely(task, *args, fallback_to_inline: bool = False) -> bool:
@@ -280,6 +305,13 @@ class InterviewSessionViewSet(viewsets.ModelViewSet):
             response.sentiment = sentiment
             update_fields.append("sentiment")
 
+        reserve_additional = 0 if response.answered_at is not None else 1
+        _reserve_interview_analysis_quota(
+            case=session.case,
+            actor=request.user,
+            additional=reserve_additional,
+        )
+
         response.answered_at = timezone.now()
         update_fields.append("answered_at")
         response.save(update_fields=update_fields)
@@ -298,15 +330,6 @@ class InterviewSessionViewSet(viewsets.ModelViewSet):
         }
         session.conversation_history = [*(session.conversation_history or []), history_entry]
         session.save(update_fields=["conversation_history"])
-
-        resolved_org_id = resolve_case_organization_id(session.case)
-        quota_actor = request.user if (resolved_org_id is None and getattr(request.user, "is_authenticated", False)) else None
-        enforce_vetting_operation_quota(
-            operation=VETTING_OPERATION_INTERVIEW_ANALYSIS,
-            user=quota_actor,
-            organization_id=resolved_org_id,
-            additional=0 if response.processed_at is not None else 1,
-        )
 
         _queue_interview_task_safely(
             analyze_response_task,
@@ -498,24 +521,30 @@ class InterviewResponseViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         enrollment_id = _candidate_enrollment_id(self.request)
+        session = serializer.validated_data["session"]
         if enrollment_id:
-            session = serializer.validated_data["session"]
             if session.case.candidate_enrollment_id != enrollment_id:
                 raise PermissionDenied("You cannot submit responses for this interview session.")
+        _reserve_interview_analysis_quota(
+            case=session.case,
+            actor=self.request.user,
+            additional=1,
+        )
         response = serializer.save(answered_at=timezone.now())
         response.question.increment_usage()
 
     @action(detail=True, methods=["post"], url_path="analyze")
     def analyze(self, request, pk=None):
         response = self.get_object()
-        resolved_org_id = resolve_case_organization_id(response.session.case)
-        quota_actor = request.user if (resolved_org_id is None and getattr(request.user, "is_authenticated", False)) else None
-        enforce_vetting_operation_quota(
-            operation=VETTING_OPERATION_INTERVIEW_ANALYSIS,
-            user=quota_actor,
-            organization_id=resolved_org_id,
-            additional=0 if response.processed_at is not None else 1,
+        reserve_additional = 0 if response.answered_at is not None else 1
+        _reserve_interview_analysis_quota(
+            case=response.session.case,
+            actor=request.user,
+            additional=reserve_additional,
         )
+        if response.answered_at is None:
+            response.answered_at = timezone.now()
+            response.save(update_fields=["answered_at"])
         _queue_interview_task_safely(
             analyze_response_task,
             response.id,

@@ -114,6 +114,29 @@ class BackgroundCheckServiceTests(TestCase):
         self.assertIn(refreshed.recommendation, {"clear", "review"})
 
     @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True, BACKGROUND_CHECK_DEFAULT_PROVIDER="mock")
+    def test_submit_is_idempotent_for_existing_active_check(self):
+        first_check = submit_background_check(
+            case=self.case,
+            check_type="employment",
+            submitted_by=self.user,
+            request_payload={"subject": {"full_name": "BG User"}},
+            consent_evidence={"granted": True},
+        )
+        second_check = submit_background_check(
+            case=self.case,
+            check_type="employment",
+            submitted_by=self.user,
+            request_payload={"subject": {"full_name": "BG User"}},
+            consent_evidence={"granted": True},
+        )
+
+        self.assertEqual(first_check.id, second_check.id)
+        self.assertEqual(
+            type(first_check).objects.filter(case=self.case, check_type="employment").count(),
+            1,
+        )
+
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True, BACKGROUND_CHECK_DEFAULT_PROVIDER="mock")
     @patch("apps.background_checks.services.log_event", return_value=True)
     def test_submit_logs_audit(self, mock_log_event):
         check = submit_background_check(

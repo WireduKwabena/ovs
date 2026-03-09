@@ -151,12 +151,13 @@ def analyze_response_task(self, response_id: int):
         return {"success": False, "error": f"InterviewResponse {response_id} not found"}
 
     resolved_org_id = resolve_case_organization_id(response.session.case)
+    reserve_additional = 0 if response.answered_at is not None else 1
     try:
         enforce_vetting_operation_quota(
             operation=VETTING_OPERATION_INTERVIEW_ANALYSIS,
             user=None,
             organization_id=resolved_org_id,
-            additional=0 if response.processed_at is not None else 1,
+            additional=reserve_additional,
         )
     except DRFValidationError as exc:
         detail = exc.detail if isinstance(exc.detail, dict) else {"detail": exc.detail}
@@ -167,6 +168,10 @@ def analyze_response_task(self, response_id: int):
             "code": detail.get("code"),
             "quota": detail.get("quota"),
         }
+
+    if response.answered_at is None:
+        response.answered_at = timezone.now()
+        response.save(update_fields=["answered_at"])
 
     transcript = (response.transcript or "").strip()
     if not transcript:

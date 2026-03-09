@@ -55,7 +55,7 @@ def run_case_social_profile_check(case: Any, *, actor=None) -> dict[str, Any]:
     if SocialProfileCheckResult.objects.filter(application=case).exists():
         # Idempotent by case: refresh/recheck does not consume extra quota units.
         additional_usage = 0
-    resolved_org_id = resolve_case_organization_id(case)
+    resolved_org_id = resolve_case_organization_id(case, actor=actor)
     quota_actor = actor if (resolved_org_id is None and getattr(actor, "is_authenticated", False)) else None
     try:
         enforce_vetting_operation_quota(

@@ -258,6 +258,11 @@ def _scope_for_user(user, *, organization_id: str | None = None) -> tuple[str, l
 
     legacy_organization_name = str(getattr(user, "organization", "") or "").strip()
     if legacy_organization_name:
+        matched_org = Organization.objects.filter(name__iexact=legacy_organization_name).only("id").first()
+        matched_org_id = str(getattr(matched_org, "id", "") or "").strip() or None
+        if matched_org_id:
+            org_member_emails = _active_org_member_emails(organization_id=matched_org_id)
+            fallback_emails.update(org_member_emails)
         org_users = User.objects.filter(organization__iexact=legacy_organization_name).only("email")
         fallback_emails.update(
             _normalized_email(member.email)
@@ -266,11 +271,12 @@ def _scope_for_user(user, *, organization_id: str | None = None) -> tuple[str, l
         )
         if not fallback_emails and current_email:
             fallback_emails.add(current_email)
+        scope_label = f"organization:{matched_org_id}" if matched_org_id else f"organization:{legacy_organization_name.lower()}"
         return (
-            f"organization:{legacy_organization_name.lower()}",
+            scope_label,
             sorted(value for value in fallback_emails if value),
             legacy_organization_name,
-            None,
+            matched_org_id,
         )
 
     fallback_scope = current_email or f"user:{getattr(user, 'pk', 'unknown')}"
@@ -822,12 +828,13 @@ def _operation_usage_count_for_org(
         return 0
 
     if normalized_operation == VETTING_OPERATION_DOCUMENT_VERIFICATION:
-        from apps.applications.models import VerificationResult
+        from apps.applications.models import Document
 
-        return VerificationResult.objects.filter(
-            document__case__organization_id=normalized_org_id,
-            created_at__gte=period_start,
-            created_at__lt=period_end,
+        # Reserve verification capacity at upload time to fail fast before async work.
+        return Document.objects.filter(
+            case__organization_id=normalized_org_id,
+            uploaded_at__gte=period_start,
+            uploaded_at__lt=period_end,
         ).count()
 
     if normalized_operation == VETTING_OPERATION_SOCIAL_PROFILE_CHECK:
@@ -844,11 +851,12 @@ def _operation_usage_count_for_org(
     if normalized_operation == VETTING_OPERATION_INTERVIEW_ANALYSIS:
         from apps.interviews.models import InterviewResponse
 
+        # Reserve analysis capacity when a response is answered/created, not only after processing.
         return InterviewResponse.objects.filter(
             session__case__organization_id=normalized_org_id,
-            processed_at__isnull=False,
-            processed_at__gte=period_start,
-            processed_at__lt=period_end,
+            answered_at__isnull=False,
+            answered_at__gte=period_start,
+            answered_at__lt=period_end,
         ).count()
 
     if normalized_operation == VETTING_OPERATION_RUBRIC_EVALUATION:
@@ -874,8 +882,123 @@ def _operation_usage_count_for_org(
     return 0
 
 
-def resolve_case_organization_id(case) -> str | None:
+def _operation_usage_count_for_legacy_scope(
+    *,
+    operation: str,
+    emails: list[str],
+    period_start,
+    period_end,
+) -> int:
+    normalized_operation = str(operation or "").strip().lower()
+    normalized_emails = sorted({_normalized_email(email) for email in emails if _normalized_email(email)})
+    if not normalized_emails:
+        return 0
+
+    if normalized_operation == VETTING_OPERATION_DOCUMENT_VERIFICATION:
+        from apps.applications.models import Document
+
+        return (
+            Document.objects.filter(
+                case__organization_id__isnull=True,
+                uploaded_at__gte=period_start,
+                uploaded_at__lt=period_end,
+            )
+            .filter(
+                Q(case__applicant__email__in=normalized_emails)
+                | Q(case__assigned_to__email__in=normalized_emails)
+                | Q(case__candidate_enrollment__campaign__initiated_by__email__in=normalized_emails)
+            )
+            .distinct()
+            .count()
+        )
+
+    if normalized_operation == VETTING_OPERATION_SOCIAL_PROFILE_CHECK:
+        try:
+            from apps.fraud.models import SocialProfileCheckResult
+        except Exception:
+            return 0
+        return (
+            SocialProfileCheckResult.objects.filter(
+                application__organization_id__isnull=True,
+                checked_at__gte=period_start,
+                checked_at__lt=period_end,
+            )
+            .filter(
+                Q(application__applicant__email__in=normalized_emails)
+                | Q(application__assigned_to__email__in=normalized_emails)
+                | Q(application__candidate_enrollment__campaign__initiated_by__email__in=normalized_emails)
+            )
+            .distinct()
+            .count()
+        )
+
+    if normalized_operation == VETTING_OPERATION_INTERVIEW_ANALYSIS:
+        from apps.interviews.models import InterviewResponse
+
+        return (
+            InterviewResponse.objects.filter(
+                session__case__organization_id__isnull=True,
+                answered_at__isnull=False,
+                answered_at__gte=period_start,
+                answered_at__lt=period_end,
+            )
+            .filter(
+                Q(session__case__applicant__email__in=normalized_emails)
+                | Q(session__case__assigned_to__email__in=normalized_emails)
+                | Q(session__case__candidate_enrollment__campaign__initiated_by__email__in=normalized_emails)
+            )
+            .distinct()
+            .count()
+        )
+
+    if normalized_operation == VETTING_OPERATION_RUBRIC_EVALUATION:
+        from apps.rubrics.models import RubricEvaluation
+
+        return (
+            RubricEvaluation.objects.filter(
+                case__organization_id__isnull=True,
+                created_at__gte=period_start,
+                created_at__lt=period_end,
+            )
+            .filter(
+                Q(case__applicant__email__in=normalized_emails)
+                | Q(case__assigned_to__email__in=normalized_emails)
+                | Q(case__candidate_enrollment__campaign__initiated_by__email__in=normalized_emails)
+            )
+            .distinct()
+            .count()
+        )
+
+    if normalized_operation == VETTING_OPERATION_BACKGROUND_CHECK_SUBMISSION:
+        try:
+            from apps.background_checks.models import BackgroundCheck
+        except Exception:
+            return 0
+        return (
+            BackgroundCheck.objects.filter(
+                case__organization_id__isnull=True,
+                created_at__gte=period_start,
+                created_at__lt=period_end,
+            )
+            .filter(
+                Q(case__applicant__email__in=normalized_emails)
+                | Q(case__assigned_to__email__in=normalized_emails)
+                | Q(case__candidate_enrollment__campaign__initiated_by__email__in=normalized_emails)
+            )
+            .distinct()
+            .count()
+        )
+
+    return 0
+
+
+def resolve_case_organization_id(case, *, actor=None) -> str | None:
     if case is None:
+        if actor is None:
+            return None
+        scope, _emails, _legacy_org_name, resolved_org_id = _scope_for_user(actor, organization_id=None)
+        if scope.startswith("organization:") and resolved_org_id:
+            return str(resolved_org_id)
         return None
 
     direct_org_id = str(getattr(case, "organization_id", "") or "").strip()
@@ -884,14 +1007,33 @@ def resolve_case_organization_id(case) -> str | None:
 
     enrollment = getattr(case, "candidate_enrollment", None)
     if enrollment is not None:
-        campaign_org_id = str(getattr(getattr(enrollment, "campaign", None), "organization_id", "") or "").strip()
+        campaign = getattr(enrollment, "campaign", None)
+        campaign_org_id = str(getattr(campaign, "organization_id", "") or "").strip()
         if campaign_org_id:
             return campaign_org_id
+        campaign_owner = getattr(campaign, "initiated_by", None)
+        owner_scope, _owner_emails, _owner_legacy_org_name, owner_org_id = _scope_for_user(
+            campaign_owner,
+            organization_id=None,
+        )
+        if owner_scope.startswith("organization:") and owner_org_id:
+            return str(owner_org_id)
 
     assigned_to = getattr(case, "assigned_to", None)
     scope, _emails, _legacy_org_name, resolved_org_id = _scope_for_user(assigned_to, organization_id=None)
     if scope.startswith("organization:") and resolved_org_id:
         return str(resolved_org_id)
+    applicant = getattr(case, "applicant", None)
+    applicant_scope, _applicant_emails, _applicant_legacy_org_name, applicant_org_id = _scope_for_user(
+        applicant,
+        organization_id=None,
+    )
+    if applicant_scope.startswith("organization:") and applicant_org_id:
+        return str(applicant_org_id)
+    if actor is not None:
+        actor_scope, _actor_emails, _actor_legacy_org_name, actor_org_id = _scope_for_user(actor, organization_id=None)
+        if actor_scope.startswith("organization:") and actor_org_id:
+            return str(actor_org_id)
     return None
 
 
@@ -920,16 +1062,60 @@ def get_vetting_operation_quota_snapshot(
         scope = f"organization:{resolved_org_id}"
 
     if not resolved_org_id:
+        used = _operation_usage_count_for_legacy_scope(
+            operation=normalized_operation,
+            emails=emails,
+            period_start=period_start,
+            period_end=period_end,
+        )
+        active_subscription = _active_subscription_for_scope(
+            emails=emails,
+            organization_id=None,
+        )
+        has_history = _scope_has_subscription_history(
+            organization_id=None,
+            emails=emails,
+        )
+        if active_subscription is None:
+            if has_history:
+                return VettingOperationQuotaSnapshot(
+                    enforced=True,
+                    operation=normalized_operation,
+                    scope=scope,
+                    reason="subscription_required",
+                    plan_id=None,
+                    plan_name=None,
+                    limit=0,
+                    used=used,
+                    remaining=0,
+                    period_start=period_start,
+                    period_end=period_end,
+                )
+            return VettingOperationQuotaSnapshot(
+                enforced=False,
+                operation=normalized_operation,
+                scope=scope,
+                reason="legacy_scope_no_org_context",
+                plan_id=None,
+                plan_name=None,
+                limit=None,
+                used=used,
+                remaining=None,
+                period_start=period_start,
+                period_end=period_end,
+            )
+        limit = _plan_vetting_operation_limit(active_subscription.plan_id, normalized_operation)
+        remaining = None if limit is None else max(limit - used, 0)
         return VettingOperationQuotaSnapshot(
-            enforced=False,
+            enforced=True,
             operation=normalized_operation,
             scope=scope,
-            reason="legacy_scope_no_org_context",
-            plan_id=None,
-            plan_name=None,
-            limit=None,
-            used=0,
-            remaining=None,
+            reason=None,
+            plan_id=str(active_subscription.plan_id or "").strip().lower() or None,
+            plan_name=str(active_subscription.plan_name or "").strip() or None,
+            limit=limit,
+            used=used,
+            remaining=remaining,
             period_start=period_start,
             period_end=period_end,
         )
@@ -1030,15 +1216,6 @@ def enforce_vetting_operation_quota(
         raise ValidationError("Invalid vetting operation reservation amount.") from exc
     additional_count = max(additional_count, 0)
 
-    if not snapshot.enforced or additional_count == 0:
-        return snapshot
-    if snapshot.limit is None:
-        return snapshot
-
-    projected = snapshot.used + additional_count
-    if projected <= snapshot.limit:
-        return snapshot
-
     if snapshot.reason == "subscription_required":
         raise ValidationError(
             {
@@ -1058,6 +1235,15 @@ def enforce_vetting_operation_quota(
                 },
             }
         )
+
+    if not snapshot.enforced or additional_count == 0:
+        return snapshot
+    if snapshot.limit is None:
+        return snapshot
+
+    projected = snapshot.used + additional_count
+    if projected <= snapshot.limit:
+        return snapshot
 
     raise ValidationError(
         {

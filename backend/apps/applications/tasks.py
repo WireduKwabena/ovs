@@ -186,13 +186,12 @@ def verify_document_async(self, document_id: int):
     document.save(update_fields=["status"])
 
     try:
-        existing_result = VerificationResult.objects.filter(document=document).exists()
         resolved_org_id = resolve_case_organization_id(document.case)
         enforce_vetting_operation_quota(
             operation=VETTING_OPERATION_DOCUMENT_VERIFICATION,
             user=None,
             organization_id=resolved_org_id,
-            additional=0 if existing_result else 1,
+            additional=0,
         )
 
         analysis = _build_placeholder_analysis(document)

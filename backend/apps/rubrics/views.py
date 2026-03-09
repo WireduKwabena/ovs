@@ -221,7 +221,7 @@ class VettingRubricViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("You cannot evaluate cases outside your organization scope.")
 
         existing_evaluation = RubricEvaluation.objects.filter(case=case).exists()
-        resolved_org_id = resolve_case_organization_id(case)
+        resolved_org_id = resolve_case_organization_id(case, actor=request.user)
         quota_actor = None if resolved_org_id else request.user
         enforce_vetting_operation_quota(
             operation=VETTING_OPERATION_RUBRIC_EVALUATION,
@@ -282,7 +282,7 @@ class VettingRubricViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("You cannot evaluate cases outside your organization scope.")
 
         existing_evaluation = RubricEvaluation.objects.filter(case=case).exists()
-        resolved_org_id = resolve_case_organization_id(case)
+        resolved_org_id = resolve_case_organization_id(case, actor=request.user)
         quota_actor = None if resolved_org_id else request.user
         enforce_vetting_operation_quota(
             operation=VETTING_OPERATION_RUBRIC_EVALUATION,
@@ -359,7 +359,7 @@ class RubricEvaluationViewSet(viewsets.ReadOnlyModelViewSet):
         ai_signals, ai_error = _parse_ai_signals(request.data.get("ai_signals"))
         if ai_error is not None:
             return ai_error
-        resolved_org_id = resolve_case_organization_id(evaluation.case)
+        resolved_org_id = resolve_case_organization_id(evaluation.case, actor=request.user)
         quota_actor = None if resolved_org_id else request.user
         enforce_vetting_operation_quota(
             operation=VETTING_OPERATION_RUBRIC_EVALUATION,
