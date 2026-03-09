@@ -9,9 +9,12 @@ import {
   type AdminUser,
   type ApiError,
   type AuthTokens,
+  type CommitteeContext,
   type LoginAttemptResponse,
   type LoginCredentials,
   type LoginResponse,
+  type OrganizationMembershipContext,
+  type OrganizationSummary,
   type ProfileResponse,
   type RegisterData,
   type RegisterResponse,
@@ -27,7 +30,14 @@ interface AuthState {
   userType: "applicant" | "hr_manager" | "admin" | null;
   roles: string[];
   capabilities: string[];
+  organizations: OrganizationSummary[];
+  organizationMemberships: OrganizationMembershipContext[];
+  committees: CommitteeContext[];
+  activeOrganization: OrganizationSummary | null;
+  activeOrganizationSource: string;
+  invalidRequestedOrganizationId: string;
   loading: boolean;
+  switchingActiveOrganization: boolean;
   error: string | null;
   passwordResetEmailSent: boolean;
   twoFactorRequired: boolean;
@@ -46,6 +56,7 @@ const initialState: AuthState = {
   roles: [],
   capabilities: [],
   loading: false,
+  switchingActiveOrganization: false,
   error: null,
   passwordResetEmailSent: false,
   twoFactorRequired: false,
@@ -54,6 +65,12 @@ const initialState: AuthState = {
   twoFactorProvisioningUri: null,
   twoFactorExpiresInSeconds: null,
   twoFactorMessage: null,
+  organizations: [],
+  organizationMemberships: [],
+  committees: [],
+  activeOrganization: null,
+  activeOrganizationSource: "none",
+  invalidRequestedOrganizationId: "",
 };
 
 const resolveUserType = (
@@ -89,6 +106,12 @@ const clearSessionState = (state: AuthState) => {
   state.userType = null;
   state.roles = [];
   state.capabilities = [];
+  state.organizations = [];
+  state.organizationMemberships = [];
+  state.committees = [];
+  state.activeOrganization = null;
+  state.activeOrganizationSource = "none";
+  state.invalidRequestedOrganizationId = "";
   clearTwoFactorState(state);
 };
 
@@ -104,6 +127,144 @@ const normalizeStringArray = (value: unknown): string[] => {
         .filter((item) => item.length > 0),
     ),
   );
+};
+
+const normalizeOrganizationSummary = (value: unknown): OrganizationSummary | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const id = String(record.id ?? "").trim();
+  if (!id) {
+    return null;
+  }
+  return {
+    id,
+    code: String(record.code ?? "").trim(),
+    name: String(record.name ?? "").trim(),
+    organization_type: String(record.organization_type ?? "").trim(),
+  };
+};
+
+const normalizeOrganizationSummaryList = (value: unknown): OrganizationSummary[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const deduped = new Map<string, OrganizationSummary>();
+  for (const item of value) {
+    const normalized = normalizeOrganizationSummary(item);
+    if (!normalized) {
+      continue;
+    }
+    deduped.set(normalized.id, normalized);
+  }
+  return Array.from(deduped.values());
+};
+
+const normalizeOrganizationMembership = (value: unknown): OrganizationMembershipContext | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const id = String(record.id ?? "").trim();
+  const organizationId = String(record.organization_id ?? "").trim();
+  if (!id || !organizationId) {
+    return null;
+  }
+  return {
+    id,
+    organization_id: organizationId,
+    organization_code: String(record.organization_code ?? "").trim(),
+    organization_name: String(record.organization_name ?? "").trim(),
+    organization_type: String(record.organization_type ?? "").trim(),
+    title: String(record.title ?? "").trim(),
+    membership_role: String(record.membership_role ?? "").trim(),
+    is_default: Boolean(record.is_default),
+    is_active: Boolean(record.is_active),
+    joined_at: record.joined_at == null ? null : String(record.joined_at),
+    left_at: record.left_at == null ? null : String(record.left_at),
+  };
+};
+
+const normalizeOrganizationMembershipList = (value: unknown): OrganizationMembershipContext[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const deduped = new Map<string, OrganizationMembershipContext>();
+  for (const item of value) {
+    const normalized = normalizeOrganizationMembership(item);
+    if (!normalized) {
+      continue;
+    }
+    deduped.set(normalized.id, normalized);
+  }
+  return Array.from(deduped.values());
+};
+
+const normalizeCommitteeContext = (value: unknown): CommitteeContext | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const id = String(record.id ?? "").trim();
+  const committeeId = String(record.committee_id ?? "").trim();
+  if (!id || !committeeId) {
+    return null;
+  }
+  return {
+    id,
+    committee_id: committeeId,
+    committee_code: String(record.committee_code ?? "").trim(),
+    committee_name: String(record.committee_name ?? "").trim(),
+    committee_type: String(record.committee_type ?? "").trim(),
+    organization_id: String(record.organization_id ?? "").trim(),
+    organization_code: String(record.organization_code ?? "").trim(),
+    organization_name: String(record.organization_name ?? "").trim(),
+    committee_role: String(record.committee_role ?? "").trim(),
+    can_vote: Boolean(record.can_vote),
+    joined_at: record.joined_at == null ? null : String(record.joined_at),
+    left_at: record.left_at == null ? null : String(record.left_at),
+  };
+};
+
+const normalizeCommitteeContextList = (value: unknown): CommitteeContext[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const deduped = new Map<string, CommitteeContext>();
+  for (const item of value) {
+    const normalized = normalizeCommitteeContext(item);
+    if (!normalized) {
+      continue;
+    }
+    deduped.set(normalized.id, normalized);
+  }
+  return Array.from(deduped.values());
+};
+
+const applyOrganizationContext = (
+  state: AuthState,
+  payload: {
+    organizations?: unknown;
+    organization_memberships?: unknown;
+    committees?: unknown;
+    active_organization?: unknown;
+    active_organization_source?: unknown;
+    invalid_requested_organization_id?: unknown;
+  },
+) => {
+  state.organizations = normalizeOrganizationSummaryList(payload.organizations);
+  state.organizationMemberships = normalizeOrganizationMembershipList(payload.organization_memberships);
+  state.committees = normalizeCommitteeContextList(payload.committees);
+  state.activeOrganization = normalizeOrganizationSummary(payload.active_organization);
+  state.activeOrganizationSource =
+    typeof payload.active_organization_source === "string"
+      ? payload.active_organization_source
+      : "none";
+  state.invalidRequestedOrganizationId =
+    typeof payload.invalid_requested_organization_id === "string"
+      ? payload.invalid_requested_organization_id
+      : "";
 };
 
 const resolveRoles = (payload: {
@@ -205,6 +366,26 @@ export const fetchProfile = createAsyncThunk<
   }
 });
 
+export const switchActiveOrganization = createAsyncThunk<
+  ProfileResponse,
+  string | null,
+  { rejectValue: ApiError }
+>("/auth/profile/active-organization/", async (organizationId, { rejectWithValue }) => {
+  try {
+    await authService.setActiveOrganization({
+      organization_id: organizationId,
+      clear: !organizationId,
+    });
+    return await authService.getProfile(
+      organizationId ? { activeOrganizationId: organizationId } : undefined,
+    );
+  } catch (error: unknown) {
+    return rejectWithValue({
+      message: getApiErrorMessage(error, "Failed to update active organization"),
+    });
+  }
+});
+
 export const refreshToken = createAsyncThunk<
   AuthTokens,
   void,
@@ -297,6 +478,7 @@ const authSlice = createSlice({
     builder
       .addCase(login.pending, (state) => {
         state.loading = true;
+        state.switchingActiveOrganization = false;
         state.error = null;
       })
       .addCase(login.fulfilled, (state, action) => {
@@ -320,16 +502,26 @@ const authSlice = createSlice({
         state.roles = resolveRoles(action.payload);
         state.capabilities = resolveCapabilities(action.payload);
         state.isAuthenticated = true;
+        applyOrganizationContext(state, {
+          organizations: [],
+          organization_memberships: [],
+          committees: [],
+          active_organization: null,
+          active_organization_source: "none",
+          invalid_requested_organization_id: "",
+        });
         clearTwoFactorState(state);
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
+        state.switchingActiveOrganization = false;
         clearSessionState(state);
         state.error = (action.payload as ApiError)?.message || "Login failed";
       })
 
       .addCase(verifyTwoFactor.pending, (state) => {
         state.loading = true;
+        state.switchingActiveOrganization = false;
         state.error = null;
       })
       .addCase(verifyTwoFactor.fulfilled, (state, action) => {
@@ -340,24 +532,36 @@ const authSlice = createSlice({
         state.capabilities = resolveCapabilities(action.payload);
         state.isAuthenticated = true;
         state.loading = false;
+        applyOrganizationContext(state, {
+          organizations: [],
+          organization_memberships: [],
+          committees: [],
+          active_organization: null,
+          active_organization_source: "none",
+          invalid_requested_organization_id: "",
+        });
         clearTwoFactorState(state);
       })
       .addCase(verifyTwoFactor.rejected, (state, action) => {
         state.loading = false;
+        state.switchingActiveOrganization = false;
         state.error = (action.payload as ApiError)?.message || "Two-factor verification failed";
       })
 
       .addCase(register.pending, (state) => {
         state.loading = true;
+        state.switchingActiveOrganization = false;
         state.error = null;
       })
       .addCase(register.fulfilled, (state) => {
         clearSessionState(state);
         state.loading = false;
+        state.switchingActiveOrganization = false;
         state.error = null;
       })
       .addCase(register.rejected, (state, action) => {
         state.loading = false;
+        state.switchingActiveOrganization = false;
         state.error = (action.payload as ApiError)?.message || "Registration failed";
       })
 
@@ -367,24 +571,52 @@ const authSlice = createSlice({
 
       .addCase(logout.fulfilled, (state) => {
         clearSessionState(state);
+        state.loading = false;
+        state.switchingActiveOrganization = false;
         state.error = null;
       })
       .addCase(logout.rejected, (state) => {
         clearSessionState(state);
+        state.loading = false;
+        state.switchingActiveOrganization = false;
         state.error = null;
       })
 
+      .addCase(fetchProfile.pending, (state) => {
+        state.loading = true;
+      })
       .addCase(fetchProfile.fulfilled, (state, action) => {
         state.user = action.payload.user;
         state.userType = action.payload.user_type as AuthState["userType"];
         state.roles = resolveRoles(action.payload);
         state.capabilities = resolveCapabilities(action.payload);
+        applyOrganizationContext(state, action.payload);
         state.isAuthenticated = true;
+        state.loading = false;
         clearTwoFactorState(state);
       })
       .addCase(fetchProfile.rejected, (state, action) => {
+        state.loading = false;
         clearSessionState(state);
         state.error = (action.payload as ApiError)?.message || "Failed to fetch profile";
+      })
+
+      .addCase(switchActiveOrganization.pending, (state) => {
+        state.switchingActiveOrganization = true;
+        state.error = null;
+      })
+      .addCase(switchActiveOrganization.fulfilled, (state, action) => {
+        state.user = action.payload.user;
+        state.userType = action.payload.user_type as AuthState["userType"];
+        state.roles = resolveRoles(action.payload);
+        state.capabilities = resolveCapabilities(action.payload);
+        applyOrganizationContext(state, action.payload);
+        state.isAuthenticated = true;
+        state.switchingActiveOrganization = false;
+      })
+      .addCase(switchActiveOrganization.rejected, (state, action) => {
+        state.switchingActiveOrganization = false;
+        state.error = (action.payload as ApiError)?.message || "Failed to update active organization";
       })
 
       .addCase(refreshToken.fulfilled, (state, action) => {
@@ -392,6 +624,8 @@ const authSlice = createSlice({
         state.isAuthenticated = true;
       })
       .addCase(refreshToken.rejected, (state, action) => {
+        state.loading = false;
+        state.switchingActiveOrganization = false;
         clearSessionState(state);
         state.error = (action.payload as ApiError)?.message || "Session expired";
       })

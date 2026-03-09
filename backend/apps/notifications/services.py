@@ -362,7 +362,60 @@ class NotificationService:
         return group_names
 
     @staticmethod
-    def _appointment_notification_recipients(*, appointment, event_type: str, actor=None, stage_role: str = ""):
+    def _appointment_governance_context(*, appointment, stage=None) -> tuple[str, str]:
+        organization_id = (
+            str(getattr(appointment, "organization_id", "") or "")
+            or str(getattr(getattr(appointment, "appointment_exercise", None), "organization_id", "") or "")
+            or str(getattr(getattr(appointment, "position", None), "organization_id", "") or "")
+            or str(getattr(getattr(appointment, "nominee", None), "organization_id", "") or "")
+            or str(getattr(getattr(appointment, "vetting_case", None), "organization_id", "") or "")
+        )
+        committee_id = (
+            str(getattr(stage, "committee_id", "") or "")
+            or str(getattr(appointment, "committee_id", "") or "")
+        )
+        return organization_id, committee_id
+
+    @staticmethod
+    def _organization_group_recipient_ids(*, organization_id: str, group_names: set[str]) -> set:
+        if not organization_id or not group_names:
+            return set()
+        from apps.authentication.models import User
+
+        try:
+            return set(
+                User.objects.filter(
+                    is_active=True,
+                    groups__name__in=group_names,
+                    organization_memberships__is_active=True,
+                    organization_memberships__organization_id=organization_id,
+                    organization_memberships__organization__is_active=True,
+                ).values_list("id", flat=True)
+            )
+        except Exception:
+            return set()
+
+    @staticmethod
+    def _committee_recipient_ids(*, committee_id: str) -> set:
+        if not committee_id:
+            return set()
+        try:
+            from apps.governance.models import CommitteeMembership
+        except Exception:
+            return set()
+
+        return set(
+            CommitteeMembership.objects.filter(
+                committee_id=committee_id,
+                is_active=True,
+                committee__is_active=True,
+                committee__organization__is_active=True,
+                user__is_active=True,
+            ).values_list("user_id", flat=True)
+        )
+
+    @staticmethod
+    def _appointment_notification_recipients(*, appointment, event_type: str, actor=None, stage=None, stage_role: str = ""):
         from apps.authentication.models import User
 
         recipient_ids = set()
@@ -382,14 +435,41 @@ class NotificationService:
             event_type=event_type,
             stage_role=stage_role,
         )
-        if group_names:
+        organization_id, committee_id = NotificationService._appointment_governance_context(
+            appointment=appointment,
+            stage=stage,
+        )
+        normalized_stage_role = str(stage_role or "").strip().lower()
+        is_committee_event = bool(
+            event_type == "appointment_moved_to_committee_review"
+            or normalized_stage_role in {"committee_member", "committee_chair"}
+        )
+        org_scoped_group_names = set(group_names)
+        if is_committee_event and committee_id:
+            org_scoped_group_names -= {"committee_member", "committee_chair"}
+
+        if organization_id:
             recipient_ids.update(
-                User.objects.filter(is_active=True, groups__name__in=group_names).values_list("id", flat=True)
+                NotificationService._organization_group_recipient_ids(
+                    organization_id=organization_id,
+                    group_names=org_scoped_group_names,
+                )
+            )
+        elif org_scoped_group_names:
+            # Legacy fallback for records without governance organization context.
+            recipient_ids.update(
+                User.objects.filter(is_active=True, groups__name__in=org_scoped_group_names).values_list("id", flat=True)
             )
 
+        if is_committee_event and committee_id:
+            recipient_ids.update(
+                NotificationService._committee_recipient_ids(committee_id=committee_id)
+            )
+
+        # Platform administrators maintain global oversight.
         recipient_ids.update(
             User.objects.filter(is_active=True)
-            .filter(Q(user_type="admin") | Q(is_staff=True) | Q(is_superuser=True))
+            .filter(Q(user_type="admin") | Q(is_superuser=True))
             .values_list("id", flat=True)
         )
 
@@ -425,6 +505,7 @@ class NotificationService:
             appointment=appointment,
             event_type=event_type,
             actor=actor,
+            stage=stage,
             stage_role=getattr(stage, "required_role", ""),
         )
         if not recipients.exists():
@@ -435,10 +516,16 @@ class NotificationService:
         subject = template["subject"].format(position_title=position_title, nominee_name=nominee_name)
         message = template["message"].format(position_title=position_title, nominee_name=nominee_name)
         priority = template.get("priority", "normal")
+        organization_id, committee_id = NotificationService._appointment_governance_context(
+            appointment=appointment,
+            stage=stage,
+        )
 
         event_metadata = {
             "event_type": event_type,
             "appointment_id": str(getattr(appointment, "id", "")),
+            "organization_id": str(organization_id or ""),
+            "committee_id": str(committee_id or ""),
             "position_id": str(getattr(appointment, "position_id", "")),
             "position_title": position_title,
             "nominee_id": str(getattr(appointment, "nominee_id", "")),

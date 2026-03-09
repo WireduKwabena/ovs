@@ -39,6 +39,13 @@ class VettingRubric(models.Model):
     """
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "governance.Organization",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="vetting_rubrics",
+    )
 
     RUBRIC_TYPE_CHOICES = [
         ('general', 'General Purpose'),
@@ -154,6 +161,7 @@ class VettingRubric(models.Model):
         ordering = ['name']
         indexes = [
             models.Index(fields=['is_active', 'is_default']),
+            models.Index(fields=['organization', 'is_active']),
         ]
         verbose_name = 'Vetting Rubric'
         verbose_name_plural = 'Vetting Rubrics'

@@ -10,6 +10,7 @@ from apps.authentication.models import User
 from apps.billing.models import BillingSubscription
 from apps.campaigns.models import VettingCampaign
 from apps.candidates.models import Candidate, CandidateEnrollment, CandidateSocialProfile
+from apps.governance.models import Organization, OrganizationMembership
 from apps.interviews.models import InterviewSession
 
 
@@ -184,6 +185,75 @@ class ApplicationsApiTests(APITestCase):
         self.assertIn("period_end", payload["quota"])
         self.assertTrue(str(payload["quota"].get("period_start")))
         self.assertTrue(str(payload["quota"].get("period_end")))
+
+    @override_settings(
+        BILLING_QUOTA_ENFORCEMENT_ENABLED=True,
+        BILLING_PLAN_STARTER_CANDIDATES_PER_MONTH=1,
+    )
+    def test_hr_create_case_uses_org_scoped_quota_context(self):
+        organization = Organization.objects.create(
+            code="apps-quota-org",
+            name="Applications Quota Org",
+            organization_type="agency",
+            is_active=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr,
+            organization=organization,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
+        )
+
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            organization=organization,
+            status="complete",
+            payment_status="paid",
+            plan_id="starter",
+            plan_name="Starter",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference="OVS-APPS-ORG-QUOTA-STARTER",
+        )
+
+        scoped_campaign = VettingCampaign.objects.create(
+            organization=organization,
+            name="Apps Scoped Campaign",
+            initiated_by=self.hr,
+        )
+        scoped_candidate = Candidate.objects.create(
+            first_name="Quota",
+            last_name="Used",
+            email="apps_quota_used@example.com",
+        )
+        CandidateEnrollment.objects.create(
+            campaign=scoped_campaign,
+            candidate=scoped_candidate,
+            status="invited",
+        )
+
+        response = self.client.post(
+            "/api/applications/cases/",
+            {
+                "applicant": self.applicant.id,
+                "position_applied": "Analyst",
+                "department": "Operations",
+                "job_description": "Data validation and reporting",
+                "priority": "medium",
+            },
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertEqual(payload.get("code"), "quota_exceeded")
+        quota_payload = payload.get("quota") or {}
+        self.assertEqual(int(quota_payload.get("limit")), 1)
+        self.assertEqual(int(quota_payload.get("used")), 1)
+        self.assertIn("organization:", str(quota_payload.get("scope", "")))
 
     def test_hr_cannot_create_case_for_enrollment_outside_owned_campaign(self):
         other_hr = User.objects.create_user(
@@ -599,3 +669,144 @@ class ApplicationsApiTests(APITestCase):
         self.assertEqual(summary.get("overall_score"), 0.0)
         self.assertEqual(summary.get("risk_level"), "")
         self.assertEqual(summary.get("recommendation"), "")
+
+
+class ApplicationsOrganizationScopeTests(APITestCase):
+    def setUp(self):
+        self.org_a = Organization.objects.create(code="apps-org-a", name="Applications Org A")
+        self.org_b = Organization.objects.create(code="apps-org-b", name="Applications Org B")
+
+        self.hr_a = User.objects.create_user(
+            email="apps_scope_a@example.com",
+            password="Pass1234!",
+            first_name="Apps",
+            last_name="ScopeA",
+            user_type="hr_manager",
+        )
+        self.hr_b = User.objects.create_user(
+            email="apps_scope_b@example.com",
+            password="Pass1234!",
+            first_name="Apps",
+            last_name="ScopeB",
+            user_type="hr_manager",
+        )
+        self.applicant = User.objects.create_user(
+            email="apps_scope_applicant@example.com",
+            password="Pass1234!",
+            first_name="Apps",
+            last_name="Applicant",
+            user_type="applicant",
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr_a,
+            organization=self.org_a,
+            is_active=True,
+            is_default=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr_b,
+            organization=self.org_b,
+            is_active=True,
+            is_default=True,
+        )
+
+        self.campaign_org_a = VettingCampaign.objects.create(
+            name="Applications Campaign A",
+            organization=self.org_a,
+            initiated_by=self.hr_b,
+            status="active",
+        )
+        self.campaign_org_b = VettingCampaign.objects.create(
+            name="Applications Campaign B",
+            organization=self.org_b,
+            initiated_by=self.hr_b,
+            status="active",
+        )
+        self.candidate_a = Candidate.objects.create(
+            first_name="Org",
+            last_name="CandidateA",
+            email="apps_scope_candidate_a@example.com",
+        )
+        self.candidate_b = Candidate.objects.create(
+            first_name="Org",
+            last_name="CandidateB",
+            email="apps_scope_candidate_b@example.com",
+        )
+        self.enrollment_org_a = CandidateEnrollment.objects.create(
+            campaign=self.campaign_org_a,
+            candidate=self.candidate_a,
+            status="in_progress",
+        )
+        self.enrollment_org_b = CandidateEnrollment.objects.create(
+            campaign=self.campaign_org_b,
+            candidate=self.candidate_b,
+            status="in_progress",
+        )
+        self.case_org_a = VettingCase.objects.create(
+            organization=self.org_a,
+            applicant=self.applicant,
+            candidate_enrollment=self.enrollment_org_a,
+            assigned_to=self.hr_a,
+            position_applied="Policy Analyst",
+            department="Secretariat",
+            priority="medium",
+            status="under_review",
+        )
+        self.case_org_b = VettingCase.objects.create(
+            organization=self.org_b,
+            applicant=self.applicant,
+            candidate_enrollment=self.enrollment_org_b,
+            assigned_to=self.hr_b,
+            position_applied="Policy Analyst",
+            department="Secretariat",
+            priority="medium",
+            status="under_review",
+        )
+
+    def _extract_results(self, response):
+        payload = response.json()
+        if isinstance(payload, dict) and "results" in payload:
+            return payload["results"]
+        return payload
+
+    def test_hr_list_is_scoped_to_org_memberships(self):
+        self.client.force_authenticate(self.hr_a)
+        response = self.client.get("/api/applications/cases/")
+        self.assertEqual(response.status_code, 200)
+        ids = {item["id"] for item in self._extract_results(response)}
+        self.assertIn(str(self.case_org_a.id), ids)
+        self.assertNotIn(str(self.case_org_b.id), ids)
+
+    def test_hr_can_create_case_for_same_org_foreign_campaign(self):
+        self.client.force_authenticate(self.hr_a)
+        response = self.client.post(
+            "/api/applications/cases/",
+            {
+                "applicant": str(self.applicant.id),
+                "candidate_enrollment": str(self.enrollment_org_a.id),
+                "position_applied": "Analyst",
+                "department": "Operations",
+                "job_description": "Cross-team vetting support",
+                "priority": "medium",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        created = VettingCase.objects.get(id=response.json()["id"])
+        self.assertEqual(created.organization_id, self.org_a.id)
+
+    def test_hr_cannot_create_case_for_other_org(self):
+        self.client.force_authenticate(self.hr_a)
+        response = self.client.post(
+            "/api/applications/cases/",
+            {
+                "applicant": str(self.applicant.id),
+                "candidate_enrollment": str(self.enrollment_org_b.id),
+                "position_applied": "Analyst",
+                "department": "Operations",
+                "job_description": "Cross-org forbidden path",
+                "priority": "medium",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)

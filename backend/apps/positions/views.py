@@ -1,9 +1,16 @@
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from apps.core.authz import CAPABILITY_APPOINTMENT_VIEW_INTERNAL, has_capability
-from apps.core.permissions import IsRegistryOperatorOrAdmin
+from apps.core.permissions import (
+    IsRegistryOperatorOrAdmin,
+    can_access_organization_id,
+    get_request_active_organization_id,
+    is_platform_admin_user,
+    scope_queryset_to_user_organizations,
+)
 from apps.audit.contracts import (
     GOVERNMENT_POSITION_CREATED_EVENT,
     GOVERNMENT_POSITION_DELETED_EVENT,
@@ -20,15 +27,30 @@ from .serializers import GovernmentPositionSerializer, PublicGovernmentPositionS
 
 
 class GovernmentPositionViewSet(viewsets.ModelViewSet):
-    queryset = GovernmentPosition.objects.select_related("current_holder", "rubric").all()
+    queryset = GovernmentPosition.objects.select_related("organization", "current_holder", "rubric").all()
     serializer_class = GovernmentPositionSerializer
     permission_classes = [IsRegistryOperatorOrAdmin]
-    filterset_fields = ["branch", "institution", "is_vacant", "is_public", "confirmation_required"]
+    filterset_fields = ["organization", "branch", "institution", "is_vacant", "is_public", "confirmation_required"]
     search_fields = ["title", "institution", "appointment_authority", "constitutional_basis"]
     ordering_fields = ["title", "institution", "created_at", "updated_at"]
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return scope_queryset_to_user_organizations(queryset, request=self.request, organization_field="organization_id")
+
     def perform_create(self, serializer):
-        position = serializer.save()
+        user = self.request.user
+        requested_org = serializer.validated_data.get("organization")
+        if not is_platform_admin_user(user):
+            if requested_org is not None and not can_access_organization_id(user, requested_org.id):
+                raise PermissionDenied("You cannot create position records for another organization.")
+            active_org_id = get_request_active_organization_id(self.request)
+            if requested_org is None and active_org_id:
+                position = serializer.save(organization_id=active_org_id)
+            else:
+                position = serializer.save()
+        else:
+            position = serializer.save()
         log_event(
             request=self.request,
             action="create",
@@ -36,6 +58,7 @@ class GovernmentPositionViewSet(viewsets.ModelViewSet):
             entity_id=str(position.id),
             changes={
                 "event": GOVERNMENT_POSITION_CREATED_EVENT,
+                "organization_id": str(position.organization_id or ""),
                 "title": position.title,
                 "branch": position.branch,
                 "institution": position.institution,
@@ -44,9 +67,25 @@ class GovernmentPositionViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         instance = serializer.instance
+        user = self.request.user
+        if not is_platform_admin_user(user) and not can_access_organization_id(user, instance.organization_id):
+            raise PermissionDenied("You cannot update position records outside your organization scope.")
+        requested_org = serializer.validated_data.get("organization")
+        if not is_platform_admin_user(user) and requested_org is not None and not can_access_organization_id(user, requested_org.id):
+            raise PermissionDenied("You cannot move this position record to another organization.")
+
         changed_fields = list(serializer.validated_data.keys())
         before = {field: getattr(instance, field, None) for field in changed_fields}
-        position = serializer.save()
+        save_kwargs = {}
+        if (
+            not is_platform_admin_user(user)
+            and instance.organization_id is None
+            and "organization" not in serializer.validated_data
+        ):
+            active_org_id = get_request_active_organization_id(self.request)
+            if active_org_id:
+                save_kwargs["organization_id"] = active_org_id
+        position = serializer.save(**save_kwargs)
         after = {field: getattr(position, field, None) for field in changed_fields}
         log_event(
             request=self.request,
@@ -55,6 +94,7 @@ class GovernmentPositionViewSet(viewsets.ModelViewSet):
             entity_id=str(position.id),
             changes={
                 "event": GOVERNMENT_POSITION_UPDATED_EVENT,
+                "organization_id": str(position.organization_id or ""),
                 "changed_fields": changed_fields,
                 "before": before,
                 "after": after,
@@ -62,11 +102,15 @@ class GovernmentPositionViewSet(viewsets.ModelViewSet):
         )
 
     def perform_destroy(self, instance):
+        user = self.request.user
+        if not is_platform_admin_user(user) and not can_access_organization_id(user, instance.organization_id):
+            raise PermissionDenied("You cannot delete position records outside your organization scope.")
         snapshot = {
             "title": instance.title,
             "branch": instance.branch,
             "institution": instance.institution,
             "appointment_authority": instance.appointment_authority,
+            "organization_id": str(instance.organization_id) if instance.organization_id else "",
         }
         entity_id = str(instance.id)
         super().perform_destroy(instance)
@@ -77,6 +121,7 @@ class GovernmentPositionViewSet(viewsets.ModelViewSet):
             entity_id=entity_id,
             changes={
                 "event": GOVERNMENT_POSITION_DELETED_EVENT,
+                "organization_id": str(snapshot.get("organization_id") or ""),
                 "snapshot": snapshot,
             },
         )

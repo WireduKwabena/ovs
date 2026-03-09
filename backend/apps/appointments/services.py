@@ -75,6 +75,8 @@ APPOINTMENT_NOTIFICATION_EVENT_APPOINTED = "appointment_appointed"
 APPOINTMENT_NOTIFICATION_EVENT_PUBLISHED = "appointment_published"
 APPOINTMENT_NOTIFICATION_EVENT_REVOKED = "appointment_revoked"
 VETTING_DECISION_GATED_STATUSES = {"committee_review", "confirmation_pending", "appointed"}
+COMMITTEE_TRANSITION_ROLES = {ROLE_COMMITTEE_MEMBER, ROLE_COMMITTEE_CHAIR}
+COMMITTEE_STAGE_OPERATIONAL_ROLES = {"member", "chair", "secretary"}
 
 
 def _safe_actor_display(actor) -> str:
@@ -85,6 +87,25 @@ def _safe_actor_display(actor) -> str:
 
 def _safe_str_id(value) -> str:
     return str(value) if value is not None else ""
+
+
+def _appointment_governance_context(*, appointment: AppointmentRecord, stage=None, committee_membership=None) -> dict:
+    organization_id = (
+        _safe_str_id(getattr(appointment, "organization_id", None))
+        or _safe_str_id(getattr(getattr(appointment, "appointment_exercise", None), "organization_id", None))
+        or _safe_str_id(getattr(getattr(appointment, "position", None), "organization_id", None))
+        or _safe_str_id(getattr(getattr(appointment, "nominee", None), "organization_id", None))
+        or _safe_str_id(getattr(getattr(appointment, "vetting_case", None), "organization_id", None))
+    )
+    committee_id = (
+        _safe_str_id(getattr(stage, "committee_id", None))
+        or _safe_str_id(getattr(committee_membership, "committee_id", None))
+        or _safe_str_id(getattr(appointment, "committee_id", None))
+    )
+    return {
+        "organization_id": organization_id,
+        "committee_id": committee_id,
+    }
 
 
 def _appointment_transition_notification_events(*, previous_status: str, new_status: str) -> list[str]:
@@ -170,6 +191,79 @@ def _actor_matches_stage_role(actor, required_role: str) -> bool:
     return has_role(actor, role)
 
 
+def _is_committee_sensitive_transition(*, stage, new_status: str) -> bool:
+    stage_role = str(getattr(stage, "required_role", "") or "").strip().lower() if stage is not None else ""
+    return bool(stage_role in COMMITTEE_TRANSITION_ROLES or new_status == "committee_review")
+
+
+def _resolve_bound_committee(*, appointment: AppointmentRecord, stage):
+    if stage is not None and getattr(stage, "committee_id", None):
+        return stage.committee
+    if getattr(appointment, "committee_id", None):
+        return appointment.committee
+    return None
+
+
+def _enforce_committee_stage_authorization(*, appointment: AppointmentRecord, actor, stage, new_status: str):
+    """
+    Committee-aware authorization for committee-stage transitions.
+
+    Preferred path:
+    - stage.committee -> appointment.committee binding
+    - active CommitteeMembership required for bound committee
+
+    Legacy path:
+    - if no committee is assigned, fall back to existing role/group checks.
+    """
+    if not _is_committee_sensitive_transition(stage=stage, new_status=new_status):
+        return None
+
+    committee = _resolve_bound_committee(appointment=appointment, stage=stage)
+    if committee is None:
+        return None
+
+    if not committee.is_active:
+        raise StageAuthorizationError("Assigned committee is inactive and cannot take stage actions.")
+
+    if appointment.organization_id and committee.organization_id and appointment.organization_id != committee.organization_id:
+        raise StageAuthorizationError("Assigned committee does not belong to the appointment organization.")
+    exercise_org_id = getattr(getattr(appointment, "appointment_exercise", None), "organization_id", None)
+    if exercise_org_id and committee.organization_id and exercise_org_id != committee.organization_id:
+        raise StageAuthorizationError("Assigned committee does not belong to the appointment exercise organization.")
+
+    try:
+        from apps.governance.models import CommitteeMembership
+    except Exception as exc:  # pragma: no cover - governance app should be installed in production/demo
+        raise StageAuthorizationError("Committee authorization subsystem is unavailable.") from exc
+
+    membership = (
+        CommitteeMembership.objects.select_related("committee")
+        .filter(
+            user=actor,
+            committee_id=committee.id,
+            is_active=True,
+            committee__is_active=True,
+            committee__organization__is_active=True,
+        )
+        .order_by("-created_at")
+        .first()
+    )
+    if membership is None:
+        raise StageAuthorizationError("Actor is not an active member of the committee assigned to this stage.")
+
+    committee_role = str(getattr(membership, "committee_role", "") or "").strip().lower()
+    if committee_role == "observer":
+        raise StageAuthorizationError("Observer committee members cannot take committee-stage actions.")
+
+    required_role = str(getattr(stage, "required_role", "") or "").strip().lower() if stage is not None else ""
+    if required_role == ROLE_COMMITTEE_CHAIR and committee_role != "chair":
+        raise StageAuthorizationError("This committee stage requires an active chair membership.")
+    if required_role == ROLE_COMMITTEE_MEMBER and committee_role not in COMMITTEE_STAGE_OPERATIONAL_ROLES:
+        raise StageAuthorizationError("Actor lacks eligible committee role for this committee stage.")
+
+    return membership
+
+
 def _normalize_text(value) -> str:
     return " ".join(str(value or "").strip().lower().split())
 
@@ -213,6 +307,9 @@ def _validate_campaign_position_and_rubric_alignment(appointment: AppointmentRec
             if source_rubric_id and str(source_rubric_id) != str(position.rubric_id):
                 raise LinkageValidationError("Position rubric does not match the active campaign rubric source.")
 
+    if exercise.organization_id and position.organization_id and exercise.organization_id != position.organization_id:
+        raise LinkageValidationError("Campaign organization does not match selected position organization.")
+
 
 def _validate_existing_vetting_case_linkage(appointment: AppointmentRecord) -> None:
     linked_case = appointment.vetting_case
@@ -234,6 +331,9 @@ def _validate_existing_vetting_case_linkage(appointment: AppointmentRecord) -> N
     if linked_case.candidate_enrollment_id and nominee.linked_candidate_id:
         if linked_case.candidate_enrollment.candidate_id != nominee.linked_candidate_id:
             raise LinkageValidationError("Provided vetting case candidate does not match nominee linked candidate.")
+
+    if appointment.organization_id and linked_case.organization_id and appointment.organization_id != linked_case.organization_id:
+        raise LinkageValidationError("Provided vetting case organization does not match appointment organization.")
 
 
 def _enforce_required_stage_context(*, appointment: AppointmentRecord, new_status: str, stage) -> None:
@@ -431,6 +531,16 @@ def ensure_vetting_linkage_for_appointment(*, appointment: AppointmentRecord, ac
 
     from apps.applications.models import VettingCase
 
+    if appointment.organization_id is None:
+        inferred_org_id = (
+            str(getattr(appointment.appointment_exercise, "organization_id", "") or "")
+            or str(getattr(appointment.position, "organization_id", "") or "")
+            or str(getattr(appointment.nominee, "organization_id", "") or "")
+        )
+        if inferred_org_id:
+            appointment.organization_id = inferred_org_id
+            appointment.save(update_fields=["organization", "updated_at"])
+
     _validate_campaign_position_and_rubric_alignment(appointment)
     _validate_existing_vetting_case_linkage(appointment)
 
@@ -441,7 +551,11 @@ def ensure_vetting_linkage_for_appointment(*, appointment: AppointmentRecord, ac
         candidate=candidate,
     ).first()
     if existing_enrollment is None and getattr(actor, "user_type", "") == "hr_manager":
-        enforce_candidate_quota(user=actor, additional=1)
+        enforce_candidate_quota(
+            user=actor,
+            additional=1,
+            organization_id=str(getattr(appointment, "organization_id", "") or "") or None,
+        )
 
     enrollment, _created = CandidateEnrollment.objects.get_or_create(
         campaign=appointment.appointment_exercise,
@@ -461,6 +575,7 @@ def ensure_vetting_linkage_for_appointment(*, appointment: AppointmentRecord, ac
 
     if linked_case is None:
         linked_case = VettingCase.objects.create(
+            organization_id=appointment.organization_id or getattr(appointment.appointment_exercise, "organization_id", None),
             applicant=_resolve_applicant_user(candidate),
             candidate_enrollment=enrollment,
             assigned_to=appointment.appointment_exercise.initiated_by,
@@ -476,7 +591,11 @@ def ensure_vetting_linkage_for_appointment(*, appointment: AppointmentRecord, ac
 
     if appointment.vetting_case_id != linked_case.id:
         appointment.vetting_case = linked_case
-        appointment.save(update_fields=["vetting_case", "updated_at"])
+        update_fields = ["vetting_case", "updated_at"]
+        if appointment.organization_id is None and linked_case.organization_id:
+            appointment.organization_id = linked_case.organization_id
+            update_fields.insert(0, "organization")
+        appointment.save(update_fields=update_fields)
 
     _ensure_nominee_invitation(enrollment=enrollment, actor=actor)
 
@@ -485,6 +604,7 @@ def ensure_vetting_linkage_for_appointment(*, appointment: AppointmentRecord, ac
 
 def notify_nomination_created(*, appointment: AppointmentRecord, actor, request=None) -> None:
     """Emit nomination-created notification + additive lifecycle audit event."""
+    governance_context = _appointment_governance_context(appointment=appointment)
     _emit_appointment_notifications(
         appointment=appointment,
         event_types=[APPOINTMENT_NOTIFICATION_EVENT_NOMINATION_CREATED],
@@ -494,6 +614,7 @@ def notify_nomination_created(*, appointment: AppointmentRecord, actor, request=
         metadata={
             "event": APPOINTMENT_NOMINATION_CREATED_EVENT,
             "campaign_id": _safe_str_id(appointment.appointment_exercise_id),
+            **governance_context,
         },
         idempotency_seed=str(appointment.id),
     )
@@ -512,6 +633,7 @@ def notify_nomination_created(*, appointment: AppointmentRecord, actor, request=
             "status": appointment.status,
             "campaign_id": _safe_str_id(appointment.appointment_exercise_id),
             "nominated_by": _safe_actor_display(actor),
+            **governance_context,
         },
     )
 
@@ -548,6 +670,7 @@ def publish_appointment_record(
     now = timezone.now()
 
     with transaction.atomic():
+        governance_context = _appointment_governance_context(appointment=appointment)
         publication = ensure_publication_record_for_appointment(appointment=appointment)
         previous_publication_status = publication.status
         publication.status = "published"
@@ -599,6 +722,7 @@ def publish_appointment_record(
                     "publication_status": publication.status,
                     "publication_reference": publication.publication_reference,
                     "published_at": publication.published_at.isoformat() if publication.published_at else "",
+                    **governance_context,
                 },
                 idempotency_seed=publication.published_at.isoformat() if publication.published_at else str(appointment.id),
             )
@@ -615,6 +739,7 @@ def publish_appointment_record(
                     "publication_reference": publication.publication_reference,
                     "published_at": publication.published_at.isoformat() if publication.published_at else "",
                     "was_status": previous_publication_status,
+                    **governance_context,
                 },
             )
 
@@ -635,6 +760,7 @@ def revoke_appointment_publication(
 
     now = timezone.now()
     with transaction.atomic():
+        governance_context = _appointment_governance_context(appointment=appointment)
         publication = ensure_publication_record_for_appointment(appointment=appointment)
         if publication.status != "published":
             raise PublicationLifecycleError("Only published appointments can be revoked.")
@@ -662,13 +788,14 @@ def revoke_appointment_publication(
             event_types=[APPOINTMENT_NOTIFICATION_EVENT_REVOKED],
             actor=actor,
             new_status=appointment.status,
-            metadata={
-                "publication_status": publication.status,
-                "revoked_at": publication.revoked_at.isoformat() if publication.revoked_at else "",
-                "make_private": bool(make_private),
-            },
-            idempotency_seed=publication.revoked_at.isoformat() if publication.revoked_at else str(appointment.id),
-        )
+                metadata={
+                    "publication_status": publication.status,
+                    "revoked_at": publication.revoked_at.isoformat() if publication.revoked_at else "",
+                    "make_private": bool(make_private),
+                    **governance_context,
+                },
+                idempotency_seed=publication.revoked_at.isoformat() if publication.revoked_at else str(appointment.id),
+            )
 
         if request is not None:
             log_event(
@@ -681,6 +808,7 @@ def revoke_appointment_publication(
                     "publication_status": publication.status,
                     "revoked_at": publication.revoked_at.isoformat() if publication.revoked_at else "",
                     "revocation_reason_present": bool(publication.revocation_reason),
+                    **governance_context,
                 },
             )
 
@@ -748,6 +876,13 @@ def advance_stage(
         new_status=new_status,
         reason_note=reason_note,
     )
+    committee_membership = _enforce_committee_stage_authorization(
+        appointment=appointment,
+        actor=actor,
+        stage=stage,
+        new_status=new_status,
+    )
+    bound_committee = _resolve_bound_committee(appointment=appointment, stage=stage)
 
     if stage is not None:
         if stage.maps_to_status != new_status:
@@ -822,6 +957,7 @@ def advance_stage(
         stage_action = AppointmentStageAction.objects.create(
             appointment=appointment,
             stage=stage,
+            committee_membership=committee_membership,
             actor=actor,
             actor_role=resolve_actor_role(actor, preferred_roles=preferred_actor_roles),
             action="noted",
@@ -829,6 +965,11 @@ def advance_stage(
             evidence_links=evidence_links or [],
             previous_status=previous_status,
             new_status=new_status,
+        )
+        governance_context = _appointment_governance_context(
+            appointment=appointment,
+            stage=stage,
+            committee_membership=committee_membership,
         )
 
         _emit_appointment_notifications(
@@ -846,6 +987,11 @@ def advance_stage(
                 "actor_id": _safe_str_id(getattr(actor, "id", None)),
                 "actor_display": _safe_actor_display(actor),
                 "decision_status": new_status if new_status in {"appointed", "rejected"} else "",
+                "committee_id": _safe_str_id(getattr(bound_committee, "id", None)),
+                "committee_name": str(getattr(bound_committee, "name", "")),
+                "committee_membership_id": _safe_str_id(getattr(committee_membership, "id", None)),
+                "committee_membership_role": str(getattr(committee_membership, "committee_role", "")),
+                **governance_context,
                 **vetting_decision_context,
             },
             idempotency_seed=str(stage_action.id),
@@ -864,6 +1010,10 @@ def advance_stage(
                     "stage_id": _safe_str_id(getattr(stage, "id", None)),
                     "stage_name": str(getattr(stage, "name", "")),
                     "has_reason_note": bool(str(reason_note or "").strip()),
+                    "committee_id": _safe_str_id(getattr(bound_committee, "id", None)),
+                    "committee_membership_id": _safe_str_id(getattr(committee_membership, "id", None)),
+                    "committee_membership_role": str(getattr(committee_membership, "committee_role", "")),
+                    **governance_context,
                     **vetting_decision_context,
                 },
             )
@@ -882,6 +1032,10 @@ def advance_stage(
                     "actor_id": _safe_str_id(getattr(actor, "id", None)),
                     "actor_role": stage_action.actor_role,
                     "has_reason_note": bool(str(reason_note or "").strip()),
+                    "committee_id": _safe_str_id(getattr(bound_committee, "id", None)),
+                    "committee_membership_id": _safe_str_id(getattr(committee_membership, "id", None)),
+                    "committee_membership_role": str(getattr(committee_membership, "committee_role", "")),
+                    **governance_context,
                     **vetting_decision_context,
                 },
             )
@@ -896,6 +1050,7 @@ def advance_stage(
                         "decision": new_status,
                         "decided_by": _safe_actor_display(actor),
                         "stage_action_id": str(stage_action.id),
+                        **governance_context,
                         **vetting_decision_context,
                     },
                 )

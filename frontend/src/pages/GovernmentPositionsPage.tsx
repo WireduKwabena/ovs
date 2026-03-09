@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/useAuth";
 import type { GovernmentPosition } from "@/types";
 import { governmentService } from "@/services/government.service";
 
@@ -20,6 +21,7 @@ const SELECT_FIELD_CLASS =
   "h-10 w-full rounded-md border border-border bg-input px-3 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-60";
 
 const GovernmentPositionsPage: React.FC = () => {
+  const { activeOrganization, activeOrganizationId } = useAuth();
   const [rows, setRows] = useState<GovernmentPosition[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -43,7 +45,7 @@ const GovernmentPositionsPage: React.FC = () => {
       search: search.trim() || undefined,
     });
     setRows(data);
-  }, [search]);
+  }, [activeOrganizationId, search]);
 
   useEffect(() => {
     const run = async () => {
@@ -105,12 +107,24 @@ const GovernmentPositionsPage: React.FC = () => {
     }
   };
 
+  const scopedRows = useMemo(() => {
+    return rows.filter((item) => {
+      if (!activeOrganizationId) {
+        return true;
+      }
+      if (!item.organization) {
+        return true;
+      }
+      return String(item.organization) === activeOrganizationId;
+    });
+  }, [activeOrganizationId, rows]);
+
   const stats = useMemo(() => {
-    const total = rows.length;
-    const vacant = rows.filter((item) => item.is_vacant).length;
-    const publicCount = rows.filter((item) => item.is_public).length;
+    const total = scopedRows.length;
+    const vacant = scopedRows.filter((item) => item.is_vacant).length;
+    const publicCount = scopedRows.filter((item) => item.is_public).length;
     return { total, vacant, publicCount };
-  }, [rows]);
+  }, [scopedRows]);
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 space-y-6">
@@ -120,6 +134,9 @@ const GovernmentPositionsPage: React.FC = () => {
             <h1 className="text-3xl font-black tracking-tight text-slate-900">Government Positions</h1>
             <p className="mt-1 text-sm text-slate-700">
               Manage official positions that feed nomination, vetting, and appointment workflows.
+            </p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-700">
+              Active organization scope: {activeOrganization?.name || "Default"}
             </p>
           </div>
           <Button type="button" variant="outline" onClick={() => void handleRefresh()} disabled={refreshing}>
@@ -249,7 +266,7 @@ const GovernmentPositionsPage: React.FC = () => {
 
         {loading ? (
           <p className="mt-4 text-sm text-slate-700">Loading positions...</p>
-        ) : rows.length === 0 ? (
+        ) : scopedRows.length === 0 ? (
           <div className="mt-4 rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-700">
             No government positions found.
           </div>
@@ -266,7 +283,7 @@ const GovernmentPositionsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {rows.map((position) => (
+                {scopedRows.map((position) => (
                   <tr key={position.id}>
                     <td className="px-3 py-3">
                       <p className="font-semibold text-slate-900">{position.title}</p>

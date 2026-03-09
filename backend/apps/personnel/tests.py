@@ -12,6 +12,7 @@ from apps.audit.contracts import (
 )
 from apps.authentication.models import User
 from apps.candidates.models import Candidate
+from apps.governance.models import Organization, OrganizationMembership
 from apps.positions.models import GovernmentPosition
 from apps.personnel.models import PersonnelRecord
 
@@ -262,3 +263,71 @@ class PersonnelApiTests(APITestCase):
         self.assertEqual(hr_response.status_code, 200)
         hr_rows = hr_response.json()
         self.assertEqual(len(hr_rows), 2)
+
+
+class PersonnelOrganizationScopeTests(APITestCase):
+    def setUp(self):
+        self.org_a = Organization.objects.create(code="per-org-a", name="Personnel Org A")
+        self.org_b = Organization.objects.create(code="per-org-b", name="Personnel Org B")
+
+        self.hr_a = User.objects.create_user(
+            email="personnel_scope_a@example.com",
+            password="Pass1234!",
+            first_name="Personnel",
+            last_name="ScopeA",
+            user_type="hr_manager",
+        )
+        self.admin_user = User.objects.create_user(
+            email="personnel_scope_admin@example.com",
+            password="Pass1234!",
+            first_name="Personnel",
+            last_name="Admin",
+            user_type="admin",
+            is_staff=True,
+            is_superuser=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr_a,
+            organization=self.org_a,
+            is_active=True,
+            is_default=True,
+        )
+
+        self.record_org_a = PersonnelRecord.objects.create(
+            organization=self.org_a,
+            full_name="Scoped Personnel A",
+            is_public=True,
+        )
+        self.record_org_b = PersonnelRecord.objects.create(
+            organization=self.org_b,
+            full_name="Scoped Personnel B",
+            is_public=False,
+        )
+        self.record_legacy = PersonnelRecord.objects.create(
+            full_name="Legacy Personnel",
+            is_public=True,
+        )
+
+    def _extract_results(self, response):
+        payload = response.json()
+        if isinstance(payload, dict) and "results" in payload:
+            return payload["results"]
+        return payload
+
+    def test_list_is_scoped_to_membership_org_with_legacy_null_fallback(self):
+        self.client.force_authenticate(self.hr_a)
+        response = self.client.get("/api/personnel/")
+        self.assertEqual(response.status_code, 200)
+        ids = {item["id"] for item in self._extract_results(response)}
+        self.assertIn(str(self.record_org_a.id), ids)
+        self.assertIn(str(self.record_legacy.id), ids)
+        self.assertNotIn(str(self.record_org_b.id), ids)
+
+    def test_delete_outside_org_is_denied_for_hr_but_allowed_for_admin(self):
+        self.client.force_authenticate(self.hr_a)
+        denied = self.client.delete(f"/api/personnel/{self.record_org_b.id}/")
+        self.assertIn(denied.status_code, {403, 404})
+
+        self.client.force_authenticate(self.admin_user)
+        allowed = self.client.delete(f"/api/personnel/{self.record_org_b.id}/")
+        self.assertEqual(allowed.status_code, 204)

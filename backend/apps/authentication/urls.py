@@ -21,6 +21,7 @@ urlpatterns = [
     # Profile Management
     path('profile/', views.profile_view, name='profile'),
     path('profile/update/', views.update_profile_view, name='update_profile'),
+    path('profile/active-organization/', views.set_active_organization_view, name='set_active_organization'),
     
     # Password Management
     path('change-password/', views.change_password_view, name='change_password'),

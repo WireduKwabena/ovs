@@ -4,10 +4,12 @@ import { toast } from "react-toastify";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/useAuth";
 import type { PersonnelRecord } from "@/types";
 import { governmentService } from "@/services/government.service";
 
 const GovernmentPersonnelPage: React.FC = () => {
+  const { activeOrganization, activeOrganizationId } = useAuth();
   const [rows, setRows] = useState<PersonnelRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -32,7 +34,7 @@ const GovernmentPersonnelPage: React.FC = () => {
       search: search.trim() || undefined,
     });
     setRows(data);
-  }, [officeholdersOnly, search]);
+  }, [activeOrganizationId, officeholdersOnly, search]);
 
   useEffect(() => {
     const run = async () => {
@@ -95,12 +97,24 @@ const GovernmentPersonnelPage: React.FC = () => {
     }
   };
 
+  const scopedRows = useMemo(() => {
+    return rows.filter((item) => {
+      if (!activeOrganizationId) {
+        return true;
+      }
+      if (!item.organization) {
+        return true;
+      }
+      return String(item.organization) === activeOrganizationId;
+    });
+  }, [activeOrganizationId, rows]);
+
   const stats = useMemo(() => {
-    const total = rows.length;
-    const officeholders = rows.filter((item) => item.is_active_officeholder).length;
-    const publicCount = rows.filter((item) => item.is_public).length;
+    const total = scopedRows.length;
+    const officeholders = scopedRows.filter((item) => item.is_active_officeholder).length;
+    const publicCount = scopedRows.filter((item) => item.is_public).length;
     return { total, officeholders, publicCount };
-  }, [rows]);
+  }, [scopedRows]);
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 space-y-6">
@@ -110,6 +124,9 @@ const GovernmentPersonnelPage: React.FC = () => {
             <h1 className="text-3xl font-black tracking-tight text-slate-900">Government Personnel</h1>
             <p className="mt-1 text-sm text-slate-700">
               Manage nominee and officeholder records used in appointment lifecycle workflows.
+            </p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-700">
+              Active organization scope: {activeOrganization?.name || "Default"}
             </p>
           </div>
           <Button type="button" variant="outline" onClick={() => void handleRefresh()} disabled={refreshing}>
@@ -235,7 +252,7 @@ const GovernmentPersonnelPage: React.FC = () => {
 
         {loading ? (
           <p className="mt-4 text-sm text-slate-700">Loading personnel...</p>
-        ) : rows.length === 0 ? (
+        ) : scopedRows.length === 0 ? (
           <div className="mt-4 rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-700">
             No personnel records found.
           </div>
@@ -252,7 +269,7 @@ const GovernmentPersonnelPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {rows.map((row) => (
+                {scopedRows.map((row) => (
                   <tr key={row.id}>
                     <td className="px-3 py-3">
                       <p className="font-semibold text-slate-900">{row.full_name}</p>

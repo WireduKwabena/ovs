@@ -138,6 +138,8 @@ class BillingPaymentMethodSummarySerializer(serializers.Serializer):
 
 class BillingManagedSubscriptionSerializer(serializers.Serializer):
     id = serializers.UUIDField()
+    organization_id = serializers.CharField(allow_null=True, required=False)
+    organization_name = serializers.CharField(allow_null=True, required=False)
     provider = serializers.CharField()
     status = serializers.CharField()
     payment_status = serializers.CharField()
@@ -181,3 +183,65 @@ class BillingSubscriptionRetryResponseSerializer(serializers.Serializer):
     message = serializers.CharField(required=False)
     session_id = serializers.CharField(required=False)
     checkout_url = serializers.URLField(required=False)
+
+
+class OnboardingTokenStateSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    subscription_id = serializers.UUIDField(allow_null=True)
+    token_preview = serializers.CharField()
+    is_active = serializers.BooleanField()
+    expires_at = serializers.DateTimeField(allow_null=True)
+    max_uses = serializers.IntegerField(allow_null=True)
+    uses = serializers.IntegerField()
+    remaining_uses = serializers.IntegerField(allow_null=True)
+    allowed_email_domain = serializers.CharField(allow_blank=True)
+    last_used_at = serializers.DateTimeField(allow_null=True)
+    revoked_at = serializers.DateTimeField(allow_null=True)
+    revoked_reason = serializers.CharField(allow_blank=True)
+    created_at = serializers.DateTimeField()
+    updated_at = serializers.DateTimeField()
+
+
+class OrganizationOnboardingTokenStateResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    organization_id = serializers.UUIDField()
+    organization_name = serializers.CharField()
+    subscription_id = serializers.UUIDField(allow_null=True)
+    subscription_active = serializers.BooleanField()
+    has_active_token = serializers.BooleanField()
+    token = OnboardingTokenStateSerializer(allow_null=True)
+
+
+class OrganizationOnboardingTokenGenerateSerializer(serializers.Serializer):
+    max_uses = serializers.IntegerField(required=False, min_value=1)
+    expires_in_hours = serializers.IntegerField(required=False, min_value=1, max_value=24 * 365)
+    allowed_email_domain = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    rotate = serializers.BooleanField(required=False, default=True)
+
+
+class OrganizationOnboardingTokenGenerateResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    organization_id = serializers.UUIDField()
+    organization_name = serializers.CharField()
+    token = serializers.CharField()
+    onboarding_link = serializers.CharField(allow_blank=True)
+    token_state = OnboardingTokenStateSerializer()
+
+
+class OrganizationOnboardingTokenRevokeSerializer(serializers.Serializer):
+    reason = serializers.CharField(required=False, allow_blank=True, max_length=255)
+
+
+class OrganizationOnboardingTokenValidateSerializer(serializers.Serializer):
+    token = serializers.CharField(max_length=512)
+    email = serializers.EmailField(required=False, allow_blank=True)
+
+
+class OrganizationOnboardingTokenValidateResponseSerializer(serializers.Serializer):
+    valid = serializers.BooleanField()
+    reason = serializers.CharField()
+    organization_id = serializers.UUIDField(required=False)
+    organization_name = serializers.CharField(required=False)
+    subscription_id = serializers.UUIDField(required=False, allow_null=True)
+    remaining_uses = serializers.IntegerField(required=False, allow_null=True)
+    expires_at = serializers.DateTimeField(required=False, allow_null=True)

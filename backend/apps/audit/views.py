@@ -8,7 +8,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 
-from apps.core.permissions import IsAuditReaderOrAdmin
+from apps.core.authz import get_user_committee_ids, get_user_organization_ids
+from apps.core.permissions import IsAuditReaderOrAdmin, is_admin_user
 
 from .contracts import GOVERNMENT_AUDIT_EVENT_CATALOG
 from .models import AuditLog
@@ -46,11 +47,91 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     search_fields = ['entity_type', 'changes']
     ordering_fields = ['created_at']
     ordering = ['-created_at']
-    
+
+    @staticmethod
+    def _legacy_org_scoped_entity_ids(
+        *,
+        allowed_org_ids: set[str],
+        entity_types: set[str],
+    ) -> dict[str, list[str]]:
+        if not allowed_org_ids:
+            return {}
+
+        from apps.applications.models import VettingCase
+        from apps.appointments.models import AppointmentRecord
+        from apps.campaigns.models import VettingCampaign
+        from apps.personnel.models import PersonnelRecord
+        from apps.positions.models import GovernmentPosition
+
+        mappings = {
+            "AppointmentRecord": AppointmentRecord,
+            "GovernmentPosition": GovernmentPosition,
+            "PersonnelRecord": PersonnelRecord,
+            "VettingCampaign": VettingCampaign,
+            "VettingCase": VettingCase,
+        }
+        scoped: dict[str, list[str]] = {}
+        for entity_type in entity_types:
+            model = mappings.get(entity_type)
+            if model is None:
+                continue
+            values = (
+                model.objects.filter(
+                    Q(organization_id__in=list(allowed_org_ids)) | Q(organization_id__isnull=True)
+                )
+                .values_list("id", flat=True)
+            )
+            scoped[entity_type] = [str(value) for value in values]
+        return scoped
+
+    def _scoped_queryset_for_non_admin(self, queryset):
+        user = self.request.user
+        allowed_org_ids = set(get_user_organization_ids(user))
+        allowed_committee_ids = set(get_user_committee_ids(user))
+
+        scope_q = Q(user_id=user.id) | Q(admin_user_id=user.id)
+        if allowed_org_ids:
+            scope_q |= Q(scope_organization_id__in=list(allowed_org_ids))
+            scope_q |= Q(scope_organization_id="", changes__organization_id__in=list(allowed_org_ids))
+        if allowed_committee_ids:
+            scope_q |= Q(scope_committee_id__in=list(allowed_committee_ids))
+            scope_q |= Q(scope_committee_id="", changes__committee_id__in=list(allowed_committee_ids))
+
+        legacy_missing_context_q = (
+            Q(scope_organization_id="")
+            & Q(scope_committee_id="")
+            & Q(changes__organization_id__isnull=True)
+            & Q(changes__committee_id__isnull=True)
+        )
+
+        # Legacy compatibility for old events that predate org/committee payload keys.
+        if allowed_org_ids:
+            legacy_entity_types = set(
+                queryset.filter(legacy_missing_context_q).values_list("entity_type", flat=True).distinct()
+            )
+            legacy_entity_ids = self._legacy_org_scoped_entity_ids(
+                allowed_org_ids=allowed_org_ids,
+                entity_types=legacy_entity_types,
+            )
+            for entity_type, entity_ids in legacy_entity_ids.items():
+                if not entity_ids:
+                    continue
+                scope_q |= (
+                    Q(entity_type=entity_type, entity_id__in=entity_ids)
+                    & legacy_missing_context_q
+                )
+        return queryset.filter(scope_q).distinct()
+
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return AuditLog.objects.none()
-        return super().get_queryset()
+        queryset = super().get_queryset()
+        user = getattr(self.request, "user", None)
+        if user is None or not getattr(user, "is_authenticated", False):
+            return AuditLog.objects.none()
+        if is_admin_user(user):
+            return queryset
+        return self._scoped_queryset_for_non_admin(queryset)
 
     @extend_schema(
         parameters=[

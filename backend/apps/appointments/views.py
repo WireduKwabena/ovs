@@ -3,6 +3,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
 
 from apps.audit.contracts import (
     APPOINTMENT_RECORD_CREATED_EVENT,
@@ -16,7 +17,13 @@ except Exception:  # pragma: no cover - audit app may be optional in some setups
     def log_event(**kwargs):  # type: ignore
         return False
 
-from apps.core.permissions import IsGovernmentWorkflowOperator
+from apps.core.permissions import (
+    IsGovernmentWorkflowOperator,
+    can_access_organization_id,
+    get_request_active_organization_id,
+    is_platform_admin_user,
+    scope_queryset_to_user_organizations,
+)
 from apps.authentication.permissions import RequiresRecentAuth
 
 from .models import AppointmentRecord, ApprovalStage, ApprovalStageTemplate
@@ -52,33 +59,93 @@ from .services import (
 
 
 class ApprovalStageTemplateViewSet(viewsets.ModelViewSet):
-    queryset = ApprovalStageTemplate.objects.prefetch_related("stages").all()
+    queryset = ApprovalStageTemplate.objects.select_related("organization").prefetch_related("stages").all()
     serializer_class = ApprovalStageTemplateSerializer
     permission_classes = [IsGovernmentWorkflowOperator]
-    filterset_fields = ["exercise_type"]
+    filterset_fields = ["organization", "exercise_type"]
     search_fields = ["name", "exercise_type"]
     ordering_fields = ["name", "created_at"]
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return scope_queryset_to_user_organizations(queryset, request=self.request, organization_field="organization_id")
+
     def perform_create(self, serializer):
+        user = self.request.user
+        requested_org = serializer.validated_data.get("organization")
+        if not is_platform_admin_user(user):
+            if requested_org is not None and not can_access_organization_id(user, requested_org.id):
+                raise PermissionDenied("You cannot create approval templates for another organization.")
+            active_org_id = get_request_active_organization_id(self.request)
+            if requested_org is None and active_org_id:
+                serializer.save(created_by=self.request.user, organization_id=active_org_id)
+                return
         serializer.save(created_by=self.request.user)
 
 
 class ApprovalStageViewSet(viewsets.ModelViewSet):
-    queryset = ApprovalStage.objects.select_related("template").all()
+    queryset = ApprovalStage.objects.select_related("template", "template__organization", "committee").all()
     serializer_class = ApprovalStageSerializer
     permission_classes = [IsGovernmentWorkflowOperator]
-    filterset_fields = ["template", "required_role", "maps_to_status", "is_required"]
+    filterset_fields = ["template", "committee", "required_role", "maps_to_status", "is_required"]
     search_fields = ["name", "required_role", "maps_to_status"]
     ordering_fields = ["order", "name"]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return scope_queryset_to_user_organizations(
+            queryset,
+            request=self.request,
+            organization_field="template__organization_id",
+        )
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        template = serializer.validated_data.get("template")
+        committee = serializer.validated_data.get("committee")
+        if not is_platform_admin_user(user) and template is not None and not can_access_organization_id(
+            user, template.organization_id
+        ):
+            raise PermissionDenied("You cannot create stages for templates outside your organization.")
+        if (
+            not is_platform_admin_user(user)
+            and committee is not None
+            and not can_access_organization_id(user, committee.organization_id)
+        ):
+            raise PermissionDenied("You cannot assign a committee outside your organization.")
+        serializer.save()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        instance = serializer.instance
+        template = serializer.validated_data.get("template") or instance.template
+        committee = serializer.validated_data.get("committee") if "committee" in serializer.validated_data else instance.committee
+        if not is_platform_admin_user(user) and template is not None and not can_access_organization_id(
+            user, template.organization_id
+        ):
+            raise PermissionDenied("You cannot update stages for templates outside your organization.")
+        if (
+            not is_platform_admin_user(user)
+            and committee is not None
+            and not can_access_organization_id(user, committee.organization_id)
+        ):
+            raise PermissionDenied("You cannot assign a committee outside your organization.")
+        serializer.save()
 
 
 class AppointmentRecordViewSet(viewsets.ModelViewSet):
     queryset = AppointmentRecord.objects.select_related(
+        "organization",
+        "committee",
         "position",
+        "position__organization",
         "nominee",
+        "nominee__organization",
         "appointment_exercise",
+        "appointment_exercise__organization",
         "nominated_by_user",
         "vetting_case",
+        "vetting_case__organization",
         "final_decision_by_user",
         "publication",
     ).prefetch_related("stage_actions")
@@ -87,6 +154,8 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
     filterset_fields = [
         "status",
         "is_public",
+        "organization",
+        "committee",
         "position",
         "nominee",
         "appointment_exercise",
@@ -100,10 +169,51 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
     ]
     ordering_fields = ["created_at", "nomination_date", "appointment_date", "updated_at"]
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return scope_queryset_to_user_organizations(
+            queryset,
+            request=self.request,
+            organization_field="organization_id",
+        )
+
     def perform_create(self, serializer):
         try:
             with transaction.atomic():
-                appointment = serializer.save(nominated_by_user=self.request.user)
+                user = self.request.user
+                requested_org = serializer.validated_data.get("organization")
+                requested_committee = serializer.validated_data.get("committee")
+                position = serializer.validated_data.get("position")
+                exercise = serializer.validated_data.get("appointment_exercise")
+                nominee = serializer.validated_data.get("nominee")
+
+                resolved_org_id = (
+                    str(getattr(requested_org, "id", "") or "")
+                    or str(getattr(exercise, "organization_id", "") or "")
+                    or str(getattr(position, "organization_id", "") or "")
+                    or str(getattr(nominee, "organization_id", "") or "")
+                    or str(get_request_active_organization_id(self.request) or "")
+                )
+                resolved_org_id = resolved_org_id or None
+
+                if not is_platform_admin_user(user):
+                    if requested_org is not None and not can_access_organization_id(user, requested_org.id):
+                        raise ValidationError("You cannot create appointments for another organization.")
+                    if (
+                        requested_committee is not None
+                        and not can_access_organization_id(user, requested_committee.organization_id)
+                    ):
+                        raise ValidationError("You cannot assign an appointment committee outside your organization.")
+                    if resolved_org_id and not can_access_organization_id(user, resolved_org_id):
+                        raise ValidationError("You cannot create appointments for another organization.")
+
+                if resolved_org_id:
+                    appointment = serializer.save(
+                        nominated_by_user=self.request.user,
+                        organization_id=resolved_org_id,
+                    )
+                else:
+                    appointment = serializer.save(nominated_by_user=self.request.user)
                 ensure_vetting_linkage_for_appointment(appointment=appointment, actor=self.request.user)
                 ensure_publication_record_for_appointment(appointment=appointment)
                 notify_nomination_created(appointment=appointment, actor=self.request.user, request=self.request)
@@ -114,6 +224,8 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
                     entity_id=str(appointment.id),
                     changes={
                         "event": APPOINTMENT_RECORD_CREATED_EVENT,
+                        "organization_id": str(appointment.organization_id or ""),
+                        "committee_id": str(appointment.committee_id or ""),
                         "position_id": str(appointment.position_id),
                         "nominee_id": str(appointment.nominee_id),
                         "status": appointment.status,
@@ -124,9 +236,34 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         instance = serializer.instance
+        user = self.request.user
+        if not is_platform_admin_user(user) and not can_access_organization_id(user, instance.organization_id):
+            raise PermissionDenied("You cannot update appointments outside your organization scope.")
+
+        requested_org = serializer.validated_data.get("organization")
+        requested_committee = serializer.validated_data.get("committee")
+        if not is_platform_admin_user(user) and requested_org is not None and not can_access_organization_id(user, requested_org.id):
+            raise PermissionDenied("You cannot move this appointment to another organization.")
+        if (
+            not is_platform_admin_user(user)
+            and requested_committee is not None
+            and not can_access_organization_id(user, requested_committee.organization_id)
+        ):
+            raise PermissionDenied("You cannot assign appointment committee outside your organization.")
+
         changed_fields = list(serializer.validated_data.keys())
         before = {field: getattr(instance, field, None) for field in changed_fields}
-        appointment = serializer.save()
+        save_kwargs = {}
+        if (
+            not is_platform_admin_user(user)
+            and instance.organization_id is None
+            and "organization" not in serializer.validated_data
+        ):
+            active_org_id = get_request_active_organization_id(self.request)
+            if active_org_id:
+                save_kwargs["organization_id"] = active_org_id
+
+        appointment = serializer.save(**save_kwargs)
         after = {field: getattr(appointment, field, None) for field in changed_fields}
         log_event(
             request=self.request,
@@ -135,6 +272,8 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
             entity_id=str(appointment.id),
             changes={
                 "event": APPOINTMENT_RECORD_UPDATED_EVENT,
+                "organization_id": str(appointment.organization_id or ""),
+                "committee_id": str(appointment.committee_id or ""),
                 "changed_fields": changed_fields,
                 "before": before,
                 "after": after,
@@ -142,7 +281,12 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
         )
 
     def perform_destroy(self, instance):
+        user = self.request.user
+        if not is_platform_admin_user(user) and not can_access_organization_id(user, instance.organization_id):
+            raise PermissionDenied("You cannot delete appointments outside your organization scope.")
         snapshot = {
+            "organization_id": str(instance.organization_id) if instance.organization_id else "",
+            "committee_id": str(instance.committee_id) if instance.committee_id else "",
             "position_id": str(instance.position_id),
             "nominee_id": str(instance.nominee_id),
             "status": instance.status,
@@ -157,6 +301,8 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
             entity_id=entity_id,
             changes={
                 "event": APPOINTMENT_RECORD_DELETED_EVENT,
+                "organization_id": str(instance.organization_id or ""),
+                "committee_id": str(instance.committee_id or ""),
                 "snapshot": snapshot,
             },
         )
@@ -261,6 +407,8 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
             entity_id=str(appointment.id),
             changes={
                 "event": APPOINTMENT_VETTING_LINKAGE_ENSURED_EVENT,
+                "organization_id": str(appointment.organization_id or ""),
+                "committee_id": str(appointment.committee_id or ""),
                 "vetting_case_id": str(appointment.vetting_case_id) if appointment.vetting_case_id else "",
                 "appointment_exercise_id": str(appointment.appointment_exercise_id)
                 if appointment.appointment_exercise_id
@@ -273,7 +421,13 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"], permission_classes=[IsCommitteeMemberOrAdmin], url_path="stage-actions")
     def stage_actions(self, request, pk=None):
         appointment = self.get_object()
-        rows = appointment.stage_actions.select_related("stage", "actor").all()
+        rows = appointment.stage_actions.select_related(
+            "stage",
+            "stage__committee",
+            "actor",
+            "committee_membership",
+            "committee_membership__committee",
+        ).all()
         serializer = AppointmentStageActionSerializer(rows, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

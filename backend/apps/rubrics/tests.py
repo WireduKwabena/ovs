@@ -12,6 +12,7 @@ from apps.authentication.permissions import (
     RECENT_AUTH_REQUIRED_CODE,
     RECENT_AUTH_SESSION_KEY,
 )
+from apps.governance.models import Organization, OrganizationMembership
 from apps.rubrics.models import RubricEvaluation, VettingDecisionOverride, VettingDecisionRecommendation, VettingRubric
 from apps.rubrics.tasks import auto_assign_rubric, evaluate_case_with_rubric
 
@@ -634,3 +635,98 @@ class RubricTaskTests(TestCase):
 
         self.assertFalse(result["success"])
         self.assertIn("not found", result["error"].lower())
+
+
+class RubricsOrganizationScopeTests(APITestCase):
+    def setUp(self):
+        self.org_a = Organization.objects.create(code="rub-org-a", name="Rubrics Org A")
+        self.org_b = Organization.objects.create(code="rub-org-b", name="Rubrics Org B")
+
+        self.hr_a = User.objects.create_user(
+            email="rubrics_scope_a@example.com",
+            password="Pass1234!",
+            first_name="Rubrics",
+            last_name="ScopeA",
+            user_type="hr_manager",
+        )
+        self.hr_b = User.objects.create_user(
+            email="rubrics_scope_b@example.com",
+            password="Pass1234!",
+            first_name="Rubrics",
+            last_name="ScopeB",
+            user_type="hr_manager",
+        )
+        self.applicant = User.objects.create_user(
+            email="rubrics_scope_applicant@example.com",
+            password="Pass1234!",
+            first_name="Rubrics",
+            last_name="Applicant",
+            user_type="applicant",
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr_a,
+            organization=self.org_a,
+            is_active=True,
+            is_default=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr_b,
+            organization=self.org_b,
+            is_active=True,
+            is_default=True,
+        )
+
+        self.rubric_org_a = VettingRubric.objects.create(
+            organization=self.org_a,
+            name="Scope Rubric A",
+            is_active=True,
+            created_by=self.hr_a,
+        )
+        self.rubric_org_b = VettingRubric.objects.create(
+            organization=self.org_b,
+            name="Scope Rubric B",
+            is_active=True,
+            created_by=self.hr_b,
+        )
+        self.rubric_legacy = VettingRubric.objects.create(
+            name="Scope Rubric Legacy",
+            is_active=True,
+            created_by=self.hr_a,
+        )
+        self.case_org_b = VettingCase.objects.create(
+            organization=self.org_b,
+            applicant=self.applicant,
+            assigned_to=self.hr_b,
+            position_applied="Compliance Officer",
+            department="Audit",
+            priority="medium",
+            status="under_review",
+            document_authenticity_score=85,
+            consistency_score=82,
+            fraud_risk_score=20,
+            interview_score=80,
+        )
+
+    def _extract_results(self, response):
+        payload = response.json()
+        if isinstance(payload, dict) and "results" in payload:
+            return payload["results"]
+        return payload
+
+    def test_list_is_scoped_to_org_with_legacy_null_fallback(self):
+        self.client.force_authenticate(self.hr_a)
+        response = self.client.get("/api/rubrics/vetting-rubrics/")
+        self.assertEqual(response.status_code, 200)
+        ids = {item["id"] for item in self._extract_results(response)}
+        self.assertIn(str(self.rubric_org_a.id), ids)
+        self.assertIn(str(self.rubric_legacy.id), ids)
+        self.assertNotIn(str(self.rubric_org_b.id), ids)
+
+    def test_cross_org_case_evaluation_is_denied(self):
+        self.client.force_authenticate(self.hr_a)
+        response = self.client.post(
+            f"/api/rubrics/vetting-rubrics/{self.rubric_org_a.id}/evaluate-case/",
+            {"case_id": str(self.case_org_b.id)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)

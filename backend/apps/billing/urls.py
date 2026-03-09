@@ -7,6 +7,10 @@ from .views import (
     BillingQuotaAPIView,
     BillingSubscriptionManageAPIView,
     BillingSubscriptionRetryAPIView,
+    OrganizationOnboardingTokenGenerateAPIView,
+    OrganizationOnboardingTokenRevokeAPIView,
+    OrganizationOnboardingTokenStateAPIView,
+    OrganizationOnboardingTokenValidateAPIView,
     PaystackCheckoutSessionConfirmAPIView,
     PaystackCheckoutSessionCreateAPIView,
     PaystackWebhookAPIView,
@@ -23,6 +27,22 @@ urlpatterns = [
     path("health/", BillingHealthAPIView.as_view(), name="billing-health"),
     path("exchange-rate/", BillingExchangeRateAPIView.as_view(), name="billing-exchange-rate"),
     path("quotas/", BillingQuotaAPIView.as_view(), name="billing-quotas"),
+    path("onboarding-token/", OrganizationOnboardingTokenStateAPIView.as_view(), name="billing-onboarding-token-state"),
+    path(
+        "onboarding-token/generate/",
+        OrganizationOnboardingTokenGenerateAPIView.as_view(),
+        name="billing-onboarding-token-generate",
+    ),
+    path(
+        "onboarding-token/revoke/",
+        OrganizationOnboardingTokenRevokeAPIView.as_view(),
+        name="billing-onboarding-token-revoke",
+    ),
+    path(
+        "onboarding-token/validate/",
+        OrganizationOnboardingTokenValidateAPIView.as_view(),
+        name="billing-onboarding-token-validate",
+    ),
     path("subscriptions/manage/", BillingSubscriptionManageAPIView.as_view(), name="billing-subscription-manage"),
     path(
         "subscriptions/manage/payment-method/update-session/",

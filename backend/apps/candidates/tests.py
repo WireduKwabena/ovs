@@ -5,6 +5,7 @@ from apps.authentication.models import User
 from apps.billing.models import BillingSubscription
 from apps.campaigns.models import VettingCampaign
 from apps.candidates.models import Candidate, CandidateEnrollment, CandidateSocialProfile
+from apps.governance.models import Organization, OrganizationMembership
 
 
 class CandidateEnrollmentAuthorizationTests(APITestCase):
@@ -189,6 +190,68 @@ class CandidateEnrollmentAuthorizationTests(APITestCase):
         self.assertIn("period_end", payload["quota"])
         self.assertTrue(str(payload["quota"].get("period_start")))
         self.assertTrue(str(payload["quota"].get("period_end")))
+
+    @override_settings(
+        BILLING_QUOTA_ENFORCEMENT_ENABLED=True,
+        BILLING_PLAN_STARTER_CANDIDATES_PER_MONTH=1,
+    )
+    def test_hr_manager_org_scoped_quota_blocks_enrollment_at_limit(self):
+        organization = Organization.objects.create(
+            code="cand-quota-org",
+            name="Candidate Quota Org",
+            organization_type="agency",
+            is_active=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr_one,
+            organization=organization,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
+        )
+
+        self.campaign_one.organization = organization
+        self.campaign_one.save(update_fields=["organization", "updated_at"])
+
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            organization=organization,
+            status="complete",
+            payment_status="paid",
+            plan_id="starter",
+            plan_name="Starter",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference="OVS-CAND-ORG-QUOTA-STARTER",
+        )
+
+        extra_candidate = Candidate.objects.create(
+            first_name="Org",
+            last_name="Overflow",
+            email="org_overflow_candidate@example.com",
+        )
+
+        self.client.force_authenticate(self.hr_one)
+        response = self.client.post(
+            "/api/enrollments/",
+            {
+                "campaign": self.campaign_one.id,
+                "candidate": extra_candidate.id,
+                "status": "invited",
+                "metadata": {},
+            },
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertEqual(payload.get("code"), "quota_exceeded")
+        quota_payload = payload.get("quota") or {}
+        self.assertEqual(int(quota_payload.get("limit")), 1)
+        self.assertEqual(int(quota_payload.get("used")), 1)
+        self.assertIn("organization:", str(quota_payload.get("scope", "")))
 
     @override_settings(
         BILLING_QUOTA_ENFORCEMENT_ENABLED=True,

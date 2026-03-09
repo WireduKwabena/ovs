@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.billing.quotas import enforce_candidate_quota
+from apps.core.permissions import get_request_active_organization_id
 
 from .models import Candidate, CandidateEnrollment, CandidateSocialProfile
 from .serializers import (
@@ -133,7 +134,15 @@ class CandidateEnrollmentViewSet(viewsets.ModelViewSet):
                 candidate=candidate,
             ).exists()
             if not already_enrolled:
-                enforce_candidate_quota(user=user, additional=1)
+                enforce_candidate_quota(
+                    user=user,
+                    additional=1,
+                    organization_id=(
+                        str(getattr(campaign, "organization_id", "") or "").strip()
+                        or str(get_request_active_organization_id(self.request) or "").strip()
+                        or None
+                    ),
+                )
 
         now = timezone.now()
         serializer.save(invited_at=now)

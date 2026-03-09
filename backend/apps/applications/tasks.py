@@ -3,9 +3,15 @@ import logging
 from celery import shared_task
 from django.db.models import Avg
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from .models import Document, InterrogationFlag, VerificationResult
 from apps.applications.social_checks import run_case_social_profile_check
+from apps.billing.quotas import (
+    VETTING_OPERATION_DOCUMENT_VERIFICATION,
+    enforce_vetting_operation_quota,
+    resolve_case_organization_id,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -180,6 +186,15 @@ def verify_document_async(self, document_id: int):
     document.save(update_fields=["status"])
 
     try:
+        existing_result = VerificationResult.objects.filter(document=document).exists()
+        resolved_org_id = resolve_case_organization_id(document.case)
+        enforce_vetting_operation_quota(
+            operation=VETTING_OPERATION_DOCUMENT_VERIFICATION,
+            user=None,
+            organization_id=resolved_org_id,
+            additional=0 if existing_result else 1,
+        )
+
         analysis = _build_placeholder_analysis(document)
         duration = (timezone.now() - started_at).total_seconds()
 
@@ -223,6 +238,19 @@ def verify_document_async(self, document_id: int):
             "document_id": document.id,
             "status": document.status,
             "verification_result_id": result.id,
+        }
+    except DRFValidationError as exc:
+        detail = exc.detail if isinstance(exc.detail, dict) else {"detail": exc.detail}
+        document.status = "failed"
+        document.processing_error = str(detail.get("detail") or "Vetting operation quota enforcement blocked processing.")
+        document.processed_at = timezone.now()
+        document.save(update_fields=["status", "processing_error", "processed_at"])
+        return {
+            "success": False,
+            "document_id": document.id,
+            "error": detail.get("detail"),
+            "code": detail.get("code"),
+            "quota": detail.get("quota"),
         }
     except Exception as exc:
         document.status = "failed"

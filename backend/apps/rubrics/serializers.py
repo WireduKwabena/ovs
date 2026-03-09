@@ -63,11 +63,14 @@ class VettingRubricSerializer(serializers.ModelSerializer):
     rubric_type_display = serializers.CharField(source="get_rubric_type_display", read_only=True)
     total_weight = serializers.SerializerMethodField(read_only=True)
     status = serializers.SerializerMethodField(read_only=True)
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
 
     class Meta:
         model = VettingRubric
         fields = [
             "id",
+            "organization",
+            "organization_name",
             "name",
             "description",
             "rubric_type",
@@ -94,7 +97,7 @@ class VettingRubricSerializer(serializers.ModelSerializer):
             "criteria",
             "total_weight",
         ]
-        read_only_fields = ["id", "created_by", "created_at", "updated_at", "total_weight"]
+        read_only_fields = ["id", "organization_name", "created_by", "created_at", "updated_at", "total_weight"]
 
     def validate(self, attrs):
         attrs = super().validate(attrs)

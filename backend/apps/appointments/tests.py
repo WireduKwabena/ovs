@@ -30,6 +30,7 @@ from apps.campaigns.models import VettingCampaign
 from apps.candidates.models import Candidate, CandidateEnrollment
 from apps.applications.models import VettingCase
 from apps.invitations.models import Invitation
+from apps.governance.models import Committee, CommitteeMembership, Organization, OrganizationMembership
 from apps.notifications.models import Notification
 from apps.personnel.models import PersonnelRecord
 from apps.positions.models import GovernmentPosition
@@ -1411,3 +1412,601 @@ class AppointmentPublicApiTests(APITestCase):
         self.assertIn("position_title", item)
         self.assertIn("publication_status", item)
         self.assertIn("publication_reference", item)
+
+
+class AppointmentCommitteeBindingApiTests(APITestCase):
+    def setUp(self):
+        self.org_a = Organization.objects.create(code="appt-committee-org-a", name="Appointments Committee Org A")
+        self.org_b = Organization.objects.create(code="appt-committee-org-b", name="Appointments Committee Org B")
+
+        self.admin_user = User.objects.create_user(
+            email="appt_committee_admin@example.com",
+            password="Pass1234!",
+            first_name="Committee",
+            last_name="Admin",
+            user_type="admin",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.member_user = User.objects.create_user(
+            email="appt_committee_member@example.com",
+            password="Pass1234!",
+            first_name="Committee",
+            last_name="Member",
+            user_type="hr_manager",
+        )
+        self.chair_user = User.objects.create_user(
+            email="appt_committee_chair@example.com",
+            password="Pass1234!",
+            first_name="Committee",
+            last_name="Chair",
+            user_type="hr_manager",
+        )
+        self.secretary_user = User.objects.create_user(
+            email="appt_committee_secretary@example.com",
+            password="Pass1234!",
+            first_name="Committee",
+            last_name="Secretary",
+            user_type="hr_manager",
+        )
+        self.observer_user = User.objects.create_user(
+            email="appt_committee_observer@example.com",
+            password="Pass1234!",
+            first_name="Committee",
+            last_name="Observer",
+            user_type="hr_manager",
+        )
+        self.non_member_group_user = User.objects.create_user(
+            email="appt_committee_group_only@example.com",
+            password="Pass1234!",
+            first_name="Committee",
+            last_name="GroupOnly",
+            user_type="hr_manager",
+        )
+        self.cross_org_member_user = User.objects.create_user(
+            email="appt_committee_cross_org@example.com",
+            password="Pass1234!",
+            first_name="Committee",
+            last_name="CrossOrg",
+            user_type="hr_manager",
+        )
+
+        self.committee_group, _ = Group.objects.get_or_create(name="committee_member")
+        self.committee_chair_group, _ = Group.objects.get_or_create(name="committee_chair")
+        self.non_member_group_user.groups.add(self.committee_group)
+        self.cross_org_member_user.groups.add(self.committee_group)
+        self.chair_user.groups.add(self.committee_chair_group)
+
+        self.org_membership_member = OrganizationMembership.objects.create(
+            user=self.member_user,
+            organization=self.org_a,
+            is_active=True,
+            is_default=True,
+        )
+        self.org_membership_chair = OrganizationMembership.objects.create(
+            user=self.chair_user,
+            organization=self.org_a,
+            is_active=True,
+            is_default=True,
+        )
+        self.org_membership_secretary = OrganizationMembership.objects.create(
+            user=self.secretary_user,
+            organization=self.org_a,
+            is_active=True,
+            is_default=True,
+        )
+        self.org_membership_observer = OrganizationMembership.objects.create(
+            user=self.observer_user,
+            organization=self.org_a,
+            is_active=True,
+            is_default=True,
+        )
+        self.org_membership_cross = OrganizationMembership.objects.create(
+            user=self.cross_org_member_user,
+            organization=self.org_b,
+            is_active=True,
+            is_default=True,
+        )
+
+        self.committee_a = Committee.objects.create(
+            organization=self.org_a,
+            code="committee-a-main",
+            name="Committee A Main",
+            committee_type="approval",
+            is_active=True,
+        )
+        self.committee_b = Committee.objects.create(
+            organization=self.org_b,
+            code="committee-b-main",
+            name="Committee B Main",
+            committee_type="approval",
+            is_active=True,
+        )
+
+        CommitteeMembership.objects.create(
+            committee=self.committee_a,
+            user=self.member_user,
+            organization_membership=self.org_membership_member,
+            committee_role="member",
+            can_vote=True,
+            is_active=True,
+        )
+        CommitteeMembership.objects.create(
+            committee=self.committee_a,
+            user=self.chair_user,
+            organization_membership=self.org_membership_chair,
+            committee_role="chair",
+            can_vote=True,
+            is_active=True,
+        )
+        CommitteeMembership.objects.create(
+            committee=self.committee_a,
+            user=self.secretary_user,
+            organization_membership=self.org_membership_secretary,
+            committee_role="secretary",
+            can_vote=True,
+            is_active=True,
+        )
+        CommitteeMembership.objects.create(
+            committee=self.committee_a,
+            user=self.observer_user,
+            organization_membership=self.org_membership_observer,
+            committee_role="observer",
+            can_vote=False,
+            is_active=True,
+        )
+        CommitteeMembership.objects.create(
+            committee=self.committee_b,
+            user=self.cross_org_member_user,
+            organization_membership=self.org_membership_cross,
+            committee_role="member",
+            can_vote=True,
+            is_active=True,
+        )
+
+        self.position = GovernmentPosition.objects.create(
+            organization=self.org_a,
+            title="Committee Binding Position",
+            branch="executive",
+            institution="Committee Secretariat",
+            appointment_authority="President",
+            is_vacant=True,
+            is_public=True,
+        )
+        self.nominee = PersonnelRecord.objects.create(
+            organization=self.org_a,
+            full_name="Committee Binding Nominee",
+            is_public=True,
+        )
+
+        self.template = ApprovalStageTemplate.objects.create(
+            organization=self.org_a,
+            name="Committee Binding Template",
+            exercise_type="ministerial",
+            created_by=self.admin_user,
+        )
+        self.stage_member = ApprovalStage.objects.create(
+            template=self.template,
+            order=1,
+            name="Committee Review Stage",
+            required_role="committee_member",
+            is_required=True,
+            maps_to_status="committee_review",
+            committee=self.committee_a,
+        )
+        self.stage_chair = ApprovalStage.objects.create(
+            template=self.template,
+            order=2,
+            name="Committee Chair Confirmation",
+            required_role="committee_chair",
+            is_required=False,
+            maps_to_status="confirmation_pending",
+            committee=self.committee_a,
+        )
+        self.stage_legacy = ApprovalStage.objects.create(
+            template=self.template,
+            order=3,
+            name="Legacy Committee Fallback",
+            required_role="committee_member",
+            is_required=False,
+            maps_to_status="committee_review",
+            committee=None,
+        )
+
+        self.campaign = VettingCampaign.objects.create(
+            organization=self.org_a,
+            name="Committee Binding Campaign",
+            initiated_by=self.admin_user,
+            status="active",
+            approval_template=self.template,
+        )
+        self.appointment = AppointmentRecord.objects.create(
+            organization=self.org_a,
+            committee=self.committee_a,
+            position=self.position,
+            nominee=self.nominee,
+            appointment_exercise=self.campaign,
+            nominated_by_user=self.admin_user,
+            nominated_by_display="Authority",
+            nomination_date=date.today(),
+            status="under_vetting",
+            is_public=False,
+        )
+        self.legacy_appointment = AppointmentRecord.objects.create(
+            organization=self.org_a,
+            committee=None,
+            position=GovernmentPosition.objects.create(
+                organization=self.org_a,
+                title="Legacy Committee Position",
+                branch="executive",
+                institution="Legacy Secretariat",
+                appointment_authority="President",
+                is_vacant=True,
+                is_public=True,
+            ),
+            nominee=PersonnelRecord.objects.create(
+                organization=self.org_a,
+                full_name="Legacy Committee Nominee",
+                is_public=True,
+            ),
+            appointment_exercise=self.campaign,
+            nominated_by_user=self.admin_user,
+            nominated_by_display="Authority",
+            nomination_date=date.today(),
+            status="under_vetting",
+            is_public=False,
+        )
+
+    def test_committee_member_allowed_for_bound_committee_stage(self):
+        self.client.force_authenticate(self.member_user)
+        response = self.client.post(
+            f"/api/appointments/records/{self.appointment.id}/advance-stage/",
+            {"status": "committee_review", "stage_id": str(self.stage_member.id)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_non_member_denied_even_with_legacy_group(self):
+        self.client.force_authenticate(self.non_member_group_user)
+        response = self.client.post(
+            f"/api/appointments/records/{self.appointment.id}/advance-stage/",
+            {"status": "committee_review", "stage_id": str(self.stage_member.id)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json().get("code"), "insufficient_role")
+
+    def test_cross_org_committee_member_denied(self):
+        self.client.force_authenticate(self.cross_org_member_user)
+        response = self.client.post(
+            f"/api/appointments/records/{self.appointment.id}/advance-stage/",
+            {"status": "committee_review", "stage_id": str(self.stage_member.id)},
+            format="json",
+        )
+        self.assertIn(response.status_code, {403, 404})
+
+    def test_chair_specific_stage_requires_chair_membership(self):
+        self.appointment.status = "committee_review"
+        self.appointment.save(update_fields=["status", "updated_at"])
+
+        self.client.force_authenticate(self.member_user)
+        denied = self.client.post(
+            f"/api/appointments/records/{self.appointment.id}/advance-stage/",
+            {"status": "confirmation_pending", "stage_id": str(self.stage_chair.id)},
+            format="json",
+        )
+        self.assertEqual(denied.status_code, 403)
+        self.assertEqual(denied.json().get("code"), "insufficient_role")
+
+        self.client.force_authenticate(self.chair_user)
+        allowed = self.client.post(
+            f"/api/appointments/records/{self.appointment.id}/advance-stage/",
+            {"status": "confirmation_pending", "stage_id": str(self.stage_chair.id)},
+            format="json",
+        )
+        self.assertEqual(allowed.status_code, 200)
+
+    def test_observer_membership_cannot_take_committee_stage_action(self):
+        self.client.force_authenticate(self.observer_user)
+        response = self.client.post(
+            f"/api/appointments/records/{self.appointment.id}/advance-stage/",
+            {"status": "committee_review", "stage_id": str(self.stage_member.id)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_legacy_stage_without_committee_keeps_group_based_fallback(self):
+        legacy_template = ApprovalStageTemplate.objects.create(
+            organization=self.org_a,
+            name="Legacy Committee Fallback Template",
+            exercise_type="ministerial",
+            created_by=self.admin_user,
+        )
+        legacy_stage = ApprovalStage.objects.create(
+            template=legacy_template,
+            order=1,
+            name="Legacy Committee Stage",
+            required_role="committee_member",
+            is_required=True,
+            maps_to_status="committee_review",
+            committee=None,
+        )
+        legacy_campaign = VettingCampaign.objects.create(
+            organization=self.org_a,
+            name="Legacy Committee Campaign",
+            initiated_by=self.admin_user,
+            status="active",
+            approval_template=legacy_template,
+        )
+        legacy_appointment = AppointmentRecord.objects.create(
+            organization=self.org_a,
+            committee=None,
+            position=GovernmentPosition.objects.create(
+                organization=self.org_a,
+                title="Legacy Committee Position Two",
+                branch="executive",
+                institution="Legacy Secretariat",
+                appointment_authority="President",
+                is_vacant=True,
+                is_public=True,
+            ),
+            nominee=PersonnelRecord.objects.create(
+                organization=self.org_a,
+                full_name="Legacy Committee Nominee Two",
+                is_public=True,
+            ),
+            appointment_exercise=legacy_campaign,
+            nominated_by_user=self.admin_user,
+            nominated_by_display="Authority",
+            nomination_date=date.today(),
+            status="under_vetting",
+            is_public=False,
+        )
+
+        self.client.force_authenticate(self.non_member_group_user)
+        response = self.client.post(
+            f"/api/appointments/records/{legacy_appointment.id}/advance-stage/",
+            {"status": "committee_review", "stage_id": str(legacy_stage.id)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_committee_stage_transition_audit_includes_org_and_committee_context(self):
+        if "apps.audit" not in settings.INSTALLED_APPS:
+            self.skipTest("Audit app not enabled")
+        from apps.audit.models import AuditLog
+
+        self.client.force_authenticate(self.member_user)
+        response = self.client.post(
+            f"/api/appointments/records/{self.appointment.id}/advance-stage/",
+            {"status": "committee_review", "stage_id": str(self.stage_member.id)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+
+        transition_event = (
+            AuditLog.objects.filter(
+                entity_type="AppointmentRecord",
+                entity_id=str(self.appointment.id),
+                changes__event=APPOINTMENT_STAGE_TRANSITION_EVENT,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+        self.assertIsNotNone(transition_event)
+        payload = transition_event.changes or {}
+        self.assertEqual(payload.get("organization_id"), str(self.org_a.id))
+        self.assertEqual(payload.get("committee_id"), str(self.committee_a.id))
+
+    def test_stage_actions_history_denies_non_member_when_record_has_no_bound_committee(self):
+        appointment = AppointmentRecord.objects.create(
+            organization=self.org_a,
+            committee=None,
+            position=GovernmentPosition.objects.create(
+                organization=self.org_a,
+                title="Legacy History Position",
+                branch="executive",
+                institution="Legacy Secretariat",
+                appointment_authority="President",
+                is_vacant=True,
+                is_public=True,
+            ),
+            nominee=PersonnelRecord.objects.create(
+                organization=self.org_a,
+                full_name="Legacy History Nominee",
+                is_public=True,
+            ),
+            appointment_exercise=self.campaign,
+            nominated_by_user=self.admin_user,
+            nominated_by_display="Legacy Committee Context",
+            nominated_by_org="Org A",
+            nomination_date=date.today(),
+            status="under_vetting",
+            is_public=False,
+        )
+
+        self.client.force_authenticate(self.member_user)
+        transition = self.client.post(
+            f"/api/appointments/records/{appointment.id}/advance-stage/",
+            {"status": "committee_review", "stage_id": str(self.stage_member.id)},
+            format="json",
+        )
+        self.assertEqual(transition.status_code, 200)
+
+        self.client.force_authenticate(self.non_member_group_user)
+        denied = self.client.get(f"/api/appointments/records/{appointment.id}/stage-actions/")
+        self.assertEqual(denied.status_code, 403)
+
+    def test_stage_actions_history_allows_member_when_record_has_no_bound_committee(self):
+        appointment = AppointmentRecord.objects.create(
+            organization=self.org_a,
+            committee=None,
+            position=GovernmentPosition.objects.create(
+                organization=self.org_a,
+                title="Legacy History Position Allowed",
+                branch="executive",
+                institution="Legacy Secretariat",
+                appointment_authority="President",
+                is_vacant=True,
+                is_public=True,
+            ),
+            nominee=PersonnelRecord.objects.create(
+                organization=self.org_a,
+                full_name="Legacy History Nominee Allowed",
+                is_public=True,
+            ),
+            appointment_exercise=self.campaign,
+            nominated_by_user=self.admin_user,
+            nominated_by_display="Legacy Committee Context",
+            nominated_by_org="Org A",
+            nomination_date=date.today(),
+            status="under_vetting",
+            is_public=False,
+        )
+
+        self.client.force_authenticate(self.member_user)
+        transition = self.client.post(
+            f"/api/appointments/records/{appointment.id}/advance-stage/",
+            {"status": "committee_review", "stage_id": str(self.stage_member.id)},
+            format="json",
+        )
+        self.assertEqual(transition.status_code, 200)
+
+        allowed = self.client.get(f"/api/appointments/records/{appointment.id}/stage-actions/")
+        self.assertEqual(allowed.status_code, 200)
+        payload = allowed.json()
+        self.assertIsInstance(payload, list)
+        self.assertGreaterEqual(len(payload), 1)
+
+class AppointmentOrganizationScopeTests(APITestCase):
+    def setUp(self):
+        self.org_a = Organization.objects.create(code="appt-org-a", name="Appointments Org A")
+        self.org_b = Organization.objects.create(code="appt-org-b", name="Appointments Org B")
+
+        self.hr_a = User.objects.create_user(
+            email="appointments_scope_a@example.com",
+            password="Pass1234!",
+            first_name="Appointments",
+            last_name="ScopeA",
+            user_type="hr_manager",
+        )
+        self.admin_user = User.objects.create_user(
+            email="appointments_scope_admin@example.com",
+            password="Pass1234!",
+            first_name="Appointments",
+            last_name="Admin",
+            user_type="admin",
+            is_staff=True,
+            is_superuser=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr_a,
+            organization=self.org_a,
+            is_active=True,
+            is_default=True,
+        )
+
+        self.nominee_a = PersonnelRecord.objects.create(
+            organization=self.org_a,
+            full_name="Scope Nominee A",
+        )
+        self.nominee_b = PersonnelRecord.objects.create(
+            organization=self.org_b,
+            full_name="Scope Nominee B",
+        )
+        self.position_a = GovernmentPosition.objects.create(
+            organization=self.org_a,
+            title="Scoped Appointment Position A",
+            branch="executive",
+            institution="Appointments Org A Office",
+            appointment_authority="President",
+            is_vacant=True,
+        )
+        self.position_b = GovernmentPosition.objects.create(
+            organization=self.org_b,
+            title="Scoped Appointment Position B",
+            branch="executive",
+            institution="Appointments Org B Office",
+            appointment_authority="President",
+            is_vacant=True,
+        )
+        self.position_legacy = GovernmentPosition.objects.create(
+            title="Legacy Appointment Position",
+            branch="executive",
+            institution="Legacy Office",
+            appointment_authority="President",
+            is_vacant=True,
+        )
+        self.campaign_a = VettingCampaign.objects.create(
+            name="Scoped Appointments Campaign A",
+            organization=self.org_a,
+            initiated_by=self.admin_user,
+            status="active",
+        )
+        self.campaign_b = VettingCampaign.objects.create(
+            name="Scoped Appointments Campaign B",
+            organization=self.org_b,
+            initiated_by=self.admin_user,
+            status="active",
+        )
+        self.appointment_org_a = AppointmentRecord.objects.create(
+            organization=self.org_a,
+            position=self.position_a,
+            nominee=self.nominee_a,
+            appointment_exercise=self.campaign_a,
+            nominated_by_user=self.admin_user,
+            nominated_by_display="Authority A",
+            nomination_date=date.today(),
+            status="nominated",
+        )
+        self.appointment_org_b = AppointmentRecord.objects.create(
+            organization=self.org_b,
+            position=self.position_b,
+            nominee=self.nominee_b,
+            appointment_exercise=self.campaign_b,
+            nominated_by_user=self.admin_user,
+            nominated_by_display="Authority B",
+            nomination_date=date.today(),
+            status="nominated",
+        )
+        self.appointment_legacy = AppointmentRecord.objects.create(
+            position=self.position_legacy,
+            nominee=PersonnelRecord.objects.create(full_name="Legacy Scope Nominee"),
+            appointment_exercise=self.campaign_a,
+            nominated_by_user=self.admin_user,
+            nominated_by_display="Legacy Authority",
+            nomination_date=date.today(),
+            status="nominated",
+        )
+
+    def _extract_results(self, response):
+        payload = response.json()
+        if isinstance(payload, dict) and "results" in payload:
+            return payload["results"]
+        return payload
+
+    def test_list_is_scoped_to_org_with_legacy_null_fallback(self):
+        self.client.force_authenticate(self.hr_a)
+        response = self.client.get("/api/appointments/records/")
+        self.assertEqual(response.status_code, 200)
+        ids = {item["id"] for item in self._extract_results(response)}
+        self.assertIn(str(self.appointment_org_a.id), ids)
+        self.assertIn(str(self.appointment_legacy.id), ids)
+        self.assertNotIn(str(self.appointment_org_b.id), ids)
+
+    def test_update_outside_org_is_denied_for_hr_but_allowed_for_admin(self):
+        self.client.force_authenticate(self.hr_a)
+        denied = self.client.patch(
+            f"/api/appointments/records/{self.appointment_org_b.id}/",
+            {"nominated_by_display": "Blocked Cross Org Edit"},
+            format="json",
+        )
+        self.assertIn(denied.status_code, {403, 404})
+
+        self.client.force_authenticate(self.admin_user)
+        allowed = self.client.patch(
+            f"/api/appointments/records/{self.appointment_org_b.id}/",
+            {"nominated_by_display": "Admin Cross Org Edit"},
+            format="json",
+        )
+        self.assertEqual(allowed.status_code, 200)

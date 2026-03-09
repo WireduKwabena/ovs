@@ -1,6 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CheckCircle2, CreditCard, Loader2, RefreshCw, ShieldCheck, Trash2, UserCog } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Copy,
+  CreditCard,
+  Loader2,
+  RefreshCw,
+  RotateCcw,
+  ShieldCheck,
+  Trash2,
+  UserCog,
+} from "lucide-react";
 import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
 
@@ -11,6 +22,10 @@ import { fetchProfile, updateUserProfile } from "@/store/authSlice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type {
+  OrganizationOnboardingTokenState,
+  OrganizationOnboardingTokenStateResponse,
+} from "@/types";
 import { getUserDisplayName } from "@/utils/userDisplay";
 
 type PaymentMethodChoice = "card" | "bank_transfer" | "mobile_money";
@@ -32,6 +47,38 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
   );
 };
 
+const getErrorCode = (error: unknown): string => {
+  const payload = error as { response?: { data?: { code?: string } } };
+  return String(payload.response?.data?.code || "").trim().toUpperCase();
+};
+
+const getOnboardingReason = (error: unknown): string => {
+  const payload = error as { response?: { data?: { reason?: string } } };
+  return String(payload.response?.data?.reason || "").trim().toLowerCase();
+};
+
+const resolveOnboardingErrorMessage = (error: unknown, fallback: string): string => {
+  if (getErrorCode(error) === "RECENT_AUTH_REQUIRED") {
+    return "Recent authentication verification is required before managing onboarding links.";
+  }
+  if (getErrorCode(error) === "RATE_LIMITED") {
+    return "Too many onboarding validation attempts. Please retry in a moment.";
+  }
+
+  const reason = getOnboardingReason(error);
+  if (reason === "not_found") return "This onboarding link is invalid.";
+  if (reason === "inactive") return "This onboarding link has already been revoked.";
+  if (reason === "expired") return "This onboarding link has expired.";
+  if (reason === "max_uses_reached") return "This onboarding link has reached its maximum uses.";
+  if (reason === "subscription_inactive") {
+    return "Onboarding is unavailable because the organization subscription is inactive.";
+  }
+  if (reason === "email_domain_not_allowed") {
+    return "The provided email domain is not allowed for this onboarding link.";
+  }
+  return getErrorMessage(error, fallback);
+};
+
 const formatDateTimeLabel = (value: string | null | undefined): string => {
   if (!value) return "N/A";
   const parsed = new Date(value);
@@ -45,10 +92,31 @@ const formatDateTimeLabel = (value: string | null | undefined): string => {
   });
 };
 
+const parsePositiveInteger = (rawValue: string): number | undefined => {
+  const normalized = String(rawValue || "").trim();
+  if (!normalized) {
+    return undefined;
+  }
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
+    return undefined;
+  }
+  return parsed;
+};
+
 const UserSettingsPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
-  const { user, userType } = useAuth();
+  const {
+    user,
+    userType,
+    isAdmin,
+    hasRole,
+    hasCapability,
+    organizations,
+    activeOrganization,
+    activeOrganizationId,
+  } = useAuth();
 
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -72,8 +140,21 @@ const UserSettingsPage: React.FC = () => {
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingActionLoading, setBillingActionLoading] = useState(false);
   const [sandboxPaymentMethod, setSandboxPaymentMethod] = useState<PaymentMethodChoice>("card");
+  const [onboardingState, setOnboardingState] = useState<OrganizationOnboardingTokenStateResponse | null>(null);
+  const [onboardingLoading, setOnboardingLoading] = useState(false);
+  const [onboardingActionLoading, setOnboardingActionLoading] = useState(false);
+  const [issuedOnboardingToken, setIssuedOnboardingToken] = useState<string | null>(null);
+  const [issuedOnboardingLink, setIssuedOnboardingLink] = useState<string | null>(null);
+  const [inviteMaxUses, setInviteMaxUses] = useState("25");
+  const [inviteExpiryHours, setInviteExpiryHours] = useState("72");
+  const [inviteAllowedEmailDomain, setInviteAllowedEmailDomain] = useState("");
 
-  const canManageBilling = userType !== "applicant";
+  const resolvedOrganizations = Array.isArray(organizations) ? organizations : [];
+  const organizationFieldLocked = resolvedOrganizations.length > 0;
+  const canViewBilling = userType !== "applicant";
+  const canManageOrganizationBilling =
+    canViewBilling && (isAdmin || hasRole("registry_admin") || hasCapability("gams.registry.manage"));
+  const canManageOnboarding = canManageOrganizationBilling && Boolean(activeOrganizationId);
 
   const canEditPhone = useMemo(
     () => Boolean(user && typeof user === "object" && "phone_number" in user),
@@ -96,12 +177,13 @@ const UserSettingsPage: React.FC = () => {
   }, [user]);
 
   const managedSubscription = billingData?.subscription ?? null;
+  const activeOnboardingToken: OrganizationOnboardingTokenState | null = onboardingState?.token ?? null;
   const isStripeManaged = managedSubscription?.provider === "stripe";
   const isSandboxManaged = managedSubscription?.provider === "sandbox";
   const isPaystackManaged = managedSubscription?.provider === "paystack";
 
   const fetchBillingManagement = useCallback(async () => {
-    if (!canManageBilling) {
+    if (!canViewBilling) {
       setBillingData(null);
       return;
     }
@@ -119,13 +201,35 @@ const UserSettingsPage: React.FC = () => {
     } finally {
       setBillingLoading(false);
     }
-  }, [canManageBilling]);
+  }, [canViewBilling]);
+
+  const fetchOnboardingState = useCallback(async () => {
+    if (!canManageOrganizationBilling || !activeOrganizationId) {
+      setOnboardingState(null);
+      return;
+    }
+
+    setOnboardingLoading(true);
+    try {
+      const response = await billingService.getOnboardingTokenState();
+      setOnboardingState(response);
+    } catch (error) {
+      setOnboardingState(null);
+      toast.error(resolveOnboardingErrorMessage(error, "Failed to load organization onboarding status."));
+    } finally {
+      setOnboardingLoading(false);
+    }
+  }, [activeOrganizationId, canManageOrganizationBilling]);
 
   useEffect(() => {
     setEmail(user?.email || "");
     setFirstName(user?.first_name || "");
     setLastName(user?.last_name || "");
-    setOrganization(user?.organization || "");
+    if (organizationFieldLocked) {
+      setOrganization(activeOrganization?.name || resolvedOrganizations[0]?.name || user?.organization || "");
+    } else {
+      setOrganization(user?.organization || "");
+    }
     setDepartment(user?.department || "");
     if (canEditPhone && user && "phone_number" in user) {
       setPhoneNumber(user.phone_number || "");
@@ -144,17 +248,27 @@ const UserSettingsPage: React.FC = () => {
     );
     setLinkedinUrl(user?.profile?.linkedin_url || "");
     setBio(user?.profile?.bio || "");
-  }, [canEditPhone, user]);
+  }, [activeOrganization?.name, canEditPhone, organizationFieldLocked, resolvedOrganizations, user]);
 
   useEffect(() => {
     void fetchBillingManagement();
-  }, [fetchBillingManagement, user?.email]);
+  }, [activeOrganizationId, fetchBillingManagement, user?.email]);
+
+  useEffect(() => {
+    void fetchOnboardingState();
+  }, [fetchOnboardingState]);
+
+  useEffect(() => {
+    setIssuedOnboardingToken(null);
+    setIssuedOnboardingLink(null);
+  }, [activeOrganizationId]);
 
   const handleRefreshProfile = async () => {
     setRefreshing(true);
     try {
       await dispatch(fetchProfile()).unwrap();
       await fetchBillingManagement();
+      await fetchOnboardingState();
       toast.success("Profile refreshed.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to refresh profile.";
@@ -236,6 +350,92 @@ const UserSettingsPage: React.FC = () => {
     }
   };
 
+  const copySecureValue = async (value: string | null, label: string) => {
+    const normalized = String(value || "").trim();
+    if (!normalized) {
+      toast.error(`No ${label.toLowerCase()} available to copy.`);
+      return;
+    }
+    try {
+      if (!navigator?.clipboard) {
+        throw new Error("Clipboard API unavailable");
+      }
+      await navigator.clipboard.writeText(normalized);
+      toast.success(`${label} copied.`);
+    } catch {
+      toast.error(`Unable to copy ${label.toLowerCase()} on this browser.`);
+    }
+  };
+
+  const handleGenerateOnboardingToken = async (rotate: boolean) => {
+    if (!canManageOnboarding) {
+      toast.error("Select an active organization and ensure you have organization admin permissions.");
+      return;
+    }
+
+    const parsedMaxUses = parsePositiveInteger(inviteMaxUses);
+    const parsedExpiryHours = parsePositiveInteger(inviteExpiryHours);
+    if (inviteMaxUses.trim() && parsedMaxUses === undefined) {
+      toast.error("Max uses must be a positive whole number.");
+      return;
+    }
+    if (inviteExpiryHours.trim() && parsedExpiryHours === undefined) {
+      toast.error("Expiry hours must be a positive whole number.");
+      return;
+    }
+
+    setOnboardingActionLoading(true);
+    try {
+      const response = await billingService.generateOnboardingToken({
+        rotate,
+        max_uses: parsedMaxUses,
+        expires_in_hours: parsedExpiryHours,
+        allowed_email_domain: inviteAllowedEmailDomain.trim(),
+      });
+
+      setIssuedOnboardingToken(response.token || null);
+      setIssuedOnboardingLink(response.onboarding_link || null);
+      setOnboardingState((previous) => ({
+        status: response.status,
+        organization_id: response.organization_id,
+        organization_name: response.organization_name,
+        subscription_id: previous?.subscription_id ?? response.token_state.subscription_id ?? null,
+        subscription_active: previous?.subscription_active ?? true,
+        has_active_token: true,
+        token: response.token_state,
+        organization_seat_limit: previous?.organization_seat_limit,
+        organization_seat_used: previous?.organization_seat_used,
+        organization_seat_remaining: previous?.organization_seat_remaining,
+      }));
+
+      toast.success(rotate ? "Onboarding link rotated successfully." : "Onboarding link generated.");
+    } catch (error) {
+      toast.error(resolveOnboardingErrorMessage(error, "Failed to generate onboarding link."));
+    } finally {
+      setOnboardingActionLoading(false);
+    }
+  };
+
+  const handleRevokeOnboardingToken = async () => {
+    if (!canManageOnboarding) {
+      toast.error("Select an active organization and ensure you have organization admin permissions.");
+      return;
+    }
+
+    setOnboardingActionLoading(true);
+    try {
+      const response = await billingService.revokeOnboardingToken({ reason: "manual_revocation" });
+      setOnboardingState(response);
+      setIssuedOnboardingToken(null);
+      setIssuedOnboardingLink(null);
+      toast.success("Active onboarding link revoked.");
+    } catch (error) {
+      toast.error(resolveOnboardingErrorMessage(error, "Failed to revoke onboarding link."));
+    } finally {
+      setOnboardingActionLoading(false);
+    }
+  };
+
   const handleSave = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!user) return;
@@ -261,7 +461,7 @@ const UserSettingsPage: React.FC = () => {
         email: normalizedEmail,
         first_name: firstName.trim(),
         last_name: lastName.trim(),
-        organization: organization.trim(),
+        organization: (organizationFieldLocked ? activeOrganization?.name || organization : organization).trim(),
         department: department.trim(),
         date_of_birth: dateOfBirth || null,
         nationality: nationality.trim(),
@@ -411,9 +611,14 @@ const UserSettingsPage: React.FC = () => {
                   id="settings-organization"
                   value={organization}
                   onChange={(event) => setOrganization(event.target.value)}
-                  placeholder="Organization"
-                  disabled={saving}
+                  placeholder={organizationFieldLocked ? "Managed by active organization context" : "Organization"}
+                  disabled={saving || organizationFieldLocked}
                 />
+                {organizationFieldLocked ? (
+                  <p className="text-[11px] text-slate-700">
+                    Organization name is derived from your active organization membership.
+                  </p>
+                ) : null}
               </div>
 
               <div className="space-y-2">
@@ -613,12 +818,15 @@ const UserSettingsPage: React.FC = () => {
             </Link>
           </div>
 
-          {canManageBilling ? (
+          {canViewBilling ? (
             <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold text-slate-900">Subscription Plan</h3>
+                <h3 className="text-sm font-semibold text-slate-900">Organization Subscription</h3>
                 <CreditCard className="h-4 w-4 text-cyan-700" />
               </div>
+              <p className="mt-2 text-[11px] text-slate-700">
+                Active organization scope: {activeOrganization?.name || "Default"}
+              </p>
 
               {billingLoading ? (
                 <p className="mt-3 text-xs text-slate-700">Loading billing details...</p>
@@ -642,6 +850,10 @@ const UserSettingsPage: React.FC = () => {
                     <p>
                       <span className="font-semibold">Plan:</span> {managedSubscription.plan_name} (
                       {managedSubscription.billing_cycle})
+                    </p>
+                    <p className="mt-1">
+                      <span className="font-semibold">Subscription organization:</span>{" "}
+                      {managedSubscription.organization_name || managedSubscription.organization_id || "Scoped by active organization"}
                     </p>
                     <p className="mt-1">
                       <span className="font-semibold">Status:</span> {managedSubscription.status} /{" "}
@@ -695,7 +907,11 @@ const UserSettingsPage: React.FC = () => {
                     <Button
                       type="button"
                       variant="outline"
-                      disabled={billingActionLoading || !managedSubscription.can_update_payment_method}
+                      disabled={
+                        billingActionLoading ||
+                        !managedSubscription.can_update_payment_method ||
+                        !canManageOrganizationBilling
+                      }
                       onClick={() => void handleUpdatePaymentOption()}
                     >
                       {billingActionLoading
@@ -710,7 +926,11 @@ const UserSettingsPage: React.FC = () => {
                     <Button
                       type="button"
                       variant="destructive"
-                      disabled={billingActionLoading || !managedSubscription.can_delete_payment_method}
+                      disabled={
+                        billingActionLoading ||
+                        !managedSubscription.can_delete_payment_method ||
+                        !canManageOrganizationBilling
+                      }
                       onClick={() => void handleRemovePaymentOption()}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -732,6 +952,200 @@ const UserSettingsPage: React.FC = () => {
                   <p className="text-[11px] text-slate-700">
                     Unsubscribing does not terminate access immediately. Service remains active through the current billing period.
                   </p>
+                  {!canManageOrganizationBilling ? (
+                    <p className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
+                      Organization billing changes are limited to organization admins.
+                    </p>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {canManageOrganizationBilling ? (
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-slate-900">Organization Onboarding Invite</h3>
+                <RotateCcw className="h-4 w-4 text-cyan-700" />
+              </div>
+
+              {!activeOrganizationId ? (
+                <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  Select an active organization in the navbar before managing onboarding invites.
+                </div>
+              ) : onboardingLoading ? (
+                <p className="mt-3 text-xs text-slate-700">Loading onboarding status...</p>
+              ) : (
+                <div className="mt-3 space-y-3">
+                  <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-800">
+                    <p>
+                      <span className="font-semibold">Organization:</span>{" "}
+                      {onboardingState?.organization_name || activeOrganization?.name || "N/A"}
+                    </p>
+                    <p className="mt-1">
+                      <span className="font-semibold">Subscription active:</span>{" "}
+                      {onboardingState?.subscription_active ? "Yes" : "No"}
+                    </p>
+                    <p className="mt-1">
+                      <span className="font-semibold">Active invite link:</span>{" "}
+                      {onboardingState?.has_active_token ? "Yes" : "No"}
+                    </p>
+                    {activeOnboardingToken ? (
+                      <>
+                        <p className="mt-1">
+                          <span className="font-semibold">Token preview:</span>{" "}
+                          {activeOnboardingToken.token_preview || "N/A"}
+                        </p>
+                        <p className="mt-1">
+                          <span className="font-semibold">Usage:</span>{" "}
+                          {activeOnboardingToken.uses}
+                          {activeOnboardingToken.max_uses != null ? ` / ${activeOnboardingToken.max_uses}` : ""}
+                          {activeOnboardingToken.remaining_uses != null
+                            ? ` (remaining ${activeOnboardingToken.remaining_uses})`
+                            : ""}
+                        </p>
+                        <p className="mt-1">
+                          <span className="font-semibold">Expires:</span>{" "}
+                          {formatDateTimeLabel(activeOnboardingToken.expires_at)}
+                        </p>
+                      </>
+                    ) : null}
+                    {typeof onboardingState?.organization_seat_remaining === "number" ? (
+                      <p className="mt-1">
+                        <span className="font-semibold">Remaining seats:</span>{" "}
+                        {onboardingState.organization_seat_remaining}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  {issuedOnboardingToken || issuedOnboardingLink ? (
+                    <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
+                      <div className="inline-flex items-center gap-2 font-semibold">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        Share this invite securely. Full token is shown only now.
+                      </div>
+                      {issuedOnboardingLink ? (
+                        <div className="space-y-1">
+                          <p className="font-semibold">Onboarding link</p>
+                          <p className="break-all rounded border border-emerald-200 bg-white px-2 py-1 text-[11px]">
+                            {issuedOnboardingLink}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-8"
+                            onClick={() => void copySecureValue(issuedOnboardingLink, "Onboarding link")}
+                          >
+                            <Copy className="mr-1 h-3.5 w-3.5" />
+                            Copy link
+                          </Button>
+                        </div>
+                      ) : null}
+                      {issuedOnboardingToken ? (
+                        <div className="space-y-1">
+                          <p className="font-semibold">Raw token</p>
+                          <p className="break-all rounded border border-emerald-200 bg-white px-2 py-1 text-[11px]">
+                            {issuedOnboardingToken}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-8"
+                            onClick={() => void copySecureValue(issuedOnboardingToken, "Onboarding token")}
+                          >
+                            <Copy className="mr-1 h-3.5 w-3.5" />
+                            Copy token
+                          </Button>
+                        </div>
+                      ) : null}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-8"
+                        onClick={() => {
+                          setIssuedOnboardingToken(null);
+                          setIssuedOnboardingLink(null);
+                        }}
+                      >
+                        Hide sensitive values
+                      </Button>
+                    </div>
+                  ) : null}
+
+                  <div className="grid gap-2">
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="onboarding-max-uses"
+                        className="text-[11px] font-semibold uppercase tracking-wide text-slate-700"
+                      >
+                        Max uses
+                      </Label>
+                      <Input
+                        id="onboarding-max-uses"
+                        value={inviteMaxUses}
+                        onChange={(event) => setInviteMaxUses(event.target.value)}
+                        disabled={onboardingActionLoading}
+                        placeholder="25"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="onboarding-expiry-hours"
+                        className="text-[11px] font-semibold uppercase tracking-wide text-slate-700"
+                      >
+                        Expires in hours
+                      </Label>
+                      <Input
+                        id="onboarding-expiry-hours"
+                        value={inviteExpiryHours}
+                        onChange={(event) => setInviteExpiryHours(event.target.value)}
+                        disabled={onboardingActionLoading}
+                        placeholder="72"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="onboarding-domain"
+                        className="text-[11px] font-semibold uppercase tracking-wide text-slate-700"
+                      >
+                        Allowed email domain (optional)
+                      </Label>
+                      <Input
+                        id="onboarding-domain"
+                        value={inviteAllowedEmailDomain}
+                        onChange={(event) => setInviteAllowedEmailDomain(event.target.value)}
+                        disabled={onboardingActionLoading}
+                        placeholder="agency.gov"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={onboardingActionLoading}
+                      onClick={() => void handleGenerateOnboardingToken(true)}
+                    >
+                      {onboardingActionLoading ? "Please wait..." : "Generate / Rotate Invite"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      disabled={onboardingActionLoading || !onboardingState?.has_active_token}
+                      onClick={() => void handleRevokeOnboardingToken()}
+                    >
+                      Revoke Active Invite
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={onboardingLoading || onboardingActionLoading}
+                      onClick={() => void fetchOnboardingState()}
+                    >
+                      Refresh Invite State
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>

@@ -32,6 +32,13 @@ class VettingCampaign(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "governance.Organization",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="vetting_campaigns",
+    )
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="draft", db_index=True)
@@ -71,6 +78,7 @@ class VettingCampaign(models.Model):
             models.Index(fields=["status", "-created_at"]),
             models.Index(fields=["initiated_by", "status"]),
             models.Index(fields=["exercise_type", "jurisdiction"]),
+            models.Index(fields=["organization", "status"]),
         ]
 
     def __str__(self):

@@ -7,7 +7,20 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
 from apps.audit.events import log_event
-from apps.billing.quotas import enforce_candidate_quota
+from apps.billing.quotas import (
+    VETTING_OPERATION_DOCUMENT_VERIFICATION,
+    VETTING_OPERATION_SOCIAL_PROFILE_CHECK,
+    enforce_candidate_quota,
+    enforce_vetting_operation_quota,
+    resolve_case_organization_id,
+)
+from apps.core.permissions import (
+    can_access_organization_id,
+    get_request_active_organization_id,
+    get_user_allowed_organization_ids,
+    is_platform_admin_user,
+    scope_queryset_to_user_organizations,
+)
 from apps.invitations.permissions import IsAuthenticatedOrCandidateAccessSession
 
 from .models import Document, VettingCase
@@ -58,6 +71,7 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
         if getattr(self, "swagger_fake_view", False):
             return VettingCase.objects.none()
         queryset = VettingCase.objects.select_related(
+            "organization",
             "applicant",
             "assigned_to",
             "candidate_enrollment",
@@ -72,7 +86,17 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
         scope = str(self.request.query_params.get("scope", "") or "").strip().lower()
         if not getattr(user, "is_authenticated", False):
             return VettingCase.objects.none()
-        if getattr(user, "is_staff", False) or getattr(user, "user_type", None) in {"admin", "hr_manager"}:
+        if is_platform_admin_user(user):
+            return queryset.order_by("-created_at")
+
+        if getattr(user, "user_type", None) == "hr_manager":
+            membership_org_ids = get_user_allowed_organization_ids(user)
+            if membership_org_ids:
+                queryset = scope_queryset_to_user_organizations(
+                    queryset,
+                    request=self.request,
+                    organization_field="organization_id",
+                )
             if getattr(user, "user_type", None) == "hr_manager" and scope in {"assigned", "mine", "my"}:
                 return queryset.filter(assigned_to=user).order_by("-created_at")
             return queryset.order_by("-created_at")
@@ -112,31 +136,89 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
         else:
             applicant = serializer.validated_data.get("applicant")
             candidate_enrollment = serializer.validated_data.get("candidate_enrollment")
+            requested_org = serializer.validated_data.get("organization")
             if applicant is None:
                 raise ValidationError({"applicant": "This field is required for non-applicant creators."})
 
-            is_admin = bool(
-                getattr(user, "is_staff", False)
-                or getattr(user, "is_superuser", False)
-                or getattr(user, "user_type", None) == "admin"
-            )
+            is_admin = is_platform_admin_user(user)
             is_hr_manager = getattr(user, "user_type", None) == "hr_manager"
+
+            resolved_org_id = None
+            if requested_org is not None:
+                resolved_org_id = str(requested_org.id)
+            elif candidate_enrollment is not None:
+                resolved_org_id = str(getattr(candidate_enrollment.campaign, "organization_id", "") or "") or None
+            else:
+                resolved_org_id = get_request_active_organization_id(self.request)
+
+            if not is_admin:
+                if requested_org is not None and not can_access_organization_id(user, requested_org.id):
+                    raise PermissionDenied("You cannot create vetting cases for another organization.")
+                if resolved_org_id and not can_access_organization_id(user, resolved_org_id):
+                    raise PermissionDenied("You cannot create vetting cases for another organization.")
 
             if is_hr_manager and candidate_enrollment is not None:
                 campaign_owner_id = getattr(candidate_enrollment.campaign, "initiated_by_id", None)
-                if campaign_owner_id != user.id:
+                campaign_org_id = getattr(candidate_enrollment.campaign, "organization_id", None)
+                if campaign_owner_id != user.id and not (campaign_org_id and can_access_organization_id(user, campaign_org_id)):
                     raise PermissionDenied("You cannot create cases for enrollments outside your campaigns.")
 
             # Legacy/manual case creation path can bypass enrollment quota checks,
             # so enforce subscription plan quota here when no enrollment linkage exists.
             if is_hr_manager and candidate_enrollment is None:
-                enforce_candidate_quota(user=user, additional=1)
+                enforce_candidate_quota(
+                    user=user,
+                    additional=1,
+                    organization_id=resolved_org_id,
+                )
 
-            serializer.save()
+            if resolved_org_id:
+                serializer.save(organization_id=resolved_org_id)
+            else:
+                serializer.save()
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        user = self.request.user
+        if not is_platform_admin_user(user) and not can_access_organization_id(user, instance.organization_id):
+            raise PermissionDenied("You cannot update vetting cases outside your organization scope.")
+
+        requested_org = serializer.validated_data.get("organization")
+        if not is_platform_admin_user(user) and requested_org is not None and not can_access_organization_id(
+            user, requested_org.id
+        ):
+            raise PermissionDenied("You cannot move this vetting case to another organization.")
+
+        save_kwargs = {}
+        if (
+            not is_platform_admin_user(user)
+            and instance.organization_id is None
+            and "organization" not in serializer.validated_data
+        ):
+            active_org_id = get_request_active_organization_id(self.request)
+            if active_org_id:
+                save_kwargs["organization_id"] = active_org_id
+        serializer.save(**save_kwargs)
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if not is_platform_admin_user(user) and not can_access_organization_id(user, instance.organization_id):
+            raise PermissionDenied("You cannot delete vetting cases outside your organization scope.")
+        super().perform_destroy(instance)
 
     @action(detail=True, methods=["post"], url_path="upload-document")
     def upload_document(self, request, pk=None):
         case = self.get_object()
+        resolved_org_id = resolve_case_organization_id(case)
+        quota_actor = None
+        if not resolved_org_id and getattr(request.user, "is_authenticated", False):
+            quota_actor = request.user
+        enforce_vetting_operation_quota(
+            operation=VETTING_OPERATION_DOCUMENT_VERIFICATION,
+            user=quota_actor,
+            organization_id=resolved_org_id,
+            additional=1,
+        )
         payload = request.data.copy()
         if "file" not in payload and "document" in request.FILES:
             payload["file"] = request.FILES["document"]
@@ -304,7 +386,21 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
         ):
             raise PermissionDenied("Only HR managers/admins can trigger social profile re-check.")
 
-        outcome = run_case_social_profile_check(case)
+        try:
+            existing_social_result = case.social_profile_result
+        except Exception:
+            existing_social_result = None
+
+        resolved_org_id = resolve_case_organization_id(case)
+        quota_actor = None if resolved_org_id else user
+        enforce_vetting_operation_quota(
+            operation=VETTING_OPERATION_SOCIAL_PROFILE_CHECK,
+            user=quota_actor,
+            organization_id=resolved_org_id,
+            additional=0 if existing_social_result is not None else 1,
+        )
+
+        outcome = run_case_social_profile_check(case, actor=user)
         _audit_social_recheck(request=request, case=case, outcome=outcome)
         if outcome.get("success"):
             return Response({"status": "ok", **outcome}, status=status.HTTP_200_OK)
@@ -322,7 +418,7 @@ class DocumentViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Document.objects.none()
-        queryset = Document.objects.select_related("case", "verification_result", "case__applicant")
+        queryset = Document.objects.select_related("case", "verification_result", "case__applicant", "case__organization")
 
         case_id = self.request.query_params.get("case")
         status_value = self.request.query_params.get("status")
@@ -338,7 +434,16 @@ class DocumentViewSet(viewsets.ReadOnlyModelViewSet):
         user = self.request.user
         if not getattr(user, "is_authenticated", False):
             return Document.objects.none()
-        if getattr(user, "is_staff", False) or getattr(user, "user_type", None) in {"admin", "hr_manager"}:
+        if is_platform_admin_user(user):
+            return queryset.order_by("-uploaded_at")
+        if getattr(user, "user_type", None) == "hr_manager":
+            membership_org_ids = get_user_allowed_organization_ids(user)
+            if membership_org_ids:
+                queryset = scope_queryset_to_user_organizations(
+                    queryset,
+                    request=self.request,
+                    organization_field="case__organization_id",
+                )
             return queryset.order_by("-uploaded_at")
         return queryset.filter(Q(case__applicant=user) | Q(case__assigned_to=user)).order_by("-uploaded_at")
 

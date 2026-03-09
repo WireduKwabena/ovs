@@ -58,6 +58,25 @@ def _normalize_changes(changes: Any) -> dict[str, Any]:
     return {"value": sanitized}
 
 
+def _normalize_scope_id(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def _extract_scope_ids(
+    *,
+    normalized_changes: dict[str, Any],
+    organization_id: Any | None = None,
+    committee_id: Any | None = None,
+) -> tuple[str, str]:
+    scoped_org = _normalize_scope_id(organization_id)
+    scoped_committee = _normalize_scope_id(committee_id)
+    if not scoped_org:
+        scoped_org = _normalize_scope_id(normalized_changes.get("organization_id"))
+    if not scoped_committee:
+        scoped_committee = _normalize_scope_id(normalized_changes.get("committee_id"))
+    return scoped_org, scoped_committee
+
+
 def log_event(
     *,
     action: str = "other",
@@ -67,6 +86,8 @@ def log_event(
     request: Any | None = None,
     user: Any | None = None,
     admin_user: Any | None = None,
+    organization_id: Any | None = None,
+    committee_id: Any | None = None,
 ) -> bool:
     """
     Persist an audit log event.
@@ -86,6 +107,12 @@ def log_event(
             actor = request_user
 
     effective_admin_user = admin_user if admin_user is not None else actor
+    normalized_changes = _normalize_changes(changes)
+    scope_organization_id, scope_committee_id = _extract_scope_ids(
+        normalized_changes=normalized_changes,
+        organization_id=organization_id,
+        committee_id=committee_id,
+    )
 
     try:
         AuditLog.objects.create(
@@ -94,7 +121,9 @@ def log_event(
             action=action,
             entity_type=str(entity_type or ""),
             entity_id=str(entity_id or ""),
-            changes=_normalize_changes(changes),
+            scope_organization_id=scope_organization_id,
+            scope_committee_id=scope_committee_id,
+            changes=normalized_changes,
             ip_address=request_ip_address(request) if request is not None else None,
             user_agent=request_user_agent(request) if request is not None else "",
         )

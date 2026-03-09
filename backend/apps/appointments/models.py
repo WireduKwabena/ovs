@@ -7,6 +7,13 @@ from django.db.models import Q
 
 class ApprovalStageTemplate(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "governance.Organization",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="approval_stage_templates",
+    )
     name = models.CharField(max_length=200)
     exercise_type = models.CharField(max_length=50)
     created_by = models.ForeignKey(
@@ -22,6 +29,7 @@ class ApprovalStageTemplate(models.Model):
         ordering = ["name"]
         indexes = [
             models.Index(fields=["exercise_type", "name"]),
+            models.Index(fields=["organization", "exercise_type"]),
         ]
 
     def __str__(self):
@@ -40,11 +48,21 @@ class ApprovalStage(models.Model):
     required_role = models.CharField(max_length=50)
     is_required = models.BooleanField(default=True)
     maps_to_status = models.CharField(max_length=50)
+    committee = models.ForeignKey(
+        "governance.Committee",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="approval_stages",
+    )
 
     class Meta:
         ordering = ["template", "order"]
         constraints = [
             models.UniqueConstraint(fields=["template", "order"], name="uniq_approval_stage_template_order"),
+        ]
+        indexes = [
+            models.Index(fields=["template", "committee"]),
         ]
 
     def __str__(self):
@@ -65,6 +83,13 @@ class AppointmentRecord(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "governance.Organization",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="appointment_records",
+    )
     position = models.ForeignKey(
         "positions.GovernmentPosition",
         on_delete=models.PROTECT,
@@ -101,6 +126,13 @@ class AppointmentRecord(models.Model):
     )
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default="nominated", db_index=True)
     committee_recommendation = models.TextField(blank=True)
+    committee = models.ForeignKey(
+        "governance.Committee",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="appointment_records",
+    )
     final_decision_by_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -158,6 +190,8 @@ class AppointmentRecord(models.Model):
             models.Index(fields=["position", "nominee"]),
             models.Index(fields=["nomination_date", "status"]),
             models.Index(fields=["position", "status", "created_at"], name="idx_appt_pos_status_created"),
+            models.Index(fields=["organization", "status"], name="idx_appt_org_status"),
+            models.Index(fields=["committee", "status"], name="idx_appt_committee_status"),
         ]
 
     def __str__(self):
@@ -242,6 +276,13 @@ class AppointmentStageAction(models.Model):
         blank=True,
         on_delete=models.PROTECT,
     )
+    committee_membership = models.ForeignKey(
+        "governance.CommitteeMembership",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="appointment_stage_actions",
+    )
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -258,6 +299,7 @@ class AppointmentStageAction(models.Model):
         ordering = ["acted_at"]
         indexes = [
             models.Index(fields=["appointment", "acted_at"]),
+            models.Index(fields=["committee_membership", "acted_at"]),
         ]
 
     def __str__(self):

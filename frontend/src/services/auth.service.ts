@@ -3,8 +3,11 @@ import type {
   AdminUser,
   ApiError,
   AuthTokens,
+  CommitteeContext,
   LoginAttemptResponse,
   LoginResponse,
+  OrganizationMembershipContext,
+  OrganizationSummary,
   RegisterResponse,
   TwoFactorBackupCodesResponse,
   TwoFactorSetupResponse,
@@ -25,8 +28,10 @@ export interface RegisterData {
   first_name: string;
   last_name: string;
   phone_number: string;
-  organization: string;
   department: string;
+  onboarding_token: string;
+  // Legacy fields retained for backward-compatible payload tolerance.
+  organization?: string;
   subscription_reference?: string;
 }
 
@@ -42,6 +47,29 @@ export interface ProfileResponse {
   roles?: string[];
   capabilities?: string[];
   is_internal_operator?: boolean;
+  organizations?: OrganizationSummary[];
+  organization_memberships?: OrganizationMembershipContext[];
+  committees?: CommitteeContext[];
+  active_organization?: OrganizationSummary | null;
+  active_organization_source?: string;
+  invalid_requested_organization_id?: string;
+}
+
+export interface ActiveOrganizationSelectionResponse {
+  message: string;
+  active_organization: OrganizationSummary | null;
+  active_organization_source: string;
+  invalid_requested_organization_id?: string;
+}
+
+export interface OnboardingTokenValidationResponse {
+  valid: boolean;
+  reason: string;
+  organization_id?: string;
+  organization_name?: string;
+  subscription_id?: string | null;
+  remaining_uses?: number | null;
+  expires_at?: string | null;
 }
 
 const toApiError = (error: any, fallback: string): Error => {
@@ -96,6 +124,21 @@ export const authService = {
     }
   },
 
+  async validateOnboardingToken(payload: {
+    token: string;
+    email?: string;
+  }): Promise<OnboardingTokenValidationResponse> {
+    try {
+      const response = await api.post<OnboardingTokenValidationResponse>(
+        "/billing/onboarding-token/validate/",
+        payload,
+      );
+      return response.data;
+    } catch (error: any) {
+      throw toApiError(error, "Onboarding token validation failed");
+    }
+  },
+
   async logout(refreshToken: string): Promise<void> {
     try {
       await api.post("/auth/logout/", { refresh: refreshToken });
@@ -104,12 +147,31 @@ export const authService = {
     }
   },
 
-  async getProfile(): Promise<ProfileResponse> {
+  async getProfile(params?: { activeOrganizationId?: string }): Promise<ProfileResponse> {
     try {
-      const response = await api.get<ProfileResponse>("/auth/profile/");
+      const response = await api.get<ProfileResponse>("/auth/profile/", {
+        params: params?.activeOrganizationId
+          ? { active_organization_id: params.activeOrganizationId }
+          : undefined,
+      });
       return response.data;
     } catch (error: any) {
       throw toApiError(error, "Profile fetch failed");
+    }
+  },
+
+  async setActiveOrganization(payload: {
+    organization_id?: string | null;
+    clear?: boolean;
+  }): Promise<ActiveOrganizationSelectionResponse> {
+    try {
+      const response = await api.post<ActiveOrganizationSelectionResponse>(
+        "/auth/profile/active-organization/",
+        payload,
+      );
+      return response.data;
+    } catch (error: any) {
+      throw toApiError(error, "Failed to update active organization.");
     }
   },
 

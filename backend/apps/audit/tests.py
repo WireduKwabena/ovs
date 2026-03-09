@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 import unittest
 
 from django.conf import settings
@@ -9,6 +10,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.authentication.models import User
+from apps.governance.models import Organization, OrganizationMembership
 
 from .contracts import (
     APPOINTMENT_FINAL_DECISION_RECORDED_EVENT,
@@ -30,6 +32,9 @@ APP_ENABLED = "apps.audit" in settings.INSTALLED_APPS
 @unittest.skipUnless(APP_ENABLED, "Audit app is not enabled in INSTALLED_APPS.")
 class AuditApiTests(APITestCase):
     def setUp(self):
+        self.org_a = Organization.objects.create(code="audit-org-a", name="Audit Org A")
+        self.org_b = Organization.objects.create(code="audit-org-b", name="Audit Org B")
+
         self.admin_user = User.objects.create_user(
             email="audit-admin@example.com",
             password="Pass1234!",
@@ -66,6 +71,12 @@ class AuditApiTests(APITestCase):
             last_name="Reader",
             user_type="hr_manager",
         )
+        OrganizationMembership.objects.create(
+            user=self.auditor_user,
+            organization=self.org_a,
+            is_active=True,
+            is_default=True,
+        )
         auditor_group, _ = Group.objects.get_or_create(name="auditor")
         self.auditor_user.groups.add(auditor_group)
 
@@ -95,21 +106,39 @@ class AuditApiTests(APITestCase):
             action="update",
             entity_type="GovernmentPosition",
             entity_id="POS-1",
-            changes={"event": "government_position_updated", "field": "title"},
+            changes={
+                "event": "government_position_updated",
+                "field": "title",
+                "organization_id": str(self.org_a.id),
+            },
         )
         self.log_personnel = AuditLog.objects.create(
             admin_user=self.admin_user,
             action="delete",
             entity_type="PersonnelRecord",
             entity_id="PER-1",
-            changes={"event": "personnel_record_deleted"},
+            changes={
+                "event": "personnel_record_deleted",
+                "organization_id": str(self.org_b.id),
+            },
         )
         self.log_appointment = AuditLog.objects.create(
             admin_user=self.admin_user,
             action="create",
             entity_type="AppointmentRecord",
             entity_id="APP-1",
-            changes={"event": "appointment_record_created"},
+            changes={
+                "event": "appointment_record_created",
+                "organization_id": str(self.org_a.id),
+                "committee_id": "committee-a",
+            },
+        )
+        self.log_legacy_self = AuditLog.objects.create(
+            user=self.auditor_user,
+            action="other",
+            entity_type="AppointmentRecord",
+            entity_id="LEGACY-SELF",
+            changes={"event": "legacy_self_event"},
         )
 
     def test_regular_user_cannot_access_audit_logs(self):
@@ -129,14 +158,29 @@ class AuditApiTests(APITestCase):
         response = self.client.get("/api/audit/logs/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["count"], 6)
+        self.assertEqual(response.data["count"], 3)
+        returned_ids = {row["id"] for row in response.data["results"]}
+        self.assertIn(str(self.log_position.id), returned_ids)
+        self.assertIn(str(self.log_appointment.id), returned_ids)
+        self.assertIn(str(self.log_legacy_self.id), returned_ids)
+        self.assertNotIn(str(self.log_personnel.id), returned_ids)
+        self.assertNotIn(str(self.log_other.id), returned_ids)
 
     def test_admin_sees_all_logs(self):
         self.client.force_authenticate(self.admin_user)
         response = self.client.get("/api/audit/logs/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["count"], 6)
+        self.assertEqual(response.data["count"], 7)
+
+    def test_auditor_detail_view_is_org_scoped(self):
+        self.client.force_authenticate(self.auditor_user)
+
+        allowed = self.client.get(f"/api/audit/logs/{self.log_position.id}/")
+        self.assertEqual(allowed.status_code, status.HTTP_200_OK)
+
+        denied = self.client.get(f"/api/audit/logs/{self.log_personnel.id}/")
+        self.assertEqual(denied.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_by_entity_requires_entity_type_and_entity_id(self):
         self.client.force_authenticate(self.admin_user)
@@ -206,7 +250,7 @@ class AuditApiTests(APITestCase):
         response = self.client.get("/api/audit/logs/statistics/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["total_logs"], 6)
+        self.assertEqual(response.data["total_logs"], 7)
         self.assertTrue(any(item["action"] == "create" for item in response.data["action_distribution"]))
         self.assertTrue(any(item["entity_type"] == "VettingCase" for item in response.data["entity_distribution"]))
         self.assertTrue(
@@ -234,8 +278,9 @@ class AuditApiTests(APITestCase):
 
         appointment_response = self.client.get("/api/audit/logs/", {"entity_type": "AppointmentRecord"})
         self.assertEqual(appointment_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(appointment_response.data["count"], 1)
-        self.assertEqual(appointment_response.data["results"][0]["id"], str(self.log_appointment.id))
+        self.assertGreaterEqual(appointment_response.data["count"], 1)
+        appointment_ids = {item["id"] for item in appointment_response.data["results"]}
+        self.assertIn(str(self.log_appointment.id), appointment_ids)
 
     def test_admin_can_filter_list_by_event_key(self):
         self.client.force_authenticate(self.admin_user)
@@ -318,6 +363,61 @@ class AuditApiTests(APITestCase):
         self.assertIn(VETTING_DECISION_RECOMMENDATION_GENERATED_EVENT, keys)
         self.assertIn(VETTING_DECISION_OVERRIDE_RECORDED_EVENT, keys)
 
+    def test_auditor_can_view_legacy_org_event_without_explicit_org_context(self):
+        from apps.appointments.models import AppointmentRecord
+        from apps.campaigns.models import VettingCampaign
+        from apps.candidates.models import Candidate
+        from apps.personnel.models import PersonnelRecord
+        from apps.positions.models import GovernmentPosition
+
+        candidate = Candidate.objects.create(
+            first_name="Legacy",
+            last_name="Audit",
+            email="legacy.audit.candidate@example.com",
+        )
+        nominee = PersonnelRecord.objects.create(
+            organization=self.org_a,
+            full_name="Legacy Audit Nominee",
+            linked_candidate=candidate,
+        )
+        position = GovernmentPosition.objects.create(
+            organization=self.org_a,
+            title="Legacy Audit Position",
+            branch="executive",
+            institution="Audit Org A",
+            appointment_authority="President",
+            is_vacant=True,
+        )
+        campaign = VettingCampaign.objects.create(
+            organization=self.org_a,
+            name="Legacy Audit Campaign",
+            initiated_by=self.admin_user,
+            status="active",
+        )
+        appointment = AppointmentRecord.objects.create(
+            organization=self.org_a,
+            position=position,
+            nominee=nominee,
+            appointment_exercise=campaign,
+            nominated_by_user=self.admin_user,
+            nominated_by_display="Audit Admin",
+            nomination_date=date.today(),
+            status="nominated",
+        )
+        legacy_log = AuditLog.objects.create(
+            admin_user=self.admin_user,
+            action="update",
+            entity_type="AppointmentRecord",
+            entity_id=str(appointment.id),
+            changes={"event": "legacy_missing_context"},
+        )
+
+        self.client.force_authenticate(self.auditor_user)
+        response = self.client.get("/api/audit/logs/", {"changes__event": "legacy_missing_context"})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        returned_ids = {row["id"] for row in response.data["results"]}
+        self.assertIn(str(legacy_log.id), returned_ids)
+
 
     def test_log_event_creates_audit_row_with_request_metadata(self):
         request = RequestFactory().post(
@@ -341,6 +441,8 @@ class AuditApiTests(APITestCase):
         self.assertEqual(row.admin_user, self.admin_user)
         self.assertEqual(row.ip_address, "203.0.113.10")
         self.assertEqual(row.user_agent, "audit-tests")
+        self.assertEqual(row.scope_organization_id, "")
+        self.assertEqual(row.scope_committee_id, "")
 
     def test_request_ip_address_prefers_forwarded_for_header(self):
         request = RequestFactory().get(
@@ -380,6 +482,29 @@ class AuditApiTests(APITestCase):
         self.assertIsInstance(row.changes["nested"][0], str)
         self.assertEqual(row.changes["nested"][0], "non-serializable")
         self.assertEqual(row.changes["nested"][1]["inner"], "non-serializable")
+        self.assertEqual(row.scope_organization_id, "")
+        self.assertEqual(row.scope_committee_id, "")
+
+    def test_log_event_extracts_scope_ids_from_changes_payload(self):
+        request = RequestFactory().post("/api/audit/test")
+        request.user = self.admin_user
+
+        created = log_event(
+            request=request,
+            action="update",
+            entity_type="AppointmentRecord",
+            entity_id="SCOPE-1",
+            changes={
+                "event": "appointment_stage_transition",
+                "organization_id": str(self.org_a.id),
+                "committee_id": "committee-xyz",
+            },
+        )
+
+        self.assertTrue(created)
+        row = AuditLog.objects.get(entity_type="AppointmentRecord", entity_id="SCOPE-1")
+        self.assertEqual(row.scope_organization_id, str(self.org_a.id))
+        self.assertEqual(row.scope_committee_id, "committee-xyz")
 
     def test_log_event_wraps_non_dict_changes(self):
         request = RequestFactory().post("/api/audit/test")

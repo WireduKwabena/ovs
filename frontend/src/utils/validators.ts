@@ -41,7 +41,6 @@ export const registerSchema = yup.object({
     .string()
     .matches(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number')
     .required('Phone number is required'),
-  organization: yup.string().defined(),
   department: yup.string().defined(),
 });
 

@@ -52,13 +52,18 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         validators=[validate_password]
     )
     password_confirm = serializers.CharField(write_only=True, required=True)
+    # Legacy field retained for backward-compatible payload parsing; no longer used for registration decisions.
     subscription_reference = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    # Token is mandatory for organization-scoped onboarding.
+    onboarding_token = serializers.CharField(write_only=True, required=True, allow_blank=False)
+    # Legacy organization input is ignored to prevent manual org assignment at registration.
+    organization = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=200)
     
     class Meta:
         model = User
         fields = [
             'email', 'password', 'password_confirm', 
-            'first_name', 'last_name', 'phone_number', 'organization', 'department', 'subscription_reference'
+            'first_name', 'last_name', 'phone_number', 'organization', 'department', 'subscription_reference', 'onboarding_token'
         ]
     
     def validate(self, attrs):
@@ -71,6 +76,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.pop('password_confirm')
         validated_data.pop('subscription_reference', None)
+        validated_data.pop('onboarding_token', None)
+        validated_data.pop('organization', None)
         validated_data.setdefault("user_type", "hr_manager")
         user = User.objects.create_user(**validated_data)
         return user
@@ -343,12 +350,75 @@ class TwoFactorStatusResponseSerializer(serializers.Serializer):
     backup_codes_remaining = serializers.IntegerField(min_value=0)
 
 
+class OrganizationSummarySerializer(serializers.Serializer):
+    id = serializers.CharField()
+    code = serializers.CharField()
+    name = serializers.CharField()
+    organization_type = serializers.CharField()
+
+
+class OrganizationMembershipContextSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    organization_id = serializers.CharField()
+    organization_code = serializers.CharField()
+    organization_name = serializers.CharField()
+    organization_type = serializers.CharField()
+    title = serializers.CharField(allow_blank=True)
+    membership_role = serializers.CharField(allow_blank=True)
+    is_default = serializers.BooleanField()
+    is_active = serializers.BooleanField()
+    joined_at = serializers.CharField(allow_null=True, required=False)
+    left_at = serializers.CharField(allow_null=True, required=False)
+
+
+class CommitteeContextSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    committee_id = serializers.CharField()
+    committee_code = serializers.CharField()
+    committee_name = serializers.CharField()
+    committee_type = serializers.CharField()
+    organization_id = serializers.CharField()
+    organization_code = serializers.CharField()
+    organization_name = serializers.CharField()
+    committee_role = serializers.CharField()
+    can_vote = serializers.BooleanField()
+    joined_at = serializers.CharField(allow_null=True, required=False)
+    left_at = serializers.CharField(allow_null=True, required=False)
+
+
+class ActiveOrganizationSelectionSerializer(serializers.Serializer):
+    organization_id = serializers.UUIDField(required=False, allow_null=True)
+    clear = serializers.BooleanField(required=False, default=False)
+
+    def validate(self, attrs):
+        clear = bool(attrs.get("clear", False))
+        organization_id = attrs.get("organization_id")
+        if clear:
+            return attrs
+        if organization_id is None:
+            raise serializers.ValidationError("organization_id is required unless clear=true.")
+        return attrs
+
+
+class ActiveOrganizationSelectionResponseSerializer(serializers.Serializer):
+    message = serializers.CharField()
+    active_organization = OrganizationSummarySerializer(allow_null=True)
+    active_organization_source = serializers.CharField()
+    invalid_requested_organization_id = serializers.CharField(required=False, allow_blank=True)
+
+
 class ProfileResponseSerializer(serializers.Serializer):
     user = serializers.DictField()
     user_type = serializers.ChoiceField(choices=USER_TYPE_CHOICES)
     roles = serializers.ListField(child=serializers.CharField(), required=False)
     capabilities = serializers.ListField(child=serializers.CharField(), required=False)
     is_internal_operator = serializers.BooleanField(required=False)
+    organizations = OrganizationSummarySerializer(many=True, required=False)
+    organization_memberships = OrganizationMembershipContextSerializer(many=True, required=False)
+    committees = CommitteeContextSerializer(many=True, required=False)
+    active_organization = OrganizationSummarySerializer(allow_null=True, required=False)
+    active_organization_source = serializers.CharField(required=False)
+    invalid_requested_organization_id = serializers.CharField(required=False, allow_blank=True)
 
 
 

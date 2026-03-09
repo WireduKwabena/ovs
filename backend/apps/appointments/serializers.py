@@ -5,6 +5,24 @@ from .models import AppointmentPublication, AppointmentRecord, AppointmentStageA
 
 
 class ApprovalStageSerializer(serializers.ModelSerializer):
+    committee_name = serializers.CharField(source="committee.name", read_only=True)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        instance = getattr(self, "instance", None)
+        template = attrs.get("template") or getattr(instance, "template", None)
+        committee = attrs.get("committee") if "committee" in attrs else getattr(instance, "committee", None)
+
+        if committee is None:
+            return attrs
+        if not committee.is_active:
+            raise serializers.ValidationError({"committee": "Assigned committee must be active."})
+
+        if template is not None and template.organization_id and committee.organization_id:
+            if str(template.organization_id) != str(committee.organization_id):
+                raise serializers.ValidationError({"committee": "Committee organization must match template organization."})
+        return attrs
+
     class Meta:
         model = ApprovalStage
         fields = [
@@ -15,22 +33,28 @@ class ApprovalStageSerializer(serializers.ModelSerializer):
             "required_role",
             "is_required",
             "maps_to_status",
+            "committee",
+            "committee_name",
         ]
-        read_only_fields = ["id"]
+        read_only_fields = ["id", "committee_name"]
 
 
 class ApprovalStageTemplateSerializer(serializers.ModelSerializer):
     stages = ApprovalStageSerializer(many=True, read_only=True)
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
 
     class Meta:
         model = ApprovalStageTemplate
-        fields = ["id", "name", "exercise_type", "created_by", "created_at", "stages"]
-        read_only_fields = ["id", "created_by", "created_at", "stages"]
+        fields = ["id", "organization", "organization_name", "name", "exercise_type", "created_by", "created_at", "stages"]
+        read_only_fields = ["id", "organization_name", "created_by", "created_at", "stages"]
 
 
 class AppointmentStageActionSerializer(serializers.ModelSerializer):
     actor_email = serializers.EmailField(source="actor.email", read_only=True)
     stage_name = serializers.CharField(source="stage.name", read_only=True)
+    committee_membership_id = serializers.UUIDField(source="committee_membership.id", read_only=True)
+    committee_name = serializers.CharField(source="committee_membership.committee.name", read_only=True)
+    committee_role = serializers.CharField(source="committee_membership.committee_role", read_only=True)
 
     class Meta:
         model = AppointmentStageAction
@@ -41,6 +65,10 @@ class AppointmentStageActionSerializer(serializers.ModelSerializer):
             "stage_name",
             "actor",
             "actor_email",
+            "committee_membership",
+            "committee_membership_id",
+            "committee_name",
+            "committee_role",
             "actor_role",
             "action",
             "reason_note",
@@ -53,6 +81,8 @@ class AppointmentStageActionSerializer(serializers.ModelSerializer):
 
 
 class AppointmentRecordSerializer(serializers.ModelSerializer):
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
+    committee_name = serializers.CharField(source="committee.name", read_only=True)
     position_title = serializers.CharField(source="position.title", read_only=True)
     nominee_name = serializers.CharField(source="nominee.full_name", read_only=True)
     vetting_decision = serializers.SerializerMethodField(read_only=True)
@@ -61,6 +91,10 @@ class AppointmentRecordSerializer(serializers.ModelSerializer):
         model = AppointmentRecord
         fields = [
             "id",
+            "organization",
+            "organization_name",
+            "committee",
+            "committee_name",
             "position",
             "position_title",
             "nominee",
@@ -86,7 +120,7 @@ class AppointmentRecordSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         validators = []
-        read_only_fields = ["id", "status", "created_at", "updated_at"]
+        read_only_fields = ["id", "organization_name", "committee_name", "status", "created_at", "updated_at"]
 
     def validate_nomination_date(self, value):
         if value > timezone.localdate():
@@ -101,6 +135,7 @@ class AppointmentRecordSerializer(serializers.ModelSerializer):
         attrs = super().validate(attrs)
 
         instance = getattr(self, "instance", None)
+        organization = attrs.get("organization") or getattr(instance, "organization", None)
         position = attrs.get("position") or getattr(instance, "position", None)
         nominee = attrs.get("nominee") or getattr(instance, "nominee", None)
 
@@ -113,6 +148,7 @@ class AppointmentRecordSerializer(serializers.ModelSerializer):
             vetting_case = attrs.get("vetting_case")
         else:
             vetting_case = getattr(instance, "vetting_case", None)
+        committee = attrs.get("committee") if "committee" in attrs else getattr(instance, "committee", None)
 
         errors: dict[str, list[str]] = {}
 
@@ -151,10 +187,32 @@ class AppointmentRecordSerializer(serializers.ModelSerializer):
                     if source_rubric_id and str(source_rubric_id) != str(position.rubric_id):
                         add_error("position", "Selected position rubric does not match the active campaign rubric source.")
 
+        if organization is not None and position is not None and position.organization_id:
+            if str(position.organization_id) != str(organization.id):
+                add_error("organization", "Organization must match selected position organization.")
+
+        if organization is not None and appointment_exercise is not None and appointment_exercise.organization_id:
+            if str(appointment_exercise.organization_id) != str(organization.id):
+                add_error("organization", "Organization must match selected appointment exercise organization.")
+
         if vetting_case is not None and appointment_exercise is not None:
             enrollment = getattr(vetting_case, "candidate_enrollment", None)
             if enrollment is not None and enrollment.campaign_id != appointment_exercise.id:
                 add_error("vetting_case", "Selected vetting case belongs to a different campaign than appointment exercise.")
+
+        if organization is not None and vetting_case is not None and vetting_case.organization_id:
+            if str(vetting_case.organization_id) != str(organization.id):
+                add_error("organization", "Organization must match selected vetting case organization.")
+
+        if committee is not None:
+            if not committee.is_active:
+                add_error("committee", "Assigned committee must be active.")
+            if organization is not None and committee.organization_id:
+                if str(committee.organization_id) != str(organization.id):
+                    add_error("committee", "Assigned committee organization must match appointment organization.")
+            if appointment_exercise is not None and appointment_exercise.organization_id and committee.organization_id:
+                if str(appointment_exercise.organization_id) != str(committee.organization_id):
+                    add_error("committee", "Assigned committee organization must match appointment exercise organization.")
 
         if vetting_case is not None and position is not None:
             if vetting_case.position_applied and self._normalize_text(vetting_case.position_applied) != self._normalize_text(position.title):

@@ -55,9 +55,18 @@ const api = axios.create({
 // Request interceptor - add auth token from Redux
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = store.getState().auth.tokens?.access; // From Redux
+    const authState = store.getState().auth;
+    const token = authState.tokens?.access; // From Redux
+    const activeOrganizationId = String(authState.activeOrganization?.id || "").trim();
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    if (config.headers) {
+      if (activeOrganizationId) {
+        config.headers["X-Active-Organization-ID"] = activeOrganizationId;
+      } else {
+        delete config.headers["X-Active-Organization-ID"];
+      }
     }
     return config;
   },

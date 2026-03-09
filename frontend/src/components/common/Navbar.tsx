@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { getUserDisplayName, getUserInitial } from '@/utils/userDisplay';
 import { videoCallService } from '@/services/videoCall.service';
 import { ThemeToggle } from './ThemeToggle';
+import { toast } from 'react-toastify';
 
 // ✅ CRITICAL: Define selectors OUTSIDE the component
 const selectAuthState = (state: RootState) => state.auth;
@@ -39,7 +40,15 @@ type ReminderRuntimeStatus = 'unknown' | 'healthy' | 'attention' | 'unavailable'
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useAuth();
+  const {
+    logout,
+    organizations,
+    activeOrganization,
+    activeOrganizationId,
+    canSwitchOrganization,
+    switchingActiveOrganization,
+    selectActiveOrganization,
+  } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileMenuMounted, setMobileMenuMounted] = useState(false);
   const [adminMoreMenuOpen, setAdminMoreMenuOpen] = useState(false);
@@ -63,6 +72,7 @@ export const Navbar: React.FC = () => {
   const mobileDrawerRef = useRef<HTMLDivElement>(null);
   const resolvedRoles = Array.isArray(roles) ? roles : [];
   const resolvedCapabilities = Array.isArray(capabilities) ? capabilities : [];
+  const resolvedOrganizations = Array.isArray(organizations) ? organizations : [];
 
   const hasRole = (role: string): boolean => resolvedRoles.includes(role);
   const hasAnyRole = (requiredRoles: string[]): boolean =>
@@ -93,6 +103,18 @@ export const Navbar: React.FC = () => {
       "publication_officer",
       "auditor",
     ]);
+  const canShowOrganizationContext = userType !== 'applicant' && resolvedOrganizations.length > 0;
+  const activeOrganizationLabel = activeOrganization?.name || resolvedOrganizations[0]?.name || 'Default scope';
+
+  const handleOrganizationSelection = async (rawValue: string) => {
+    const nextValue = rawValue === "__default__" ? null : rawValue;
+    try {
+      await selectActiveOrganization(nextValue);
+      toast.success(nextValue ? "Active organization updated." : "Organization context reset to default.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to switch active organization.");
+    }
+  };
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -556,6 +578,33 @@ export const Navbar: React.FC = () => {
                 )}
               </div>
             )}
+            {canShowOrganizationContext ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-700">Org</span>
+                {canSwitchOrganization ? (
+                  <select
+                    className="h-9 rounded-md border border-slate-300 bg-white px-2 text-xs font-medium text-slate-800"
+                    value={activeOrganizationId || "__default__"}
+                    onChange={(event) => {
+                      void handleOrganizationSelection(event.target.value);
+                    }}
+                    disabled={switchingActiveOrganization}
+                    aria-label="Switch active organization"
+                  >
+                    <option value="__default__">Default scope</option>
+                    {resolvedOrganizations.map((org) => (
+                      <option key={org.id} value={org.id}>
+                        {org.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-white px-2 text-xs font-medium text-slate-800">
+                    {activeOrganizationLabel}
+                  </span>
+                )}
+              </div>
+            ) : null}
             {renderRuntimePopover()}
             <ThemeToggle compact />
             <Link
@@ -713,6 +762,31 @@ export const Navbar: React.FC = () => {
               </div>
             </div>
             <div className="space-y-3">
+              {canShowOrganizationContext ? (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Organization Context</p>
+                  {canSwitchOrganization ? (
+                    <select
+                      className="mt-2 h-10 w-full rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
+                      value={activeOrganizationId || "__default__"}
+                      onChange={(event) => {
+                        void handleOrganizationSelection(event.target.value);
+                      }}
+                      disabled={switchingActiveOrganization}
+                      aria-label="Switch active organization"
+                    >
+                      <option value="__default__">Default scope</option>
+                      {resolvedOrganizations.map((org) => (
+                        <option key={org.id} value={org.id}>
+                          {org.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="mt-2 text-sm text-slate-800">{activeOrganizationLabel}</p>
+                  )}
+                </div>
+              ) : null}
               {navLinks.map((navItem) => (
                 <Link
                   key={navItem.to}

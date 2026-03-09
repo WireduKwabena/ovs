@@ -9,6 +9,13 @@ from rest_framework.response import Response
 
 from apps.billing.quotas import enforce_candidate_quota
 from apps.candidates.models import Candidate, CandidateEnrollment
+from apps.core.permissions import (
+    can_access_organization_id,
+    get_request_active_organization_id,
+    get_user_allowed_organization_ids,
+    is_platform_admin_user,
+    scope_queryset_to_user_organizations,
+)
 from apps.invitations.models import Invitation
 from apps.invitations.tasks import send_invitation_task
 
@@ -55,15 +62,58 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
         if getattr(self, "swagger_fake_view", False):
             return VettingCampaign.objects.none()
         user = self.request.user
-        if getattr(user, "is_staff", False) or getattr(user, "is_superuser", False) or getattr(user, "user_type", None) == "admin":
+        queryset = VettingCampaign.objects.all()
+        if is_platform_admin_user(user):
             return VettingCampaign.objects.all().order_by("-created_at")
+
+        membership_org_ids = get_user_allowed_organization_ids(user)
+        if membership_org_ids:
+            queryset = scope_queryset_to_user_organizations(
+                queryset,
+                request=self.request,
+                organization_field="organization_id",
+            )
+            return queryset.order_by("-created_at")
         return VettingCampaign.objects.filter(initiated_by=user).order_by("-created_at")
 
     def perform_create(self, serializer):
         user = self.request.user
         if getattr(user, "user_type", None) not in {"admin", "hr_manager"} and not getattr(user, "is_staff", False):
             raise PermissionDenied("Only HR managers/admins can create campaigns.")
+        requested_org = serializer.validated_data.get("organization")
+        if not is_platform_admin_user(user):
+            if requested_org is not None and not can_access_organization_id(user, requested_org.id):
+                raise PermissionDenied("You cannot create campaigns for another organization.")
+            active_org_id = get_request_active_organization_id(self.request)
+            if requested_org is None and active_org_id:
+                serializer.save(initiated_by=self.request.user, organization_id=active_org_id)
+                return
         serializer.save(initiated_by=self.request.user)
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        user = self.request.user
+        if not is_platform_admin_user(user) and not can_access_organization_id(user, instance.organization_id):
+            raise PermissionDenied("You cannot update campaigns outside your organization scope.")
+        requested_org = serializer.validated_data.get("organization")
+        if not is_platform_admin_user(user) and requested_org is not None and not can_access_organization_id(user, requested_org.id):
+            raise PermissionDenied("You cannot move this campaign to another organization.")
+        save_kwargs = {}
+        if (
+            not is_platform_admin_user(user)
+            and instance.organization_id is None
+            and "organization" not in serializer.validated_data
+        ):
+            active_org_id = get_request_active_organization_id(self.request)
+            if active_org_id:
+                save_kwargs["organization_id"] = active_org_id
+        serializer.save(**save_kwargs)
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if not is_platform_admin_user(user) and not can_access_organization_id(user, instance.organization_id):
+            raise PermissionDenied("You cannot delete campaigns outside your organization scope.")
+        super().perform_destroy(instance)
 
     @action(detail=True, methods=["get", "post"], url_path="rubrics/versions")
     def add_rubric_version(self, request, pk=None):
@@ -137,7 +187,15 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
         if not is_admin:
             projected_new_enrollments = _project_new_enrollment_count(campaign, candidates_data)
             if projected_new_enrollments > 0:
-                enforce_candidate_quota(user=user, additional=projected_new_enrollments)
+                enforce_candidate_quota(
+                    user=user,
+                    additional=projected_new_enrollments,
+                    organization_id=(
+                        str(getattr(campaign, "organization_id", "") or "").strip()
+                        or str(get_request_active_organization_id(self.request) or "").strip()
+                        or None
+                    ),
+                )
 
         created_candidates = 0
         created_enrollments = 0

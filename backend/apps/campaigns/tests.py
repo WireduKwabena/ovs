@@ -5,6 +5,7 @@ from apps.authentication.models import User
 from apps.billing.models import BillingSubscription
 from apps.candidates.models import Candidate, CandidateEnrollment
 from apps.campaigns.models import CampaignRubricVersion, VettingCampaign
+from apps.governance.models import Organization, OrganizationMembership
 
 
 class CampaignAuthorizationTests(APITestCase):
@@ -300,3 +301,72 @@ class CampaignAuthorizationTests(APITestCase):
         self.assertTrue(str(body["quota"].get("period_end")))
         self.assertEqual(Candidate.objects.count(), 0)
         self.assertEqual(CandidateEnrollment.objects.count(), 0)
+
+
+class CampaignOrganizationScopeTests(APITestCase):
+    def setUp(self):
+        self.org_a = Organization.objects.create(code="camp-org-a", name="Campaign Org A")
+        self.org_b = Organization.objects.create(code="camp-org-b", name="Campaign Org B")
+
+        self.hr_a = User.objects.create_user(
+            email="campaign_scope_a@example.com",
+            password="Pass1234!",
+            first_name="Scope",
+            last_name="A",
+            user_type="hr_manager",
+        )
+        self.hr_b = User.objects.create_user(
+            email="campaign_scope_b@example.com",
+            password="Pass1234!",
+            first_name="Scope",
+            last_name="B",
+            user_type="hr_manager",
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr_a,
+            organization=self.org_a,
+            is_active=True,
+            is_default=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr_b,
+            organization=self.org_b,
+            is_active=True,
+            is_default=True,
+        )
+
+        self.same_org_foreign_owner_campaign = VettingCampaign.objects.create(
+            name="Org A Campaign (Owned by B)",
+            organization=self.org_a,
+            initiated_by=self.hr_b,
+        )
+        self.other_org_campaign = VettingCampaign.objects.create(
+            name="Org B Campaign",
+            organization=self.org_b,
+            initiated_by=self.hr_b,
+        )
+
+    def _items(self, payload):
+        if isinstance(payload, list):
+            return payload
+        return payload.get("results", [])
+
+    def test_hr_with_org_membership_can_view_same_org_campaigns(self):
+        self.client.force_authenticate(self.hr_a)
+        response = self.client.get("/api/campaigns/")
+        self.assertEqual(response.status_code, 200)
+        ids = {item["id"] for item in self._items(response.json())}
+        self.assertIn(str(self.same_org_foreign_owner_campaign.id), ids)
+        self.assertNotIn(str(self.other_org_campaign.id), ids)
+
+    def test_hr_cannot_create_campaign_for_other_org(self):
+        self.client.force_authenticate(self.hr_a)
+        response = self.client.post(
+            "/api/campaigns/",
+            {
+                "name": "Cross Org Campaign",
+                "organization": str(self.org_b.id),
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)

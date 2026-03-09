@@ -103,6 +103,7 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.admin_dashboard",
     "apps.authentication",
+    "apps.governance",
     "apps.campaigns",
     "apps.positions",
     "apps.personnel",
@@ -645,6 +646,16 @@ BILLING_SUBSCRIPTION_VERIFY_RATE_LIMIT_PER_MINUTE = config(
     default=30,
     cast=int,
 )
+BILLING_ONBOARDING_TOKEN_VALIDATE_RATE_LIMIT_ENABLED = config(
+    "BILLING_ONBOARDING_TOKEN_VALIDATE_RATE_LIMIT_ENABLED",
+    default=True,
+    cast=bool,
+)
+BILLING_ONBOARDING_TOKEN_VALIDATE_RATE_LIMIT_PER_MINUTE = config(
+    "BILLING_ONBOARDING_TOKEN_VALIDATE_RATE_LIMIT_PER_MINUTE",
+    default=30,
+    cast=int,
+)
 BILLING_HEALTH_REQUIRE_STAFF = config(
     "BILLING_HEALTH_REQUIRE_STAFF",
     default=False,
@@ -674,6 +685,45 @@ BILLING_PLAN_DEFAULT_CANDIDATES_PER_MONTH = config(
     "BILLING_PLAN_DEFAULT_CANDIDATES_PER_MONTH",
     default=0,
     cast=int,
+)
+BILLING_ORG_MEMBER_QUOTA_ENFORCEMENT_ENABLED = config(
+    "BILLING_ORG_MEMBER_QUOTA_ENFORCEMENT_ENABLED",
+    default=True,
+    cast=bool,
+)
+BILLING_PLAN_STARTER_ORG_SEATS = config(
+    "BILLING_PLAN_STARTER_ORG_SEATS",
+    default=25,
+    cast=int,
+)
+BILLING_PLAN_GROWTH_ORG_SEATS = config(
+    "BILLING_PLAN_GROWTH_ORG_SEATS",
+    default=100,
+    cast=int,
+)
+BILLING_PLAN_ENTERPRISE_ORG_SEATS = config(
+    "BILLING_PLAN_ENTERPRISE_ORG_SEATS",
+    default=0,
+    cast=int,
+)
+BILLING_PLAN_DEFAULT_ORG_SEATS = config(
+    "BILLING_PLAN_DEFAULT_ORG_SEATS",
+    default=0,
+    cast=int,
+)
+BILLING_ORG_ONBOARDING_DEFAULT_TTL_HOURS = config(
+    "BILLING_ORG_ONBOARDING_DEFAULT_TTL_HOURS",
+    default=72,
+    cast=int,
+)
+BILLING_ORG_ONBOARDING_DEFAULT_MAX_USES = config(
+    "BILLING_ORG_ONBOARDING_DEFAULT_MAX_USES",
+    default=25,
+    cast=int,
+)
+BILLING_ORG_ONBOARDING_TOKEN_PEPPER = config(
+    "BILLING_ORG_ONBOARDING_TOKEN_PEPPER",
+    default="",
 )
 INTERVIEWS_TASK_INLINE_FALLBACK_ENABLED = config(
     "INTERVIEWS_TASK_INLINE_FALLBACK_ENABLED",

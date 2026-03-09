@@ -36,6 +36,8 @@ class AuditLog(models.Model):
     action = models.CharField(max_length=20, choices=ACTION_CHOICES, default="other")
     entity_type = models.CharField(max_length=100, blank=True)
     entity_id = models.CharField(max_length=100, blank=True)
+    scope_organization_id = models.CharField(max_length=100, blank=True)
+    scope_committee_id = models.CharField(max_length=100, blank=True)
     changes = models.JSONField(default=dict, blank=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.TextField(blank=True)
@@ -45,6 +47,15 @@ class AuditLog(models.Model):
         db_table = "audit_logs"
         ordering = ["-created_at"]
         app_label = "audit"
+        indexes = [
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["entity_type", "entity_id", "created_at"]),
+            models.Index(fields=["user", "created_at"]),
+            models.Index(fields=["admin_user", "created_at"]),
+            models.Index(fields=["action", "created_at"]),
+            models.Index(fields=["scope_organization_id", "created_at"]),
+            models.Index(fields=["scope_committee_id", "created_at"]),
+        ]
 
     def __str__(self):
         return f"{self.action} {self.entity_type}:{self.entity_id}"

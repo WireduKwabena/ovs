@@ -1,4 +1,10 @@
 import api from './api';
+import type {
+  OrganizationOnboardingTokenGeneratePayload,
+  OrganizationOnboardingTokenGenerateResponse,
+  OrganizationOnboardingTokenRevokePayload,
+  OrganizationOnboardingTokenStateResponse,
+} from '@/types';
 
 export interface BillingHealthAccess {
   staff_required: boolean;
@@ -59,6 +65,8 @@ export interface BillingPaymentMethodSummary {
 
 export interface BillingManagedSubscription {
   id: string;
+  organization_id?: string | null;
+  organization_name?: string | null;
   provider: 'stripe' | 'paystack' | 'sandbox' | string;
   status: string;
   payment_status: string;
@@ -99,6 +107,31 @@ export interface BillingSubscriptionRetryResponse {
   session_id?: string;
   checkout_url?: string;
 }
+
+const getOnboardingTokenState = async (): Promise<OrganizationOnboardingTokenStateResponse> => {
+  const response = await api.get<OrganizationOnboardingTokenStateResponse>('/billing/onboarding-token/');
+  return response.data;
+};
+
+const generateOnboardingToken = async (
+  payload: OrganizationOnboardingTokenGeneratePayload,
+): Promise<OrganizationOnboardingTokenGenerateResponse> => {
+  const response = await api.post<OrganizationOnboardingTokenGenerateResponse>(
+    '/billing/onboarding-token/generate/',
+    payload,
+  );
+  return response.data;
+};
+
+const revokeOnboardingToken = async (
+  payload: OrganizationOnboardingTokenRevokePayload = {},
+): Promise<OrganizationOnboardingTokenStateResponse> => {
+  const response = await api.post<OrganizationOnboardingTokenStateResponse>(
+    '/billing/onboarding-token/revoke/',
+    payload,
+  );
+  return response.data;
+};
 
 const getHealth = async (): Promise<BillingHealthResponse> => {
   const response = await api.get<BillingHealthResponse>('/billing/health/');
@@ -150,4 +183,7 @@ export const billingService = {
   scheduleSubscriptionCancellation,
   createPaymentMethodUpdateSession,
   retrySubscription,
+  getOnboardingTokenState,
+  generateOnboardingToken,
+  revokeOnboardingToken,
 };

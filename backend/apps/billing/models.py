@@ -1,6 +1,8 @@
 import uuid
 
+from django.conf import settings
 from django.db import models
+from django.db.models import Q
 
 
 class BillingSubscription(models.Model):
@@ -21,6 +23,13 @@ class BillingSubscription(models.Model):
     )
 
     provider = models.CharField(max_length=32, choices=PROVIDER_CHOICES, default="stripe")
+    organization = models.ForeignKey(
+        "governance.Organization",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="billing_subscriptions",
+    )
     session_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     payment_intent_id = models.CharField(max_length=255, blank=True, null=True)
     status = models.CharField(max_length=32, choices=STATUS_CHOICES, default="open")
@@ -47,6 +56,12 @@ class BillingSubscription(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(
+                fields=["organization", "status", "payment_status"],
+                name="billing_bil_organiz_8d35d4_idx",
+            ),
+        ]
 
     def __str__(self) -> str:
         base = self.session_id or self.reference or str(self.pk)
@@ -86,4 +101,70 @@ class BillingWebhookEvent(models.Model):
     def __str__(self) -> str:
         identifier = self.event_id or str(self.pk)
         return f"{self.provider}:{identifier}:{self.processing_status}"
+
+
+class OrganizationOnboardingToken(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "governance.Organization",
+        on_delete=models.CASCADE,
+        related_name="onboarding_tokens",
+    )
+    subscription = models.ForeignKey(
+        BillingSubscription,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="onboarding_tokens",
+    )
+    token_hash = models.CharField(max_length=128, unique=True, db_index=True)
+    token_prefix = models.CharField(max_length=24, blank=True, default="", db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    max_uses = models.PositiveIntegerField(null=True, blank=True)
+    uses = models.PositiveIntegerField(default=0)
+    allowed_email_domain = models.CharField(max_length=255, blank=True, default="")
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoked_reason = models.CharField(max_length=255, blank=True, default="")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="created_organization_onboarding_tokens",
+    )
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization"],
+                condition=Q(is_active=True),
+                name="uniq_org_onboarding_token_active_org",
+            ),
+            models.CheckConstraint(
+                condition=Q(max_uses__isnull=True) | Q(max_uses__gt=0),
+                name="chk_org_onboarding_token_max_uses_positive",
+            ),
+            models.CheckConstraint(
+                condition=Q(uses__gte=0),
+                name="chk_org_onboarding_token_uses_non_negative",
+            ),
+            models.CheckConstraint(
+                condition=Q(revoked_at__isnull=True) | Q(is_active=False),
+                name="chk_org_onboarding_token_revoked_inactive",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["organization", "is_active"], name="bill_onboard_org_active_idx"),
+            models.Index(fields=["organization", "expires_at"], name="bill_onboard_org_expires_idx"),
+            models.Index(fields=["subscription", "is_active"], name="bill_onboard_sub_active_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.organization_id}:{self.token_prefix}:{'active' if self.is_active else 'inactive'}"
 

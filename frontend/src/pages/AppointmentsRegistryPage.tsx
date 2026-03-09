@@ -77,6 +77,7 @@ const STAGE_ACTION_INTENT_OPTIONS: Array<{ value: StageActionIntent; label: stri
   { value: "reject", label: "Reject intent" },
   { value: "return", label: "Return intent" },
 ];
+const COMMITTEE_REQUIRED_ROLES = new Set(["committee_member", "committee_chair"]);
 
 function parseEvidenceLinks(rawValue: string): string[] {
   if (!rawValue.trim()) {
@@ -121,6 +122,9 @@ const AppointmentsRegistryPage: React.FC = () => {
     canFinalizeAppointment,
     canPublishAppointment,
     canViewAppointmentStageActions,
+    activeOrganization,
+    activeOrganizationId,
+    hasCommitteeMembership,
   } = useAuth();
 
   const [rows, setRows] = useState<AppointmentRecord[]>([]);
@@ -221,7 +225,7 @@ const AppointmentsRegistryPage: React.FC = () => {
     setStageTemplates(templateRows);
     setStages(stageRows);
     void loadPublicationState(appointments);
-  }, [loadPublicationState, statusFilter]);
+  }, [activeOrganizationId, loadPublicationState, statusFilter]);
 
   useEffect(() => {
     const run = async () => {
@@ -243,21 +247,139 @@ const AppointmentsRegistryPage: React.FC = () => {
     }
   }, [stageForm.template, stageTemplates]);
 
-  useEffect(() => {
-    if (!form.position && positions.length > 0) {
-      setForm((previous) => ({ ...previous, position: positions[0].id }));
+  const scopedPositions = useMemo(() => {
+    if (!activeOrganizationId) {
+      return positions;
     }
-  }, [form.position, positions]);
+    return positions.filter(
+      (item) => !item.organization || String(item.organization) === activeOrganizationId,
+    );
+  }, [activeOrganizationId, positions]);
+  const scopedPersonnel = useMemo(() => {
+    if (!activeOrganizationId) {
+      return personnel;
+    }
+    return personnel.filter(
+      (item) => !item.organization || String(item.organization) === activeOrganizationId,
+    );
+  }, [activeOrganizationId, personnel]);
+  const scopedCampaigns = useMemo(() => {
+    if (!activeOrganizationId) {
+      return campaigns;
+    }
+    return campaigns.filter(
+      (item) => !item.organization || String(item.organization) === activeOrganizationId,
+    );
+  }, [activeOrganizationId, campaigns]);
 
   useEffect(() => {
-    if (!form.nominee && personnel.length > 0) {
-      setForm((previous) => ({ ...previous, nominee: personnel[0].id }));
+    if (scopedPositions.length === 0) {
+      setForm((previous) => ({ ...previous, position: "" }));
+      return;
     }
-  }, [form.nominee, personnel]);
+    if (!scopedPositions.some((row) => row.id === form.position)) {
+      setForm((previous) => ({ ...previous, position: scopedPositions[0].id }));
+    }
+  }, [form.position, scopedPositions]);
 
-  const hasPositionOptions = positions.length > 0;
-  const hasNomineeOptions = personnel.length > 0;
+  useEffect(() => {
+    if (scopedPersonnel.length === 0) {
+      setForm((previous) => ({ ...previous, nominee: "" }));
+      return;
+    }
+    if (!scopedPersonnel.some((row) => row.id === form.nominee)) {
+      setForm((previous) => ({ ...previous, nominee: scopedPersonnel[0].id }));
+    }
+  }, [form.nominee, scopedPersonnel]);
+
+  useEffect(() => {
+    if (!form.appointment_exercise) {
+      return;
+    }
+    if (!scopedCampaigns.some((row) => row.id === form.appointment_exercise)) {
+      setForm((previous) => ({ ...previous, appointment_exercise: "" }));
+    }
+  }, [form.appointment_exercise, scopedCampaigns]);
+
+  useEffect(() => {
+    setOpenActionsFor(null);
+    setStageActions({});
+  }, [activeOrganizationId]);
+
+  const hasPositionOptions = scopedPositions.length > 0;
+  const hasNomineeOptions = scopedPersonnel.length > 0;
   const canCreateAppointment = isHrOrAdmin && hasPositionOptions && hasNomineeOptions;
+
+  const isWithinActiveOrganization = useCallback(
+    (organizationId: string | null | undefined): boolean => {
+      if (!activeOrganizationId) {
+        return true;
+      }
+      const normalizedOrganizationId = String(organizationId || "").trim();
+      if (!normalizedOrganizationId) {
+        return true;
+      }
+      return normalizedOrganizationId === activeOrganizationId;
+    },
+    [activeOrganizationId],
+  );
+
+  const hasCommitteeAccess = useCallback(
+    (committeeId: string | null | undefined): boolean => {
+      const normalizedCommitteeId = String(committeeId || "").trim();
+      if (!normalizedCommitteeId) {
+        return true;
+      }
+      if (isAdmin) {
+        return true;
+      }
+      return hasCommitteeMembership(normalizedCommitteeId);
+    },
+    [hasCommitteeMembership, isAdmin],
+  );
+
+  const canManagePublicationForRow = useCallback(
+    (row: AppointmentRecord): boolean =>
+      canPublishAppointment && isWithinActiveOrganization(row.organization),
+    [canPublishAppointment, isWithinActiveOrganization],
+  );
+
+  const canViewStageActionsForRow = useCallback(
+    (row: AppointmentRecord): boolean => {
+      if (!canViewAppointmentStageActions || !isWithinActiveOrganization(row.organization)) {
+        return false;
+      }
+      return hasCommitteeAccess(row.committee);
+    },
+    [canViewAppointmentStageActions, hasCommitteeAccess, isWithinActiveOrganization],
+  );
+
+  const canManageLifecycleForRow = useCallback(
+    (
+      row: AppointmentRecord,
+      targetStatus: AppointmentStatus,
+      stage: ApprovalStage | undefined,
+    ): boolean => {
+      if (!canAdvanceAppointmentStage || !isWithinActiveOrganization(row.organization)) {
+        return false;
+      }
+      const stageRole = String(stage?.required_role || "")
+        .trim()
+        .toLowerCase();
+      const committeeSensitiveTransition =
+        targetStatus === "committee_review" || COMMITTEE_REQUIRED_ROLES.has(stageRole);
+      if (!committeeSensitiveTransition) {
+        return true;
+      }
+      const boundCommitteeId = stage?.committee || row.committee || null;
+      return hasCommitteeAccess(boundCommitteeId);
+    },
+    [canAdvanceAppointmentStage, hasCommitteeAccess, isWithinActiveOrganization],
+  );
+
+  const scopedRows = useMemo(() => {
+    return rows.filter((row) => isWithinActiveOrganization(row.organization));
+  }, [isWithinActiveOrganization, rows]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -413,6 +535,10 @@ const AppointmentsRegistryPage: React.FC = () => {
       toast.error("You are not authorized to transition appointment records.");
       return;
     }
+    if (!isWithinActiveOrganization(row.organization)) {
+      toast.error("Switch to the matching organization context to transition this appointment.");
+      return;
+    }
 
     const targetStatus = rowActionStatus[row.id];
     if (!targetStatus || targetStatus === row.status) {
@@ -425,6 +551,11 @@ const AppointmentsRegistryPage: React.FC = () => {
     }
     const stageChoices = getStageChoicesForRow(row, targetStatus);
     const stageId = rowActionStageId[row.id] || stageChoices[0]?.id || undefined;
+    const selectedStage = stageChoices.find((item) => item.id === stageId) || stageChoices[0];
+    if (!canManageLifecycleForRow(row, targetStatus, selectedStage)) {
+      toast.error("You do not have committee or organization access for this stage transition.");
+      return;
+    }
     const evidenceLinks = parseEvidenceLinks(rowActionEvidence[row.id] || "");
     const actionIntent = rowActionIntent[row.id] || "note";
     const trimmedReason = (rowActionReason[row.id] || "").trim();
@@ -484,6 +615,10 @@ const AppointmentsRegistryPage: React.FC = () => {
       toast.error("You are not authorized to publish appointment records.");
       return;
     }
+    if (!canManagePublicationForRow(row)) {
+      toast.error("Switch to the matching organization context to publish this appointment.");
+      return;
+    }
     const draft = publishDraftByAppointment[row.id] || {};
     setRowActionLoadingKey(`${row.id}:publish`);
     try {
@@ -512,6 +647,10 @@ const AppointmentsRegistryPage: React.FC = () => {
       toast.error("You are not authorized to revoke appointment publications.");
       return;
     }
+    if (!canManagePublicationForRow(row)) {
+      toast.error("Switch to the matching organization context to revoke this appointment publication.");
+      return;
+    }
     const draft = revokeDraftByAppointment[row.id] || { reason: "", make_private: true };
     if (!draft.reason.trim()) {
       toast.error("Revocation reason is required.");
@@ -537,7 +676,7 @@ const AppointmentsRegistryPage: React.FC = () => {
   };
 
   const handleToggleActions = async (row: AppointmentRecord) => {
-    if (!canViewAppointmentStageActions) {
+    if (!canViewStageActionsForRow(row)) {
       toast.error("Only committee members/chairs and admins can view stage actions.");
       return;
     }
@@ -584,14 +723,16 @@ const AppointmentsRegistryPage: React.FC = () => {
   );
 
   const stats = useMemo(() => {
-    const total = rows.length;
-    const active = rows.filter((row) =>
+    const total = scopedRows.length;
+    const active = scopedRows.filter((row) =>
       ["nominated", "under_vetting", "committee_review", "confirmation_pending"].includes(row.status),
     ).length;
-    const appointed = rows.filter((row) => row.status === "appointed" || row.status === "serving").length;
-    const published = Object.values(publicationsByAppointment).filter((row) => row.status === "published").length;
+    const appointed = scopedRows.filter((row) => row.status === "appointed" || row.status === "serving").length;
+    const published = scopedRows.filter(
+      (row) => publicationsByAppointment[row.id]?.status === "published",
+    ).length;
     return { total, active, appointed, published };
-  }, [publicationsByAppointment, rows]);
+  }, [publicationsByAppointment, scopedRows]);
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 space-y-6">
@@ -601,6 +742,9 @@ const AppointmentsRegistryPage: React.FC = () => {
             <h1 className="text-3xl font-black tracking-tight text-slate-900">Appointment Registry</h1>
             <p className="mt-1 text-sm text-slate-700">
               Govern nomination, approval-chain transitions, and publication lifecycle.
+            </p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-700">
+              Active organization scope: {activeOrganization?.name || "Default"}
             </p>
           </div>
           <Button type="button" variant="outline" onClick={() => void handleRefresh()} disabled={refreshing}>
@@ -795,7 +939,7 @@ const AppointmentsRegistryPage: React.FC = () => {
               onChange={(event) => setForm((p) => ({ ...p, position: event.target.value }))}
             >
               <option value="">{hasPositionOptions ? "Select position" : "No positions available"}</option>
-              {positions.map((position) => (
+              {scopedPositions.map((position) => (
                 <option key={position.id} value={position.id}>
                   {position.title} - {position.institution}
                 </option>
@@ -812,7 +956,7 @@ const AppointmentsRegistryPage: React.FC = () => {
               onChange={(event) => setForm((p) => ({ ...p, nominee: event.target.value }))}
             >
               <option value="">{hasNomineeOptions ? "Select nominee" : "No personnel available"}</option>
-              {personnel.map((row) => (
+              {scopedPersonnel.map((row) => (
                 <option key={row.id} value={row.id}>
                   {row.full_name}
                 </option>
@@ -828,7 +972,7 @@ const AppointmentsRegistryPage: React.FC = () => {
               onChange={(event) => setForm((p) => ({ ...p, appointment_exercise: event.target.value }))}
             >
               <option value="">None</option>
-              {campaigns.map((campaign) => (
+              {scopedCampaigns.map((campaign) => (
                 <option key={campaign.id} value={campaign.id}>
                   {campaign.name}
                 </option>
@@ -899,18 +1043,20 @@ const AppointmentsRegistryPage: React.FC = () => {
 
         {loading ? (
           <p className="mt-4 text-sm text-slate-700">Loading appointment records...</p>
-        ) : rows.length === 0 ? (
+        ) : scopedRows.length === 0 ? (
           <div className="mt-4 rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-700">
-            No appointment records found. Create a nomination above or run `python manage.py setup_demo` to preload a
-            full demo workflow.
+            No appointment records found in the active organization scope. Create a nomination above or run
+            `python manage.py setup_demo` to preload a full demo workflow.
           </div>
         ) : (
           <div className="mt-4 space-y-4">
-            {rows.map((row) => {
+            {scopedRows.map((row) => {
               const requestedStatusTarget = rowActionStatus[row.id] || row.status;
+              const canFinalizeForRow =
+                canFinalizeAppointment && isWithinActiveOrganization(row.organization);
               const lifecycleOptions = getStatusOptionsForRow(row.status).filter((candidateStatus) => {
                 if (candidateStatus === "appointed" || candidateStatus === "rejected") {
-                  return canFinalizeAppointment || candidateStatus === row.status;
+                  return canFinalizeForRow || candidateStatus === row.status;
                 }
                 return true;
               });
@@ -919,6 +1065,7 @@ const AppointmentsRegistryPage: React.FC = () => {
                 : row.status;
               const stageChoices = getStageChoicesForRow(row, statusTarget);
               const selectedStageId = rowActionStageId[row.id] || stageChoices[0]?.id || "";
+              const selectedStage = stageChoices.find((stage) => stage.id === selectedStageId) || stageChoices[0];
               const intent = rowActionIntent[row.id] || "note";
               const reason = rowActionReason[row.id] || "";
               const evidenceInput = rowActionEvidence[row.id] || "";
@@ -945,9 +1092,10 @@ const AppointmentsRegistryPage: React.FC = () => {
               const isPublishLoading = rowActionLoadingKey === `${row.id}:publish`;
               const isRevokeLoading = rowActionLoadingKey === `${row.id}:revoke`;
               const isRowBusy = Boolean(rowActionLoadingKey && rowActionLoadingKey.startsWith(`${row.id}:`));
-              const canManageLifecycle = canAdvanceAppointmentStage;
-              const canManagePublication = canPublishAppointment;
-              const canViewStageActions = canViewAppointmentStageActions;
+              const canManageLifecycle = canManageLifecycleForRow(row, statusTarget, selectedStage);
+              const canManagePublication = canManagePublicationForRow(row);
+              const canViewStageActions = canViewStageActionsForRow(row);
+              const rowOutOfScope = !isWithinActiveOrganization(row.organization);
               return (
                 <article key={row.id} className="rounded-xl border border-slate-200 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1140,7 +1288,9 @@ const AppointmentsRegistryPage: React.FC = () => {
                       </div>
                     ) : (
                       <p className="text-xs text-slate-700">
-                        Stage transition controls are restricted to authorized stage actors.
+                        {rowOutOfScope
+                          ? "This record is outside the active organization scope."
+                          : "Stage transition controls are restricted to authorized stage actors."}
                       </p>
                     )}
                   </div>

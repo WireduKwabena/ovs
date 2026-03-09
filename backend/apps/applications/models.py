@@ -72,6 +72,13 @@ class VettingCase(models.Model):
     )
     
     # Relationships
+    organization = models.ForeignKey(
+        "governance.Organization",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="vetting_cases",
+    )
     applicant = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -193,6 +200,7 @@ class VettingCase(models.Model):
             models.Index(fields=['case_id', 'status']),
             models.Index(fields=['applicant', 'status']),
             models.Index(fields=['assigned_to', 'status']),
+            models.Index(fields=['organization', 'status']),
             models.Index(fields=['-created_at']),
             models.Index(fields=['status', 'priority']),
         ]

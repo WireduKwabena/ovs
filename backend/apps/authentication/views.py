@@ -13,6 +13,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -20,6 +21,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from apps.authentication.models import User, UserProfile
 from apps.authentication.permissions import RECENT_AUTH_SESSION_KEY, RECENT_AUTH_TOKEN_CLAIM
 from apps.authentication.serializers import (
+    ActiveOrganizationSelectionResponseSerializer,
+    ActiveOrganizationSelectionSerializer,
     AdminAuthResponseSerializer,
     AdminLoginSerializer,
     AdminUserSerializer,
@@ -44,8 +47,19 @@ from apps.authentication.serializers import (
     UserRegistrationSerializer,
     UserSerializer,
 )
-from apps.core.authz import ROLE_ADMIN, get_user_capabilities, get_user_roles, has_role, requires_two_factor_for_user
+from apps.core.authz import (
+    ROLE_ADMIN,
+    get_user_capabilities,
+    get_user_committees,
+    get_user_roles,
+    has_role,
+    requires_two_factor_for_user,
+)
+from apps.core.permissions import ACTIVE_ORGANIZATION_SESSION_KEY, resolve_active_organization_context
 from apps.billing.models import BillingSubscription
+from apps.billing.quotas import enforce_organization_seat_quota
+from apps.billing.services import validate_organization_onboarding_token
+from apps.governance.models import Organization, OrganizationMembership
 
 try:
     from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema
@@ -67,6 +81,20 @@ except ImportError:  # pragma: no cover - dependency may be optional in some set
 
 logger = logging.getLogger(__name__)
 TWO_FACTOR_CHALLENGE_SALT = 'auth.login.2fa.challenge'
+ONBOARDING_REGISTRATION_REASON_MESSAGES = {
+    "missing_token": "Registration requires a valid organization onboarding token.",
+    "not_found": "The onboarding token is invalid. Request a fresh invite link from your organization admin.",
+    "inactive": "This onboarding token has been revoked. Request a fresh invite link from your organization admin.",
+    "expired": "This onboarding token has expired. Request a fresh invite link from your organization admin.",
+    "max_uses_reached": "This onboarding token has reached its usage limit. Request a fresh invite link.",
+    "subscription_inactive": (
+        "Registration is unavailable because the organization subscription is inactive. "
+        "Contact your organization admin."
+    ),
+    "organization_mismatch": "The onboarding token is invalid for this organization context.",
+    "email_required": "Registration email is required for this onboarding token.",
+    "email_domain_not_allowed": "Your email domain is not allowed for this onboarding token.",
+}
 
 def _two_factor_challenge_ttl_seconds() -> int:
     ttl = int(getattr(settings, 'AUTH_TWO_FACTOR_CHALLENGE_TTL_SECONDS', 300))
@@ -87,36 +115,106 @@ def _mark_recent_auth(request, refresh_token: RefreshToken) -> int:
     return epoch
 
 
-def _consume_registration_subscription(reference: str, email: str) -> bool:
-    """Validate and consume a billing subscription reference for one-time registration."""
-    if not reference:
-        return False
+def _profile_governance_context(*, request, user) -> dict:
+    resolved = resolve_active_organization_context(request)
+    active_organization = resolved.get("active_organization")
+    committees = get_user_committees(
+        user,
+        organization_id=str(active_organization.get("id")) if isinstance(active_organization, dict) else None,
+    )
+    return {
+        "organizations": resolved.get("organizations", []),
+        "organization_memberships": resolved.get("organization_memberships", []),
+        "active_organization": active_organization,
+        "active_organization_source": resolved.get("active_organization_source", "none"),
+        "invalid_requested_organization_id": resolved.get("invalid_requested_organization_id", ""),
+        "committees": committees,
+    }
 
-    subscription = (
-        BillingSubscription.objects.select_for_update()
-        .filter(reference=reference)
-        .order_by("-created_at")
+
+def _attach_registered_user_to_organization(
+    *,
+    user: User,
+    organization,
+    subscription: BillingSubscription | None = None,
+    membership_role: str = "member",
+) -> None:
+    if organization is None:
+        return
+
+    locked_organization = (
+        Organization.objects.select_for_update()
+        .filter(id=getattr(organization, "id", None), is_active=True)
         .first()
     )
-    if subscription is None:
-        return False
+    if locked_organization is None:
+        raise PermissionDenied("Target organization is unavailable for onboarding.")
 
-    if subscription.status != "complete":
-        return False
+    if subscription is not None:
+        enforce_organization_seat_quota(
+            organization_id=str(locked_organization.id),
+            subscription=subscription,
+            additional=1,
+        )
 
-    if subscription.payment_status not in {"paid", "no_payment_required"}:
-        return False
+    organization_name = str(getattr(locked_organization, "name", "") or "").strip()
+    if organization_name and str(getattr(user, "organization", "") or "").strip().lower() != organization_name.lower():
+        user.organization = organization_name
+        user.save(update_fields=["organization", "updated_at"])
 
-    if subscription.ticket_expires_at and subscription.ticket_expires_at <= timezone.now():
-        return False
+    membership, _created = OrganizationMembership.objects.get_or_create(
+        user=user,
+        organization=locked_organization,
+        defaults={
+            "membership_role": membership_role,
+            "is_active": True,
+            "is_default": True,
+            "joined_at": timezone.now(),
+        },
+    )
 
-    if subscription.registration_consumed_at is not None:
-        return False
+    updated_fields: list[str] = []
+    if not membership.is_active:
+        membership.is_active = True
+        updated_fields.append("is_active")
+    if membership.left_at is not None:
+        membership.left_at = None
+        updated_fields.append("left_at")
+    if not membership.membership_role:
+        membership.membership_role = membership_role
+        updated_fields.append("membership_role")
 
-    subscription.registration_consumed_at = timezone.now()
-    subscription.registration_consumed_by_email = email
-    subscription.save(update_fields=["registration_consumed_at", "registration_consumed_by_email", "updated_at"])
-    return True
+    has_default_membership = OrganizationMembership.objects.filter(
+        user=user,
+        is_active=True,
+        is_default=True,
+    ).exclude(pk=membership.pk).exists()
+    if not has_default_membership and not membership.is_default:
+        membership.is_default = True
+        updated_fields.append("is_default")
+
+    if updated_fields:
+        membership.save(update_fields=updated_fields + ["updated_at"])
+
+
+def _consume_registration_onboarding_token(*, raw_token: str, email: str):
+    return validate_organization_onboarding_token(
+        raw_token=raw_token,
+        email=email,
+        consume=True,
+    )
+
+
+def _registration_error_for_onboarding_reason(reason: str) -> dict:
+    normalized_reason = str(reason or "invalid").strip().lower() or "invalid"
+    return {
+        "error": ONBOARDING_REGISTRATION_REASON_MESSAGES.get(
+            normalized_reason,
+            "Registration requires a valid organization onboarding token.",
+        ),
+        "code": "ONBOARDING_TOKEN_INVALID",
+        "reason": normalized_reason,
+    }
 
 
 def _build_two_factor_challenge(user: User):
@@ -168,28 +266,38 @@ class RegisterView(generics.CreateAPIView):
         responses={201: RegisterResponseSerializer, 400: ErrorResponseSerializer, 403: ErrorResponseSerializer},
     )
     def create(self, request, *args, **kwargs):
-        public_registration_enabled = getattr(settings, "AUTH_PUBLIC_REGISTRATION_ENABLED", False)
-        subscription_reference = str(request.data.get("subscription_reference", "")).strip()
-
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        if not public_registration_enabled:
-            email = serializer.validated_data.get("email", "")
-            with transaction.atomic():
-                if not _consume_registration_subscription(subscription_reference, email):
-                    return Response(
-                        {
-                            "error": (
-                                "Registration requires a valid subscription reference. "
-                                "Confirm subscription first or contact support."
-                            )
-                        },
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
-                user = serializer.save()
-        else:
+        email = serializer.validated_data.get("email", "")
+        onboarding_token = str(serializer.validated_data.get("onboarding_token", "")).strip()
+
+        with transaction.atomic():
+            onboarding_result = _consume_registration_onboarding_token(
+                raw_token=onboarding_token,
+                email=email,
+            )
+            if not onboarding_result.valid or onboarding_result.token_record is None:
+                return Response(
+                    _registration_error_for_onboarding_reason(onboarding_result.reason),
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            consumed_org = getattr(onboarding_result.token_record, "organization", None)
+            consumed_subscription = onboarding_result.subscription
+            if consumed_org is None:
+                return Response(
+                    _registration_error_for_onboarding_reason("organization_mismatch"),
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
             user = serializer.save()
+            _attach_registered_user_to_organization(
+                user=user,
+                organization=consumed_org,
+                subscription=consumed_subscription,
+                membership_role="member",
+            )
         return Response({
             'user': UserSerializer(user).data,
             'user_type': user.user_type,
@@ -552,14 +660,80 @@ def profile_view(request):
     else:
         serializer = UserSerializer(request.user, context={"request": request})
         user_type = request.user.user_type
-    
-    return Response({
-        'user': serializer.data,
-        'user_type': user_type,
-        'roles': sorted(get_user_roles(request.user)),
-        'capabilities': sorted(get_user_capabilities(request.user)),
-        'is_internal_operator': requires_two_factor_for_user(request.user),
-    })
+
+    governance_context = _profile_governance_context(request=request, user=request.user)
+    return Response(
+        {
+            "user": serializer.data,
+            "user_type": user_type,
+            "roles": sorted(get_user_roles(request.user)),
+            "capabilities": sorted(get_user_capabilities(request.user)),
+            "is_internal_operator": requires_two_factor_for_user(request.user),
+            **governance_context,
+        }
+    )
+
+
+@extend_schema(
+    request=ActiveOrganizationSelectionSerializer,
+    responses={
+        200: ActiveOrganizationSelectionResponseSerializer,
+        400: ErrorResponseSerializer,
+    },
+)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def set_active_organization_view(request):
+    """
+    Persist selected active organization in session for subsequent requests.
+
+    POST /api/auth/profile/active-organization/
+    """
+    payload = ActiveOrganizationSelectionSerializer(data=request.data)
+    payload.is_valid(raise_exception=True)
+
+    session = getattr(request, "session", None)
+    if session is None:
+        return Response({"error": "Session context unavailable."}, status=status.HTTP_400_BAD_REQUEST)
+
+    clear = bool(payload.validated_data.get("clear", False))
+    organization_id = payload.validated_data.get("organization_id")
+
+    if clear or organization_id is None:
+        session.pop(ACTIVE_ORGANIZATION_SESSION_KEY, None)
+        session.modified = True
+        context = _profile_governance_context(request=request, user=request.user)
+        return Response(
+            {
+                "message": "Active organization cleared.",
+                "active_organization": context.get("active_organization"),
+                "active_organization_source": context.get("active_organization_source", "none"),
+                "invalid_requested_organization_id": context.get("invalid_requested_organization_id", ""),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    requested_org_id = str(organization_id)
+    organization_context = resolve_active_organization_context(request)
+    allowed_org_ids = {str(item.get("id")) for item in organization_context.get("organizations", [])}
+    if requested_org_id not in allowed_org_ids:
+        return Response(
+            {"error": "Selected organization is not available for the authenticated user."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    session[ACTIVE_ORGANIZATION_SESSION_KEY] = requested_org_id
+    session.modified = True
+    context = _profile_governance_context(request=request, user=request.user)
+    return Response(
+        {
+            "message": "Active organization updated.",
+            "active_organization": context.get("active_organization"),
+            "active_organization_source": context.get("active_organization_source", "none"),
+            "invalid_requested_organization_id": context.get("invalid_requested_organization_id", ""),
+        },
+        status=status.HTTP_200_OK,
+    )
 
 
 @extend_schema(

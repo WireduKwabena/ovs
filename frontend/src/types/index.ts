@@ -24,6 +24,42 @@ export interface User {
   created_at: string;
 }
 
+export interface OrganizationSummary {
+  id: string;
+  code: string;
+  name: string;
+  organization_type: string;
+}
+
+export interface OrganizationMembershipContext {
+  id: string;
+  organization_id: string;
+  organization_code: string;
+  organization_name: string;
+  organization_type: string;
+  title: string;
+  membership_role: string;
+  is_default: boolean;
+  is_active: boolean;
+  joined_at?: string | null;
+  left_at?: string | null;
+}
+
+export interface CommitteeContext {
+  id: string;
+  committee_id: string;
+  committee_code: string;
+  committee_name: string;
+  committee_type: string;
+  organization_id: string;
+  organization_code: string;
+  organization_name: string;
+  committee_role: string;
+  can_vote: boolean;
+  joined_at?: string | null;
+  left_at?: string | null;
+}
+
 export interface AdminUser {
   id: string | number;
   email: string;
@@ -77,6 +113,12 @@ export interface AuthState {
   userType: 'applicant' | 'hr_manager' | 'admin' | null;
   roles: string[];
   capabilities: string[];
+  organizations: OrganizationSummary[];
+  organizationMemberships: OrganizationMembershipContext[];
+  committees: CommitteeContext[];
+  activeOrganization: OrganizationSummary | null;
+  activeOrganizationSource: string;
+  invalidRequestedOrganizationId: string;
   loading: boolean;
   error: string | null;
 }
@@ -538,6 +580,8 @@ export type CampaignExerciseType =
 
 export interface VettingCampaign {
   id: string;
+  organization?: string | null;
+  organization_name?: string;
   name: string;
   description: string;
   status: CampaignStatus;
@@ -714,8 +758,9 @@ export interface RegisterData {
   first_name: string;
   last_name: string;
   phone_number: string;
-  organization: string;
   department: string;
+  onboarding_token: string;
+  organization?: string;
   subscription_reference?: string;
 }
 
@@ -835,6 +880,62 @@ export interface ProfileResponse {
   roles?: string[];
   capabilities?: string[];
   is_internal_operator?: boolean;
+  organizations?: OrganizationSummary[];
+  organization_memberships?: OrganizationMembershipContext[];
+  committees?: CommitteeContext[];
+  active_organization?: OrganizationSummary | null;
+  active_organization_source?: string;
+  invalid_requested_organization_id?: string;
+}
+
+export interface OrganizationOnboardingTokenState {
+  id: string;
+  subscription_id: string | null;
+  token_preview: string;
+  is_active: boolean;
+  expires_at: string | null;
+  max_uses: number | null;
+  uses: number;
+  remaining_uses: number | null;
+  allowed_email_domain: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+  revoked_reason: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrganizationOnboardingTokenStateResponse {
+  status: string;
+  organization_id: string;
+  organization_name: string;
+  subscription_id: string | null;
+  subscription_active: boolean;
+  has_active_token: boolean;
+  token: OrganizationOnboardingTokenState | null;
+  organization_seat_limit?: number | null;
+  organization_seat_used?: number | null;
+  organization_seat_remaining?: number | null;
+}
+
+export interface OrganizationOnboardingTokenGeneratePayload {
+  max_uses?: number;
+  expires_in_hours?: number;
+  allowed_email_domain?: string;
+  rotate?: boolean;
+}
+
+export interface OrganizationOnboardingTokenGenerateResponse {
+  status: string;
+  organization_id: string;
+  organization_name: string;
+  token: string;
+  onboarding_link: string;
+  token_state: OrganizationOnboardingTokenState;
+}
+
+export interface OrganizationOnboardingTokenRevokePayload {
+  reason?: string;
 }
 
 // Analytics/Chart Interfaces
@@ -1153,6 +1254,8 @@ export type GovernmentBranch =
 
 export interface GovernmentPosition {
   id: string;
+  organization?: string | null;
+  organization_name?: string;
   title: string;
   branch: GovernmentBranch;
   institution: string;
@@ -1173,6 +1276,8 @@ export interface GovernmentPosition {
 
 export interface PersonnelRecord {
   id: string;
+  organization?: string | null;
+  organization_name?: string;
   full_name: string;
   date_of_birth: string | null;
   nationality: string;
@@ -1208,6 +1313,10 @@ export interface AppointmentStageAction {
   appointment: string;
   stage: string | null;
   stage_name?: string;
+  committee_membership?: string | null;
+  committee_membership_id?: string;
+  committee_name?: string;
+  committee_role?: string;
   actor: string;
   actor_email?: string;
   actor_role: string;
@@ -1227,10 +1336,14 @@ export interface ApprovalStage {
   required_role: string;
   is_required: boolean;
   maps_to_status: AppointmentStatus;
+  committee?: string | null;
+  committee_name?: string;
 }
 
 export interface ApprovalStageTemplate {
   id: string;
+  organization?: string | null;
+  organization_name?: string;
   name: string;
   exercise_type: string;
   created_by: string | null;
@@ -1276,6 +1389,10 @@ export interface PublicAppointmentRecord {
 
 export interface AppointmentRecord {
   id: string;
+  organization?: string | null;
+  organization_name?: string;
+  committee?: string | null;
+  committee_name?: string;
   position: string;
   position_title?: string;
   nominee: string;
@@ -1286,6 +1403,15 @@ export interface AppointmentRecord {
   nominated_by_org: string;
   nomination_date: string;
   vetting_case: string | null;
+  vetting_decision?: {
+    id: string;
+    recommendation_status: string;
+    advisory_only: boolean;
+    blocking_issues_count: number;
+    warnings_count: number;
+    has_override: boolean;
+    updated_at: string;
+  } | null;
   status: AppointmentStatus;
   committee_recommendation: string;
   final_decision_by_user: string | null;

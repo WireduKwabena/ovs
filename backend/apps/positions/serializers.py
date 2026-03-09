@@ -6,11 +6,14 @@ from .models import GovernmentPosition
 class GovernmentPositionSerializer(serializers.ModelSerializer):
     current_holder_name = serializers.CharField(source="current_holder.full_name", read_only=True)
     rubric_name = serializers.CharField(source="rubric.name", read_only=True)
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
 
     class Meta:
         model = GovernmentPosition
         fields = [
             "id",
+            "organization",
+            "organization_name",
             "title",
             "branch",
             "institution",
@@ -28,7 +31,7 @@ class GovernmentPositionSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at", "current_holder_name", "rubric_name"]
+        read_only_fields = ["id", "created_at", "updated_at", "current_holder_name", "rubric_name", "organization_name"]
 
 
 class PublicGovernmentPositionSerializer(serializers.ModelSerializer):

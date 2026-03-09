@@ -10,6 +10,7 @@ from apps.audit.contracts import (
 )
 from apps.appointments.models import AppointmentRecord
 from apps.authentication.models import User
+from apps.governance.models import Organization, OrganizationMembership
 from apps.personnel.models import PersonnelRecord
 from apps.positions.models import GovernmentPosition
 
@@ -273,3 +274,98 @@ class GovernmentPositionApiTests(APITestCase):
         self.assertEqual(hr_response.status_code, 200)
         hr_rows = hr_response.json()
         self.assertEqual(len(hr_rows), 2)
+
+
+class GovernmentPositionOrganizationScopeTests(APITestCase):
+    def setUp(self):
+        self.org_a = Organization.objects.create(code="pos-org-a", name="Positions Org A")
+        self.org_b = Organization.objects.create(code="pos-org-b", name="Positions Org B")
+
+        self.hr_a = User.objects.create_user(
+            email="positions_scope_a@example.com",
+            password="Pass1234!",
+            first_name="Scope",
+            last_name="A",
+            user_type="hr_manager",
+        )
+        self.hr_b = User.objects.create_user(
+            email="positions_scope_b@example.com",
+            password="Pass1234!",
+            first_name="Scope",
+            last_name="B",
+            user_type="hr_manager",
+        )
+        self.admin_user = User.objects.create_user(
+            email="positions_scope_admin@example.com",
+            password="Pass1234!",
+            first_name="Scope",
+            last_name="Admin",
+            user_type="admin",
+            is_staff=True,
+            is_superuser=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr_a,
+            organization=self.org_a,
+            is_active=True,
+            is_default=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr_b,
+            organization=self.org_b,
+            is_active=True,
+            is_default=True,
+        )
+
+        self.position_org_a = GovernmentPosition.objects.create(
+            organization=self.org_a,
+            title="Scoped Position A",
+            branch="executive",
+            institution="Org A Office",
+            appointment_authority="President",
+        )
+        self.position_org_b = GovernmentPosition.objects.create(
+            organization=self.org_b,
+            title="Scoped Position B",
+            branch="executive",
+            institution="Org B Office",
+            appointment_authority="President",
+        )
+        self.position_legacy = GovernmentPosition.objects.create(
+            title="Legacy Position",
+            branch="executive",
+            institution="Legacy Office",
+            appointment_authority="President",
+        )
+
+    def _extract_results(self, response):
+        payload = response.json()
+        if isinstance(payload, dict) and "results" in payload:
+            return payload["results"]
+        return payload
+
+    def test_list_is_scoped_to_membership_org_with_legacy_null_fallback(self):
+        self.client.force_authenticate(self.hr_a)
+        response = self.client.get("/api/positions/")
+        self.assertEqual(response.status_code, 200)
+        ids = {item["id"] for item in self._extract_results(response)}
+        self.assertIn(str(self.position_org_a.id), ids)
+        self.assertIn(str(self.position_legacy.id), ids)
+        self.assertNotIn(str(self.position_org_b.id), ids)
+
+    def test_update_outside_membership_org_is_denied_for_hr_but_allowed_for_admin(self):
+        self.client.force_authenticate(self.hr_a)
+        denied = self.client.patch(
+            f"/api/positions/{self.position_org_b.id}/",
+            {"title": "Blocked Cross Org Update"},
+            format="json",
+        )
+        self.assertIn(denied.status_code, {403, 404})
+
+        self.client.force_authenticate(self.admin_user)
+        allowed = self.client.patch(
+            f"/api/positions/{self.position_org_b.id}/",
+            {"title": "Admin Cross Org Update"},
+            format="json",
+        )
+        self.assertEqual(allowed.status_code, 200)

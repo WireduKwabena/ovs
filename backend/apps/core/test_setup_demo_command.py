@@ -14,6 +14,7 @@ from apps.appointments.models import AppointmentRecord
 from apps.authentication.models import User
 from apps.campaigns.models import VettingCampaign
 from apps.core.management.commands.setup_demo import APPOINTMENT_ROLE_GROUPS
+from apps.governance.models import Committee, CommitteeMembership, Organization, OrganizationMembership
 from apps.personnel.models import PersonnelRecord
 from apps.positions.models import GovernmentPosition
 
@@ -43,10 +44,44 @@ class SetupDemoCommandTests(TestCase):
         self.assertFalse(User.objects.get(email="gams.publication@demo.local").is_staff)
         self.assertFalse(User.objects.get(email="gams.auditor@demo.local").is_staff)
 
+        expected_org_codes = {
+            "public-service-commission",
+            "appointments-secretariat",
+            "parliamentary-appointments-committee",
+            "office-of-the-president",
+            "gazette-and-records-office",
+            "audit-service",
+        }
+        self.assertSetEqual(set(Organization.objects.values_list("code", flat=True)), expected_org_codes)
+
+        for email in {
+            "gams.admin@demo.local",
+            "gams.vetting@demo.local",
+            "gams.committee@demo.local",
+            "gams.authority@demo.local",
+            "gams.registry@demo.local",
+            "gams.publication@demo.local",
+            "gams.auditor@demo.local",
+        }:
+            user = User.objects.get(email=email)
+            self.assertTrue(OrganizationMembership.objects.filter(user=user, is_active=True).exists())
+            self.assertEqual(OrganizationMembership.objects.filter(user=user, is_default=True, is_active=True).count(), 1)
+
+        committee = Committee.objects.get(code="parliamentary-appointments-main")
+        committee_user = User.objects.get(email="gams.committee@demo.local")
+        self.assertTrue(
+            CommitteeMembership.objects.filter(committee=committee, user=committee_user, is_active=True).exists()
+        )
+
         campaign = VettingCampaign.objects.get(name="GAMS Demo Ministerial Exercise")
         self.assertEqual(campaign.status, "active")
         self.assertEqual(campaign.positions.count(), 2)
         self.assertIsNotNone(campaign.approval_template)
+        committee_review_stage = campaign.approval_template.stages.filter(
+            maps_to_status="committee_review"
+        ).first()
+        self.assertIsNotNone(committee_review_stage)
+        self.assertIsNotNone(committee_review_stage.committee_id)
 
         minister_position = GovernmentPosition.objects.get(
             title="GAMS Demo Minister of Health",
@@ -55,6 +90,7 @@ class SetupDemoCommandTests(TestCase):
         nomination_record = AppointmentRecord.objects.get(position=minister_position)
         self.assertEqual(nomination_record.status, "nominated")
         self.assertFalse(nomination_record.is_public)
+        self.assertEqual(nomination_record.committee_id, committee_review_stage.committee_id)
         self.assertIsNone(nomination_record.appointment_date)
         self.assertEqual(nomination_record.publication.status, "draft")
 
@@ -64,6 +100,7 @@ class SetupDemoCommandTests(TestCase):
         )
         serving_record = AppointmentRecord.objects.get(position=chief_justice_position, status="serving")
         self.assertTrue(serving_record.is_public)
+        self.assertEqual(serving_record.committee_id, committee_review_stage.committee_id)
         self.assertIsNotNone(serving_record.appointment_date)
         self.assertEqual(serving_record.publication.status, "published")
         self.assertIsNotNone(serving_record.publication.published_at)
@@ -130,3 +167,17 @@ class SetupDemoCommandTests(TestCase):
 
         self.assertEqual(VettingCampaign.objects.filter(name="GAMS Demo Ministerial Exercise").count(), 1)
         self.assertEqual(User.objects.filter(email="gams.admin@demo.local").count(), 1)
+        self.assertEqual(Organization.objects.filter(code="public-service-commission").count(), 1)
+        self.assertEqual(
+            OrganizationMembership.objects.filter(user__email="gams.admin@demo.local", is_active=True).count(),
+            1,
+        )
+        self.assertEqual(Committee.objects.filter(code="parliamentary-appointments-main").count(), 1)
+        self.assertEqual(
+            CommitteeMembership.objects.filter(
+                committee__code="parliamentary-appointments-main",
+                user__email="gams.committee@demo.local",
+                is_active=True,
+            ).count(),
+            1,
+        )

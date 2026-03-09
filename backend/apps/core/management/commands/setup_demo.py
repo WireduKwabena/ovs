@@ -11,6 +11,7 @@ from django.utils import timezone
 from apps.appointments.models import AppointmentPublication, AppointmentRecord, ApprovalStage, ApprovalStageTemplate
 from apps.authentication.models import User
 from apps.campaigns.models import VettingCampaign
+from apps.governance.models import Committee, CommitteeMembership, Organization, OrganizationMembership
 from apps.personnel.models import PersonnelRecord
 from apps.positions.models import GovernmentPosition
 
@@ -66,12 +67,14 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        self._ensure_governance_schema_ready()
         if not options["skip_sample_data"]:
             self._ensure_sample_data_schema_ready()
 
         with transaction.atomic():
             groups = self._ensure_groups()
             users = self._ensure_users(options=options, groups=groups)
+            self._ensure_governance_foundation(users=users)
 
             if not options["skip_sample_data"]:
                 self._ensure_sample_data(users=users)
@@ -101,6 +104,21 @@ class Command(BaseCommand):
         if missing_tables:
             raise CommandError(
                 "Cannot seed demo sample records because required tables are missing: "
+                f"{', '.join(missing_tables)}. Run `python manage.py migrate` and retry."
+            )
+
+    def _ensure_governance_schema_ready(self) -> None:
+        required_tables = {
+            Organization._meta.db_table,
+            OrganizationMembership._meta.db_table,
+            Committee._meta.db_table,
+            CommitteeMembership._meta.db_table,
+        }
+        existing_tables = set(connection.introspection.table_names())
+        missing_tables = sorted(required_tables - existing_tables)
+        if missing_tables:
+            raise CommandError(
+                "Cannot seed governance demo records because required tables are missing: "
                 f"{', '.join(missing_tables)}. Run `python manage.py migrate` and retry."
             )
 
@@ -213,6 +231,264 @@ class Command(BaseCommand):
             "auditor": auditor_user,
         }
 
+    def _ensure_governance_foundation(self, *, users: dict[str, User]) -> None:
+        organization_specs = {
+            "admin": {
+                "name": "Public Service Commission",
+                "code": "public-service-commission",
+                "organization_type": "agency",
+            },
+            "vetting": {
+                "name": "Appointments Secretariat",
+                "code": "appointments-secretariat",
+                "organization_type": "agency",
+            },
+            "committee": {
+                "name": "Parliamentary Appointments Committee",
+                "code": "parliamentary-appointments-committee",
+                "organization_type": "committee_secretariat",
+            },
+            "authority": {
+                "name": "Office of the President",
+                "code": "office-of-the-president",
+                "organization_type": "executive_office",
+            },
+            "registry": {
+                "name": "Gazette and Records Office",
+                "code": "gazette-and-records-office",
+                "organization_type": "agency",
+            },
+            "publication": {
+                "name": "Gazette and Records Office",
+                "code": "gazette-and-records-office",
+                "organization_type": "agency",
+            },
+            "auditor": {
+                "name": "Audit Service",
+                "code": "audit-service",
+                "organization_type": "audit",
+            },
+        }
+
+        organizations: dict[str, Organization] = {}
+        for key, spec in organization_specs.items():
+            organization = self._upsert_organization(
+                code=spec["code"],
+                name=spec["name"],
+                organization_type=spec["organization_type"],
+            )
+            organizations[key] = organization
+
+        memberships: dict[str, OrganizationMembership] = {}
+        memberships["admin"] = self._upsert_org_membership(
+            user=users["admin"],
+            organization=organizations["admin"],
+            membership_role="system_admin",
+            is_default=True,
+        )
+        memberships["vetting"] = self._upsert_org_membership(
+            user=users["vetting"],
+            organization=organizations["vetting"],
+            membership_role="vetting_officer",
+            is_default=True,
+        )
+        memberships["committee"] = self._upsert_org_membership(
+            user=users["committee"],
+            organization=organizations["committee"],
+            membership_role="committee_member",
+            is_default=True,
+        )
+        memberships["authority"] = self._upsert_org_membership(
+            user=users["authority"],
+            organization=organizations["authority"],
+            membership_role="appointing_authority",
+            is_default=True,
+        )
+        memberships["registry"] = self._upsert_org_membership(
+            user=users["registry"],
+            organization=organizations["registry"],
+            membership_role="registry_admin",
+            is_default=True,
+        )
+        memberships["publication"] = self._upsert_org_membership(
+            user=users["publication"],
+            organization=organizations["publication"],
+            membership_role="publication_officer",
+            is_default=True,
+        )
+        memberships["auditor"] = self._upsert_org_membership(
+            user=users["auditor"],
+            organization=organizations["auditor"],
+            membership_role="auditor",
+            is_default=True,
+        )
+
+        committee = self._upsert_committee(
+            organization=organizations["committee"],
+            code="parliamentary-appointments-main",
+            name="Parliamentary Appointments Main Committee",
+            committee_type="approval",
+            created_by=users["admin"],
+            description="Primary committee for the demo approval-chain walkthrough.",
+        )
+
+        self._upsert_committee_membership(
+            committee=committee,
+            user=users["committee"],
+            organization_membership=memberships["committee"],
+            committee_role="member",
+            can_vote=True,
+        )
+
+    def _upsert_organization(
+        self,
+        *,
+        code: str,
+        name: str,
+        organization_type: str,
+    ) -> Organization:
+        organization, _created = Organization.objects.get_or_create(
+            code=code,
+            defaults={
+                "name": name,
+                "organization_type": organization_type,
+                "is_active": True,
+            },
+        )
+        updated_fields: list[str] = []
+        for field, value in {
+            "name": name,
+            "organization_type": organization_type,
+            "is_active": True,
+        }.items():
+            if getattr(organization, field) != value:
+                setattr(organization, field, value)
+                updated_fields.append(field)
+        if updated_fields:
+            organization.save(update_fields=updated_fields + ["updated_at"])
+        return organization
+
+    def _upsert_org_membership(
+        self,
+        *,
+        user: User,
+        organization: Organization,
+        membership_role: str,
+        is_default: bool,
+    ) -> OrganizationMembership:
+        membership, _created = OrganizationMembership.objects.get_or_create(
+            user=user,
+            organization=organization,
+            defaults={
+                "membership_role": membership_role,
+                "is_active": True,
+                "is_default": is_default,
+                "joined_at": timezone.now(),
+            },
+        )
+
+        if is_default:
+            OrganizationMembership.objects.filter(user=user, is_default=True).exclude(pk=membership.pk).update(is_default=False)
+
+        updated_fields: list[str] = []
+        for field, value in {
+            "membership_role": membership_role,
+            "is_active": True,
+            "is_default": is_default,
+            "left_at": None,
+        }.items():
+            if getattr(membership, field) != value:
+                setattr(membership, field, value)
+                updated_fields.append(field)
+
+        if membership.joined_at is None:
+            membership.joined_at = timezone.now()
+            updated_fields.append("joined_at")
+
+        if updated_fields:
+            membership.save(update_fields=updated_fields + ["updated_at"])
+        return membership
+
+    def _upsert_committee(
+        self,
+        *,
+        organization: Organization,
+        code: str,
+        name: str,
+        committee_type: str,
+        created_by: User,
+        description: str,
+    ) -> Committee:
+        committee, _created = Committee.objects.get_or_create(
+            organization=organization,
+            code=code,
+            defaults={
+                "name": name,
+                "committee_type": committee_type,
+                "description": description,
+                "is_active": True,
+                "created_by": created_by,
+            },
+        )
+        updated_fields: list[str] = []
+        for field, value in {
+            "name": name,
+            "committee_type": committee_type,
+            "description": description,
+            "is_active": True,
+            "created_by": created_by,
+        }.items():
+            if getattr(committee, field) != value:
+                setattr(committee, field, value)
+                updated_fields.append(field)
+        if updated_fields:
+            committee.save(update_fields=updated_fields + ["updated_at"])
+        return committee
+
+    def _upsert_committee_membership(
+        self,
+        *,
+        committee: Committee,
+        user: User,
+        organization_membership: OrganizationMembership,
+        committee_role: str,
+        can_vote: bool,
+    ) -> CommitteeMembership:
+        if committee_role == "observer":
+            can_vote = False
+
+        membership, _created = CommitteeMembership.objects.get_or_create(
+            committee=committee,
+            user=user,
+            defaults={
+                "organization_membership": organization_membership,
+                "committee_role": committee_role,
+                "can_vote": can_vote,
+                "is_active": True,
+                "joined_at": timezone.now(),
+            },
+        )
+
+        updated_fields: list[str] = []
+        for field, value in {
+            "organization_membership": organization_membership,
+            "committee_role": committee_role,
+            "can_vote": can_vote,
+            "is_active": True,
+            "left_at": None,
+        }.items():
+            if getattr(membership, field) != value:
+                setattr(membership, field, value)
+                updated_fields.append(field)
+
+        if membership.joined_at is None:
+            membership.joined_at = timezone.now()
+            updated_fields.append("joined_at")
+
+        if updated_fields:
+            membership.save(update_fields=updated_fields + ["updated_at"])
+        return membership
+
     def _upsert_user(
         self,
         *,
@@ -268,8 +544,8 @@ class Command(BaseCommand):
 
     def _ensure_sample_data(self, *, users: dict[str, User]) -> None:
         authority_user = users["authority"]
-
-        stage_template = self._ensure_stage_template(created_by=users["admin"])
+        primary_committee = Committee.objects.filter(code="parliamentary-appointments-main", is_active=True).first()
+        stage_template = self._ensure_stage_template(created_by=users["admin"], committee=primary_committee)
 
         minister_position = self._ensure_position(
             title="GAMS Demo Minister of Health",
@@ -312,6 +588,7 @@ class Command(BaseCommand):
             nominee=nominee_pending,
             campaign=campaign,
             nominated_by=authority_user,
+            committee=primary_committee,
         )
         self._ensure_draft_publication(nomination_record)
 
@@ -320,10 +597,11 @@ class Command(BaseCommand):
             nominee=nominee_serving,
             campaign=campaign,
             decided_by=authority_user,
+            committee=primary_committee,
         )
         self._ensure_published_publication(serving_record, publisher=authority_user)
 
-    def _ensure_stage_template(self, *, created_by: User) -> ApprovalStageTemplate:
+    def _ensure_stage_template(self, *, created_by: User, committee: Committee | None = None) -> ApprovalStageTemplate:
         template, created = ApprovalStageTemplate.objects.get_or_create(
             name="GAMS Demo Ministerial Chain",
             exercise_type="ministerial",
@@ -334,12 +612,12 @@ class Command(BaseCommand):
             template.save(update_fields=["created_by"])
 
         stage_specs = [
-            (1, "Intake Check", "vetting_officer", "under_vetting"),
-            (2, "Committee Review", "committee_member", "committee_review"),
-            (3, "Approval Chain", "appointing_authority", "confirmation_pending"),
-            (4, "Final Appointment Decision", "appointing_authority", "appointed"),
+            (1, "Intake Check", "vetting_officer", "under_vetting", None),
+            (2, "Committee Review", "committee_member", "committee_review", committee),
+            (3, "Approval Chain", "appointing_authority", "confirmation_pending", None),
+            (4, "Final Appointment Decision", "appointing_authority", "appointed", None),
         ]
-        for order, name, required_role, maps_to_status in stage_specs:
+        for order, name, required_role, maps_to_status, stage_committee in stage_specs:
             stage = ApprovalStage.objects.filter(template=template, order=order).first()
             if stage is None:
                 ApprovalStage.objects.create(
@@ -349,6 +627,7 @@ class Command(BaseCommand):
                     required_role=required_role,
                     is_required=True,
                     maps_to_status=maps_to_status,
+                    committee=stage_committee,
                 )
                 continue
 
@@ -358,6 +637,7 @@ class Command(BaseCommand):
                 "required_role": required_role,
                 "is_required": True,
                 "maps_to_status": maps_to_status,
+                "committee": stage_committee,
             }.items():
                 if getattr(stage, field) != value:
                     setattr(stage, field, value)
@@ -490,6 +770,7 @@ class Command(BaseCommand):
         nominee: PersonnelRecord,
         campaign: VettingCampaign,
         nominated_by: User,
+        committee: Committee | None,
     ) -> AppointmentRecord:
         record = (
             AppointmentRecord.objects.filter(
@@ -511,11 +792,13 @@ class Command(BaseCommand):
                 nomination_date=date.today(),
                 status="nominated",
                 is_public=False,
+                committee=committee,
             )
         else:
             record.appointment_exercise = campaign
             record.status = "nominated"
             record.nominated_by_user = nominated_by
+            record.committee = committee
             if not record.nominated_by_display:
                 record.nominated_by_display = "H.E. President"
             if not record.nominated_by_org:
@@ -538,6 +821,7 @@ class Command(BaseCommand):
                     "nominated_by_display",
                     "nominated_by_org",
                     "nomination_date",
+                    "committee",
                     "committee_recommendation",
                     "final_decision_by_user",
                     "final_decision_by_display",
@@ -569,6 +853,7 @@ class Command(BaseCommand):
         nominee: PersonnelRecord,
         campaign: VettingCampaign,
         decided_by: User,
+        committee: Committee | None,
     ) -> AppointmentRecord:
         record = AppointmentRecord.objects.filter(position=position, status="serving").order_by("-created_at").first()
         if record is None:
@@ -594,11 +879,13 @@ class Command(BaseCommand):
                 is_public=True,
                 gazette_number="GAMS-DEMO-GAZ-2026-001",
                 gazette_date=date.today(),
+                committee=committee,
             )
         else:
             record.status = "serving"
             record.appointment_exercise = campaign
             record.nominee = nominee
+            record.committee = committee
             record.appointment_date = record.appointment_date or date.today()
             record.final_decision_by_user = record.final_decision_by_user or decided_by
             if not record.final_decision_by_display:
@@ -613,6 +900,7 @@ class Command(BaseCommand):
                     "status",
                     "appointment_exercise",
                     "nominee",
+                    "committee",
                     "appointment_date",
                     "final_decision_by_user",
                     "final_decision_by_display",

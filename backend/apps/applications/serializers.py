@@ -146,6 +146,7 @@ class InterrogationFlagSerializer(serializers.ModelSerializer):
 
 
 class VettingCaseSerializer(serializers.ModelSerializer):
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
     applicant_email = serializers.EmailField(source="applicant.email", read_only=True)
     candidate_email = serializers.EmailField(source="candidate_enrollment.candidate.email", read_only=True)
     assigned_to_email = serializers.EmailField(source="assigned_to.email", read_only=True)
@@ -169,6 +170,8 @@ class VettingCaseSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "case_id",
+            "organization",
+            "organization_name",
             "applicant",
             "applicant_email",
             "candidate_enrollment",
@@ -210,6 +213,7 @@ class VettingCaseSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "case_id",
+            "organization_name",
             "applicant_email",
             "candidate_email",
             "assigned_to_email",

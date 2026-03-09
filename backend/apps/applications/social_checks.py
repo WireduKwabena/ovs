@@ -6,11 +6,18 @@ import logging
 from typing import Any
 
 from ai_ml_services.social.case_profiles import extract_case_social_profiles
+from rest_framework.exceptions import ValidationError as DRFValidationError
+
+from apps.billing.quotas import (
+    VETTING_OPERATION_SOCIAL_PROFILE_CHECK,
+    enforce_vetting_operation_quota,
+    resolve_case_organization_id,
+)
 
 logger = logging.getLogger(__name__)
 
 
-def run_case_social_profile_check(case: Any) -> dict[str, Any]:
+def run_case_social_profile_check(case: Any, *, actor=None) -> dict[str, Any]:
     """
     Run social profile checks for a vetting case and persist result.
 
@@ -42,6 +49,30 @@ def run_case_social_profile_check(case: Any) -> dict[str, Any]:
             "case_id": case_id,
             "reason": "dependency_unavailable",
             "error": str(exc),
+        }
+
+    additional_usage = 1
+    if SocialProfileCheckResult.objects.filter(application=case).exists():
+        # Idempotent by case: refresh/recheck does not consume extra quota units.
+        additional_usage = 0
+    resolved_org_id = resolve_case_organization_id(case)
+    quota_actor = actor if (resolved_org_id is None and getattr(actor, "is_authenticated", False)) else None
+    try:
+        enforce_vetting_operation_quota(
+            operation=VETTING_OPERATION_SOCIAL_PROFILE_CHECK,
+            user=quota_actor,
+            organization_id=resolved_org_id,
+            additional=additional_usage,
+        )
+    except DRFValidationError as exc:
+        detail = exc.detail if isinstance(exc.detail, dict) else {"detail": exc.detail}
+        return {
+            "success": False,
+            "case_id": case_id,
+            "reason": "quota_enforced",
+            "error": detail.get("detail") or "Quota enforcement blocked social profile check.",
+            "quota": detail.get("quota"),
+            "code": detail.get("code"),
         }
 
     try:

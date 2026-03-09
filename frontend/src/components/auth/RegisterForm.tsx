@@ -4,7 +4,7 @@ import { useForm, type SubmitHandler } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { toast } from "react-toastify";
 import { useDispatch } from "react-redux";
-import { Building2, Eye, EyeOff, ShieldCheck, UserPlus } from "lucide-react";
+import { Eye, EyeOff, ShieldCheck, UserPlus } from "lucide-react";
 
 import type { AppDispatch } from "@/app/store";
 import { clearError, register as registerThunk } from "@/store/authSlice";
@@ -14,7 +14,13 @@ import { Loader } from "@/components/common/Loader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { clearSubscriptionAccess, getSubscriptionAccessTicket } from "@/utils/subscriptionAccess";
+
+interface RegisterFormProps {
+  onboardingToken: string;
+  organizationName?: string;
+}
+
+type RegisterFormValues = Omit<RegisterData, "onboarding_token" | "organization" | "subscription_reference">;
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
   if (!error) return fallback;
@@ -23,10 +29,31 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
 
   const normalizedError = error as {
     message?: string;
-    response?: { data?: { message?: string; detail?: string } };
+    response?: { data?: { message?: string; detail?: string; error?: string; reason?: string } };
   };
 
+  const onboardingReason = String(normalizedError.response?.data?.reason || "").trim().toLowerCase();
+  if (onboardingReason === "not_found") {
+    return "This onboarding link is invalid. Request a fresh invite from your organization admin.";
+  }
+  if (onboardingReason === "inactive") {
+    return "This onboarding link has been revoked. Request a fresh invite.";
+  }
+  if (onboardingReason === "expired") {
+    return "This onboarding link has expired. Request a fresh invite.";
+  }
+  if (onboardingReason === "max_uses_reached") {
+    return "This onboarding link has reached its usage limit. Request a fresh invite.";
+  }
+  if (onboardingReason === "subscription_inactive") {
+    return "Registration is unavailable because this organization subscription is inactive.";
+  }
+  if (onboardingReason === "email_domain_not_allowed") {
+    return "Your email domain is not allowed for this onboarding invite.";
+  }
+
   return (
+    normalizedError.response?.data?.error ||
     normalizedError.response?.data?.message ||
     normalizedError.response?.data?.detail ||
     normalizedError.message ||
@@ -34,7 +61,10 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
   );
 };
 
-export const RegisterForm: React.FC = () => {
+export const RegisterForm: React.FC<RegisterFormProps> = ({
+  onboardingToken,
+  organizationName,
+}) => {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
 
@@ -46,10 +76,9 @@ export const RegisterForm: React.FC = () => {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<RegisterData>({
+  } = useForm<RegisterFormValues>({
     resolver: yupResolver(registerSchema),
     defaultValues: {
-      organization: "",
       department: "",
     },
   });
@@ -61,11 +90,14 @@ export const RegisterForm: React.FC = () => {
     };
   }, [dispatch]);
 
-  const onSubmit: SubmitHandler<RegisterData> = async (data) => {
+  const onSubmit: SubmitHandler<RegisterFormValues> = async (data) => {
     if (loading) return;
+    if (!onboardingToken) {
+      toast.error("A valid onboarding token is required to register.");
+      return;
+    }
 
     setLoading(true);
-    const subscriptionTicket = getSubscriptionAccessTicket();
 
     try {
       await dispatch(
@@ -75,17 +107,15 @@ export const RegisterForm: React.FC = () => {
           last_name: data.last_name.trim(),
           email: data.email.trim(),
           phone_number: data.phone_number.trim(),
-          organization: data.organization.trim(),
-          department: data.department.trim(),
+          department: (data.department || "").trim(),
           password: data.password,
           password_confirm: data.password_confirm,
-          subscription_reference: subscriptionTicket?.reference || "",
+          onboarding_token: onboardingToken,
         }),
       ).unwrap();
 
       toast.success("Registration successful. Please sign in.");
       dispatch(clearError());
-      clearSubscriptionAccess();
       navigate("/login", { replace: true });
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, "Registration failed. Please review your details."), {
@@ -120,12 +150,12 @@ export const RegisterForm: React.FC = () => {
             <div>
               <h1 className="text-3xl font-black leading-tight">Provision Your Firm Workspace</h1>
               <p className="mt-4 text-sm text-slate-200/90">
-                Complete registration with your subscribed organization details and activate your operations workspace.
+                Complete registration with your organization onboarding invite and activate your operations workspace.
               </p>
             </div>
 
             <div className="rounded-2xl border border-white/20 bg-white/10 p-4 text-xs text-slate-200">
-              This step is available only after subscription confirmation.
+              This step is available only with a valid onboarding invitation link.
             </div>
           </div>
         </aside>
@@ -138,7 +168,10 @@ export const RegisterForm: React.FC = () => {
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">Firm registration</p>
-                <h2 className="text-2xl font-black tracking-tight text-slate-900">Create organization admin account</h2>
+                <h2 className="text-2xl font-black tracking-tight text-slate-900">Create organization member account</h2>
+                {organizationName ? (
+                  <p className="mt-1 text-xs font-semibold text-slate-700">Organization: {organizationName}</p>
+                ) : null}
               </div>
             </div>
 
@@ -208,23 +241,6 @@ export const RegisterForm: React.FC = () => {
                     className={inputClass(Boolean(errors.phone_number))}
                   />
                   {errors.phone_number && <p className="text-xs font-medium text-red-600">{errors.phone_number.message}</p>}
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="organization" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
-                    Organization
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      {...register("organization")}
-                      id="organization"
-                      autoComplete="organization"
-                      placeholder="Acme Corporation"
-                      disabled={loading}
-                      className={`${inputClass(false)} pl-10`}
-                    />
-                    <Building2 className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-700" />
-                  </div>
                 </div>
 
                 <div className="space-y-1.5">

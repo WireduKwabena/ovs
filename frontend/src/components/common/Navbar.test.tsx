@@ -11,6 +11,27 @@ const mocks = vi.hoisted(() => ({
   fetchNotifications: vi.fn(() => ({ type: "notifications/fetchAll" })),
   getReminderHealth: vi.fn(),
   logout: vi.fn(),
+  selectActiveOrganization: vi.fn(),
+}));
+
+const authHookState = vi.hoisted(() => ({
+  organizations: [] as Array<{
+    id: string;
+    code: string;
+    name: string;
+    organization_type: string;
+  }>,
+  activeOrganization: null as
+    | {
+        id: string;
+        code: string;
+        name: string;
+        organization_type: string;
+      }
+    | null,
+  activeOrganizationId: null as string | null,
+  canSwitchOrganization: false,
+  switchingActiveOrganization: false,
 }));
 
 vi.mock("@/store/notificationSlice", () => ({
@@ -27,6 +48,12 @@ vi.mock("@/services/videoCall.service", () => ({
 vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => ({
     logout: mocks.logout,
+    organizations: authHookState.organizations,
+    activeOrganization: authHookState.activeOrganization,
+    activeOrganizationId: authHookState.activeOrganizationId,
+    canSwitchOrganization: authHookState.canSwitchOrganization,
+    switchingActiveOrganization: authHookState.switchingActiveOrganization,
+    selectActiveOrganization: mocks.selectActiveOrganization,
   }),
 }));
 
@@ -105,6 +132,11 @@ describe("Navbar runtime + active tab behavior", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    authHookState.organizations = [];
+    authHookState.activeOrganization = null;
+    authHookState.activeOrganizationId = null;
+    authHookState.canSwitchOrganization = false;
+    authHookState.switchingActiveOrganization = false;
   });
 
   it("opens runtime popover and shows latest reminder counts", async () => {
@@ -373,5 +405,51 @@ describe("Navbar runtime + active tab behavior", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /more/i }));
     expect(screen.queryByRole("link", { name: /audit/i })).toBeNull();
+  });
+
+  it("shows organization switcher and dispatches active-organization selection", async () => {
+    authHookState.organizations = [
+      {
+        id: "org-1",
+        code: "ORG1",
+        name: "Registry Commission",
+        organization_type: "agency",
+      },
+      {
+        id: "org-2",
+        code: "ORG2",
+        name: "Appointments Council",
+        organization_type: "agency",
+      },
+    ];
+    authHookState.activeOrganization = authHookState.organizations[0];
+    authHookState.activeOrganizationId = "org-1";
+    authHookState.canSwitchOrganization = true;
+    mocks.selectActiveOrganization.mockResolvedValue(undefined);
+
+    renderNavbar("/dashboard", {
+      auth: {
+        userType: "hr_manager",
+        capabilities: ["gams.registry.manage"],
+        user: {
+          user_type: "hr_manager",
+          email: "registry@example.com",
+          full_name: "Registry User",
+          first_name: "Registry",
+          last_name: "User",
+        },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
+    });
+
+    const organizationSwitch = screen.getByLabelText(/switch active organization/i);
+    fireEvent.change(organizationSwitch, { target: { value: "org-2" } });
+
+    await waitFor(() => {
+      expect(mocks.selectActiveOrganization).toHaveBeenCalledWith("org-2");
+    });
   });
 });

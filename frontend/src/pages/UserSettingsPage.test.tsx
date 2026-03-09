@@ -7,6 +7,7 @@ import UserSettingsPage from "./UserSettingsPage";
 
 const mocks = vi.hoisted(() => ({
   getSubscriptionManagement: vi.fn(),
+  getOnboardingTokenState: vi.fn(),
   useAuth: vi.fn(),
   dispatch: vi.fn(() => ({ unwrap: vi.fn() })),
 }));
@@ -26,6 +27,9 @@ vi.mock("@/hooks/useAuth", () => ({
 vi.mock("@/services/billing.service", () => ({
   billingService: {
     getSubscriptionManagement: mocks.getSubscriptionManagement,
+    getOnboardingTokenState: mocks.getOnboardingTokenState,
+    generateOnboardingToken: vi.fn(),
+    revokeOnboardingToken: vi.fn(),
     updatePaymentMethod: vi.fn(),
     scheduleSubscriptionCancellation: vi.fn(),
     createPaymentMethodUpdateSession: vi.fn(),
@@ -54,6 +58,12 @@ describe("UserSettingsPage billing empty-state", () => {
   it("shows add subscription action when subscription is missing", async () => {
     mocks.useAuth.mockReturnValue({
       userType: "hr_manager",
+      isAdmin: false,
+      hasRole: () => false,
+      hasCapability: () => false,
+      organizations: [],
+      activeOrganization: null,
+      activeOrganizationId: null,
       user: {
         id: "user-1",
         email: "hr@example.com",
@@ -86,5 +96,71 @@ describe("UserSettingsPage billing empty-state", () => {
     expect(
       await screen.findByRole("button", { name: /add subscription plan/i }),
     ).toBeTruthy();
+  });
+
+  it("shows onboarding management for authorized org admins", async () => {
+    mocks.useAuth.mockReturnValue({
+      userType: "hr_manager",
+      isAdmin: false,
+      hasRole: (role: string) => role === "registry_admin",
+      hasCapability: () => false,
+      organizations: [{ id: "org-1", code: "ORG1", name: "Org One", organization_type: "agency" }],
+      activeOrganization: { id: "org-1", code: "ORG1", name: "Org One", organization_type: "agency" },
+      activeOrganizationId: "org-1",
+      user: {
+        id: "user-1",
+        email: "registry@example.com",
+        first_name: "Registry",
+        last_name: "Admin",
+        full_name: "Registry Admin",
+        phone_number: "",
+        organization: "Org One",
+        department: "Registry",
+        profile_picture_url: "",
+        avatar_url: "",
+        date_of_birth: "",
+        profile: null,
+        is_active: true,
+        created_at: "2026-01-01T00:00:00Z",
+      },
+    });
+    mocks.getSubscriptionManagement.mockResolvedValue({
+      status: "ok",
+      message: "No subscription record found for this workspace.",
+      subscription: null,
+    });
+    mocks.getOnboardingTokenState.mockResolvedValue({
+      status: "ok",
+      organization_id: "org-1",
+      organization_name: "Org One",
+      subscription_id: "sub-1",
+      subscription_active: true,
+      has_active_token: true,
+      token: {
+        id: "tok-1",
+        subscription_id: "sub-1",
+        token_preview: "h_123",
+        is_active: true,
+        expires_at: null,
+        max_uses: 5,
+        uses: 1,
+        remaining_uses: 4,
+        allowed_email_domain: "",
+        last_used_at: null,
+        revoked_at: null,
+        revoked_reason: "",
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <UserSettingsPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText(/organization onboarding invite/i)).toBeTruthy();
+    expect(await screen.findByText(/token preview/i)).toBeTruthy();
   });
 });

@@ -1,4 +1,5 @@
 from datetime import timedelta
+import threading
 import time
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -7,14 +8,17 @@ from django.contrib.auth.models import Group
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.hashers import check_password
 from django.core.signing import Signer
+from django.db import close_old_connections, connection
 from django.test import override_settings
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.test import APITestCase, APIClient, APITransactionTestCase
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from apps.authentication.models import User, UserProfile
 from apps.billing.models import BillingSubscription
+from apps.billing.services import create_organization_onboarding_token
+from apps.governance.models import Committee, CommitteeMembership, Organization, OrganizationMembership
 
 
 class EmailAuthEndpointTests(APITestCase):
@@ -28,8 +32,56 @@ class EmailAuthEndpointTests(APITestCase):
             user_type="hr_manager",
         )
 
+    def _create_org_subscription_and_token(
+        self,
+        *,
+        org_code: str,
+        org_name: str,
+        plan_id: str = "growth",
+        plan_name: str = "Growth",
+        max_uses: int = 2,
+        allowed_email_domain: str = "example.com",
+    ):
+        organization = Organization.objects.create(
+            code=org_code,
+            name=org_name,
+            organization_type="agency",
+            is_active=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.user,
+            organization=organization,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
+        )
+        subscription = BillingSubscription.objects.create(
+            provider="sandbox",
+            organization=organization,
+            status="complete",
+            payment_status="paid",
+            plan_id=plan_id,
+            plan_name=plan_name,
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="399.00",
+            reference=f"OVS-{org_code.upper()}",
+            ticket_confirmed_at=timezone.now(),
+            ticket_expires_at=timezone.now() + timedelta(hours=12),
+        )
+        token_record, raw_token = create_organization_onboarding_token(
+            organization=organization,
+            subscription=subscription,
+            created_by=self.user,
+            max_uses=max_uses,
+            expires_at=timezone.now() + timedelta(hours=8),
+            allowed_email_domain=allowed_email_domain,
+            rotate=True,
+        )
+        return organization, subscription, token_record, raw_token
+
     @override_settings(AUTH_PUBLIC_REGISTRATION_ENABLED=True)
-    def test_register_with_email_password(self):
+    def test_register_requires_onboarding_token_even_when_public_registration_flag_enabled(self):
         response = self.client.post(
             "/api/auth/register/",
             {
@@ -43,18 +95,11 @@ class EmailAuthEndpointTests(APITestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        payload = response.json()
-        self.assertEqual(payload["user"]["email"], "new_firm@example.com")
-        self.assertNotIn("tokens", payload)
-        self.assertEqual(payload["message"], "Registration successful. Please sign in to continue.")
-        self.assertEqual(payload["user_type"], "hr_manager")
-        self.assertEqual(
-            User.objects.get(email="new_firm@example.com").user_type,
-            "hr_manager",
-        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("onboarding_token", response.data)
+        self.assertFalse(User.objects.filter(email="new_firm@example.com").exists())
 
-    def test_register_is_disabled_by_default(self):
+    def test_register_requires_onboarding_token_by_default(self):
         response = self.client.post(
             "/api/auth/register/",
             {
@@ -68,24 +113,10 @@ class EmailAuthEndpointTests(APITestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertIn("error", response.data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("onboarding_token", response.data)
 
-    def test_register_with_valid_subscription_reference_when_public_disabled(self):
-        subscription = BillingSubscription.objects.create(
-            provider="sandbox",
-            status="complete",
-            payment_status="paid",
-            plan_id="growth",
-            plan_name="Growth",
-            billing_cycle="monthly",
-            payment_method="card",
-            amount_usd="399.00",
-            reference="OVS-VALIDREF",
-            ticket_confirmed_at=timezone.now(),
-            ticket_expires_at=timezone.now() + timedelta(hours=12),
-        )
-
+    def test_register_rejects_subscription_reference_without_onboarding_token(self):
         response = self.client.post(
             "/api/auth/register/",
             {
@@ -100,46 +131,274 @@ class EmailAuthEndpointTests(APITestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertTrue(User.objects.filter(email="subscribed@example.com").exists())
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("onboarding_token", response.data)
+        self.assertFalse(User.objects.filter(email="subscribed@example.com").exists())
 
-        subscription.refresh_from_db()
-        self.assertIsNotNone(subscription.registration_consumed_at)
-        self.assertEqual(subscription.registration_consumed_by_email, "subscribed@example.com")
-
-    def test_register_rejects_reused_subscription_reference(self):
-        BillingSubscription.objects.create(
-            provider="sandbox",
-            status="complete",
-            payment_status="paid",
-            plan_id="growth",
-            plan_name="Growth",
-            billing_cycle="monthly",
-            payment_method="card",
-            amount_usd="399.00",
-            reference="OVS-USEDREF",
-            ticket_confirmed_at=timezone.now(),
-            ticket_expires_at=timezone.now() + timedelta(hours=12),
-            registration_consumed_at=timezone.now(),
-            registration_consumed_by_email="existing@example.com",
+    def test_register_with_valid_onboarding_token_when_public_disabled(self):
+        organization, _subscription, token_record, raw_token = self._create_org_subscription_and_token(
+            org_code="auth-onboarding-org",
+            org_name="Auth Onboarding Org",
         )
 
         response = self.client.post(
             "/api/auth/register/",
             {
-                "email": "second@example.com",
+                "email": "orgmember@example.com",
                 "password": self.password,
                 "password_confirm": self.password,
-                "first_name": "Second",
-                "last_name": "Firm",
+                "first_name": "Org",
+                "last_name": "Member",
                 "phone_number": "+12345678901",
-                "subscription_reference": "OVS-USEDREF",
+                "onboarding_token": raw_token,
             },
             format="json",
         )
 
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        created_user = User.objects.get(email="orgmember@example.com")
+        self.assertEqual(created_user.organization, organization.name)
+        self.assertTrue(
+            OrganizationMembership.objects.filter(
+                user=created_user,
+                organization=organization,
+                is_active=True,
+            ).exists()
+        )
+        token_record.refresh_from_db()
+        self.assertEqual(token_record.uses, 1)
+        self.assertEqual(token_record.is_active, True)
+
+    def test_register_rejects_invalid_onboarding_token(self):
+        response = self.client.post(
+            "/api/auth/register/",
+            {
+                "email": "invalid.token@example.com",
+                "password": self.password,
+                "password_confirm": self.password,
+                "first_name": "Invalid",
+                "last_name": "Token",
+                "phone_number": "+12345678901",
+                "onboarding_token": "org_onb_invalid_value",
+            },
+            format="json",
+        )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertFalse(User.objects.filter(email="second@example.com").exists())
+        self.assertEqual(response.data.get("code"), "ONBOARDING_TOKEN_INVALID")
+        self.assertEqual(response.data.get("reason"), "not_found")
+        self.assertFalse(User.objects.filter(email="invalid.token@example.com").exists())
+
+    def test_register_rejects_expired_onboarding_token(self):
+        _organization, _subscription, token_record, raw_token = self._create_org_subscription_and_token(
+            org_code="auth-onboarding-expired",
+            org_name="Auth Onboarding Expired",
+        )
+        token_record.expires_at = timezone.now() - timedelta(minutes=1)
+        token_record.save(update_fields=["expires_at", "updated_at"])
+
+        response = self.client.post(
+            "/api/auth/register/",
+            {
+                "email": "expired.member@example.com",
+                "password": self.password,
+                "password_confirm": self.password,
+                "first_name": "Expired",
+                "last_name": "Member",
+                "phone_number": "+12345678901",
+                "onboarding_token": raw_token,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data.get("reason"), "expired")
+        token_record.refresh_from_db()
+        self.assertEqual(token_record.uses, 0)
+        self.assertFalse(User.objects.filter(email="expired.member@example.com").exists())
+
+    def test_register_rejects_onboarding_token_when_subscription_inactive(self):
+        _organization, subscription, token_record, raw_token = self._create_org_subscription_and_token(
+            org_code="auth-onboarding-inactive-sub",
+            org_name="Auth Onboarding Inactive Sub",
+        )
+        subscription.status = "canceled"
+        subscription.payment_status = "unpaid"
+        subscription.save(update_fields=["status", "payment_status", "updated_at"])
+
+        response = self.client.post(
+            "/api/auth/register/",
+            {
+                "email": "inactive.sub@example.com",
+                "password": self.password,
+                "password_confirm": self.password,
+                "first_name": "Inactive",
+                "last_name": "Subscription",
+                "phone_number": "+12345678901",
+                "onboarding_token": raw_token,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data.get("reason"), "subscription_inactive")
+        token_record.refresh_from_db()
+        self.assertEqual(token_record.uses, 0)
+        self.assertFalse(User.objects.filter(email="inactive.sub@example.com").exists())
+
+    def test_register_rejects_onboarding_token_max_uses_reached(self):
+        _organization, _subscription, token_record, raw_token = self._create_org_subscription_and_token(
+            org_code="auth-onboarding-max",
+            org_name="Auth Onboarding Max",
+            max_uses=1,
+        )
+
+        first_response = self.client.post(
+            "/api/auth/register/",
+            {
+                "email": "first.member@example.com",
+                "password": self.password,
+                "password_confirm": self.password,
+                "first_name": "First",
+                "last_name": "Member",
+                "phone_number": "+12345678901",
+                "onboarding_token": raw_token,
+            },
+            format="json",
+        )
+        self.assertEqual(first_response.status_code, status.HTTP_201_CREATED)
+
+        second_response = self.client.post(
+            "/api/auth/register/",
+            {
+                "email": "second.member@example.com",
+                "password": self.password,
+                "password_confirm": self.password,
+                "first_name": "Second",
+                "last_name": "Member",
+                "phone_number": "+12345678901",
+                "onboarding_token": raw_token,
+            },
+            format="json",
+        )
+        self.assertEqual(second_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertFalse(User.objects.filter(email="second.member@example.com").exists())
+        token_record.refresh_from_db()
+        self.assertEqual(token_record.uses, 1)
+        self.assertFalse(token_record.is_active)
+
+    @override_settings(
+        BILLING_ORG_MEMBER_QUOTA_ENFORCEMENT_ENABLED=True,
+        BILLING_PLAN_STARTER_ORG_SEATS=1,
+    )
+    def test_register_rejects_onboarding_token_when_seat_quota_exceeded(self):
+        organization, _subscription, token_record, raw_token = self._create_org_subscription_and_token(
+            org_code="auth-seat-cap-full",
+            org_name="Auth Seat Cap Full",
+            plan_id="starter",
+            plan_name="Starter",
+            max_uses=5,
+        )
+
+        # Existing default membership for self.user already consumes the single starter seat.
+        response = self.client.post(
+            "/api/auth/register/",
+            {
+                "email": "quota.blocked@example.com",
+                "password": self.password,
+                "password_confirm": self.password,
+                "first_name": "Quota",
+                "last_name": "Blocked",
+                "phone_number": "+12345678901",
+                "onboarding_token": raw_token,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(User.objects.filter(email="quota.blocked@example.com").exists())
+        self.assertEqual(response.data.get("code"), "ORG_SEAT_QUOTA_EXCEEDED")
+        self.assertEqual(response.data.get("organization_id"), str(organization.id))
+        token_record.refresh_from_db()
+        self.assertEqual(token_record.uses, 0)
+        self.assertTrue(token_record.is_active)
+
+    @override_settings(
+        BILLING_ORG_MEMBER_QUOTA_ENFORCEMENT_ENABLED=True,
+        BILLING_PLAN_STARTER_ORG_SEATS=2,
+    )
+    def test_register_allows_onboarding_token_within_seat_quota(self):
+        organization, _subscription, token_record, raw_token = self._create_org_subscription_and_token(
+            org_code="auth-seat-cap-okay",
+            org_name="Auth Seat Cap Okay",
+            plan_id="starter",
+            plan_name="Starter",
+            max_uses=5,
+        )
+
+        response = self.client.post(
+            "/api/auth/register/",
+            {
+                "email": "quota.allowed@example.com",
+                "password": self.password,
+                "password_confirm": self.password,
+                "first_name": "Quota",
+                "last_name": "Allowed",
+                "phone_number": "+12345678901",
+                "onboarding_token": raw_token,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        created_user = User.objects.get(email="quota.allowed@example.com")
+        self.assertTrue(
+            OrganizationMembership.objects.filter(
+                user=created_user,
+                organization=organization,
+                is_active=True,
+            ).exists()
+        )
+        token_record.refresh_from_db()
+        self.assertEqual(token_record.uses, 1)
+
+    def test_register_duplicate_email_does_not_consume_token_or_create_membership(self):
+        organization, _subscription, token_record, raw_token = self._create_org_subscription_and_token(
+            org_code="auth-duplicate-email",
+            org_name="Auth Duplicate Email Org",
+        )
+        existing_user = User.objects.create_user(
+            email="existing.member@example.com",
+            password=self.password,
+            first_name="Existing",
+            last_name="Member",
+            user_type="hr_manager",
+        )
+        existing_membership_count = OrganizationMembership.objects.filter(
+            user=existing_user,
+            organization=organization,
+        ).count()
+
+        response = self.client.post(
+            "/api/auth/register/",
+            {
+                "email": "existing.member@example.com",
+                "password": self.password,
+                "password_confirm": self.password,
+                "first_name": "Existing",
+                "last_name": "Member",
+                "phone_number": "+12345678901",
+                "onboarding_token": raw_token,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("email", response.data)
+        token_record.refresh_from_db()
+        self.assertEqual(token_record.uses, 0)
+        self.assertEqual(
+            OrganizationMembership.objects.filter(
+                user=existing_user,
+                organization=organization,
+            ).count(),
+            existing_membership_count,
+        )
 
     def test_login_requires_2fa_for_non_applicant_accounts(self):
         with patch(
@@ -805,3 +1064,287 @@ class EmailAuthEndpointTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("admin", response.data["roles"])
+
+    def test_profile_view_includes_governance_context_for_single_org_membership(self):
+        organization = Organization.objects.create(
+            code="appointments-secretariat",
+            name="Appointments Secretariat",
+            organization_type="agency",
+        )
+        membership = OrganizationMembership.objects.create(
+            user=self.user,
+            organization=organization,
+            is_active=True,
+            is_default=True,
+            membership_role="vetting_officer",
+        )
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.get("/api/auth/profile/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("organizations", response.data)
+        self.assertIn("organization_memberships", response.data)
+        self.assertIn("active_organization", response.data)
+        self.assertEqual(len(response.data["organizations"]), 1)
+        self.assertEqual(response.data["organizations"][0]["id"], str(organization.id))
+        self.assertEqual(response.data["active_organization"]["id"], str(organization.id))
+        self.assertEqual(response.data["active_organization_source"], "default")
+        self.assertEqual(response.data["organization_memberships"][0]["id"], str(membership.id))
+        self.assertEqual(response.data["committees"], [])
+
+    def test_active_organization_switching_supports_multi_org_user(self):
+        org_one = Organization.objects.create(code="org-one", name="Organization One", organization_type="agency")
+        org_two = Organization.objects.create(code="org-two", name="Organization Two", organization_type="agency")
+        OrganizationMembership.objects.create(
+            user=self.user,
+            organization=org_one,
+            is_active=True,
+            is_default=True,
+            membership_role="member",
+        )
+        second_membership = OrganizationMembership.objects.create(
+            user=self.user,
+            organization=org_two,
+            is_active=True,
+            is_default=False,
+            membership_role="member",
+        )
+        committee = Committee.objects.create(
+            organization=org_two,
+            code="org-two-committee",
+            name="Org Two Committee",
+            committee_type="approval",
+        )
+        CommitteeMembership.objects.create(
+            committee=committee,
+            user=self.user,
+            organization_membership=second_membership,
+            committee_role="member",
+            can_vote=True,
+            is_active=True,
+        )
+        self.client.force_authenticate(user=self.user)
+
+        initial_profile = self.client.get("/api/auth/profile/")
+        self.assertEqual(initial_profile.status_code, status.HTTP_200_OK)
+        self.assertEqual(initial_profile.data["active_organization"]["id"], str(org_one.id))
+        self.assertEqual(initial_profile.data["active_organization_source"], "default")
+
+        switch_response = self.client.post(
+            "/api/auth/profile/active-organization/",
+            {"organization_id": str(org_two.id)},
+            format="json",
+        )
+        self.assertEqual(switch_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(switch_response.data["active_organization"]["id"], str(org_two.id))
+
+        switched_profile = self.client.get("/api/auth/profile/")
+        self.assertEqual(switched_profile.status_code, status.HTTP_200_OK)
+        self.assertEqual(switched_profile.data["active_organization"]["id"], str(org_two.id))
+        self.assertEqual(switched_profile.data["active_organization_source"], "session")
+        self.assertEqual(len(switched_profile.data["committees"]), 1)
+        self.assertEqual(switched_profile.data["committees"][0]["committee_id"], str(committee.id))
+
+    def test_profile_view_for_applicant_without_org_membership_has_empty_context(self):
+        applicant = User.objects.create_user(
+            email="nomembership@example.com",
+            password=self.password,
+            first_name="No",
+            last_name="Membership",
+            user_type="applicant",
+        )
+        self.client.force_authenticate(user=applicant)
+
+        response = self.client.get("/api/auth/profile/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["organizations"], [])
+        self.assertEqual(response.data["organization_memberships"], [])
+        self.assertEqual(response.data["committees"], [])
+        self.assertIsNone(response.data["active_organization"])
+        self.assertEqual(response.data["active_organization_source"], "none")
+
+
+class EmailAuthRegistrationConcurrencyTests(APITransactionTestCase):
+    def setUp(self):
+        self.password = "Pass1234!"
+        self.inviter = User.objects.create_user(
+            email="concurrency.inviter@example.com",
+            password=self.password,
+            first_name="Concurrency",
+            last_name="Inviter",
+            user_type="hr_manager",
+        )
+
+    def _create_org_subscription_and_token(
+        self,
+        *,
+        org_code: str,
+        org_name: str,
+        plan_id: str,
+        plan_name: str,
+        max_uses: int,
+        allowed_email_domain: str = "example.com",
+    ):
+        organization = Organization.objects.create(
+            code=org_code,
+            name=org_name,
+            organization_type="agency",
+            is_active=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.inviter,
+            organization=organization,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
+        )
+        subscription = BillingSubscription.objects.create(
+            provider="sandbox",
+            organization=organization,
+            status="complete",
+            payment_status="paid",
+            plan_id=plan_id,
+            plan_name=plan_name,
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="399.00",
+            reference=f"OVS-CONCURRENCY-{org_code.upper()}",
+            ticket_confirmed_at=timezone.now(),
+            ticket_expires_at=timezone.now() + timedelta(hours=12),
+        )
+        token_record, raw_token = create_organization_onboarding_token(
+            organization=organization,
+            subscription=subscription,
+            created_by=self.inviter,
+            max_uses=max_uses,
+            expires_at=timezone.now() + timedelta(hours=8),
+            allowed_email_domain=allowed_email_domain,
+            rotate=True,
+        )
+        return organization, subscription, token_record, raw_token
+
+    def _run_parallel_registrations(self, *, token: str, emails: list[str]) -> list[tuple[str, int, dict]]:
+        barrier = threading.Barrier(len(emails) + 1)
+        lock = threading.Lock()
+        results: list[tuple[str, int, dict]] = []
+        errors: list[Exception] = []
+
+        def _worker(email: str):
+            try:
+                close_old_connections()
+                client = APIClient()
+                barrier.wait(timeout=15)
+                response = client.post(
+                    "/api/auth/register/",
+                    {
+                        "email": email,
+                        "password": self.password,
+                        "password_confirm": self.password,
+                        "first_name": "Concurrent",
+                        "last_name": "Member",
+                        "phone_number": "+12345678901",
+                        "onboarding_token": token,
+                    },
+                    format="json",
+                )
+                payload = dict(response.data) if isinstance(response.data, dict) else {}
+                with lock:
+                    results.append((email, response.status_code, payload))
+            except Exception as exc:
+                with lock:
+                    errors.append(exc)
+            finally:
+                close_old_connections()
+
+        threads = [threading.Thread(target=_worker, args=(email,)) for email in emails]
+        for thread in threads:
+            thread.start()
+
+        barrier.wait(timeout=15)
+        for thread in threads:
+            thread.join(timeout=20)
+
+        if errors:
+            raise AssertionError(f"Concurrency workers failed: {errors}")
+        return results
+
+    @override_settings(
+        BILLING_ORG_MEMBER_QUOTA_ENFORCEMENT_ENABLED=True,
+        BILLING_PLAN_STARTER_ORG_SEATS=2,
+    )
+    def test_concurrent_registration_does_not_exceed_seat_limit(self):
+        if connection.vendor != "postgresql":
+            self.skipTest("Concurrent row-locking registration test requires PostgreSQL.")
+
+        organization, _subscription, token_record, raw_token = self._create_org_subscription_and_token(
+            org_code="concurrency-seat-limit",
+            org_name="Concurrency Seat Limit Org",
+            plan_id="starter",
+            plan_name="Starter",
+            max_uses=10,
+        )
+
+        results = self._run_parallel_registrations(
+            token=raw_token,
+            emails=[
+                "parallel.one@example.com",
+                "parallel.two@example.com",
+            ],
+        )
+        status_codes = [entry[1] for entry in results]
+
+        self.assertEqual(status_codes.count(status.HTTP_201_CREATED), 1)
+        self.assertEqual(status_codes.count(status.HTTP_400_BAD_REQUEST), 1)
+        self.assertEqual(
+            OrganizationMembership.objects.filter(
+                organization=organization,
+                is_active=True,
+            ).count(),
+            2,  # inviter + one successful onboarded user
+        )
+
+        token_record.refresh_from_db()
+        self.assertEqual(token_record.uses, 1)
+
+    @override_settings(
+        BILLING_ORG_MEMBER_QUOTA_ENFORCEMENT_ENABLED=True,
+        BILLING_PLAN_STARTER_ORG_SEATS=10,
+    )
+    def test_concurrent_registration_respects_token_max_uses(self):
+        if connection.vendor != "postgresql":
+            self.skipTest("Concurrent token-usage locking test requires PostgreSQL.")
+
+        organization, _subscription, token_record, raw_token = self._create_org_subscription_and_token(
+            org_code="concurrency-token-max",
+            org_name="Concurrency Token Max Org",
+            plan_id="starter",
+            plan_name="Starter",
+            max_uses=1,
+        )
+
+        results = self._run_parallel_registrations(
+            token=raw_token,
+            emails=[
+                "token.one@example.com",
+                "token.two@example.com",
+            ],
+        )
+        status_codes = [entry[1] for entry in results]
+        failure_reasons = [entry[2].get("reason") for entry in results if entry[1] != status.HTTP_201_CREATED]
+
+        self.assertEqual(status_codes.count(status.HTTP_201_CREATED), 1)
+        self.assertEqual(status_codes.count(status.HTTP_403_FORBIDDEN), 1)
+        self.assertTrue(set(failure_reasons).issubset({"inactive", "max_uses_reached"}))
+
+        token_record.refresh_from_db()
+        self.assertEqual(token_record.uses, 1)
+        self.assertFalse(token_record.is_active)
+        self.assertEqual(
+            OrganizationMembership.objects.filter(
+                organization=organization,
+                is_active=True,
+            ).count(),
+            2,  # inviter + one successful onboarded user
+        )

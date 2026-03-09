@@ -1,4 +1,5 @@
 from unittest.mock import Mock, patch
+from datetime import timedelta
 import hashlib
 import hmac
 import json
@@ -10,10 +11,12 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from apps.audit.models import AuditLog
 from apps.campaigns.models import VettingCampaign
 from apps.candidates.models import Candidate, CandidateEnrollment
+from apps.governance.models import Organization, OrganizationMembership
 
-from .models import BillingSubscription, BillingWebhookEvent
+from .models import BillingSubscription, BillingWebhookEvent, OrganizationOnboardingToken
 
 
 class BillingApiTests(APITestCase):
@@ -31,6 +34,10 @@ class BillingApiTests(APITestCase):
     billing_manage_endpoint = "/api/billing/subscriptions/manage/"
     billing_manage_update_session_endpoint = "/api/billing/subscriptions/manage/payment-method/update-session/"
     billing_retry_endpoint = "/api/billing/subscriptions/manage/retry/"
+    onboarding_state_endpoint = "/api/billing/onboarding-token/"
+    onboarding_generate_endpoint = "/api/billing/onboarding-token/generate/"
+    onboarding_revoke_endpoint = "/api/billing/onboarding-token/revoke/"
+    onboarding_validate_endpoint = "/api/billing/onboarding-token/validate/"
 
     def setUp(self):
         cache.clear()
@@ -43,6 +50,50 @@ class BillingApiTests(APITestCase):
             first_name="Billing",
             last_name="Manager",
             user_type="hr_manager",
+        )
+
+    def _create_org_membership(
+        self,
+        user,
+        *,
+        code: str,
+        name: str,
+        is_default: bool = True,
+    ) -> Organization:
+        organization = Organization.objects.create(
+            code=code,
+            name=name,
+            organization_type="agency",
+            is_active=True,
+        )
+        OrganizationMembership.objects.create(
+            user=user,
+            organization=organization,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=is_default,
+        )
+        return organization
+
+    def _create_active_org_subscription(
+        self,
+        *,
+        organization: Organization,
+        reference: str,
+        plan_id: str = "growth",
+        plan_name: str = "Growth",
+    ) -> BillingSubscription:
+        return BillingSubscription.objects.create(
+            provider="sandbox",
+            organization=organization,
+            status="complete",
+            payment_status="paid",
+            plan_id=plan_id,
+            plan_name=plan_name,
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="399.00",
+            reference=reference,
         )
 
     @staticmethod
@@ -91,6 +142,75 @@ class BillingApiTests(APITestCase):
         self.assertEqual(response.data["subscription"]["plan_id"], "growth")
         self.assertEqual(response.data["subscription"]["payment_method"]["type"], "card")
         self.assertEqual(response.data["subscription"]["payment_method"]["display"], "Card")
+
+    def test_billing_manage_prefers_org_owned_subscription_when_available(self):
+        hr_user = self._create_hr_user(email="billing-org-manage@example.com")
+        organization = self._create_org_membership(
+            hr_user,
+            code="billing-org-manage",
+            name="Billing Org Manage",
+        )
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            organization=organization,
+            status="complete",
+            payment_status="paid",
+            plan_id="growth",
+            plan_name="Growth",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="399.00",
+            reference="OVS-ORG-MANAGE-GROWTH",
+        )
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            status="complete",
+            payment_status="paid",
+            plan_id="starter",
+            plan_name="Starter",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference="OVS-LEGACY-MANAGE-STARTER",
+            registration_consumed_by_email=hr_user.email,
+        )
+
+        self.client.force_authenticate(user=hr_user)
+        response = self.client.get(self.billing_manage_endpoint)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "ok")
+        self.assertEqual(response.data["subscription"]["plan_id"], "growth")
+        self.assertEqual(response.data["subscription"]["organization_id"], str(organization.id))
+        self.assertEqual(response.data["subscription"]["organization_name"], organization.name)
+
+    def test_billing_manage_falls_back_to_legacy_subscription_when_org_owned_missing(self):
+        hr_user = self._create_hr_user(email="billing-org-fallback@example.com")
+        self._create_org_membership(
+            hr_user,
+            code="billing-org-fallback",
+            name="Billing Org Fallback",
+        )
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            status="complete",
+            payment_status="paid",
+            plan_id="starter",
+            plan_name="Starter",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference="OVS-LEGACY-FALLBACK-STARTER",
+            registration_consumed_by_email=hr_user.email,
+        )
+
+        self.client.force_authenticate(user=hr_user)
+        response = self.client.get(self.billing_manage_endpoint)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "ok")
+        self.assertEqual(response.data["subscription"]["plan_id"], "starter")
+        self.assertIsNone(response.data["subscription"]["organization_id"])
 
     def test_billing_manage_patch_updates_sandbox_payment_method(self):
         hr_user = self._create_hr_user(email="billing-update@example.com")
@@ -319,6 +439,705 @@ class BillingApiTests(APITestCase):
         self.assertEqual(candidate_quota["remaining"], 0)
         self.assertEqual(candidate_quota["reason"], None)
 
+    @override_settings(
+        BILLING_QUOTA_ENFORCEMENT_ENABLED=True,
+        BILLING_PLAN_STARTER_CANDIDATES_PER_MONTH=2,
+    )
+    def test_billing_quota_uses_org_owned_subscription_and_org_usage_scope(self):
+        hr_user = self._create_hr_user(email="hr-org-quota@example.com")
+        scoped_org = self._create_org_membership(
+            hr_user,
+            code="billing-org-quota",
+            name="Billing Org Quota",
+        )
+        other_org = Organization.objects.create(
+            code="billing-org-other",
+            name="Billing Org Other",
+            organization_type="agency",
+            is_active=True,
+        )
+
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            organization=scoped_org,
+            status="complete",
+            payment_status="paid",
+            plan_id="starter",
+            plan_name="Starter",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference="OVS-ORG-QUOTA-SNAPSHOT",
+        )
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            status="complete",
+            payment_status="paid",
+            plan_id="growth",
+            plan_name="Growth",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="399.00",
+            reference="OVS-LEGACY-QUOTA-FALLBACK",
+            registration_consumed_by_email=hr_user.email,
+        )
+
+        other_owner = self._create_hr_user(email="other-owner@example.com")
+        scoped_campaign = VettingCampaign.objects.create(
+            organization=scoped_org,
+            name="Scoped Quota Campaign",
+            description="Org scoped quota visibility",
+            status="active",
+            initiated_by=other_owner,
+        )
+        offscope_campaign = VettingCampaign.objects.create(
+            organization=other_org,
+            name="Offscope Quota Campaign",
+            description="Should not count in scoped org usage",
+            status="active",
+            initiated_by=other_owner,
+        )
+
+        candidate_one = Candidate.objects.create(
+            first_name="Scoped",
+            last_name="One",
+            email="scoped-cand-1@example.com",
+        )
+        candidate_two = Candidate.objects.create(
+            first_name="Scoped",
+            last_name="Two",
+            email="scoped-cand-2@example.com",
+        )
+        candidate_three = Candidate.objects.create(
+            first_name="Offscope",
+            last_name="Three",
+            email="offscope-cand-3@example.com",
+        )
+        CandidateEnrollment.objects.create(campaign=scoped_campaign, candidate=candidate_one, status="invited")
+        CandidateEnrollment.objects.create(campaign=scoped_campaign, candidate=candidate_two, status="invited")
+        CandidateEnrollment.objects.create(campaign=offscope_campaign, candidate=candidate_three, status="invited")
+
+        self.client.force_authenticate(user=hr_user)
+        response = self.client.get(
+            self.billing_quotas_endpoint,
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(scoped_org.id),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        candidate_quota = response.data["candidate"]
+        self.assertEqual(candidate_quota["plan_id"], "starter")
+        self.assertEqual(candidate_quota["limit"], 2)
+        self.assertEqual(candidate_quota["used"], 2)
+        self.assertEqual(candidate_quota["remaining"], 0)
+        self.assertTrue(str(candidate_quota["scope"]).startswith("organization:"))
+
+    @override_settings(
+        BILLING_QUOTA_ENFORCEMENT_ENABLED=True,
+        BILLING_PLAN_STARTER_CANDIDATES_PER_MONTH=2,
+        BILLING_PLAN_GROWTH_CANDIDATES_PER_MONTH=5,
+    )
+    def test_billing_quota_isolated_by_active_organization_context(self):
+        hr_user = self._create_hr_user(email="hr-org-isolation@example.com")
+        org_a = self._create_org_membership(
+            hr_user,
+            code="billing-org-isolation-a",
+            name="Billing Org Isolation A",
+            is_default=True,
+        )
+        org_b = self._create_org_membership(
+            hr_user,
+            code="billing-org-isolation-b",
+            name="Billing Org Isolation B",
+            is_default=False,
+        )
+
+        self._create_active_org_subscription(
+            organization=org_a,
+            reference="OVS-ORG-ISOLATION-A",
+            plan_id="starter",
+            plan_name="Starter",
+        )
+        self._create_active_org_subscription(
+            organization=org_b,
+            reference="OVS-ORG-ISOLATION-B",
+            plan_id="growth",
+            plan_name="Growth",
+        )
+
+        campaign_a = VettingCampaign.objects.create(
+            organization=org_a,
+            name="Org A Campaign",
+            description="Org A usage scope",
+            status="active",
+            initiated_by=hr_user,
+        )
+        campaign_b = VettingCampaign.objects.create(
+            organization=org_b,
+            name="Org B Campaign",
+            description="Org B usage scope",
+            status="active",
+            initiated_by=hr_user,
+        )
+
+        CandidateEnrollment.objects.create(
+            campaign=campaign_a,
+            candidate=Candidate.objects.create(
+                first_name="Scoped",
+                last_name="A-One",
+                email="scoped-a-one@example.com",
+            ),
+            status="invited",
+        )
+        CandidateEnrollment.objects.create(
+            campaign=campaign_b,
+            candidate=Candidate.objects.create(
+                first_name="Scoped",
+                last_name="B-One",
+                email="scoped-b-one@example.com",
+            ),
+            status="invited",
+        )
+        CandidateEnrollment.objects.create(
+            campaign=campaign_b,
+            candidate=Candidate.objects.create(
+                first_name="Scoped",
+                last_name="B-Two",
+                email="scoped-b-two@example.com",
+            ),
+            status="invited",
+        )
+
+        self.client.force_authenticate(user=hr_user)
+
+        response_org_a = self.client.get(
+            self.billing_quotas_endpoint,
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(org_a.id),
+        )
+        self.assertEqual(response_org_a.status_code, status.HTTP_200_OK)
+        quota_org_a = response_org_a.data["candidate"]
+        self.assertEqual(quota_org_a["plan_id"], "starter")
+        self.assertEqual(quota_org_a["used"], 1)
+        self.assertEqual(quota_org_a["limit"], 2)
+        self.assertEqual(quota_org_a["remaining"], 1)
+        self.assertEqual(str(quota_org_a["scope"]), f"organization:{org_a.id}")
+
+        response_org_b = self.client.get(
+            self.billing_quotas_endpoint,
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(org_b.id),
+        )
+        self.assertEqual(response_org_b.status_code, status.HTTP_200_OK)
+        quota_org_b = response_org_b.data["candidate"]
+        self.assertEqual(quota_org_b["plan_id"], "growth")
+        self.assertEqual(quota_org_b["used"], 2)
+        self.assertEqual(quota_org_b["limit"], 5)
+        self.assertEqual(quota_org_b["remaining"], 3)
+        self.assertEqual(str(quota_org_b["scope"]), f"organization:{org_b.id}")
+
+    @override_settings(
+        BILLING_QUOTA_ENFORCEMENT_ENABLED=True,
+    )
+    def test_billing_quota_denies_ambiguous_legacy_fallback_for_multi_org_member(self):
+        hr_user = self._create_hr_user(email="hr-org-ambiguous@example.com")
+        org_a = self._create_org_membership(
+            hr_user,
+            code="billing-org-ambiguous-a",
+            name="Billing Org Ambiguous A",
+            is_default=True,
+        )
+        self._create_org_membership(
+            hr_user,
+            code="billing-org-ambiguous-b",
+            name="Billing Org Ambiguous B",
+            is_default=False,
+        )
+
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            status="complete",
+            payment_status="paid",
+            plan_id="growth",
+            plan_name="Growth",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="399.00",
+            reference="OVS-LEGACY-AMBIGUOUS-ORG",
+            registration_consumed_by_email=hr_user.email,
+        )
+
+        self.client.force_authenticate(user=hr_user)
+        response = self.client.get(
+            self.billing_quotas_endpoint,
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(org_a.id),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        candidate_quota = response.data["candidate"]
+        self.assertEqual(candidate_quota["reason"], "subscription_required")
+        self.assertEqual(candidate_quota["plan_id"], None)
+        self.assertEqual(candidate_quota["limit"], 0)
+        self.assertEqual(candidate_quota["remaining"], 0)
+        self.assertEqual(str(candidate_quota["scope"]), f"organization:{org_a.id}")
+
+    @override_settings(
+        BILLING_QUOTA_ENFORCEMENT_ENABLED=True,
+        BILLING_PLAN_STARTER_CANDIDATES_PER_MONTH=2,
+    )
+    def test_billing_quota_allows_single_org_legacy_fallback_during_migration(self):
+        hr_user = self._create_hr_user(email="hr-org-legacy-single@example.com")
+        scoped_org = self._create_org_membership(
+            hr_user,
+            code="billing-org-legacy-single",
+            name="Billing Org Legacy Single",
+            is_default=True,
+        )
+        other_org = Organization.objects.create(
+            code="billing-org-legacy-other",
+            name="Billing Org Legacy Other",
+            organization_type="agency",
+            is_active=True,
+        )
+
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            status="complete",
+            payment_status="paid",
+            plan_id="starter",
+            plan_name="Starter",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference="OVS-LEGACY-SINGLE-ORG",
+            registration_consumed_by_email=hr_user.email,
+        )
+
+        legacy_scoped_campaign = VettingCampaign.objects.create(
+            organization=None,
+            name="Legacy Scoped Campaign",
+            description="Legacy null-org campaign for scoped owner",
+            status="active",
+            initiated_by=hr_user,
+        )
+        CandidateEnrollment.objects.create(
+            campaign=legacy_scoped_campaign,
+            candidate=Candidate.objects.create(
+                first_name="Legacy",
+                last_name="Scoped",
+                email="legacy-scoped@example.com",
+            ),
+            status="invited",
+        )
+
+        outsider = self._create_hr_user(email="hr-org-legacy-outsider@example.com")
+        OrganizationMembership.objects.create(
+            user=outsider,
+            organization=other_org,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
+        )
+        legacy_offscope_campaign = VettingCampaign.objects.create(
+            organization=None,
+            name="Legacy Offscope Campaign",
+            description="Legacy null-org campaign for outsider",
+            status="active",
+            initiated_by=outsider,
+        )
+        CandidateEnrollment.objects.create(
+            campaign=legacy_offscope_campaign,
+            candidate=Candidate.objects.create(
+                first_name="Legacy",
+                last_name="Offscope",
+                email="legacy-offscope@example.com",
+            ),
+            status="invited",
+        )
+
+        self.client.force_authenticate(user=hr_user)
+        response = self.client.get(
+            self.billing_quotas_endpoint,
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(scoped_org.id),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        candidate_quota = response.data["candidate"]
+        self.assertEqual(candidate_quota["reason"], None)
+        self.assertEqual(candidate_quota["plan_id"], "starter")
+        self.assertEqual(candidate_quota["limit"], 2)
+        self.assertEqual(candidate_quota["used"], 1)
+        self.assertEqual(candidate_quota["remaining"], 1)
+        self.assertEqual(str(candidate_quota["scope"]), f"organization:{scoped_org.id}")
+
+    def test_onboarding_token_validate_success(self):
+        hr_user = self._create_hr_user(email="onboarding-success@example.com")
+        organization = self._create_org_membership(
+            hr_user,
+            code="onboarding-success",
+            name="Onboarding Success Org",
+        )
+        self._create_active_org_subscription(
+            organization=organization,
+            reference="OVS-ONBOARD-SUCCESS",
+        )
+
+        self.client.force_authenticate(user=hr_user)
+        issue_response = self.client.post(
+            self.onboarding_generate_endpoint,
+            {"max_uses": 3, "expires_in_hours": 24},
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
+        self.assertEqual(issue_response.status_code, status.HTTP_200_OK)
+        raw_token = issue_response.data["token"]
+
+        validate_response = self.client.post(
+            self.onboarding_validate_endpoint,
+            {"token": raw_token, "email": "member@demo.gov"},
+            format="json",
+        )
+        self.assertEqual(validate_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(validate_response.data["valid"], True)
+        self.assertEqual(validate_response.data["reason"], "ok")
+        self.assertEqual(str(validate_response.data["organization_id"]), str(organization.id))
+        self.assertEqual(validate_response.data["remaining_uses"], 3)
+
+    @override_settings(
+        BILLING_ONBOARDING_TOKEN_VALIDATE_RATE_LIMIT_ENABLED=True,
+        BILLING_ONBOARDING_TOKEN_VALIDATE_RATE_LIMIT_PER_MINUTE=1,
+    )
+    def test_onboarding_token_validate_rate_limited(self):
+        hr_user = self._create_hr_user(email="onboarding-rate-limit@example.com")
+        organization = self._create_org_membership(
+            hr_user,
+            code="onboarding-rate-limit",
+            name="Onboarding Rate Limit Org",
+        )
+        self._create_active_org_subscription(
+            organization=organization,
+            reference="OVS-ONBOARD-RATE-LIMIT",
+        )
+
+        self.client.force_authenticate(user=hr_user)
+        issue_response = self.client.post(
+            self.onboarding_generate_endpoint,
+            {"max_uses": 3, "expires_in_hours": 24},
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
+        self.assertEqual(issue_response.status_code, status.HTTP_200_OK)
+        raw_token = issue_response.data["token"]
+
+        first_response = self.client.post(
+            self.onboarding_validate_endpoint,
+            {"token": raw_token, "email": "member@demo.gov"},
+            format="json",
+        )
+        self.assertEqual(first_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(first_response.data["valid"], True)
+
+        second_response = self.client.post(
+            self.onboarding_validate_endpoint,
+            {"token": raw_token, "email": "member@demo.gov"},
+            format="json",
+        )
+        self.assertEqual(second_response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertIn("Retry-After", second_response)
+        self.assertEqual(second_response.data.get("code"), "RATE_LIMITED")
+
+    def test_onboarding_token_validate_fails_when_expired(self):
+        hr_user = self._create_hr_user(email="onboarding-expired@example.com")
+        organization = self._create_org_membership(
+            hr_user,
+            code="onboarding-expired",
+            name="Onboarding Expired Org",
+        )
+        self._create_active_org_subscription(
+            organization=organization,
+            reference="OVS-ONBOARD-EXPIRED",
+        )
+
+        self.client.force_authenticate(user=hr_user)
+        issue_response = self.client.post(
+            self.onboarding_generate_endpoint,
+            {"max_uses": 2, "expires_in_hours": 24},
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
+        self.assertEqual(issue_response.status_code, status.HTTP_200_OK)
+        raw_token = issue_response.data["token"]
+
+        token_record = OrganizationOnboardingToken.objects.get(organization=organization, is_active=True)
+        token_record.expires_at = timezone.now() - timedelta(minutes=1)
+        token_record.save(update_fields=["expires_at", "updated_at"])
+
+        validate_response = self.client.post(
+            self.onboarding_validate_endpoint,
+            {"token": raw_token, "email": "member@demo.gov"},
+            format="json",
+        )
+        self.assertEqual(validate_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(validate_response.data["valid"], False)
+        self.assertEqual(validate_response.data["reason"], "expired")
+
+    def test_onboarding_token_validate_fails_when_max_uses_reached(self):
+        hr_user = self._create_hr_user(email="onboarding-max@example.com")
+        organization = self._create_org_membership(
+            hr_user,
+            code="onboarding-max",
+            name="Onboarding Max Org",
+        )
+        self._create_active_org_subscription(
+            organization=organization,
+            reference="OVS-ONBOARD-MAX",
+        )
+
+        self.client.force_authenticate(user=hr_user)
+        issue_response = self.client.post(
+            self.onboarding_generate_endpoint,
+            {"max_uses": 1, "expires_in_hours": 24},
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
+        self.assertEqual(issue_response.status_code, status.HTTP_200_OK)
+        raw_token = issue_response.data["token"]
+
+        token_record = OrganizationOnboardingToken.objects.get(organization=organization, is_active=True)
+        token_record.uses = 1
+        token_record.save(update_fields=["uses", "updated_at"])
+
+        validate_response = self.client.post(
+            self.onboarding_validate_endpoint,
+            {"token": raw_token, "email": "member@demo.gov"},
+            format="json",
+        )
+        self.assertEqual(validate_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(validate_response.data["valid"], False)
+        self.assertEqual(validate_response.data["reason"], "max_uses_reached")
+
+    def test_onboarding_token_validate_fails_when_inactive(self):
+        hr_user = self._create_hr_user(email="onboarding-inactive@example.com")
+        organization = self._create_org_membership(
+            hr_user,
+            code="onboarding-inactive",
+            name="Onboarding Inactive Org",
+        )
+        self._create_active_org_subscription(
+            organization=organization,
+            reference="OVS-ONBOARD-INACTIVE",
+        )
+
+        self.client.force_authenticate(user=hr_user)
+        issue_response = self.client.post(
+            self.onboarding_generate_endpoint,
+            {"max_uses": 2, "expires_in_hours": 24},
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
+        self.assertEqual(issue_response.status_code, status.HTTP_200_OK)
+        raw_token = issue_response.data["token"]
+
+        token_record = OrganizationOnboardingToken.objects.get(organization=organization, is_active=True)
+        token_record.is_active = False
+        token_record.revoked_at = timezone.now()
+        token_record.revoked_reason = "manual_test_revoke"
+        token_record.save(update_fields=["is_active", "revoked_at", "revoked_reason", "updated_at"])
+
+        validate_response = self.client.post(
+            self.onboarding_validate_endpoint,
+            {"token": raw_token, "email": "member@demo.gov"},
+            format="json",
+        )
+        self.assertEqual(validate_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(validate_response.data["valid"], False)
+        self.assertEqual(validate_response.data["reason"], "inactive")
+
+    def test_onboarding_token_validate_fails_when_subscription_inactive(self):
+        hr_user = self._create_hr_user(email="onboarding-sub-inactive@example.com")
+        organization = self._create_org_membership(
+            hr_user,
+            code="onboarding-sub-inactive",
+            name="Onboarding Subscription Inactive Org",
+        )
+        self._create_active_org_subscription(
+            organization=organization,
+            reference="OVS-ONBOARD-SUB-INACTIVE",
+        )
+
+        self.client.force_authenticate(user=hr_user)
+        issue_response = self.client.post(
+            self.onboarding_generate_endpoint,
+            {"max_uses": 2, "expires_in_hours": 24},
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
+        self.assertEqual(issue_response.status_code, status.HTTP_200_OK)
+        raw_token = issue_response.data["token"]
+
+        subscription = BillingSubscription.objects.get(reference="OVS-ONBOARD-SUB-INACTIVE")
+        subscription.status = "canceled"
+        subscription.payment_status = "unpaid"
+        subscription.save(update_fields=["status", "payment_status", "updated_at"])
+
+        validate_response = self.client.post(
+            self.onboarding_validate_endpoint,
+            {"token": raw_token, "email": "member@demo.gov"},
+            format="json",
+        )
+        self.assertEqual(validate_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(validate_response.data["valid"], False)
+        self.assertEqual(validate_response.data["reason"], "subscription_inactive")
+
+    def test_onboarding_token_generate_rotates_previous_active_token(self):
+        hr_user = self._create_hr_user(email="onboarding-rotate@example.com")
+        organization = self._create_org_membership(
+            hr_user,
+            code="onboarding-rotate",
+            name="Onboarding Rotate Org",
+        )
+        self._create_active_org_subscription(
+            organization=organization,
+            reference="OVS-ONBOARD-ROTATE",
+        )
+
+        self.client.force_authenticate(user=hr_user)
+        first_response = self.client.post(
+            self.onboarding_generate_endpoint,
+            {"max_uses": 3, "expires_in_hours": 24},
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
+        self.assertEqual(first_response.status_code, status.HTTP_200_OK)
+        first_token = OrganizationOnboardingToken.objects.get(
+            organization=organization,
+            is_active=True,
+        )
+        self.assertTrue(first_token.is_active)
+
+        second_response = self.client.post(
+            self.onboarding_generate_endpoint,
+            {"max_uses": 4, "expires_in_hours": 24},
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
+        self.assertEqual(second_response.status_code, status.HTTP_200_OK)
+
+        first_token.refresh_from_db()
+        self.assertFalse(first_token.is_active)
+        self.assertTrue(
+            OrganizationOnboardingToken.objects.filter(
+                organization=organization,
+                is_active=True,
+            ).exists()
+        )
+
+    def test_onboarding_token_rotation_invalidates_previous_raw_token(self):
+        hr_user = self._create_hr_user(email="onboarding-rotate-invalidates@example.com")
+        organization = self._create_org_membership(
+            hr_user,
+            code="onboarding-rotate-invalidates",
+            name="Onboarding Rotate Invalidates Org",
+        )
+        self._create_active_org_subscription(
+            organization=organization,
+            reference="OVS-ONBOARD-ROTATE-OLD",
+        )
+
+        self.client.force_authenticate(user=hr_user)
+        first_response = self.client.post(
+            self.onboarding_generate_endpoint,
+            {"max_uses": 3, "expires_in_hours": 24},
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
+        self.assertEqual(first_response.status_code, status.HTTP_200_OK)
+        first_raw_token = first_response.data["token"]
+
+        second_response = self.client.post(
+            self.onboarding_generate_endpoint,
+            {"max_uses": 3, "expires_in_hours": 24},
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
+        self.assertEqual(second_response.status_code, status.HTTP_200_OK)
+
+        old_validate_response = self.client.post(
+            self.onboarding_validate_endpoint,
+            {"token": first_raw_token, "email": "member@example.com"},
+            format="json",
+        )
+        self.assertEqual(old_validate_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(old_validate_response.data["valid"], False)
+        self.assertEqual(old_validate_response.data["reason"], "inactive")
+
+    def test_onboarding_token_revoke_deactivates_active_token(self):
+        hr_user = self._create_hr_user(email="onboarding-revoke@example.com")
+        organization = self._create_org_membership(
+            hr_user,
+            code="onboarding-revoke",
+            name="Onboarding Revoke Org",
+        )
+        self._create_active_org_subscription(
+            organization=organization,
+            reference="OVS-ONBOARD-REVOKE",
+        )
+
+        self.client.force_authenticate(user=hr_user)
+        issue_response = self.client.post(
+            self.onboarding_generate_endpoint,
+            {"max_uses": 2, "expires_in_hours": 24},
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
+        self.assertEqual(issue_response.status_code, status.HTTP_200_OK)
+
+        revoke_response = self.client.post(
+            self.onboarding_revoke_endpoint,
+            {"reason": "demo_revoke"},
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
+        self.assertEqual(revoke_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(revoke_response.data["has_active_token"], False)
+        self.assertFalse(
+            OrganizationOnboardingToken.objects.filter(
+                organization=organization,
+                is_active=True,
+            ).exists()
+        )
+
+    def test_onboarding_token_audit_payload_excludes_raw_token_value(self):
+        hr_user = self._create_hr_user(email="onboarding-audit-safety@example.com")
+        organization = self._create_org_membership(
+            hr_user,
+            code="onboarding-audit-safe",
+            name="Onboarding Audit Safe Org",
+        )
+        self._create_active_org_subscription(
+            organization=organization,
+            reference="OVS-ONBOARD-AUDIT-SAFE",
+        )
+
+        self.client.force_authenticate(user=hr_user)
+        issue_response = self.client.post(
+            self.onboarding_generate_endpoint,
+            {"max_uses": 2, "expires_in_hours": 24},
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
+        self.assertEqual(issue_response.status_code, status.HTTP_200_OK)
+        raw_token = issue_response.data["token"]
+
+        audit = (
+            AuditLog.objects.filter(
+                entity_type="OrganizationOnboardingToken",
+            )
+            .order_by("-created_at")
+            .first()
+        )
+        self.assertIsNotNone(audit)
+        audit_payload = str(audit.changes)
+        self.assertNotIn(raw_token, audit_payload)
+        self.assertIn("token_preview", audit_payload)
+
 
     @override_settings(
         STRIPE_SECRET_KEY="",
@@ -513,6 +1332,11 @@ class BillingApiTests(APITestCase):
 
     def test_confirm_subscription_binds_authenticated_workspace_email(self):
         hr_user = self._create_hr_user(email="billing-auth-confirm@example.com")
+        organization = self._create_org_membership(
+            hr_user,
+            code="billing-auth-confirm-org",
+            name="Billing Auth Confirm Org",
+        )
         self.client.force_authenticate(user=hr_user)
 
         response = self.client.post(
@@ -532,6 +1356,7 @@ class BillingApiTests(APITestCase):
         persisted = BillingSubscription.objects.get(provider="sandbox", reference=ticket["reference"])
         self.assertEqual(persisted.registration_consumed_by_email, hr_user.email)
         self.assertIsNotNone(persisted.registration_consumed_at)
+        self.assertEqual(persisted.organization_id, organization.id)
 
     def test_confirm_subscription_validates_payment_method(self):
         response = self.client.post(
@@ -1261,6 +2086,11 @@ class BillingApiTests(APITestCase):
         }
 
         hr_user = self._create_hr_user(email="billing-auth-checkout@example.com")
+        organization = self._create_org_membership(
+            hr_user,
+            code="billing-auth-checkout-org",
+            name="Billing Auth Checkout Org",
+        )
         self.client.force_authenticate(user=hr_user)
 
         response = self.client.post(
@@ -1282,6 +2112,7 @@ class BillingApiTests(APITestCase):
         self.assertEqual(mock_create.call_count, 1)
         create_kwargs = mock_create.call_args.kwargs
         self.assertEqual(create_kwargs["metadata"]["workspace_email"], hr_user.email)
+        self.assertEqual(create_kwargs["metadata"]["organization_id"], str(organization.id))
 
     @override_settings(STRIPE_SECRET_KEY="sk_test_123")
     @patch("apps.billing.views._ensure_stripe_ready")

@@ -158,6 +158,45 @@ class User(AbstractUser):
         """Return full name."""
         return f"{self.first_name} {self.last_name}".strip() or self.email
 
+    def active_organization_memberships(self):
+        """
+        Return active governance memberships when governance app is available.
+
+        This is additive and keeps legacy ``organization`` field compatibility.
+        """
+        try:
+            from apps.governance.models import OrganizationMembership
+        except Exception:  # pragma: no cover - governance app may be unavailable in slim installs
+            return None
+        return (
+            OrganizationMembership.objects.select_related("organization")
+            .filter(user=self, is_active=True)
+            .order_by("-is_default", "organization__name", "created_at")
+        )
+
+    def get_primary_organization_membership(self):
+        memberships = self.active_organization_memberships()
+        if memberships is None:
+            return None
+        return memberships.first()
+
+    @property
+    def effective_organization_name(self) -> str:
+        """
+        Governance-first organization label with legacy fallback.
+        """
+        membership = self.get_primary_organization_membership()
+        if membership is not None and getattr(membership, "organization", None) is not None:
+            return str(membership.organization.name or "").strip()
+        return str(self.organization or "").strip()
+
+    @property
+    def primary_organization_code(self) -> str:
+        membership = self.get_primary_organization_membership()
+        if membership is None or getattr(membership, "organization", None) is None:
+            return ""
+        return str(membership.organization.code or "").strip()
+
     def get_totp_uri(self, issuer_name="OVS-Redo"):
         if not self.two_factor_secret or pyotp is None:
             return None

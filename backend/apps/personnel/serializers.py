@@ -5,11 +5,14 @@ from .models import PersonnelRecord
 
 class PersonnelRecordSerializer(serializers.ModelSerializer):
     linked_candidate_email = serializers.EmailField(source="linked_candidate.email", read_only=True)
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
 
     class Meta:
         model = PersonnelRecord
         fields = [
             "id",
+            "organization",
+            "organization_name",
             "full_name",
             "date_of_birth",
             "nationality",
@@ -28,7 +31,7 @@ class PersonnelRecordSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at", "linked_candidate_email"]
+        read_only_fields = ["id", "created_at", "updated_at", "linked_candidate_email", "organization_name"]
 
 
 class PublicPersonnelRecordSerializer(serializers.ModelSerializer):

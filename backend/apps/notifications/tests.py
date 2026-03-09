@@ -3,12 +3,17 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from django.contrib.auth.models import Group
 from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from apps.appointments.models import AppointmentRecord, ApprovalStage, ApprovalStageTemplate
 from apps.applications.models import VettingCase
 from apps.authentication.models import User
+from apps.campaigns.models import VettingCampaign
+from apps.candidates.models import Candidate
+from apps.governance.models import Committee, CommitteeMembership, Organization, OrganizationMembership
 from apps.interviews.models import InterviewSession
 from apps.notifications.interview_alerts import (
     send_completion_summary,
@@ -16,6 +21,8 @@ from apps.notifications.interview_alerts import (
 )
 from apps.notifications.models import Notification
 from apps.notifications.services import NotificationService
+from apps.personnel.models import PersonnelRecord
+from apps.positions.models import GovernmentPosition
 
 
 class NotificationApiTests(APITestCase):
@@ -494,3 +501,242 @@ class InterviewAlertTaskTests(TestCase):
 
         self.assertFalse(result["success"])
         self.assertIn("not found", result["error"].lower())
+
+
+class NotificationGovernanceScopeTests(TestCase):
+    def setUp(self):
+        self.group_vetting, _ = Group.objects.get_or_create(name="vetting_officer")
+        self.group_committee, _ = Group.objects.get_or_create(name="committee_member")
+
+        self.org_a = Organization.objects.create(code="notif-org-a", name="Notification Org A")
+        self.org_b = Organization.objects.create(code="notif-org-b", name="Notification Org B")
+        self.committee_a = Committee.objects.create(
+            organization=self.org_a,
+            code="notif-committee-a",
+            name="Notification Committee A",
+            committee_type="vetting",
+        )
+        self.committee_b = Committee.objects.create(
+            organization=self.org_b,
+            code="notif-committee-b",
+            name="Notification Committee B",
+            committee_type="vetting",
+        )
+
+        self.actor = User.objects.create_user(
+            email="notif.actor@example.com",
+            password="Pass1234!",
+            first_name="Notification",
+            last_name="Actor",
+            user_type="hr_manager",
+        )
+        self.user_org_a_vetting = User.objects.create_user(
+            email="notif.orga.vetting@example.com",
+            password="Pass1234!",
+            first_name="Notification",
+            last_name="OrgAVetting",
+            user_type="hr_manager",
+        )
+        self.user_org_b_vetting = User.objects.create_user(
+            email="notif.orgb.vetting@example.com",
+            password="Pass1234!",
+            first_name="Notification",
+            last_name="OrgBVetting",
+            user_type="hr_manager",
+        )
+        self.committee_member_a = User.objects.create_user(
+            email="notif.committee.a@example.com",
+            password="Pass1234!",
+            first_name="Notification",
+            last_name="CommitteeA",
+            user_type="hr_manager",
+        )
+        self.committee_member_b = User.objects.create_user(
+            email="notif.committee.b@example.com",
+            password="Pass1234!",
+            first_name="Notification",
+            last_name="CommitteeB",
+            user_type="hr_manager",
+        )
+        self.committee_group_only = User.objects.create_user(
+            email="notif.group.only@example.com",
+            password="Pass1234!",
+            first_name="Notification",
+            last_name="GroupOnly",
+            user_type="hr_manager",
+        )
+        self.platform_admin = User.objects.create_user(
+            email="notif.admin@example.com",
+            password="Pass1234!",
+            first_name="Notification",
+            last_name="Admin",
+            user_type="admin",
+            is_staff=True,
+            is_superuser=True,
+        )
+
+        for user in (self.user_org_a_vetting, self.user_org_b_vetting):
+            user.groups.add(self.group_vetting)
+        for user in (self.committee_member_a, self.committee_member_b, self.committee_group_only):
+            user.groups.add(self.group_committee)
+
+        OrganizationMembership.objects.create(
+            user=self.actor,
+            organization=self.org_a,
+            is_active=True,
+            is_default=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.user_org_a_vetting,
+            organization=self.org_a,
+            is_active=True,
+            is_default=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.committee_group_only,
+            organization=self.org_a,
+            is_active=True,
+            is_default=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.user_org_b_vetting,
+            organization=self.org_b,
+            is_active=True,
+            is_default=True,
+        )
+        committee_membership_a = OrganizationMembership.objects.create(
+            user=self.committee_member_a,
+            organization=self.org_a,
+            is_active=True,
+            is_default=True,
+        )
+        committee_membership_b = OrganizationMembership.objects.create(
+            user=self.committee_member_b,
+            organization=self.org_b,
+            is_active=True,
+            is_default=True,
+        )
+        CommitteeMembership.objects.create(
+            committee=self.committee_a,
+            user=self.committee_member_a,
+            organization_membership=committee_membership_a,
+            committee_role="member",
+            can_vote=True,
+            is_active=True,
+        )
+        CommitteeMembership.objects.create(
+            committee=self.committee_b,
+            user=self.committee_member_b,
+            organization_membership=committee_membership_b,
+            committee_role="member",
+            can_vote=True,
+            is_active=True,
+        )
+
+        candidate = Candidate.objects.create(
+            first_name="Notification",
+            last_name="Nominee",
+            email="notif.nominee@example.com",
+        )
+        nominee = PersonnelRecord.objects.create(
+            organization=self.org_a,
+            full_name="Notification Nominee",
+            linked_candidate=candidate,
+        )
+        position = GovernmentPosition.objects.create(
+            organization=self.org_a,
+            title="Notification Scoped Position",
+            branch="executive",
+            institution="Notification Org A",
+            appointment_authority="President",
+            is_vacant=True,
+        )
+        campaign = VettingCampaign.objects.create(
+            organization=self.org_a,
+            name="Notification Scoped Campaign",
+            initiated_by=self.actor,
+            status="active",
+        )
+        self.record = AppointmentRecord.objects.create(
+            organization=self.org_a,
+            committee=self.committee_a,
+            position=position,
+            nominee=nominee,
+            appointment_exercise=campaign,
+            nominated_by_user=self.actor,
+            nominated_by_display="Notification Actor",
+            nomination_date=campaign.created_at.date(),
+            status="nominated",
+        )
+        self.stage_template = ApprovalStageTemplate.objects.create(
+            organization=self.org_a,
+            name="Notification Stage Template",
+            exercise_type="ministerial",
+            created_by=self.actor,
+        )
+        self.committee_stage = ApprovalStage.objects.create(
+            template=self.stage_template,
+            order=1,
+            name="Committee Review",
+            required_role="committee_member",
+            is_required=True,
+            maps_to_status="committee_review",
+            committee=self.committee_a,
+        )
+
+    @patch("apps.notifications.services.send_mail", return_value=1)
+    def test_appointment_notifications_are_scoped_to_organization(self, _send_mail):
+        result = NotificationService.send_appointment_lifecycle_notification(
+            appointment=self.record,
+            event_type="appointment_nomination_created",
+            actor=self.actor,
+        )
+        self.assertTrue(result)
+
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=self.user_org_a_vetting,
+                metadata__event_type="appointment_nomination_created",
+            ).exists()
+        )
+        self.assertFalse(
+            Notification.objects.filter(
+                recipient=self.user_org_b_vetting,
+                metadata__event_type="appointment_nomination_created",
+            ).exists()
+        )
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=self.platform_admin,
+                metadata__event_type="appointment_nomination_created",
+            ).exists()
+        )
+
+    @patch("apps.notifications.services.send_mail", return_value=1)
+    def test_committee_stage_notifications_target_committee_members(self, _send_mail):
+        result = NotificationService.send_appointment_lifecycle_notification(
+            appointment=self.record,
+            event_type="appointment_moved_to_committee_review",
+            actor=self.actor,
+            stage=self.committee_stage,
+        )
+        self.assertTrue(result)
+
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=self.committee_member_a,
+                metadata__event_type="appointment_moved_to_committee_review",
+            ).exists()
+        )
+        self.assertFalse(
+            Notification.objects.filter(
+                recipient=self.committee_member_b,
+                metadata__event_type="appointment_moved_to_committee_review",
+            ).exists()
+        )
+        self.assertFalse(
+            Notification.objects.filter(
+                recipient=self.committee_group_only,
+                metadata__event_type="appointment_moved_to_committee_review",
+            ).exists()
+        )

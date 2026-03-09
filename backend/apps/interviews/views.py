@@ -15,6 +15,11 @@ from rest_framework.views import APIView
 
 from apps.invitations.permissions import IsAuthenticatedOrCandidateAccessSession
 from apps.applications.models import VettingCase
+from apps.billing.quotas import (
+    VETTING_OPERATION_INTERVIEW_ANALYSIS,
+    enforce_vetting_operation_quota,
+    resolve_case_organization_id,
+)
 
 try:
     from drf_spectacular.utils import extend_schema
@@ -294,6 +299,15 @@ class InterviewSessionViewSet(viewsets.ModelViewSet):
         session.conversation_history = [*(session.conversation_history or []), history_entry]
         session.save(update_fields=["conversation_history"])
 
+        resolved_org_id = resolve_case_organization_id(session.case)
+        quota_actor = request.user if (resolved_org_id is None and getattr(request.user, "is_authenticated", False)) else None
+        enforce_vetting_operation_quota(
+            operation=VETTING_OPERATION_INTERVIEW_ANALYSIS,
+            user=quota_actor,
+            organization_id=resolved_org_id,
+            additional=0 if response.processed_at is not None else 1,
+        )
+
         _queue_interview_task_safely(
             analyze_response_task,
             response.id,
@@ -494,6 +508,14 @@ class InterviewResponseViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="analyze")
     def analyze(self, request, pk=None):
         response = self.get_object()
+        resolved_org_id = resolve_case_organization_id(response.session.case)
+        quota_actor = request.user if (resolved_org_id is None and getattr(request.user, "is_authenticated", False)) else None
+        enforce_vetting_operation_quota(
+            operation=VETTING_OPERATION_INTERVIEW_ANALYSIS,
+            user=quota_actor,
+            organization_id=resolved_org_id,
+            additional=0 if response.processed_at is not None else 1,
+        )
         _queue_interview_task_safely(
             analyze_response_task,
             response.id,
