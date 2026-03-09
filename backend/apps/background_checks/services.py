@@ -5,6 +5,12 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from apps.billing.quotas import (
+    VETTING_OPERATION_BACKGROUND_CHECK_SUBMISSION,
+    enforce_vetting_operation_quota,
+    resolve_case_organization_id,
+)
+
 from .models import BackgroundCheck, BackgroundCheckEvent
 from .providers import default_provider_registry
 
@@ -141,6 +147,15 @@ def submit_background_check(
     normalized_consent = _normalize_payload(consent_evidence)
     if require_consent and not _consent_granted(normalized_consent):
         raise ValueError("Consent is required before running third-party background checks.")
+
+    resolved_org_id = resolve_case_organization_id(case)
+    quota_actor = submitted_by if (resolved_org_id is None and getattr(submitted_by, "is_authenticated", False)) else None
+    enforce_vetting_operation_quota(
+        operation=VETTING_OPERATION_BACKGROUND_CHECK_SUBMISSION,
+        user=quota_actor,
+        organization_id=resolved_org_id,
+        additional=1,
+    )
 
     provider = get_provider(provider_key)
 

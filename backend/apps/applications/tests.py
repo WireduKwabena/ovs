@@ -4,7 +4,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from rest_framework.test import APITestCase
 
-from apps.applications.models import Document, VettingCase
+from apps.applications.models import Document, VerificationResult, VettingCase
 from apps.applications.tasks import verify_document_async
 from apps.authentication.models import User
 from apps.billing.models import BillingSubscription
@@ -27,6 +27,20 @@ class ApplicationsApiTests(APITestCase):
             amount_usd="149.00",
             reference=f"OVS-{plan_id.upper()}-{user.id.hex[:6]}",
             registration_consumed_by_email=user.email,
+        )
+
+    def _create_org_subscription(self, organization, *, status="complete", payment_status="paid", plan_id="starter"):
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            organization=organization,
+            status=status,
+            payment_status=payment_status,
+            plan_id=plan_id,
+            plan_name=plan_id.title(),
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference=f"OVS-ORG-{plan_id.upper()}-{str(organization.id)[:8]}-{status.upper()}",
         )
 
     def setUp(self):
@@ -297,6 +311,142 @@ class ApplicationsApiTests(APITestCase):
         )
 
         self.assertEqual(response.status_code, 403)
+
+    @override_settings(
+        BILLING_VETTING_OPERATION_QUOTA_ENFORCEMENT_ENABLED=True,
+        BILLING_PLAN_STARTER_DOCUMENT_VERIFICATION_PER_MONTH=1,
+    )
+    @patch("apps.applications.views.verify_document_async.delay")
+    def test_upload_document_blocks_when_org_document_verification_quota_exceeded(self, mock_verify_delay):
+        organization = Organization.objects.create(
+            code="apps-doc-quota-org",
+            name="Apps Doc Quota Org",
+            organization_type="agency",
+            is_active=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr,
+            organization=organization,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
+        )
+        self._create_org_subscription(organization, plan_id="starter")
+
+        exhausted_case = VettingCase.objects.create(
+            applicant=self.applicant,
+            assigned_to=self.hr,
+            organization=organization,
+            position_applied="Analyst",
+            department="Operations",
+            priority="medium",
+            status="document_analysis",
+        )
+        exhausted_file = SimpleUploadedFile("used.pdf", b"%PDF-1.4 used", content_type="application/pdf")
+        exhausted_doc = Document.objects.create(
+            case=exhausted_case,
+            document_type="degree",
+            file=exhausted_file,
+            original_filename="used.pdf",
+            file_size=exhausted_file.size,
+            mime_type="application/pdf",
+            status="verified",
+        )
+        VerificationResult.objects.create(
+            document=exhausted_doc,
+            ocr_text="used",
+            ocr_confidence=95.0,
+            ocr_language="en",
+            authenticity_score=95.0,
+            authenticity_confidence=95.0,
+            is_authentic=True,
+            metadata_check_passed=True,
+            visual_check_passed=True,
+            tampering_detected=False,
+            fraud_risk_score=5.0,
+            fraud_prediction="legitimate",
+            fraud_indicators=[],
+            detailed_results={},
+            ocr_model_version="baseline",
+            authenticity_model_version="baseline",
+            fraud_model_version="baseline",
+            processing_time_seconds=0.5,
+        )
+
+        target_case = VettingCase.objects.create(
+            applicant=self.applicant,
+            assigned_to=self.hr,
+            organization=organization,
+            position_applied="Analyst",
+            department="Operations",
+            priority="medium",
+            status="document_upload",
+        )
+
+        response = self.client.post(
+            f"/api/applications/cases/{target_case.id}/upload-document/",
+            {
+                "document_type": "id_card",
+                "file": SimpleUploadedFile("id-card.pdf", b"%PDF-1.4 blocked", content_type="application/pdf"),
+            },
+            format="multipart",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertEqual(payload.get("code"), "vetting_operation_quota_exceeded")
+        self.assertEqual((payload.get("quota") or {}).get("operation"), "document_verification")
+        mock_verify_delay.assert_not_called()
+
+    @override_settings(BILLING_VETTING_OPERATION_QUOTA_ENFORCEMENT_ENABLED=True)
+    def test_verify_document_task_blocks_when_org_subscription_is_inactive(self):
+        organization = Organization.objects.create(
+            code="apps-doc-sub-inactive",
+            name="Apps Doc Subscription Inactive Org",
+            organization_type="agency",
+            is_active=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr,
+            organization=organization,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
+        )
+        self._create_org_subscription(
+            organization,
+            status="canceled",
+            payment_status="unpaid",
+            plan_id="starter",
+        )
+
+        case = VettingCase.objects.create(
+            applicant=self.applicant,
+            assigned_to=self.hr,
+            organization=organization,
+            position_applied="Analyst",
+            department="Operations",
+            priority="medium",
+            status="document_analysis",
+        )
+        file_obj = SimpleUploadedFile("inactive.pdf", b"%PDF-1.4 blocked", content_type="application/pdf")
+        document = Document.objects.create(
+            case=case,
+            document_type="degree",
+            file=file_obj,
+            original_filename="inactive.pdf",
+            file_size=file_obj.size,
+            mime_type="application/pdf",
+            status="uploaded",
+        )
+
+        result = verify_document_async.run(document.id)
+
+        document.refresh_from_db()
+        self.assertFalse(result["success"])
+        self.assertEqual(result.get("code"), "subscription_required")
+        self.assertEqual(document.status, "failed")
 
     def test_verify_document_task_persists_social_profile_result_when_candidate_data_present(self):
         if "apps.fraud" not in settings.INSTALLED_APPS:

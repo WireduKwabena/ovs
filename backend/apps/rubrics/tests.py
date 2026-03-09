@@ -2,7 +2,7 @@ from datetime import timedelta
 from unittest.mock import patch
 from uuid import UUID
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
@@ -12,6 +12,7 @@ from apps.authentication.permissions import (
     RECENT_AUTH_REQUIRED_CODE,
     RECENT_AUTH_SESSION_KEY,
 )
+from apps.billing.models import BillingSubscription
 from apps.governance.models import Organization, OrganizationMembership
 from apps.rubrics.models import RubricEvaluation, VettingDecisionOverride, VettingDecisionRecommendation, VettingRubric
 from apps.rubrics.tasks import auto_assign_rubric, evaluate_case_with_rubric
@@ -70,6 +71,20 @@ class RubricsApiTests(APITestCase):
         session = self.client.session
         session.pop(RECENT_AUTH_SESSION_KEY, None)
         session.save()
+
+    def _create_org_subscription(self, organization, *, status="complete", payment_status="paid", plan_id="starter"):
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            organization=organization,
+            status=status,
+            payment_status=payment_status,
+            plan_id=plan_id,
+            plan_name=plan_id.title(),
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference=f"OVS-RUBRIC-{plan_id.upper()}-{str(organization.id)[:8]}-{status.upper()}",
+        )
 
     def _rubric_payload(self, name: str) -> dict:
         return {
@@ -259,6 +274,71 @@ class RubricsApiTests(APITestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn("ai_signals", response.json()["error"])
+
+    @patch("apps.rubrics.views.evaluate_case_with_rubric.delay")
+    @override_settings(
+        BILLING_VETTING_OPERATION_QUOTA_ENFORCEMENT_ENABLED=True,
+        BILLING_PLAN_STARTER_RUBRIC_EVALUATION_PER_MONTH=1,
+    )
+    def test_evaluate_case_blocks_when_org_rubric_quota_exceeded(self, mock_delay):
+        organization = Organization.objects.create(
+            code="rubric-quota-org",
+            name="Rubric Quota Org",
+            organization_type="agency",
+            is_active=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr,
+            organization=organization,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
+        )
+        self._create_org_subscription(organization, plan_id="starter")
+
+        rubric_id = self._create_rubric("Scoped Rubric Quota")
+        rubric = VettingRubric.objects.get(id=rubric_id)
+
+        used_case = VettingCase.objects.create(
+            applicant=self.applicant,
+            assigned_to=self.hr,
+            organization=organization,
+            position_applied="Analyst",
+            department="Compliance",
+            priority="medium",
+            status="under_review",
+        )
+        RubricEvaluation.objects.create(
+            case=used_case,
+            rubric=rubric,
+            status="completed",
+            evaluated_by=self.hr,
+            total_weighted_score=82.0,
+            passes_threshold=True,
+            final_decision="manual_approved",
+        )
+
+        target_case = VettingCase.objects.create(
+            applicant=self.applicant,
+            assigned_to=self.hr,
+            organization=organization,
+            position_applied="Investigator",
+            department="Compliance",
+            priority="medium",
+            status="under_review",
+        )
+        response = self.client.post(
+            f"/api/rubrics/vetting-rubrics/{rubric_id}/evaluate-case/",
+            {"case_id": target_case.id},
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertEqual(payload.get("code"), "vetting_operation_quota_exceeded")
+        self.assertEqual((payload.get("quota") or {}).get("operation"), "rubric_evaluation")
+        mock_delay.assert_not_called()
 
     def test_ai_signals_are_advisory_only_and_do_not_auto_approve(self):
         rubric_id = self._create_rubric("Advisory AI Rubric")
