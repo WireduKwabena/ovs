@@ -31,10 +31,8 @@ def resolve_settings_path(
 
     base_dir = Path(base_dir)
     fallback_dir = Path(fallback_dir) if fallback_dir is not None else None
-
-    native_path = Path(text)
-    if native_path.is_absolute():
-        return native_path
+    base_dir_normalized = str(base_dir).replace("\\", "/")
+    base_dir_is_windows_absolute = bool(_WINDOWS_ABSOLUTE_PATH_RE.match(base_dir_normalized))
 
     normalized = text.replace("\\", "/")
     lowered = normalized.lower()
@@ -44,12 +42,18 @@ def resolve_settings_path(
 
     marker = "/backend/"
     marker_index = lowered.find(marker)
-    if marker_index >= 0:
+    if marker_index >= 0 and not base_dir_is_windows_absolute:
         return base_dir / Path(normalized[marker_index + len(marker) :])
 
     if _WINDOWS_ABSOLUTE_PATH_RE.match(text):
+        if base_dir_is_windows_absolute:
+            return Path(text)
         win_name = PureWindowsPath(text).name
         target_root = fallback_dir or base_dir
         return target_root / win_name
+
+    native_path = Path(text)
+    if native_path.is_absolute():
+        return native_path
 
     return base_dir / native_path

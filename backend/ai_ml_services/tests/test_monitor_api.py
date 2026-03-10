@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import unittest
 from unittest.mock import MagicMock, patch
 
-import cv2
-import numpy as np
+try:
+    import cv2
+    import numpy as np
+except ModuleNotFoundError:  # pragma: no cover - optional ML extras
+    cv2 = None
+    np = None
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from rest_framework import status
@@ -14,7 +19,12 @@ from rest_framework.test import APITestCase
 from apps.authentication.models import User
 
 
+_HAS_CV2_NUMPY = bool(cv2 is not None and np is not None)
+_CV2_NUMPY_MISSING_REASON = "Optional dependency missing for monitor API tests: cv2/numpy"
+
+
 @override_settings(ROOT_URLCONF="ai_ml_services.tests.urls")
+@unittest.skipUnless(_HAS_CV2_NUMPY, _CV2_NUMPY_MISSING_REASON)
 class MonitorApiBaseTests(APITestCase):
     def setUp(self):
         self.admin_user = User.objects.create_user(
@@ -47,6 +57,7 @@ class MonitorApiBaseTests(APITestCase):
         return SimpleUploadedFile(name, encoded.tobytes(), content_type="image/png")
 
 
+@unittest.skipUnless(_HAS_CV2_NUMPY, _CV2_NUMPY_MISSING_REASON)
 class MonitorHealthApiTests(MonitorApiBaseTests):
     @patch("ai_ml_services.views.model_monitor")
     def test_health_endpoint_allows_admin(self, mock_monitor):
@@ -99,6 +110,7 @@ class MonitorHealthApiTests(MonitorApiBaseTests):
         mock_log_event.assert_not_called()
 
 
+@unittest.skipUnless(_HAS_CV2_NUMPY, _CV2_NUMPY_MISSING_REASON)
 class MonitorDocumentClassificationApiTests(MonitorApiBaseTests):
     @patch("ai_ml_services.views.get_ai_service")
     def test_document_classification_endpoint_accepts_admin(self, mock_get_service):
@@ -182,6 +194,7 @@ class MonitorDocumentClassificationApiTests(MonitorApiBaseTests):
         mock_log_event.assert_not_called()
 
 
+@unittest.skipUnless(_HAS_CV2_NUMPY, _CV2_NUMPY_MISSING_REASON)
 class MonitorSocialProfileApiTests(MonitorApiBaseTests):
     @patch("ai_ml_services.views.get_ai_service")
     def test_social_profile_check_endpoint_accepts_admin(self, mock_get_service):

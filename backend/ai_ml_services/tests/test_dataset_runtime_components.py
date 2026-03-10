@@ -4,20 +4,38 @@ from __future__ import annotations
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import importlib.util
+import unittest
 
-import cv2
-import numpy as np
-import pandas as pd
-from django.test import SimpleTestCase
-
-from ai_ml_services.datasets.fraud_data_generator import FraudDatasetGenerator
-from ai_ml_services.datasets.generate_forgeries import ForgeryGenerator, generate_forgeries
-from ai_ml_services.datasets.pytorch_loaders import (
-    DocumentAuthenticityDataset,
-    create_data_loaders,
+_HAS_DATASET_RUNTIME_DEPS = all(
+    importlib.util.find_spec(dep) is not None
+    for dep in ("cv2", "numpy", "pandas")
 )
 
+if _HAS_DATASET_RUNTIME_DEPS:
+    import cv2
+    import numpy as np
+    import pandas as pd
+else:  # pragma: no cover - optional ML extras
+    cv2 = None
+    np = None
+    pd = None
+from django.test import SimpleTestCase
 
+if _HAS_DATASET_RUNTIME_DEPS:
+    from ai_ml_services.datasets.fraud_data_generator import FraudDatasetGenerator
+    from ai_ml_services.datasets.generate_forgeries import ForgeryGenerator, generate_forgeries
+    from ai_ml_services.datasets.pytorch_loaders import (
+        DocumentAuthenticityDataset,
+        create_data_loaders,
+    )
+
+
+_HAS_CV2_NUMPY = bool(cv2 is not None and np is not None and _HAS_DATASET_RUNTIME_DEPS)
+_CV2_NUMPY_MISSING_REASON = "Optional dependency missing for dataset runtime tests: cv2/numpy"
+
+
+@unittest.skipUnless(_HAS_CV2_NUMPY, _CV2_NUMPY_MISSING_REASON)
 class ForgeryGeneratorRuntimeTests(SimpleTestCase):
     def test_copy_move_is_reproducible_with_seed(self):
         image = np.full((128, 128, 3), 160, dtype=np.uint8)
@@ -51,6 +69,7 @@ class ForgeryGeneratorRuntimeTests(SimpleTestCase):
             self.assertEqual(len(list(output_dir.glob("*.jpg"))), 6)
 
 
+@unittest.skipUnless(_HAS_CV2_NUMPY, _CV2_NUMPY_MISSING_REASON)
 class FraudDataGeneratorRuntimeTests(SimpleTestCase):
     def test_generate_application_data_is_reproducible(self):
         generator = FraudDatasetGenerator()
@@ -73,6 +92,7 @@ class FraudDataGeneratorRuntimeTests(SimpleTestCase):
         self.assertLess(train_a["is_fraud"].mean(), 1.0)
 
 
+@unittest.skipUnless(_HAS_CV2_NUMPY, _CV2_NUMPY_MISSING_REASON)
 class PytorchLoaderRuntimeTests(SimpleTestCase):
     def _write_image(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)

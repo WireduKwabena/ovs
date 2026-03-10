@@ -1,7 +1,28 @@
 # ai_service/services/consistency_checker.py
 # From: AI/ML Implementation PDF - COMPLETE VERSION
 
-import spacy
+try:
+    import spacy  # type: ignore
+except ModuleNotFoundError:
+    class _FallbackDoc:
+        ents: list = []
+
+    class _FallbackNlp:
+        pipe_names: list[str] = []
+
+        def __call__(self, _text: str):
+            return _FallbackDoc()
+
+    class _SpacyFallback:
+        @staticmethod
+        def load(_model_name: str):
+            raise OSError("spaCy is not installed.")
+
+        @staticmethod
+        def blank(_language: str):
+            return _FallbackNlp()
+
+    spacy = _SpacyFallback()  # type: ignore[assignment]
 from difflib import SequenceMatcher
 from datetime import datetime
 from typing import Dict, List, Optional

@@ -4,20 +4,42 @@ from __future__ import annotations
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import importlib.util
+import unittest
 
-import cv2
-import joblib
-import numpy as np
-import torch
+_HAS_DOCUMENT_CLASSIFIER_DEPS = all(
+    importlib.util.find_spec(dep) is not None
+    for dep in ("cv2", "numpy", "joblib", "torch", "sklearn")
+)
+
+if _HAS_DOCUMENT_CLASSIFIER_DEPS:
+    import cv2
+    import joblib
+    import numpy as np
+    import torch
+    from sklearn.linear_model import SGDClassifier
+    from sklearn.pipeline import Pipeline
+    from sklearn.preprocessing import StandardScaler
+else:  # pragma: no cover - optional ML extras
+    cv2 = None
+    joblib = None
+    np = None
+    torch = None
+    SGDClassifier = Pipeline = StandardScaler = None
 from django.test import SimpleTestCase
-from sklearn.linear_model import SGDClassifier
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
 
-from ai_ml_services.document_classification.classifier import DocumentTypeClassifier
-from ai_ml_services.document_classification.features import DocumentFeatureExtractor
+if _HAS_DOCUMENT_CLASSIFIER_DEPS:
+    from ai_ml_services.document_classification.classifier import DocumentTypeClassifier
+    from ai_ml_services.document_classification.features import DocumentFeatureExtractor
 
 
+_HAS_CV2_NUMPY = bool(
+    cv2 is not None and np is not None and _HAS_DOCUMENT_CLASSIFIER_DEPS
+)
+_CV2_NUMPY_MISSING_REASON = "Optional dependency missing for document classification tests: cv2/numpy"
+
+
+@unittest.skipUnless(_HAS_CV2_NUMPY, _CV2_NUMPY_MISSING_REASON)
 class DocumentTypeClassifierTests(SimpleTestCase):
     @staticmethod
     def _write_image(path: Path, pattern: str) -> None:

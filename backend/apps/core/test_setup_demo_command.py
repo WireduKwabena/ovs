@@ -51,6 +51,7 @@ class SetupDemoCommandTests(TestCase):
             "office-of-the-president",
             "gazette-and-records-office",
             "audit-service",
+            "legacy-unscoped",
         }
         self.assertSetEqual(set(Organization.objects.values_list("code", flat=True)), expected_org_codes)
 
@@ -81,7 +82,7 @@ class SetupDemoCommandTests(TestCase):
             maps_to_status="committee_review"
         ).first()
         self.assertIsNotNone(committee_review_stage)
-        self.assertIsNotNone(committee_review_stage.committee_id)
+        self.assertIsNone(committee_review_stage.committee_id)
 
         minister_position = GovernmentPosition.objects.get(
             title="GAMS Demo Minister of Health",
@@ -90,7 +91,7 @@ class SetupDemoCommandTests(TestCase):
         nomination_record = AppointmentRecord.objects.get(position=minister_position)
         self.assertEqual(nomination_record.status, "nominated")
         self.assertFalse(nomination_record.is_public)
-        self.assertEqual(nomination_record.committee_id, committee_review_stage.committee_id)
+        self.assertIsNone(nomination_record.committee_id)
         self.assertIsNone(nomination_record.appointment_date)
         self.assertEqual(nomination_record.publication.status, "draft")
 
@@ -100,7 +101,7 @@ class SetupDemoCommandTests(TestCase):
         )
         serving_record = AppointmentRecord.objects.get(position=chief_justice_position, status="serving")
         self.assertTrue(serving_record.is_public)
-        self.assertEqual(serving_record.committee_id, committee_review_stage.committee_id)
+        self.assertIsNone(serving_record.committee_id)
         self.assertIsNotNone(serving_record.appointment_date)
         self.assertEqual(serving_record.publication.status, "published")
         self.assertIsNotNone(serving_record.publication.published_at)

@@ -4,14 +4,27 @@ from __future__ import annotations
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import importlib.util
+import unittest
 
-import cv2
-import numpy as np
-import pandas as pd
+_HAS_SIGNATURE_DEPS = all(
+    importlib.util.find_spec(dep) is not None
+    for dep in ("cv2", "numpy", "pandas")
+)
+
+if _HAS_SIGNATURE_DEPS:
+    import cv2
+    import numpy as np
+    import pandas as pd
+else:  # pragma: no cover - optional ML extras
+    cv2 = None
+    np = None
+    pd = None
 from django.test import SimpleTestCase
 
-from ai_ml_services.signature.signature_detector import SignatureAuthenticityDetector
-from ai_ml_services.signature.train import train_signature_model
+if _HAS_SIGNATURE_DEPS:
+    from ai_ml_services.signature.signature_detector import SignatureAuthenticityDetector
+    from ai_ml_services.signature.train import train_signature_model
 
 
 def _synthetic_signature(authentic: bool, seed: int) -> np.ndarray:
@@ -39,6 +52,11 @@ def _synthetic_signature(authentic: bool, seed: int) -> np.ndarray:
     return canvas
 
 
+_HAS_CV2_NUMPY = bool(cv2 is not None and np is not None and _HAS_SIGNATURE_DEPS)
+_CV2_NUMPY_MISSING_REASON = "Optional dependency missing for signature tests: cv2/numpy"
+
+
+@unittest.skipUnless(_HAS_CV2_NUMPY, _CV2_NUMPY_MISSING_REASON)
 class SignatureModelTests(SimpleTestCase):
     def test_signature_detector_fallback_when_model_missing(self):
         detector = SignatureAuthenticityDetector(model_path="C:/nonexistent/signature.pkl")

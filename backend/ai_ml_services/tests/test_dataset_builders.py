@@ -5,26 +5,43 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import importlib.util
+import unittest
 
-import cv2
-import numpy as np
+_HAS_DATASET_BUILDER_DEPS = all(
+    importlib.util.find_spec(dep) is not None
+    for dep in ("cv2", "numpy")
+)
+
+if _HAS_DATASET_BUILDER_DEPS:
+    import cv2
+    import numpy as np
+else:  # pragma: no cover - optional ML extras
+    cv2 = None
+    np = None
 from django.test import SimpleTestCase
 
-from ai_ml_services.datasets.create_dataset import DocumentDatasetCreator
-from ai_ml_services.datasets.create_midv500_metadata import (
-    build_midv500_metadata,
-    normalize_midv_label,
-)
-from ai_ml_services.datasets.create_resume_metadata import (
-    build_resume_metadata,
-    normalize_resume_label,
-)
-from ai_ml_services.datasets.create_rvl_cdip_metadata import (
-    build_rvl_cdip_metadata,
-    normalize_rvl_label,
-)
+if _HAS_DATASET_BUILDER_DEPS:
+    from ai_ml_services.datasets.create_dataset import DocumentDatasetCreator
+    from ai_ml_services.datasets.create_midv500_metadata import (
+        build_midv500_metadata,
+        normalize_midv_label,
+    )
+    from ai_ml_services.datasets.create_resume_metadata import (
+        build_resume_metadata,
+        normalize_resume_label,
+    )
+    from ai_ml_services.datasets.create_rvl_cdip_metadata import (
+        build_rvl_cdip_metadata,
+        normalize_rvl_label,
+    )
 
 
+_HAS_CV2_NUMPY = bool(cv2 is not None and np is not None and _HAS_DATASET_BUILDER_DEPS)
+_CV2_NUMPY_MISSING_REASON = "Optional dependency missing for dataset builder tests: cv2/numpy"
+
+
+@unittest.skipUnless(_HAS_CV2_NUMPY, _CV2_NUMPY_MISSING_REASON)
 class CoverageDatasetBuilderTests(SimpleTestCase):
     def _write_image(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -48,6 +65,7 @@ class CoverageDatasetBuilderTests(SimpleTestCase):
             self.assertGreaterEqual(counts["skipped"], 1)
 
 
+@unittest.skipUnless(_HAS_CV2_NUMPY, _CV2_NUMPY_MISSING_REASON)
 class ResumeMetadataBuilderTests(SimpleTestCase):
     def test_normalize_resume_label_collapses_variants(self):
         self.assertEqual(normalize_resume_label("Accountant resumes"), "accountant")
@@ -89,6 +107,7 @@ class ResumeMetadataBuilderTests(SimpleTestCase):
             self.assertIn("data science", normalized_labels)
 
 
+@unittest.skipUnless(_HAS_CV2_NUMPY, _CV2_NUMPY_MISSING_REASON)
 class RVLCDIPMetadataBuilderTests(SimpleTestCase):
     def test_normalize_rvl_label(self):
         self.assertEqual(normalize_rvl_label("News Article"), "news_article")
@@ -126,6 +145,7 @@ class RVLCDIPMetadataBuilderTests(SimpleTestCase):
             self.assertIn("resume", set(df["label"].tolist()))
 
 
+@unittest.skipUnless(_HAS_CV2_NUMPY, _CV2_NUMPY_MISSING_REASON)
 class MIDV500MetadataBuilderTests(SimpleTestCase):
     def test_normalize_midv_label(self):
         self.assertEqual(normalize_midv_label("01_alb_id"), "alb_id")

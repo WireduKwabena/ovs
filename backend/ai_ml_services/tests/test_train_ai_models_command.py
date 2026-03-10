@@ -5,17 +5,33 @@ from __future__ import annotations
 from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import importlib.util
+import unittest
 from unittest.mock import patch
 
-import cv2
-import numpy as np
+_HAS_TRAIN_AI_MODELS_DEPS = all(
+    importlib.util.find_spec(dep) is not None
+    for dep in ("cv2", "numpy")
+)
+
+if _HAS_TRAIN_AI_MODELS_DEPS:
+    import cv2
+    import numpy as np
+else:  # pragma: no cover - optional ML extras
+    cv2 = None
+    np = None
 from django.core.management.base import CommandError
 from django.test import SimpleTestCase, override_settings
 
-from ai_ml_services.commands.train_ai_models import Command
+if _HAS_TRAIN_AI_MODELS_DEPS:
+    from ai_ml_services.commands.train_ai_models import Command
 
 
 @override_settings(BASE_DIR="C:/Project Setup/Django/OVS-Redo/backend")
+@unittest.skipUnless(
+    bool(cv2 is not None and np is not None and _HAS_TRAIN_AI_MODELS_DEPS),
+    "Optional dependency missing for train_ai_models tests: cv2/numpy",
+)
 class TrainAIModelsCommandTests(SimpleTestCase):
     def test_dry_run_reports_paths(self):
         with TemporaryDirectory() as tmp_dir:

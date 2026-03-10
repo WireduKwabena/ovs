@@ -212,6 +212,25 @@ class ApplicationsApiTests(APITestCase):
             last_name="Subscription",
             user_type="hr_manager",
         )
+        organization = Organization.objects.create(
+            code="apps-no-subscription-org",
+            name="Applications No Subscription Org",
+            organization_type="agency",
+            is_active=True,
+        )
+        OrganizationMembership.objects.create(
+            user=hr_without_subscription,
+            organization=organization,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
+        )
+        self._create_org_subscription(
+            organization,
+            status="canceled",
+            payment_status="unpaid",
+            plan_id="starter",
+        )
         self.client.force_authenticate(hr_without_subscription)
 
         response = self.client.post(
@@ -224,6 +243,7 @@ class ApplicationsApiTests(APITestCase):
                 "priority": "medium",
             },
             format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
         )
 
         self.assertEqual(response.status_code, 400)
@@ -674,6 +694,7 @@ class ApplicationsApiTests(APITestCase):
 
         case = VettingCase.objects.create(
             applicant=self.applicant,
+            assigned_to=self.hr,
             candidate_enrollment=enrollment,
             position_applied="Analyst",
             department="Operations",
@@ -761,6 +782,7 @@ class ApplicationsApiTests(APITestCase):
 
         case = VettingCase.objects.create(
             applicant=self.applicant,
+            assigned_to=self.hr,
             position_applied="Analyst",
             department="Operations",
             priority="medium",
@@ -788,6 +810,7 @@ class ApplicationsApiTests(APITestCase):
     def test_recheck_social_profiles_returns_ok_when_check_succeeds(self, mock_run_check):
         case = VettingCase.objects.create(
             applicant=self.applicant,
+            assigned_to=self.hr,
             position_applied="Analyst",
             department="Operations",
             priority="medium",
@@ -812,12 +835,13 @@ class ApplicationsApiTests(APITestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "ok")
-        mock_run_check.assert_called_once_with(case)
+        mock_run_check.assert_called_once_with(case, actor=self.hr)
 
     @patch("apps.applications.views.run_case_social_profile_check")
     def test_recheck_social_profiles_returns_skipped_when_no_profiles(self, mock_run_check):
         case = VettingCase.objects.create(
             applicant=self.applicant,
+            assigned_to=self.hr,
             position_applied="Analyst",
             department="Operations",
             priority="medium",
@@ -838,11 +862,12 @@ class ApplicationsApiTests(APITestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "skipped")
-        mock_run_check.assert_called_once_with(case)
+        mock_run_check.assert_called_once_with(case, actor=self.hr)
 
     def test_recheck_social_profiles_forbidden_for_non_hr_user(self):
         case = VettingCase.objects.create(
             applicant=self.applicant,
+            assigned_to=self.hr,
             position_applied="Analyst",
             department="Operations",
             priority="medium",
@@ -872,6 +897,7 @@ class ApplicationsApiTests(APITestCase):
 
         case = VettingCase.objects.create(
             applicant=self.applicant,
+            assigned_to=self.hr,
             position_applied="Analyst",
             department="Operations",
             priority="medium",
@@ -926,6 +952,7 @@ class ApplicationsApiTests(APITestCase):
 
         case = VettingCase.objects.create(
             applicant=self.applicant,
+            assigned_to=self.hr,
             position_applied="Analyst",
             department="Operations",
             priority="medium",
@@ -970,6 +997,7 @@ class ApplicationsApiTests(APITestCase):
 
         case = VettingCase.objects.create(
             applicant=self.applicant,
+            assigned_to=self.hr,
             position_applied="Analyst",
             department="Operations",
             priority="medium",

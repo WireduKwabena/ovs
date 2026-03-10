@@ -17,6 +17,12 @@ from apps.interviews.tasks import analyze_response_task, generate_session_summar
 
 class InterviewsApiTests(APITestCase):
     def setUp(self):
+        self.organization = Organization.objects.create(
+            code="interviews-api-org",
+            name="Interviews API Org",
+            organization_type="agency",
+            is_active=True,
+        )
         self.hr = User.objects.create_user(
             email="hr_interviews_test@example.com",
             password="Pass1234!",
@@ -24,6 +30,13 @@ class InterviewsApiTests(APITestCase):
             last_name="Interviews",
             user_type="hr_manager",
             is_staff=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr,
+            organization=self.organization,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
         )
         self.applicant = User.objects.create_user(
             email="app_interviews_test@example.com",
@@ -33,6 +46,7 @@ class InterviewsApiTests(APITestCase):
             user_type="applicant",
         )
         self.case = VettingCase.objects.create(
+            organization=self.organization,
             applicant=self.applicant,
             assigned_to=self.hr,
             position_applied="QA Engineer",
@@ -43,6 +57,7 @@ class InterviewsApiTests(APITestCase):
             consistency_score=78,
             fraud_risk_score=22,
         )
+        self._create_org_subscription(self.organization, plan_id="starter")
         self.client.force_authenticate(self.hr)
 
         question_response = self.client.post(
@@ -132,7 +147,7 @@ class InterviewsApiTests(APITestCase):
             organization=organization,
             membership_role="registry_admin",
             is_active=True,
-            is_default=True,
+            is_default=False,
         )
         self._create_org_subscription(
             organization,
@@ -182,7 +197,7 @@ class InterviewsApiTests(APITestCase):
             organization=organization,
             membership_role="registry_admin",
             is_active=True,
-            is_default=True,
+            is_default=False,
         )
         self._create_org_subscription(
             organization,
@@ -605,6 +620,12 @@ class InterviewsApiTests(APITestCase):
 @override_settings(SERVICE_TOKEN="svc-token")
 class InterviewServiceTokenApiTests(APITestCase):
     def setUp(self):
+        self.organization = Organization.objects.create(
+            code="interviews-service-org",
+            name="Interviews Service Org",
+            organization_type="agency",
+            is_active=True,
+        )
         self.hr = User.objects.create_user(
             email="hr_interviews_service@example.com",
             password="Pass1234!",
@@ -612,6 +633,13 @@ class InterviewServiceTokenApiTests(APITestCase):
             last_name="Service",
             user_type="hr_manager",
             is_staff=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr,
+            organization=self.organization,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
         )
         self.applicant = User.objects.create_user(
             email="app_interviews_service@example.com",
@@ -621,12 +649,25 @@ class InterviewServiceTokenApiTests(APITestCase):
             user_type="applicant",
         )
         self.case = VettingCase.objects.create(
+            organization=self.organization,
             applicant=self.applicant,
             assigned_to=self.hr,
             position_applied="Security Analyst",
             department="Trust & Safety",
             priority="medium",
             status="interview_scheduled",
+        )
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            organization=self.organization,
+            status="complete",
+            payment_status="paid",
+            plan_id="starter",
+            plan_name="Starter",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference=f"OVS-INT-SVC-STARTER-{str(self.organization.id)[:8]}",
         )
         self.client.force_authenticate(self.hr)
         create_session = self.client.post(
@@ -695,6 +736,12 @@ class InterviewServiceTokenApiTests(APITestCase):
 
 class InterviewTaskIdentityMatchTests(APITestCase):
     def setUp(self):
+        self.organization = Organization.objects.create(
+            code="interviews-task-org",
+            name="Interviews Task Org",
+            organization_type="agency",
+            is_active=True,
+        )
         self.hr = User.objects.create_user(
             email="hr_interviews_task@example.com",
             password="Pass1234!",
@@ -702,6 +749,13 @@ class InterviewTaskIdentityMatchTests(APITestCase):
             last_name="Task",
             user_type="hr_manager",
             is_staff=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr,
+            organization=self.organization,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
         )
         self.applicant = User.objects.create_user(
             email="app_interviews_task@example.com",
@@ -711,6 +765,7 @@ class InterviewTaskIdentityMatchTests(APITestCase):
             user_type="applicant",
         )
         self.case = VettingCase.objects.create(
+            organization=self.organization,
             applicant=self.applicant,
             assigned_to=self.hr,
             position_applied="Risk Analyst",
@@ -718,6 +773,7 @@ class InterviewTaskIdentityMatchTests(APITestCase):
             priority="medium",
             status="interview_in_progress",
         )
+        self._create_org_subscription(self.organization, plan_id="starter")
         self.session = InterviewSession.objects.create(
             case=self.case,
             status="in_progress",
@@ -792,7 +848,7 @@ class InterviewTaskIdentityMatchTests(APITestCase):
             organization=organization,
             membership_role="registry_admin",
             is_active=True,
-            is_default=True,
+            is_default=False,
         )
         self._create_org_subscription(
             organization,
@@ -818,6 +874,10 @@ class InterviewTaskIdentityMatchTests(APITestCase):
             name="Interview Task Legacy Org",
             organization_type="agency",
             is_active=True,
+        )
+        OrganizationMembership.objects.filter(user=self.hr, is_active=True).update(
+            is_active=False,
+            is_default=False,
         )
         self.hr.organization = legacy_org.name
         self.hr.save(update_fields=["organization", "updated_at"])

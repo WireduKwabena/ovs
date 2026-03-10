@@ -2,13 +2,29 @@
 
 from __future__ import annotations
 
-import numpy as np
+import importlib.util
+import unittest
+
+_HAS_IDENTITY_MATCHER_DEPS = all(
+    importlib.util.find_spec(dep) is not None
+    for dep in ("numpy", "cv2")
+)
+
+if _HAS_IDENTITY_MATCHER_DEPS:
+    import numpy as np
+else:  # pragma: no cover - optional ML extras
+    np = None
 from django.test import SimpleTestCase
 from unittest.mock import patch
 
-from ai_ml_services.video.identity_matcher import IdentityMatcher
+if _HAS_IDENTITY_MATCHER_DEPS:
+    from ai_ml_services.video.identity_matcher import IdentityMatcher
 
 
+@unittest.skipUnless(
+    bool(np is not None and _HAS_IDENTITY_MATCHER_DEPS),
+    "Optional dependency missing for identity matcher tests: numpy/cv2",
+)
 class IdentityMatcherTests(SimpleTestCase):
     def test_match_returns_backend_error_when_unavailable(self):
         matcher = IdentityMatcher()

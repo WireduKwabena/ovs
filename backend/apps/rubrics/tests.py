@@ -123,11 +123,15 @@ class RubricsApiTests(APITestCase):
             "is_default": False,
         }
 
-    def _create_rubric(self, name: str) -> int:
+    def _create_rubric(self, name: str, *, active_org_id: str | None = None) -> int:
+        request_kwargs = {}
+        if active_org_id:
+            request_kwargs["HTTP_X_ACTIVE_ORGANIZATION_ID"] = str(active_org_id)
         response = self.client.post(
             "/api/rubrics/vetting-rubrics/",
             self._rubric_payload(name),
             format="json",
+            **request_kwargs,
         )
         self.assertEqual(response.status_code, 201)
         return response.json()["id"]
@@ -307,11 +311,14 @@ class RubricsApiTests(APITestCase):
             organization=organization,
             membership_role="registry_admin",
             is_active=True,
-            is_default=True,
+            is_default=False,
         )
         self._create_org_subscription(organization, plan_id="starter")
 
-        rubric_id = self._create_rubric("Scoped Rubric Quota")
+        rubric_id = self._create_rubric(
+            "Scoped Rubric Quota",
+            active_org_id=str(organization.id),
+        )
         rubric = VettingRubric.objects.get(id=rubric_id)
 
         used_case = VettingCase.objects.create(
@@ -358,6 +365,7 @@ class RubricsApiTests(APITestCase):
     def test_ai_signals_are_advisory_only_and_do_not_auto_approve(self):
         rubric_id = self._create_rubric("Advisory AI Rubric")
         low_case = VettingCase.objects.create(
+            organization=self.org,
             applicant=self.applicant,
             assigned_to=self.hr,
             position_applied="Assistant Analyst",
@@ -666,6 +674,12 @@ class RubricsApiTests(APITestCase):
 
 class RubricTaskTests(TestCase):
     def setUp(self):
+        self.org = Organization.objects.create(
+            code="rubric-task-org",
+            name="Rubric Task Org",
+            organization_type="agency",
+            is_active=True,
+        )
         self.hr = User.objects.create_user(
             email="rubric-task-hr@example.com",
             password="Pass1234!",
@@ -673,6 +687,13 @@ class RubricTaskTests(TestCase):
             last_name="HR",
             user_type="hr_manager",
             is_staff=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr,
+            organization=self.org,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
         )
         self.applicant = User.objects.create_user(
             email="rubric-task-applicant@example.com",
@@ -682,6 +703,7 @@ class RubricTaskTests(TestCase):
             user_type="applicant",
         )
         self.case = VettingCase.objects.create(
+            organization=self.org,
             applicant=self.applicant,
             assigned_to=self.hr,
             position_applied="Risk Analyst",
@@ -693,6 +715,7 @@ class RubricTaskTests(TestCase):
             fraud_risk_score=18,
             interview_score=74,
         )
+        self._create_org_subscription(self.org, plan_id="starter")
         self.default_rubric = VettingRubric.objects.create(
             name="Default Task Rubric",
             is_active=True,
@@ -752,6 +775,10 @@ class RubricTaskTests(TestCase):
             name="Rubric Task Legacy Org",
             organization_type="agency",
             is_active=True,
+        )
+        OrganizationMembership.objects.filter(user=self.hr, is_active=True).update(
+            is_active=False,
+            is_default=False,
         )
         self.hr.organization = legacy_org.name
         self.hr.save(update_fields=["organization", "updated_at"])

@@ -8,8 +8,10 @@ from rest_framework.test import APITestCase, APIRequestFactory
 
 from apps.applications.models import VettingCase
 from apps.authentication.models import User
+from apps.billing.models import BillingSubscription
 from apps.campaigns.models import VettingCampaign
 from apps.candidates.models import Candidate, CandidateEnrollment
+from apps.governance.models import Organization, OrganizationMembership
 from apps.interviews.models import InterviewQuestion, InterviewSession
 from apps.invitations.models import CandidateAccessPass, Invitation
 from apps.invitations.permissions import IsAuthenticatedOrCandidateAccessSession
@@ -263,12 +265,25 @@ class CandidateAccessPassFlowTests(APITestCase):
 
 class CandidateAccessVettingEndpointsTests(APITestCase):
     def setUp(self):
+        self.organization = Organization.objects.create(
+            code="candidate-endpoints-org",
+            name="Candidate Endpoints Org",
+            organization_type="agency",
+            is_active=True,
+        )
         self.hr = User.objects.create_user(
             email="hr_candidate_endpoints@example.com",
             password="Pass1234!",
             first_name="HR",
             last_name="Owner",
             user_type="hr_manager",
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr,
+            organization=self.organization,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
         )
         self.applicant = User.objects.create_user(
             email="portal_candidate_user@example.com",
@@ -277,7 +292,23 @@ class CandidateAccessVettingEndpointsTests(APITestCase):
             last_name="Candidate",
             user_type="applicant",
         )
-        campaign = VettingCampaign.objects.create(name="Portal Campaign", initiated_by=self.hr)
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            organization=self.organization,
+            status="complete",
+            payment_status="paid",
+            plan_id="starter",
+            plan_name="Starter",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference=f"OVS-INVITE-STARTER-{str(self.organization.id)[:8]}",
+        )
+        campaign = VettingCampaign.objects.create(
+            name="Portal Campaign",
+            initiated_by=self.hr,
+            organization=self.organization,
+        )
         self.candidate = Candidate.objects.create(
             first_name="Portal",
             last_name="Candidate",
@@ -298,6 +329,7 @@ class CandidateAccessVettingEndpointsTests(APITestCase):
             created_by=self.hr,
         )
         self.case = VettingCase.objects.create(
+            organization=self.organization,
             applicant=self.applicant,
             candidate_enrollment=self.enrollment,
             assigned_to=self.hr,
@@ -422,6 +454,7 @@ class CandidateAccessVettingEndpointsTests(APITestCase):
             registered_at=timezone.now(),
         )
         other_case = VettingCase.objects.create(
+            organization=self.organization,
             applicant=other_applicant,
             candidate_enrollment=other_enrollment,
             assigned_to=self.hr,

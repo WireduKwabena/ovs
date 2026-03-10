@@ -6,16 +6,33 @@ import json
 from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import importlib.util
+import unittest
 
-import cv2
-import numpy as np
-import pandas as pd
+_HAS_TRAIN_DOC_CLASSIFIER_DEPS = all(
+    importlib.util.find_spec(dep) is not None
+    for dep in ("cv2", "numpy", "pandas")
+)
+
+if _HAS_TRAIN_DOC_CLASSIFIER_DEPS:
+    import cv2
+    import numpy as np
+    import pandas as pd
+else:  # pragma: no cover - optional ML extras
+    cv2 = None
+    np = None
+    pd = None
 from django.test import SimpleTestCase, override_settings
 
-from ai_ml_services.commands.train_document_classifiers import Command
+if _HAS_TRAIN_DOC_CLASSIFIER_DEPS:
+    from ai_ml_services.commands.train_document_classifiers import Command
 
 
 @override_settings(BASE_DIR="C:/Project Setup/Django/OVS-Redo/backend")
+@unittest.skipUnless(
+    bool(cv2 is not None and np is not None and _HAS_TRAIN_DOC_CLASSIFIER_DEPS),
+    "Optional dependency missing for train_document_classifiers tests: cv2/numpy",
+)
 class TrainDocumentClassifiersCommandTests(SimpleTestCase):
     @staticmethod
     def _write_pattern_image(path: Path, pattern: str) -> None:

@@ -20,6 +20,12 @@ APP_ENABLED = "apps.background_checks" in settings.INSTALLED_APPS
 @unittest.skipUnless(APP_ENABLED, "Background checks app is not enabled in INSTALLED_APPS.")
 class BackgroundCheckServiceTests(TestCase):
     def setUp(self):
+        self.organization = Organization.objects.create(
+            code="bg-check-service-org",
+            name="Background Check Service Org",
+            organization_type="agency",
+            is_active=True,
+        )
         self.user = User.objects.create_user(
             email="bg-check-user@example.com",
             password="Pass1234!",
@@ -27,13 +33,22 @@ class BackgroundCheckServiceTests(TestCase):
             last_name="User",
             user_type="applicant",
         )
+        OrganizationMembership.objects.create(
+            user=self.user,
+            organization=self.organization,
+            membership_role="nominee",
+            is_active=True,
+            is_default=True,
+        )
         self.case = VettingCase.objects.create(
+            organization=self.organization,
             applicant=self.user,
             position_applied="Risk Analyst",
             department="Compliance",
             priority="medium",
             status="under_review",
         )
+        self._create_org_subscription(self.organization, plan_id="starter")
 
     def _create_org_subscription(self, organization, *, status="complete", payment_status="paid", plan_id="starter"):
         BillingSubscription.objects.create(
@@ -72,7 +87,7 @@ class BackgroundCheckServiceTests(TestCase):
             organization=organization,
             membership_role="nominee",
             is_active=True,
-            is_default=True,
+            is_default=False,
         )
         self._create_org_subscription(
             organization,
@@ -221,6 +236,12 @@ class BackgroundCheckServiceTests(TestCase):
 @unittest.skipUnless(APP_ENABLED, "Background checks app is not enabled in INSTALLED_APPS.")
 class BackgroundCheckApiTests(APITestCase):
     def setUp(self):
+        self.organization = Organization.objects.create(
+            code="bg-check-api-org",
+            name="Background Check API Org",
+            organization_type="agency",
+            is_active=True,
+        )
         self.admin_user = User.objects.create_user(
             email="bg-admin@example.com",
             password="Pass1234!",
@@ -250,8 +271,30 @@ class BackgroundCheckApiTests(APITestCase):
             last_name="Other",
             user_type="applicant",
         )
+        OrganizationMembership.objects.create(
+            user=self.hr_user,
+            organization=self.organization,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.user,
+            organization=self.organization,
+            membership_role="nominee",
+            is_active=True,
+            is_default=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.other_user,
+            organization=self.organization,
+            membership_role="nominee",
+            is_active=True,
+            is_default=True,
+        )
 
         self.case = VettingCase.objects.create(
+            organization=self.organization,
             applicant=self.user,
             position_applied="Risk Analyst",
             department="Compliance",
@@ -259,12 +302,14 @@ class BackgroundCheckApiTests(APITestCase):
             status="under_review",
         )
         self.other_case = VettingCase.objects.create(
+            organization=self.organization,
             applicant=self.other_user,
             position_applied="Security Analyst",
             department="Operations",
             priority="high",
             status="under_review",
         )
+        self._create_org_subscription(self.organization, plan_id="starter")
 
     def _create_org_subscription(self, organization, *, status="complete", payment_status="paid", plan_id="starter"):
         BillingSubscription.objects.create(
@@ -317,7 +362,7 @@ class BackgroundCheckApiTests(APITestCase):
             organization=organization,
             membership_role="registry_admin",
             is_active=True,
-            is_default=True,
+            is_default=False,
         )
         self._create_org_subscription(
             organization,

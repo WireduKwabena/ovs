@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import unittest
 from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase, override_settings
-import numpy as np
+try:
+    import numpy as np
+except ModuleNotFoundError:  # pragma: no cover - optional ML extras
+    np = None
 
 from ai_ml_services.service import (
     AIOrchestrator,
@@ -145,6 +149,7 @@ class TestServiceDelegation(SimpleTestCase):
         mock_orchestrator_cls.assert_called_once()
 
 
+@unittest.skipUnless(np is not None, "Optional dependency missing for AI service orchestration tests: numpy")
 class TestOrchestratorHardening(SimpleTestCase):
     @patch("cv2.imread")
     def test_verify_document_forces_manual_review_when_fallback_mode(self, mock_imread):

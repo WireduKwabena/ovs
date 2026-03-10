@@ -121,6 +121,19 @@ class CampaignAuthorizationTests(APITestCase):
         self.assertIn(str(self.campaign_two.id), ids)
 
     def test_hr_manager_can_define_required_document_types(self):
+        organization = Organization.objects.create(
+            code="campaign-required-docs-org",
+            name="Campaign Required Docs Org",
+            organization_type="agency",
+            is_active=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr_one,
+            organization=organization,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
+        )
         self.client.force_authenticate(self.hr_one)
         payload = {
             "name": "Required Docs Campaign",
@@ -128,7 +141,12 @@ class CampaignAuthorizationTests(APITestCase):
             "required_document_types": ["id_card", "passport", "id_card"],
         }
 
-        response = self.client.post("/api/campaigns/", payload, format="json")
+        response = self.client.post(
+            "/api/campaigns/",
+            payload,
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
         self.assertEqual(response.status_code, 201)
         data = response.json()
         self.assertEqual(data["required_document_types"], ["id_card", "passport"])
