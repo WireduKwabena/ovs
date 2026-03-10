@@ -130,11 +130,19 @@ class GovernmentPositionApiTests(APITestCase):
         self.assertGreaterEqual(len(self._extract_results(admin_allowed)), 1)
 
     def test_positions_create_allows_hr_and_admin_but_blocks_applicant(self):
+        create_org = Organization.objects.create(code="positions-create-org", name="Positions Create Org")
+        OrganizationMembership.objects.create(
+            user=self.hr_user,
+            organization=create_org,
+            is_active=True,
+            is_default=True,
+        )
         payload = {
             "title": "Minister of Communications",
             "branch": "executive",
             "institution": "Ministry of Communications",
             "appointment_authority": "President",
+            "organization": str(create_org.id),
         }
 
         self.client.force_authenticate(self.applicant_user)

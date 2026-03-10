@@ -2,6 +2,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from .models import AppointmentPublication, AppointmentRecord, AppointmentStageAction, ApprovalStage, ApprovalStageTemplate
+from .public_serializers import PublicAppointmentRecordSerializer
 
 
 class ApprovalStageSerializer(serializers.ModelSerializer):
@@ -317,47 +318,3 @@ class AppointmentPublicationSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
-
-class PublicAppointmentRecordSerializer(serializers.ModelSerializer):
-    position_title = serializers.CharField(source="position.title", read_only=True)
-    institution = serializers.CharField(source="position.institution", read_only=True)
-    nominee_name = serializers.CharField(source="nominee.full_name", read_only=True)
-    publication_status = serializers.SerializerMethodField()
-    publication_reference = serializers.SerializerMethodField()
-    published_at = serializers.SerializerMethodField()
-
-    @staticmethod
-    def _publication(obj):
-        return getattr(obj, "publication", None)
-
-    def get_publication_status(self, obj):
-        publication = self._publication(obj)
-        return publication.status if publication is not None else "draft"
-
-    def get_publication_reference(self, obj):
-        publication = self._publication(obj)
-        if publication is not None and publication.publication_reference:
-            return publication.publication_reference
-        return obj.gazette_number
-
-    def get_published_at(self, obj):
-        publication = self._publication(obj)
-        return publication.published_at if publication is not None else None
-
-    class Meta:
-        model = AppointmentRecord
-        fields = [
-            "id",
-            "position_title",
-            "institution",
-            "nominee_name",
-            "nominated_by_display",
-            "nominated_by_org",
-            "appointment_date",
-            "gazette_number",
-            "gazette_date",
-            "status",
-            "publication_status",
-            "publication_reference",
-            "published_at",
-        ]

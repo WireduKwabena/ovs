@@ -24,6 +24,8 @@ APPOINTMENT_PUBLICATION_PUBLISHED_EVENT = "appointment_publication_published"
 APPOINTMENT_PUBLICATION_REVOKED_EVENT = "appointment_publication_revoked"
 VETTING_DECISION_RECOMMENDATION_GENERATED_EVENT = "vetting_decision_recommendation_generated"
 VETTING_DECISION_OVERRIDE_RECORDED_EVENT = "vetting_decision_override_recorded"
+VERIFICATION_GATEWAY_REQUEST_CREATED_EVENT = "verification_gateway_request_created"
+VERIFICATION_GATEWAY_RESULT_RECORDED_EVENT = "verification_gateway_result_recorded"
 
 GOVERNMENT_AUDIT_EVENT_CATALOG: list[dict[str, str]] = [
     {
@@ -140,6 +142,18 @@ GOVERNMENT_AUDIT_EVENT_CATALOG: list[dict[str, str]] = [
         "action": "update",
         "description": "Human override recorded for a vetting decision recommendation.",
     },
+    {
+        "key": VERIFICATION_GATEWAY_REQUEST_CREATED_EVENT,
+        "entity_type": "VerificationRequest",
+        "action": "create",
+        "description": "External verification request created for inter-agency evidence collection.",
+    },
+    {
+        "key": VERIFICATION_GATEWAY_RESULT_RECORDED_EVENT,
+        "entity_type": "ExternalVerificationResult",
+        "action": "create",
+        "description": "External verification result recorded as advisory evidence input.",
+    },
 ]
 
 __all__ = [
@@ -163,4 +177,6 @@ __all__ = [
     "PERSONNEL_RECORD_DELETED_EVENT",
     "PERSONNEL_LINKED_CANDIDATE_EVENT",
     "PERSONNEL_RECORD_UPDATED_EVENT",
+    "VERIFICATION_GATEWAY_REQUEST_CREATED_EVENT",
+    "VERIFICATION_GATEWAY_RESULT_RECORDED_EVENT",
 ]

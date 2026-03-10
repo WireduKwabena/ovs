@@ -4,14 +4,28 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from rest_framework.test import APITestCase
 
-from apps.applications.models import Document, VerificationResult, VettingCase
+from apps.applications.models import (
+    Document,
+    VerificationRequest,
+    VerificationResult,
+    VerificationSource,
+    VettingCase,
+)
 from apps.applications.tasks import verify_document_async
+from apps.applications.verification_gateway import (
+    build_case_external_verification_snapshot,
+    create_verification_request,
+    record_verification_result,
+)
 from apps.authentication.models import User
 from apps.billing.models import BillingSubscription
 from apps.campaigns.models import VettingCampaign
 from apps.candidates.models import Candidate, CandidateEnrollment, CandidateSocialProfile
 from apps.governance.models import Organization, OrganizationMembership
 from apps.interviews.models import InterviewSession
+from apps.rubrics.decision_engine import VettingDecisionEngine
+from apps.rubrics.engine import RubricEvaluationEngine
+from apps.rubrics.models import VettingRubric
 
 
 class ApplicationsApiTests(APITestCase):
@@ -63,6 +77,21 @@ class ApplicationsApiTests(APITestCase):
         self.client.force_authenticate(self.hr)
 
     def test_create_case_upload_document_and_get_verification_status(self):
+        org = Organization.objects.create(
+            code="apps-basic-flow-org",
+            name="Applications Basic Flow Org",
+            organization_type="agency",
+            is_active=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr,
+            organization=org,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
+        )
+        active_org_headers = {"HTTP_X_ACTIVE_ORGANIZATION_ID": str(org.id)}
+
         create_response = self.client.post(
             "/api/applications/cases/",
             {
@@ -73,6 +102,7 @@ class ApplicationsApiTests(APITestCase):
                 "priority": "medium",
             },
             format="json",
+            **active_org_headers,
         )
         self.assertEqual(create_response.status_code, 201)
         case_id = create_response.json()["id"]
@@ -85,14 +115,19 @@ class ApplicationsApiTests(APITestCase):
                     "file": SimpleUploadedFile("resume.pdf", b"%PDF-1.4 test", content_type="application/pdf"),
                 },
                 format="multipart",
+                **active_org_headers,
             )
         self.assertEqual(upload_response.status_code, 201)
         self.assertIn(upload_response.json()["status"], {"queued", "processing", "verified", "flagged", "failed"})
 
         case = VettingCase.objects.get(id=case_id)
         self.assertTrue(case.documents_uploaded)
+        self.assertEqual(case.organization_id, org.id)
 
-        status_response = self.client.get(f"/api/applications/cases/{case_id}/verification-status/")
+        status_response = self.client.get(
+            f"/api/applications/cases/{case_id}/verification-status/",
+            **active_org_headers,
+        )
         self.assertEqual(status_response.status_code, 200)
         payload = status_response.json()
         self.assertEqual(payload["case_id"], case.case_id)
@@ -1169,3 +1204,222 @@ class ApplicationsOrganizationScopeTests(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 403)
+
+
+class VerificationGatewayFoundationTests(APITestCase):
+    def setUp(self):
+        self.org = Organization.objects.create(
+            code="verif-gateway-org",
+            name="Verification Gateway Org",
+            organization_type="agency",
+            is_active=True,
+        )
+        self.hr = User.objects.create_user(
+            email="gateway.hr@example.com",
+            password="Pass1234!",
+            first_name="Gateway",
+            last_name="HR",
+            user_type="hr_manager",
+            is_staff=True,
+        )
+        self.applicant = User.objects.create_user(
+            email="gateway.applicant@example.com",
+            password="Pass1234!",
+            first_name="Gateway",
+            last_name="Applicant",
+            user_type="applicant",
+        )
+        OrganizationMembership.objects.create(
+            user=self.hr,
+            organization=self.org,
+            membership_role="vetting_officer",
+            is_active=True,
+            is_default=True,
+        )
+        self.case = VettingCase.objects.create(
+            organization=self.org,
+            applicant=self.applicant,
+            assigned_to=self.hr,
+            position_applied="Policy Officer",
+            department="Governance",
+            priority="high",
+            status="under_review",
+            document_authenticity_score=88.0,
+            consistency_score=82.0,
+            fraud_risk_score=14.0,
+            interview_score=79.0,
+            documents_uploaded=True,
+            documents_verified=True,
+            interview_completed=True,
+        )
+        self.identity_source = VerificationSource.objects.create(
+            organization=self.org,
+            key="national-id-registry",
+            name="National Identity Registry",
+            source_category="national_identity",
+            integration_mode="mock",
+            advisory_only=True,
+            is_active=True,
+            created_by=self.hr,
+        )
+        self.client.force_authenticate(self.hr)
+
+    def test_create_verification_request_is_idempotent_per_case_source_key(self):
+        request_a, created_a = create_verification_request(
+            case=self.case,
+            source=self.identity_source,
+            requested_by=self.hr,
+            idempotency_key="case-source-1",
+            subject_identifiers={"national_id": "NIN-001"},
+            request_payload={"subject": {"full_name": "Gateway Applicant"}},
+        )
+        request_b, created_b = create_verification_request(
+            case=self.case,
+            source=self.identity_source,
+            requested_by=self.hr,
+            idempotency_key="case-source-1",
+            subject_identifiers={"national_id": "NIN-001"},
+        )
+
+        self.assertTrue(created_a)
+        self.assertFalse(created_b)
+        self.assertEqual(request_a.id, request_b.id)
+        self.assertEqual(str(request_a.organization_id), str(self.org.id))
+        self.assertEqual(VerificationRequest.objects.filter(case=self.case, source=self.identity_source).count(), 1)
+
+    def test_record_verification_result_normalizes_and_updates_request_status(self):
+        verification_request, _ = create_verification_request(
+            case=self.case,
+            source=self.identity_source,
+            requested_by=self.hr,
+            idempotency_key="result-case-1",
+            subject_identifiers={"national_id": "NIN-001"},
+        )
+        result = record_verification_result(
+            verification_request=verification_request,
+            result_status="verified",
+            recommendation="review",
+            confidence_score=96.5,
+            advisory_flags=[{"code": "name_variation", "severity": "warning"}],
+            evidence_summary={"matched_fields": 4, "mismatched_fields": 1},
+            normalized_evidence={"identity_match": True, "name_match": False},
+            raw_payload={"raw_provider_blob": {"sensitive": "redacted"}},
+            raw_payload_redacted=True,
+            provider_reference="NID-REF-123",
+            actor=self.hr,
+        )
+
+        verification_request.refresh_from_db()
+        self.assertEqual(verification_request.status, "completed")
+        self.assertEqual(result.result_status, "verified")
+        self.assertEqual(result.recommendation, "review")
+        self.assertEqual(result.provider_reference, "NID-REF-123")
+        self.assertEqual(len(result.advisory_flags), 1)
+        self.assertTrue(result.raw_payload_redacted)
+
+        snapshot = build_case_external_verification_snapshot(self.case)
+        self.assertEqual(snapshot["total_requests"], 1)
+        self.assertEqual(snapshot["completed"], 1)
+        self.assertEqual(snapshot["sources_with_advisory_flags"], 1)
+        self.assertEqual(snapshot["advisory_flags_total"], 1)
+        self.assertEqual(snapshot["latest_by_source"][0]["source_key"], "national-id-registry")
+        self.assertEqual(snapshot["latest_by_source"][0]["advisory_flags_count"], 1)
+
+        if "apps.audit" in settings.INSTALLED_APPS:
+            from apps.audit.models import AuditLog
+
+            audit_row = (
+                AuditLog.objects.filter(entity_type="ExternalVerificationResult", entity_id=str(result.id))
+                .order_by("-created_at")
+                .first()
+            )
+            self.assertIsNotNone(audit_row)
+            changes = audit_row.changes or {}
+            self.assertEqual(changes.get("event"), "verification_gateway_result_recorded")
+            self.assertNotIn("raw_payload", changes)
+
+    def test_verification_status_includes_external_verification_summary(self):
+        verification_request, _ = create_verification_request(
+            case=self.case,
+            source=self.identity_source,
+            requested_by=self.hr,
+            idempotency_key="status-case-1",
+            subject_identifiers={"national_id": "NIN-009"},
+        )
+        record_verification_result(
+            verification_request=verification_request,
+            result_status="inconclusive",
+            recommendation="escalate",
+            confidence_score=61.0,
+            advisory_flags=[{"code": "record_gap", "severity": "warning"}],
+            evidence_summary={"record_found": False},
+            normalized_evidence={"record_status": "partial"},
+            raw_payload={"status": "partial_record"},
+            raw_payload_redacted=True,
+            actor=self.hr,
+        )
+
+        response = self.client.get(
+            f"/api/applications/cases/{self.case.id}/verification-status/",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(self.org.id),
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("external_verification", payload)
+        external = payload["external_verification"]
+        self.assertEqual(external["total_requests"], 1)
+        self.assertEqual(external["completed"], 1)
+        self.assertEqual(external["sources_with_advisory_flags"], 1)
+        self.assertEqual(external["latest_by_source"][0]["result_status"], "inconclusive")
+        self.assertNotIn("raw_payload", external["latest_by_source"][0])
+
+    def test_decision_engine_evidence_snapshot_includes_external_verification_context(self):
+        verification_request, _ = create_verification_request(
+            case=self.case,
+            source=self.identity_source,
+            requested_by=self.hr,
+            idempotency_key="decision-case-1",
+            subject_identifiers={"national_id": "NIN-777"},
+        )
+        record_verification_result(
+            verification_request=verification_request,
+            result_status="mismatch",
+            recommendation="review",
+            confidence_score=82.0,
+            advisory_flags=[{"code": "name_mismatch", "severity": "warning"}],
+            evidence_summary={"name_match": False},
+            normalized_evidence={"name_match": False, "dob_match": True},
+            raw_payload={"provider_status": "mismatch"},
+            raw_payload_redacted=True,
+            actor=self.hr,
+        )
+
+        rubric = VettingRubric.objects.create(
+            organization=self.org,
+            name="Gateway Decision Rubric",
+            description="Rubric for gateway decision snapshot test",
+            rubric_type="general",
+            document_authenticity_weight=25,
+            consistency_weight=20,
+            fraud_detection_weight=20,
+            interview_weight=25,
+            manual_review_weight=10,
+            passing_score=70,
+            auto_approve_threshold=90,
+            auto_reject_threshold=40,
+            minimum_document_score=60,
+            maximum_fraud_score=50,
+            require_interview=True,
+            critical_flags_auto_fail=True,
+            max_unresolved_flags=2,
+            is_active=True,
+            created_by=self.hr,
+        )
+        evaluation = RubricEvaluationEngine(case=self.case, rubric=rubric).evaluate(evaluated_by=self.hr)
+        recommendation = VettingDecisionEngine.generate_recommendation(evaluation=evaluation, actor=self.hr)
+
+        external_snapshot = (recommendation.evidence_snapshot or {}).get("external_verifications") or {}
+        self.assertEqual(external_snapshot.get("total_requests"), 1)
+        self.assertEqual(external_snapshot.get("sources_with_advisory_flags"), 1)
+        warning_codes = {item.get("code") for item in recommendation.warnings or []}
+        self.assertIn("external_verification_flags", warning_codes)

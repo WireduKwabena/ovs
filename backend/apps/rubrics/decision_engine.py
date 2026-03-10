@@ -15,6 +15,29 @@ try:  # pragma: no cover - optional app import guard
 except Exception:  # pragma: no cover - keep decision engine resilient in slim installs
     SocialProfileCheckResult = None  # type: ignore[assignment]
 
+try:  # pragma: no cover - optional gateway module import guard
+    from apps.applications.verification_gateway import (
+        build_case_external_verification_snapshot,
+        empty_external_verification_snapshot,
+    )
+except Exception:  # pragma: no cover - keep decision engine resilient in slim installs
+    def empty_external_verification_snapshot():  # type: ignore
+        return {
+            "total_requests": 0,
+            "pending": 0,
+            "in_progress": 0,
+            "completed": 0,
+            "failed": 0,
+            "unavailable": 0,
+            "sources_with_advisory_flags": 0,
+            "advisory_flags_total": 0,
+            "latest_by_source": [],
+            "advisory_only": True,
+        }
+
+    def build_case_external_verification_snapshot(_case):  # type: ignore
+        return empty_external_verification_snapshot()
+
 from .engine import RubricEvaluationEngine
 from .models import RubricEvaluation, VettingDecisionOverride, VettingDecisionRecommendation
 
@@ -102,6 +125,9 @@ class VettingDecisionEngine:
         case = evaluation.case
         background_checks = VettingDecisionEngine._background_checks_snapshot(case)
         social = VettingDecisionEngine._social_snapshot(case)
+        external_snapshot = build_case_external_verification_snapshot(case)
+        if not isinstance(external_snapshot, dict):
+            external_snapshot = empty_external_verification_snapshot()
         return {
             "documents_uploaded": bool(case.documents_uploaded),
             "documents_verified": bool(case.documents_verified),
@@ -111,6 +137,7 @@ class VettingDecisionEngine:
             "critical_flags_present": bool(evaluation.critical_flags_present),
             "background_checks": background_checks,
             "social_profile": social,
+            "external_verifications": external_snapshot,
         }
 
     @staticmethod
@@ -290,6 +317,29 @@ class VettingDecisionEngine:
                 source="advisory_ai",
                 message="AI advisory signal requested manual review.",
             )
+
+        external_snapshot = evidence_snapshot.get("external_verifications")
+        if isinstance(external_snapshot, dict):
+            pending_external = int(external_snapshot.get("pending", 0) or 0)
+            if pending_external > 0:
+                add_warning(
+                    code="external_verification_pending",
+                    source="external_verification",
+                    message="One or more external verification requests are pending.",
+                    details={"pending_count": pending_external},
+                )
+
+            flagged_sources = int(external_snapshot.get("sources_with_advisory_flags", 0) or 0)
+            if flagged_sources > 0:
+                add_warning(
+                    code="external_verification_flags",
+                    source="external_verification",
+                    message="External verification returned advisory flags requiring human review.",
+                    details={
+                        "sources_with_advisory_flags": flagged_sources,
+                        "advisory_flags_total": int(external_snapshot.get("advisory_flags_total", 0) or 0),
+                    },
+                )
 
         return warnings
 

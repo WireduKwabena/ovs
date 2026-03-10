@@ -1,0 +1,813 @@
+[DEBUG] 2026-03-10 00:29:58,229 functional 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+[DEBUG] 2026-03-10 00:29:58,237 functional 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+[DEBUG] 2026-03-10 00:29:58,238 functional 
+def xstarmap(task, it):
+    return 1
+
+[DEBUG] 2026-03-10 00:29:58,238 functional 
+def chain(*args, **kwargs):
+    return 1
+
+[DEBUG] 2026-03-10 00:29:58,245 functional 
+def analyze_response_task(self, response_id):
+    return 1
+
+[DEBUG] 2026-03-10 00:29:58,251 functional 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+[DEBUG] 2026-03-10 00:29:58,252 functional 
+def chunks(task, it, n):
+    return 1
+
+[DEBUG] 2026-03-10 00:29:58,253 functional 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+[DEBUG] 2026-03-10 00:29:58,254 functional 
+def generate_session_summary_task(self, session_id):
+    return 1
+
+[DEBUG] 2026-03-10 00:29:58,254 functional 
+def verify_document_async(self, document_id):
+    return 1
+
+[DEBUG] 2026-03-10 00:29:58,255 functional 
+def backend_cleanup():
+    return 1
+
+[DEBUG] 2026-03-10 00:29:58,258 functional 
+def xmap(task, it):
+    return 1
+
+[DEBUG] 2026-03-10 00:29:58,413 functional 
+def evaluate_case_with_rubric(self, case_id, rubric_id, evaluator_id=0):
+    return 1
+
+[DEBUG] 2026-03-10 00:29:58,414 functional 
+def auto_assign_rubric(self, case_id):
+    return 1
+
+Creating test database for alias 'default'...
+
+[DEBUG] 2026-03-10 00:30:34,306 functional 
+def send_invitation_task(self, invitation_id):
+    return 1
+
+[DEBUG] 2026-03-10 00:30:34,669 functional 
+def refresh_background_check_task(self, check_id):
+    return 1
+
+[DEBUG] 2026-03-10 00:30:34,672 functional 
+def sweep_background_checks_task(limit=0):
+    return 1
+
+[INFO] 2026-03-10 00:30:34,732 model_monitor AI model monitor Redis backend disabled; using in-memory backend.
+.[WARNING] 2026-03-10 00:30:47,444 log Forbidden: /api/applications/cases/
+.[WARNING] 2026-03-10 00:30:55,251 log Forbidden: /api/applications/cases/
+F[WARNING] 2026-03-10 00:31:02,613 log Bad Request: /api/applications/cases/
+.[WARNING] 2026-03-10 00:31:07,498 log Bad Request: /api/applications/cases/
+.[WARNING] 2026-03-10 00:31:11,813 log Forbidden: /api/applications/cases/3822ae04-993c-4347-a81f-4f7919935955/recheck-social-profiles/
+.[WARNING] 2026-03-10 00:31:16,383 log Not Found: /api/applications/cases/68ccedcd-2d73-48e3-95e8-3a01659319be/recheck-social-profiles/
+F[WARNING] 2026-03-10 00:31:21,667 log Not Found: /api/applications/cases/d1a45c8d-372e-4696-b2f8-bbd16c43298a/recheck-social-profiles/
+F[WARNING] 2026-03-10 00:31:26,252 log Not Found: /api/applications/cases/53b3c481-05c9-493d-bbff-79bc25935e86/recheck-social-profiles/
+F[WARNING] 2026-03-10 00:31:30,758 log Not Found: /api/applications/cases/a9bc3a0c-4e64-438f-a55f-22c11a494b03/recheck-social-profiles/
+F[WARNING] 2026-03-10 00:31:36,270 log Not Found: /api/applications/cases/d252aeac-6f70-42e2-a3ce-052a50f11cb0/recheck-social-profiles/
+F[WARNING] 2026-03-10 00:31:41,174 log Bad Request: /api/applications/cases/5bf18a5c-3d69-43f6-bcd8-feda7035162b/upload-document/
+.[WARNING] 2026-03-10 00:31:46,810 log Bad Request: /api/applications/cases/bcd0e764-2f0f-4e0e-8dc6-0fef252b0e06/upload-document/
+.[WARNING] 2026-03-10 00:31:54,406 log Bad Request: /api/applications/cases/4cb9928c-7cce-4b1a-9ea0-758ddeb5e742/upload-document/
+.[INFO] 2026-03-10 00:32:00,646 services Email notification sent to app_apps_test@example.com
+....FF.[WARNING] 2026-03-10 00:32:44,758 log Forbidden: /api/applications/cases/
+..[WARNING] 2026-03-10 00:33:00,445 log Forbidden: /api/applications/cases/
+......[WARNING] 2026-03-10 00:33:39,700 log Forbidden: /api/background-checks/checks/
+.[WARNING] 2026-03-10 00:33:48,778 log Forbidden: /api/background-checks/checks/
+.[WARNING] 2026-03-10 00:33:57,761 log Bad Request: /api/background-checks/checks/
+F[WARNING] 2026-03-10 00:34:05,800 log Bad Request: /api/background-checks/checks/
+F[WARNING] 2026-03-10 00:34:12,211 log Bad Request: /api/background-checks/checks/
+F[WARNING] 2026-03-10 00:34:19,342 log Bad Request: /api/background-checks/checks/
+.EEEEEE.EE.E.[WARNING] 2026-03-10 00:35:04,685 log Forbidden: /api/campaigns/
+.[WARNING] 2026-03-10 00:35:10,828 log Forbidden: /api/campaigns/
+...[WARNING] 2026-03-10 00:35:32,490 log Forbidden: /api/campaigns/
+F.[WARNING] 2026-03-10 00:35:45,421 log Not Found: /api/campaigns/e8e27e35-0782-44f3-8b9a-e17a0028048e/
+.[WARNING] 2026-03-10 00:35:54,454 log Not Found: /api/campaigns/f4129a1b-5f56-496f-8427-6070ac81c264/rubrics/versions/activate/
+.[WARNING] 2026-03-10 00:36:02,918 log Not Found: /api/campaigns/537ff30f-b55d-4ee6-9ba3-6890ff64dd7b/rubrics/versions/
+.[WARNING] 2026-03-10 00:36:09,798 log Bad Request: /api/campaigns/e87c447f-fd87-4a5b-9187-d7c1088c5644/candidates/import/
+.[WARNING] 2026-03-10 00:36:17,242 log Bad Request: /api/campaigns/c853a39c-6878-4840-8bfc-0121d47191cd/candidates/import/
+..[WARNING] 2026-03-10 00:36:28,418 log Forbidden: /api/campaigns/
+..[WARNING] 2026-03-10 00:36:36,725 log Forbidden: /api/campaigns/
+.F..[INFO] 2026-03-10 00:37:15,480 services Email notification sent to app_interviews_service@example.com
+[WARNING] 2026-03-10 00:37:15,524 log Unauthorized: /api/interviews/sessions/
+.[INFO] 2026-03-10 00:37:20,360 services Email notification sent to app_interviews_service@example.com
+.[INFO] 2026-03-10 00:37:24,202 services Email notification sent to app_interviews_service@example.com
+[WARNING] 2026-03-10 00:37:24,360 log Bad Request: /api/interviews/sessions/1b9ecc33-e0a3-4e57-8d2f-59d9ff2d4266/update-exchange/
+F[INFO] 2026-03-10 00:37:29,052 services Email notification sent to app_interviews_task@example.com
+[WARNING] 2026-03-10 00:37:29,073 connection No hostname was supplied. Reverting to default 'localhost'
+[WARNING] 2026-03-10 00:37:33,186 signals Failed to queue response analysis task for response=c65f66d1-8d7d-46a9-9a8d-e21c92937d26: [WinError 10061] No connection could be made because the target machine actively refused it
+.[INFO] 2026-03-10 00:37:36,456 services Email notification sent to app_interviews_task@example.com
+[WARNING] 2026-03-10 00:37:40,548 signals Failed to queue response analysis task for response=3b98689d-f081-4ae0-a9c2-a2fbb3e4f9aa: [WinError 10061] No connection could be made because the target machine actively refused it
+.[INFO] 2026-03-10 00:37:43,366 services Email notification sent to app_interviews_task@example.com
+[WARNING] 2026-03-10 00:37:47,440 signals Failed to queue response analysis task for response=99402b3d-b262-4628-b672-9dc7aa32ec84: [WinError 10061] No connection could be made because the target machine actively refused it
+F[WARNING] 2026-03-10 00:37:50,827 log Forbidden: /api/interviews/sessions/analytics-dashboard/
+[WARNING] 2026-03-10 00:37:50,828 log Forbidden: /api/interviews/sessions/compare/
+[WARNING] 2026-03-10 00:37:50,830 log Forbidden: /api/interviews/sessions/generate-flags/
+.[INFO] 2026-03-10 00:37:54,121 services Email notification sent to app_interviews_test@example.com
+[WARNING] 2026-03-10 00:37:58,232 signals Failed to queue response analysis task for response=c43b27fd-d750-4736-a4d4-3d1ad17637df: [WinError 10061] No connection could be made because the target machine actively refused it
+[WARNING] 2026-03-10 00:37:58,290 log Bad Request: /api/interviews/responses/c43b27fd-d750-4736-a4d4-3d1ad17637df/analyze/
+.[INFO] 2026-03-10 00:38:02,169 services Email notification sent to app_interviews_test@example.com
+.[INFO] 2026-03-10 00:38:05,201 services Email notification sent to app_interviews_test@example.com
+.[INFO] 2026-03-10 00:38:09,316 services Email notification sent to app_interviews_test@example.com
+[WARNING] 2026-03-10 00:38:09,348 log Bad Request: /api/interviews/responses/
+.[INFO] 2026-03-10 00:38:15,210 services Email notification sent to app_interviews_test@example.com
+.[INFO] 2026-03-10 00:38:19,978 services Email notification sent to app_interviews_test@example.com
+.[INFO] 2026-03-10 00:38:23,551 services Email notification sent to app_interviews_test@example.com
+[WARNING] 2026-03-10 00:38:23,785 log Bad Request: /api/interviews/sessions/INT-9100EA92FE/update-exchange/
+F[INFO] 2026-03-10 00:38:27,502 services Email notification sent to app_interviews_test@example.com
+[WARNING] 2026-03-10 00:38:27,527 log Bad Request: /api/interviews/sessions/0aa295f0-5f46-4f3f-a735-0067854eec1e/save-exchange/
+.[INFO] 2026-03-10 00:38:31,364 services Email notification sent to app_interviews_test@example.com
+.[INFO] 2026-03-10 00:38:34,740 services Email notification sent to app_interviews_test@example.com
+[WARNING] 2026-03-10 00:38:38,846 signals Failed to queue response analysis task for response=7aaeb2a9-ac46-49fc-8166-e73f6d402036: [WinError 10061] No connection could be made because the target machine actively refused it
+[INFO] 2026-03-10 00:38:41,008 services Email notification sent to app_interviews_compare@example.com
+[WARNING] 2026-03-10 00:38:45,088 signals Failed to queue response analysis task for response=5456f94f-f0d1-4a8d-ada9-50acd88361b3: [WinError 10061] No connection could be made because the target machine actively refused it
+..[INFO] 2026-03-10 00:38:52,445 services Email notification sent to app_interviews_test@example.com
+[WARNING] 2026-03-10 00:38:52,528 log Bad Request: /api/interviews/responses/
+F..[WARNING] 2026-03-10 00:39:00,608 log Unauthorized: /api/invitations/access/me/
+.[WARNING] 2026-03-10 00:39:03,238 log Bad Request: /api/invitations/access/consume/
+.[WARNING] 2026-03-10 00:39:05,859 log Not Found: /api/invitations/access/consume/
+.[INFO] 2026-03-10 00:39:10,327 services Email notification sent to portal_candidate_user@example.com
+.[INFO] 2026-03-10 00:39:14,797 services Email notification sent to portal_candidate_user@example.com
+[WARNING] 2026-03-10 00:39:14,950 log Bad Request: /api/applications/cases/cfa6a565-9129-48c9-8b42-53e1dc80a7f8/upload-document/
+F[INFO] 2026-03-10 00:39:20,740 services Email notification sent to portal_candidate_user@example.com
+[INFO] 2026-03-10 00:39:22,857 services Email notification sent to other_candidate_user@example.com
+[WARNING] 2026-03-10 00:39:22,899 log Not Found: /api/applications/cases/bdf23921-b362-4acf-b897-54977166ebfc/
+[WARNING] 2026-03-10 00:39:22,932 log Not Found: /api/interviews/sessions/2bbd6313-d169-43a9-901b-f7765ebf4aa4/
+[WARNING] 2026-03-10 00:39:22,952 log Forbidden: /api/applications/cases/
+[WARNING] 2026-03-10 00:39:22,973 log Forbidden: /api/interviews/sessions/
+[WARNING] 2026-03-10 00:39:23,006 log Forbidden: /api/interviews/responses/
+[WARNING] 2026-03-10 00:39:23,025 log Forbidden: /api/interviews/interrogation/start/
+.[WARNING] 2026-03-10 00:39:28,307 log Bad Request: /api/invitations/accept/
+.[WARNING] 2026-03-10 00:39:32,691 log Not Found: /api/invitations/accept/
+.[WARNING] 2026-03-10 00:39:37,810 log Forbidden: /api/invitations/
+...[WARNING] 2026-03-10 00:39:46,917 services SMS delivery adapter is not configured. Marking invitation_id=c1cd6723-a44c-4f29-b468-7629dd7c7aca as sent placeholder.
+...E.E.[WARNING] 2026-03-10 00:40:14,781 log Forbidden: /api/rubrics/vetting-rubrics/d3dbc171-21f6-422c-a637-3a96e84f294d/evaluate-case/
+F[WARNING] 2026-03-10 00:40:22,157 log Forbidden: /api/rubrics/vetting-rubrics/
+[WARNING] 2026-03-10 00:40:22,167 log Forbidden: /api/rubrics/vetting-rubrics/
+.[WARNING] 2026-03-10 00:40:28,757 log Bad Request: /api/rubrics/vetting-rubrics/a6a49087-a178-4920-9b74-99eceaeea6b8/evaluate-case/
+..[WARNING] 2026-03-10 00:40:46,614 log Bad Request: /api/rubrics/vetting-rubrics/
+.....E...[WARNING] 2026-03-10 00:41:36,584 log Forbidden: /api/rubrics/evaluations/876cfb13-c6ff-404d-af92-fb1ab32d584a/override-decision/
+[WARNING] 2026-03-10 00:41:36,596 log Forbidden: /api/rubrics/evaluations/876cfb13-c6ff-404d-af92-fb1ab32d584a/override-decision/
+..[WARNING] 2026-03-10 00:41:47,615 log Bad Request: /api/rubrics/evaluations/eee78588-a41e-477b-bb04-458418a447f6/override-criterion/
+..[WARNING] 2026-03-10 00:41:57,591 log Forbidden: /api/rubrics/vetting-rubrics/a7f155f1-5640-4b48-b70f-2f21ec7fdfad/evaluate-case/
+......FF
+======================================================================
+ERROR: test_provider_webhook_rejects_invalid_token (apps.background_checks.tests.BackgroundCheckApiTests.test_provider_webhook_rejects_invalid_token)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\test\utils.py", line 456, in inner
+    return func(*args, **kwargs)
+  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\tests.py", line 492, in test_provider_webhook_rejects_invalid_token
+    check = submit_background_check(
+        case=self.case,
+    ...<2 lines>...
+        consent_evidence={"granted": True},
+    )
+  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\services.py", line 171, in submit_background_check
+    enforce_vetting_operation_quota(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        operation=VETTING_OPERATION_BACKGROUND_CHECK_SUBMISSION,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        additional=1,
+        ^^^^^^^^^^^^^
+    )
+    ^
+  File "A:\projects\Django\OVS-Redo\backend\apps\billing\quotas.py", line 1256, in enforce_vetting_operation_quota
+    raise ValidationError(
+    ...<16 lines>...
+    )
+rest_framework.exceptions.ValidationError: {'detail': ErrorDetail(string='Organization context could not be resolved for this vetting operation. Assign the record to an organization-scoped actor or set organization ownership before retrying.', code='invalid'), 'code': ErrorDetail(string='organization_context_required', code='invalid'), 'quota': {'operation': ErrorDetail(string='background_check_submission', code='invalid'), 'scope': ErrorDetail(string='user:bg-api-user@example.com', code='invalid'), 'used': ErrorDetail(string='0', code='invalid'), 'limit': ErrorDetail(string='0', code='invalid'), 'remaining': ErrorDetail(string='0', code='invalid'), 'period_start': ErrorDetail(string='2026-03-01T00:00:00+00:00', code='invalid'), 'period_end': ErrorDetail(string='2026-04-01T00:00:00+00:00', code='invalid')}}
+
+======================================================================
+ERROR: test_provider_webhook_updates_check (apps.background_checks.tests.BackgroundCheckApiTests.test_provider_webhook_updates_check)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\test\utils.py", line 456, in inner
+    return func(*args, **kwargs)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1432, in patched
+    return func(*newargs, **newkeywargs)
+  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\tests.py", line 459, in test_provider_webhook_updates_check
+    check = submit_background_check(
+        case=self.case,
+    ...<2 lines>...
+        consent_evidence={"granted": True},
+    )
+  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\services.py", line 171, in submit_background_check
+    enforce_vetting_operation_quota(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        operation=VETTING_OPERATION_BACKGROUND_CHECK_SUBMISSION,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        additional=1,
+        ^^^^^^^^^^^^^
+    )
+    ^
+  File "A:\projects\Django\OVS-Redo\backend\apps\billing\quotas.py", line 1256, in enforce_vetting_operation_quota
+    raise ValidationError(
+    ...<16 lines>...
+    )
+rest_framework.exceptions.ValidationError: {'detail': ErrorDetail(string='Organization context could not be resolved for this vetting operation. Assign the record to an organization-scoped actor or set organization ownership before retrying.', code='invalid'), 'code': ErrorDetail(string='organization_context_required', code='invalid'), 'quota': {'operation': ErrorDetail(string='background_check_submission', code='invalid'), 'scope': ErrorDetail(string='user:bg-api-user@example.com', code='invalid'), 'used': ErrorDetail(string='0', code='invalid'), 'limit': ErrorDetail(string='0', code='invalid'), 'remaining': ErrorDetail(string='0', code='invalid'), 'period_start': ErrorDetail(string='2026-03-01T00:00:00+00:00', code='invalid'), 'period_end': ErrorDetail(string='2026-04-01T00:00:00+00:00', code='invalid')}}
+
+======================================================================
+ERROR: test_refresh_passes_request_to_audit_log (apps.background_checks.tests.BackgroundCheckApiTests.test_refresh_passes_request_to_audit_log)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\test\utils.py", line 456, in inner
+    return func(*args, **kwargs)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1432, in patched
+    return func(*newargs, **newkeywargs)
+  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\tests.py", line 409, in test_refresh_passes_request_to_audit_log
+    check = submit_background_check(
+        case=self.case,
+    ...<2 lines>...
+        consent_evidence={"granted": True},
+    )
+  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\services.py", line 171, in submit_background_check
+    enforce_vetting_operation_quota(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        operation=VETTING_OPERATION_BACKGROUND_CHECK_SUBMISSION,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        additional=1,
+        ^^^^^^^^^^^^^
+    )
+    ^
+  File "A:\projects\Django\OVS-Redo\backend\apps\billing\quotas.py", line 1256, in enforce_vetting_operation_quota
+    raise ValidationError(
+    ...<16 lines>...
+    )
+rest_framework.exceptions.ValidationError: {'detail': ErrorDetail(string='Organization context could not be resolved for this vetting operation. Assign the record to an organization-scoped actor or set organization ownership before retrying.', code='invalid'), 'code': ErrorDetail(string='organization_context_required', code='invalid'), 'quota': {'operation': ErrorDetail(string='background_check_submission', code='invalid'), 'scope': ErrorDetail(string='user:bg-hr@example.com', code='invalid'), 'used': ErrorDetail(string='0', code='invalid'), 'limit': ErrorDetail(string='0', code='invalid'), 'remaining': ErrorDetail(string='0', code='invalid'), 'period_start': ErrorDetail(string='2026-03-01T00:00:00+00:00', code='invalid'), 'period_end': ErrorDetail(string='2026-04-01T00:00:00+00:00', code='invalid')}}
+
+======================================================================
+ERROR: test_scoped_listing_and_admin_visibility (apps.background_checks.tests.BackgroundCheckApiTests.test_scoped_listing_and_admin_visibility)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\test\utils.py", line 456, in inner
+    return func(*args, **kwargs)
+  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\tests.py", line 433, in test_scoped_listing_and_admin_visibility
+    submit_background_check(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        case=self.case,
+        ^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        consent_evidence={"granted": True},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\services.py", line 171, in submit_background_check
+    enforce_vetting_operation_quota(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        operation=VETTING_OPERATION_BACKGROUND_CHECK_SUBMISSION,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        additional=1,
+        ^^^^^^^^^^^^^
+    )
+    ^
+  File "A:\projects\Django\OVS-Redo\backend\apps\billing\quotas.py", line 1256, in enforce_vetting_operation_quota
+    raise ValidationError(
+    ...<16 lines>...
+    )
+rest_framework.exceptions.ValidationError: {'detail': ErrorDetail(string='Organization context could not be resolved for this vetting operation. Assign the record to an organization-scoped actor or set organization ownership before retrying.', code='invalid'), 'code': ErrorDetail(string='organization_context_required', code='invalid'), 'quota': {'operation': ErrorDetail(string='background_check_submission', code='invalid'), 'scope': ErrorDetail(string='user:bg-hr@example.com', code='invalid'), 'used': ErrorDetail(string='0', code='invalid'), 'limit': ErrorDetail(string='0', code='invalid'), 'remaining': ErrorDetail(string='0', code='invalid'), 'period_start': ErrorDetail(string='2026-03-01T00:00:00+00:00', code='invalid'), 'period_end': ErrorDetail(string='2026-04-01T00:00:00+00:00', code='invalid')}}
+
+======================================================================
+ERROR: test_http_provider_submit_then_refresh (apps.background_checks.tests.BackgroundCheckServiceTests.test_http_provider_submit_then_refresh)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\test\utils.py", line 456, in inner
+    return func(*args, **kwargs)
+  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\tests.py", line 203, in test_http_provider_submit_then_refresh
+    check = submit_background_check(
+        case=self.case,
+    ...<3 lines>...
+        consent_evidence={"granted": True},
+    )
+  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\services.py", line 171, in submit_background_check
+    enforce_vetting_operation_quota(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        operation=VETTING_OPERATION_BACKGROUND_CHECK_SUBMISSION,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        additional=1,
+        ^^^^^^^^^^^^^
+    )
+    ^
+  File "A:\projects\Django\OVS-Redo\backend\apps\billing\quotas.py", line 1256, in enforce_vetting_operation_quota
+    raise ValidationError(
+    ...<16 lines>...
+    )
+rest_framework.exceptions.ValidationError: {'detail': ErrorDetail(string='Organization context could not be resolved for this vetting operation. Assign the record to an organization-scoped actor or set organization ownership before retrying.', code='invalid'), 'code': ErrorDetail(string='organization_context_required', code='invalid'), 'quota': {'operation': ErrorDetail(string='background_check_submission', code='invalid'), 'scope': ErrorDetail(string='user:bg-check-user@example.com', code='invalid'), 'used': ErrorDetail(string='0', code='invalid'), 'limit': ErrorDetail(string='0', code='invalid'), 'remaining': ErrorDetail(string='0', code='invalid'), 'period_start': ErrorDetail(string='2026-03-01T00:00:00+00:00', code='invalid'), 'period_end': ErrorDetail(string='2026-04-01T00:00:00+00:00', code='invalid')}}
+
+======================================================================
+ERROR: test_refresh_logs_audit (apps.background_checks.tests.BackgroundCheckServiceTests.test_refresh_logs_audit)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\test\utils.py", line 456, in inner
+    return func(*args, **kwargs)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1432, in patched
+    return func(*newargs, **newkeywargs)
+  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\tests.py", line 160, in test_refresh_logs_audit
+    check = submit_background_check(
+        case=self.case,
+    ...<2 lines>...
+        consent_evidence={"granted": True},
+    )
+  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\services.py", line 171, in submit_background_check
+    enforce_vetting_operation_quota(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        operation=VETTING_OPERATION_BACKGROUND_CHECK_SUBMISSION,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        additional=1,
+        ^^^^^^^^^^^^^
+    )
+    ^
+  File "A:\projects\Django\OVS-Redo\backend\apps\billing\quotas.py", line 1256, in enforce_vetting_operation_quota
+    raise ValidationError(
+    ...<16 lines>...
+    )
+rest_framework.exceptions.ValidationError: {'detail': ErrorDetail(string='Organization context could not be resolved for this vetting operation. Assign the record to an organization-scoped actor or set organization ownership before retrying.', code='invalid'), 'code': ErrorDetail(string='organization_context_required', code='invalid'), 'quota': {'operation': ErrorDetail(string='background_check_submission', code='invalid'), 'scope': ErrorDetail(string='user:bg-check-user@example.com', code='invalid'), 'used': ErrorDetail(string='0', code='invalid'), 'limit': ErrorDetail(string='0', code='invalid'), 'remaining': ErrorDetail(string='0', code='invalid'), 'period_start': ErrorDetail(string='2026-03-01T00:00:00+00:00', code='invalid'), 'period_end': ErrorDetail(string='2026-04-01T00:00:00+00:00', code='invalid')}}
+
+======================================================================
+ERROR: test_submit_is_idempotent_for_existing_active_check (apps.background_checks.tests.BackgroundCheckServiceTests.test_submit_is_idempotent_for_existing_active_check)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\test\utils.py", line 456, in inner
+    return func(*args, **kwargs)
+  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\tests.py", line 118, in test_submit_is_idempotent_for_existing_active_check
+    first_check = submit_background_check(
+        case=self.case,
+    ...<3 lines>...
+        consent_evidence={"granted": True},
+    )
+  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\services.py", line 171, in submit_background_check
+    enforce_vetting_operation_quota(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        operation=VETTING_OPERATION_BACKGROUND_CHECK_SUBMISSION,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        additional=1,
+        ^^^^^^^^^^^^^
+    )
+    ^
+  File "A:\projects\Django\OVS-Redo\backend\apps\billing\quotas.py", line 1256, in enforce_vetting_operation_quota
+    raise ValidationError(
+    ...<16 lines>...
+    )
+rest_framework.exceptions.ValidationError: {'detail': ErrorDetail(string='Organization context could not be resolved for this vetting operation. Assign the record to an organization-scoped actor or set organization ownership before retrying.', code='invalid'), 'code': ErrorDetail(string='organization_context_required', code='invalid'), 'quota': {'operation': ErrorDetail(string='background_check_submission', code='invalid'), 'scope': ErrorDetail(string='user:bg-check-user@example.com', code='invalid'), 'used': ErrorDetail(string='0', code='invalid'), 'limit': ErrorDetail(string='0', code='invalid'), 'remaining': ErrorDetail(string='0', code='invalid'), 'period_start': ErrorDetail(string='2026-03-01T00:00:00+00:00', code='invalid'), 'period_end': ErrorDetail(string='2026-04-01T00:00:00+00:00', code='invalid')}}
+
+======================================================================
+ERROR: test_submit_logs_audit (apps.background_checks.tests.BackgroundCheckServiceTests.test_submit_logs_audit)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\test\utils.py", line 456, in inner
+    return func(*args, **kwargs)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1432, in patched
+    return func(*newargs, **newkeywargs)
+  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\tests.py", line 142, in test_submit_logs_audit
+    check = submit_background_check(
+        case=self.case,
+    ...<2 lines>...
+        consent_evidence={"granted": True},
+    )
+  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\services.py", line 171, in submit_background_check
+    enforce_vetting_operation_quota(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        operation=VETTING_OPERATION_BACKGROUND_CHECK_SUBMISSION,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        additional=1,
+        ^^^^^^^^^^^^^
+    )
+    ^
+  File "A:\projects\Django\OVS-Redo\backend\apps\billing\quotas.py", line 1256, in enforce_vetting_operation_quota
+    raise ValidationError(
+    ...<16 lines>...
+    )
+rest_framework.exceptions.ValidationError: {'detail': ErrorDetail(string='Organization context could not be resolved for this vetting operation. Assign the record to an organization-scoped actor or set organization ownership before retrying.', code='invalid'), 'code': ErrorDetail(string='organization_context_required', code='invalid'), 'quota': {'operation': ErrorDetail(string='background_check_submission', code='invalid'), 'scope': ErrorDetail(string='user:bg-check-user@example.com', code='invalid'), 'used': ErrorDetail(string='0', code='invalid'), 'limit': ErrorDetail(string='0', code='invalid'), 'remaining': ErrorDetail(string='0', code='invalid'), 'period_start': ErrorDetail(string='2026-03-01T00:00:00+00:00', code='invalid'), 'period_end': ErrorDetail(string='2026-04-01T00:00:00+00:00', code='invalid')}}
+
+======================================================================
+ERROR: test_submit_then_refresh_completes (apps.background_checks.tests.BackgroundCheckServiceTests.test_submit_then_refresh_completes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\test\utils.py", line 456, in inner
+    return func(*args, **kwargs)
+  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\tests.py", line 100, in test_submit_then_refresh_completes
+    check = submit_background_check(
+        case=self.case,
+    ...<3 lines>...
+        consent_evidence={"granted": True, "method": "checkbox"},
+    )
+  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\services.py", line 171, in submit_background_check
+    enforce_vetting_operation_quota(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        operation=VETTING_OPERATION_BACKGROUND_CHECK_SUBMISSION,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        additional=1,
+        ^^^^^^^^^^^^^
+    )
+    ^
+  File "A:\projects\Django\OVS-Redo\backend\apps\billing\quotas.py", line 1256, in enforce_vetting_operation_quota
+    raise ValidationError(
+    ...<16 lines>...
+    )
+rest_framework.exceptions.ValidationError: {'detail': ErrorDetail(string='Organization context could not be resolved for this vetting operation. Assign the record to an organization-scoped actor or set organization ownership before retrying.', code='invalid'), 'code': ErrorDetail(string='organization_context_required', code='invalid'), 'quota': {'operation': ErrorDetail(string='background_check_submission', code='invalid'), 'scope': ErrorDetail(string='user:bg-check-user@example.com', code='invalid'), 'used': ErrorDetail(string='0', code='invalid'), 'limit': ErrorDetail(string='0', code='invalid'), 'remaining': ErrorDetail(string='0', code='invalid'), 'period_start': ErrorDetail(string='2026-03-01T00:00:00+00:00', code='invalid'), 'period_end': ErrorDetail(string='2026-04-01T00:00:00+00:00', code='invalid')}}
+
+======================================================================
+ERROR: test_auto_assign_rubric_uses_default_rubric (apps.rubrics.tests.RubricTaskTests.test_auto_assign_rubric_uses_default_rubric)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "A:\projects\Django\OVS-Redo\backend\apps\rubrics\tests.py", line 724, in test_auto_assign_rubric_uses_default_rubric
+    result = auto_assign_rubric.run(self.case.id)
+  File "A:\projects\Django\OVS-Redo\backend\apps\rubrics\tasks.py", line 81, in auto_assign_rubric
+    return evaluate_case_with_rubric.run(case.id, rubric.id)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "A:\projects\Django\OVS-Redo\backend\apps\rubrics\tasks.py", line 44, in evaluate_case_with_rubric
+    enforce_vetting_operation_quota(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        operation=VETTING_OPERATION_RUBRIC_EVALUATION,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        additional=0 if existing_evaluation else 1,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "A:\projects\Django\OVS-Redo\backend\apps\billing\quotas.py", line 1256, in enforce_vetting_operation_quota
+    raise ValidationError(
+    ...<16 lines>...
+    )
+rest_framework.exceptions.ValidationError: {'detail': ErrorDetail(string='Organization context could not be resolved for this vetting operation. Assign the record to an organization-scoped actor or set organization ownership before retrying.', code='invalid'), 'code': ErrorDetail(string='organization_context_required', code='invalid'), 'quota': {'operation': ErrorDetail(string='rubric_evaluation', code='invalid'), 'scope': ErrorDetail(string='user:rubric-task-hr@example.com', code='invalid'), 'used': ErrorDetail(string='0', code='invalid'), 'limit': ErrorDetail(string='0', code='invalid'), 'remaining': ErrorDetail(string='0', code='invalid'), 'period_start': ErrorDetail(string='2026-03-01T00:00:00+00:00', code='invalid'), 'period_end': ErrorDetail(string='2026-04-01T00:00:00+00:00', code='invalid')}}
+
+======================================================================
+ERROR: test_evaluate_case_with_rubric_task_returns_decision_recommendation (apps.rubrics.tests.RubricTaskTests.test_evaluate_case_with_rubric_task_returns_decision_recommendation)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "A:\projects\Django\OVS-Redo\backend\apps\rubrics\tests.py", line 736, in test_evaluate_case_with_rubric_task_returns_decision_recommendation
+    result = evaluate_case_with_rubric.run(self.case.id, self.default_rubric.id, self.hr.id)
+  File "A:\projects\Django\OVS-Redo\backend\apps\rubrics\tasks.py", line 44, in evaluate_case_with_rubric
+    enforce_vetting_operation_quota(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        operation=VETTING_OPERATION_RUBRIC_EVALUATION,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        additional=0 if existing_evaluation else 1,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "A:\projects\Django\OVS-Redo\backend\apps\billing\quotas.py", line 1256, in enforce_vetting_operation_quota
+    raise ValidationError(
+    ...<16 lines>...
+    )
+rest_framework.exceptions.ValidationError: {'detail': ErrorDetail(string='Organization context could not be resolved for this vetting operation. Assign the record to an organization-scoped actor or set organization ownership before retrying.', code='invalid'), 'code': ErrorDetail(string='organization_context_required', code='invalid'), 'quota': {'operation': ErrorDetail(string='rubric_evaluation', code='invalid'), 'scope': ErrorDetail(string='user:rubric-task-hr@example.com', code='invalid'), 'used': ErrorDetail(string='0', code='invalid'), 'limit': ErrorDetail(string='0', code='invalid'), 'remaining': ErrorDetail(string='0', code='invalid'), 'period_start': ErrorDetail(string='2026-03-01T00:00:00+00:00', code='invalid'), 'period_end': ErrorDetail(string='2026-04-01T00:00:00+00:00', code='invalid')}}
+
+======================================================================
+ERROR: test_evaluate_case_blocks_when_org_rubric_quota_exceeded (apps.rubrics.tests.RubricsApiTests.test_evaluate_case_blocks_when_org_rubric_quota_exceeded)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+psycopg2.errors.UniqueViolation: duplicate key value violates unique constraint "uniq_org_membership_active_default_per_user"
+DETAIL:  Key (user_id)=(3101b370-3b7d-4ee0-986f-49009ba61a42) already exists.
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1432, in patched
+    return func(*newargs, **newkeywargs)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\test\utils.py", line 456, in inner
+    return func(*args, **kwargs)
+  File "A:\projects\Django\OVS-Redo\backend\apps\rubrics\tests.py", line 305, in test_evaluate_case_blocks_when_org_rubric_quota_exceeded
+    OrganizationMembership.objects.create(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        user=self.hr,
+        ^^^^^^^^^^^^^
+    ...<3 lines>...
+        is_default=True,
+        ^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\db\models\query.py", line 663, in create
+    obj.save(force_insert=True, using=self.db)
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\db\models\base.py", line 902, in save
+    self.save_base(
+    ~~~~~~~~~~~~~~^
+        using=using,
+        ^^^^^^^^^^^^
+    ...<2 lines>...
+        update_fields=update_fields,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\db\models\base.py", line 1008, in save_base
+    updated = self._save_table(
+        raw,
+    ...<4 lines>...
+        update_fields,
+    )
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\db\models\base.py", line 1169, in _save_table
+    results = self._do_insert(
+        cls._base_manager, using, fields, returning_fields, raw
+    )
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\db\models\base.py", line 1210, in _do_insert
+    return manager._insert(
+           ~~~~~~~~~~~~~~~^
+        [self],
+        ^^^^^^^
+    ...<3 lines>...
+        raw=raw,
+        ^^^^^^^^
+    )
+    ^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\db\models\query.py", line 1868, in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\db\models\sql\compiler.py", line 1882, in execute_sql
+    cursor.execute(sql, params)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\db\backends\utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        sql, params, many=False, executor=self._execute
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\db\backends\utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\db\backends\utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+django.db.utils.IntegrityError: duplicate key value violates unique constraint "uniq_org_membership_active_default_per_user"
+DETAIL:  Key (user_id)=(3101b370-3b7d-4ee0-986f-49009ba61a42) already exists.
+
+
+======================================================================
+FAIL: test_hr_create_case_requires_active_subscription_when_not_admin (apps.applications.tests.ApplicationsApiTests.test_hr_create_case_requires_active_subscription_when_not_admin)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\test\utils.py", line 456, in inner
+    return func(*args, **kwargs)
+  File "A:\projects\Django\OVS-Redo\backend\apps\applications\tests.py", line 229, in test_hr_create_case_requires_active_subscription_when_not_admin
+    self.assertEqual(response.status_code, 400)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 403 != 400
+
+======================================================================
+FAIL: test_recheck_social_profiles_logs_error_status (apps.applications.tests.ApplicationsApiTests.test_recheck_social_profiles_logs_error_status)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1432, in patched
+    return func(*newargs, **newkeywargs)
+  File "A:\projects\Django\OVS-Redo\backend\apps\applications\tests.py", line 991, in test_recheck_social_profiles_logs_error_status
+    self.assertEqual(response.status_code, 400)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 404 != 400
+
+======================================================================
+FAIL: test_recheck_social_profiles_logs_skipped_status (apps.applications.tests.ApplicationsApiTests.test_recheck_social_profiles_logs_skipped_status)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1432, in patched
+    return func(*newargs, **newkeywargs)
+  File "A:\projects\Django\OVS-Redo\backend\apps\applications\tests.py", line 947, in test_recheck_social_profiles_logs_skipped_status
+    self.assertEqual(response.status_code, 200)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 404 != 200
+
+======================================================================
+FAIL: test_recheck_social_profiles_returns_ok_when_check_succeeds (apps.applications.tests.ApplicationsApiTests.test_recheck_social_profiles_returns_ok_when_check_succeeds)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1432, in patched
+    return func(*newargs, **newkeywargs)
+  File "A:\projects\Django\OVS-Redo\backend\apps\applications\tests.py", line 813, in test_recheck_social_profiles_returns_ok_when_check_succeeds
+    self.assertEqual(response.status_code, 200)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 404 != 200
+
+======================================================================
+FAIL: test_recheck_social_profiles_returns_skipped_when_no_profiles (apps.applications.tests.ApplicationsApiTests.test_recheck_social_profiles_returns_skipped_when_no_profiles)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1432, in patched
+    return func(*newargs, **newkeywargs)
+  File "A:\projects\Django\OVS-Redo\backend\apps\applications\tests.py", line 839, in test_recheck_social_profiles_returns_skipped_when_no_profiles
+    self.assertEqual(response.status_code, 200)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 404 != 200
+
+======================================================================
+FAIL: test_recheck_social_profiles_writes_audit_log (apps.applications.tests.ApplicationsApiTests.test_recheck_social_profiles_writes_audit_log)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1432, in patched
+    return func(*newargs, **newkeywargs)
+  File "A:\projects\Django\OVS-Redo\backend\apps\applications\tests.py", line 900, in test_recheck_social_profiles_writes_audit_log
+    self.assertEqual(response.status_code, 200)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 404 != 200
+
+======================================================================
+FAIL: test_verify_document_task_persists_social_profile_result_when_candidate_data_present (apps.applications.tests.ApplicationsApiTests.test_verify_document_task_persists_social_profile_result_when_candidate_data_present)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "A:\projects\Django\OVS-Redo\backend\apps\applications\tests.py", line 698, in test_verify_document_task_persists_social_profile_result_when_candidate_data_present
+    self.assertTrue(result["success"])
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_verify_document_task_skips_social_profile_result_when_no_profiles (apps.applications.tests.ApplicationsApiTests.test_verify_document_task_skips_social_profile_result_when_no_profiles)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "A:\projects\Django\OVS-Redo\backend\apps\applications\tests.py", line 784, in test_verify_document_task_skips_social_profile_result_when_no_profiles
+    self.assertTrue(result["success"])
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_create_passes_request_to_audit_log (apps.background_checks.tests.BackgroundCheckApiTests.test_create_passes_request_to_audit_log)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\test\utils.py", line 456, in inner
+    return func(*args, **kwargs)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1432, in patched
+    return func(*newargs, **newkeywargs)
+  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\tests.py", line 400, in test_create_passes_request_to_audit_log
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201
+
+======================================================================
+FAIL: test_create_with_async_queues_refresh (apps.background_checks.tests.BackgroundCheckApiTests.test_create_with_async_queues_refresh)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\test\utils.py", line 456, in inner
+    return func(*args, **kwargs)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1432, in patched
+    return func(*newargs, **newkeywargs)
+  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\tests.py", line 379, in test_create_with_async_queues_refresh
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201
+
+======================================================================
+FAIL: test_hr_manager_can_create_background_check (apps.background_checks.tests.BackgroundCheckApiTests.test_hr_manager_can_create_background_check)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\test\utils.py", line 456, in inner
+    return func(*args, **kwargs)
+  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\tests.py", line 303, in test_hr_manager_can_create_background_check
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201
+
+======================================================================
+FAIL: test_hr_manager_can_define_required_document_types (apps.campaigns.tests.CampaignAuthorizationTests.test_hr_manager_can_define_required_document_types)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "A:\projects\Django\OVS-Redo\backend\apps\campaigns\tests.py", line 132, in test_hr_manager_can_define_required_document_types
+    self.assertEqual(response.status_code, 201)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 403 != 201
+
+======================================================================
+FAIL: test_setup_demo_creates_expected_gams_demo_records (apps.core.test_setup_demo_command.SetupDemoCommandTests.test_setup_demo_creates_expected_gams_demo_records)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "A:\projects\Django\OVS-Redo\backend\apps\core\test_setup_demo_command.py", line 55, in test_setup_demo_creates_expected_gams_demo_records
+    self.assertSetEqual(set(Organization.objects.values_list("code", flat=True)), expected_org_codes)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Items in the first set but not the second:
+'legacy-unscoped'
+
+======================================================================
+FAIL: test_service_token_can_access_session_routes (apps.interviews.tests.InterviewServiceTokenApiTests.test_service_token_can_access_session_routes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "A:\projects\Django\OVS-Redo\backend\apps\interviews\tests.py", line 679, in test_service_token_can_access_session_routes
+    self.assertEqual(update_exchange.status_code, 200)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200
+
+======================================================================
+FAIL: test_task_persists_identity_match_payload (apps.interviews.tests.InterviewTaskIdentityMatchTests.test_task_persists_identity_match_payload)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1432, in patched
+    return func(*newargs, **newkeywargs)
+  File "A:\projects\Django\OVS-Redo\backend\apps\interviews\tests.py", line 767, in test_task_persists_identity_match_payload
+    self.assertTrue(result["success"])
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_save_and_update_exchange_actions_with_session_id_lookup (apps.interviews.tests.InterviewsApiTests.test_save_and_update_exchange_actions_with_session_id_lookup)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "A:\projects\Django\OVS-Redo\backend\apps\interviews\tests.py", line 298, in test_save_and_update_exchange_actions_with_session_id_lookup
+    self.assertEqual(update_exchange.status_code, 200)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200
+
+======================================================================
+FAIL: test_session_lifecycle_and_response_analysis (apps.interviews.tests.InterviewsApiTests.test_session_lifecycle_and_response_analysis)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "A:\projects\Django\OVS-Redo\backend\apps\interviews\tests.py", line 105, in test_session_lifecycle_and_response_analysis
+    self.assertEqual(create_response.status_code, 201)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201
+
+======================================================================
+FAIL: test_candidate_session_can_use_application_and_interview_endpoints (apps.invitations.tests.CandidateAccessVettingEndpointsTests.test_candidate_session_can_use_application_and_interview_endpoints)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1432, in patched
+    return func(*newargs, **newkeywargs)
+  File "A:\projects\Django\OVS-Redo\backend\apps\invitations\tests.py", line 362, in test_candidate_session_can_use_application_and_interview_endpoints
+    self.assertEqual(upload.status_code, 201)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201
+
+======================================================================
+FAIL: test_ai_signals_are_advisory_only_and_do_not_auto_approve (apps.rubrics.tests.RubricsApiTests.test_ai_signals_are_advisory_only_and_do_not_auto_approve)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "A:\projects\Django\OVS-Redo\backend\apps\rubrics\tests.py", line 399, in test_ai_signals_are_advisory_only_and_do_not_auto_approve
+    self.assertEqual(response.status_code, 200)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 403 != 200
+
+======================================================================
+FAIL: test_stale_backend_prefixed_path_rebases_to_base_dir (ai_ml_services.tests.test_settings_path_resolution.ResolveSettingsPathTests.test_stale_backend_prefixed_path_rebases_to_base_dir)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "A:\projects\Django\OVS-Redo\backend\ai_ml_services\tests\test_settings_path_resolution.py", line 31, in test_stale_backend_prefixed_path_rebases_to_base_dir
+    self.assertEqual(resolved, Path("/app/backend/models/midv500_classifier.pkl"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: WindowsPath('C:/old/machine/backend/models/midv500_classifier.pkl') != WindowsPath('/app/backend/models/midv500_classifier.pkl')
+
+======================================================================
+FAIL: test_windows_absolute_path_rebases_to_fallback_dir_filename (ai_ml_services.tests.test_settings_path_resolution.ResolveSettingsPathTests.test_windows_absolute_path_rebases_to_fallback_dir_filename)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "A:\projects\Django\OVS-Redo\backend\ai_ml_services\tests\test_settings_path_resolution.py", line 23, in test_windows_absolute_path_rebases_to_fallback_dir_filename
+    self.assertEqual(resolved, Path("/app/backend/models/rvl_cdip_classifier.pth"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: WindowsPath('A:/projects/Django/OVS-Redo/backend/model[22 chars]pth') != WindowsPath('/app/backend/models/rvl_cdip_classifier.pth')
+
+----------------------------------------------------------------------
+Ran 129 tests in 687.358s
+
+FAILED (failures=21, errors=12)
+Destroying test database for alias 'default'...
+
+Found 129 test(s).
+System check identified no issues (0 silenced).
+GAMS demo setup completed.
+Demo sign-in accounts:
+  Admin:     gams.admin@demo.local / DemoAdmin123!
+  Vetting:   gams.vetting@demo.local / DemoVetting123!
+  Committee: gams.committee@demo.local / DemoCommittee123!
+  Authority: gams.authority@demo.local / DemoAuthority123!
+  Registry:  gams.registry@demo.local / DemoRegistry123!
+  Publication: gams.publication@demo.local / DemoPublication123!
+  Auditor:  gams.auditor@demo.local / DemoAuditor123!
+GAMS demo setup completed.
+Demo sign-in accounts:
+  Admin:     gams.admin@demo.local / DemoAdmin123!
+  Vetting:   gams.vetting@demo.local / DemoVetting123!
+  Committee: gams.committee@demo.local / DemoCommittee123!
+  Authority: gams.authority@demo.local / DemoAuthority123!
+  Registry:  gams.registry@demo.local / DemoRegistry123!
+  Publication: gams.publication@demo.local / DemoPublication123!
+  Auditor:  gams.auditor@demo.local / DemoAuditor123!

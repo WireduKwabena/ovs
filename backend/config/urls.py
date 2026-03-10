@@ -33,6 +33,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/system/", include("apps.core.urls")),
     path("api/auth/", include("apps.authentication.urls")),
+    path("api/public/transparency/", include("apps.appointments.public_urls")),
     path("api/admin/", include("apps.admin_dashboard.urls")),
     path("api/campaigns/", include("apps.campaigns.urls")),
     path("api/positions/", include("apps.positions.urls")),

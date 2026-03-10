@@ -178,11 +178,19 @@ Internal endpoints (HR/admin restricted):
 
 Public endpoints (safe serializers only):
 
+- `/api/public/transparency/summary/`
+- `/api/public/transparency/appointments/`
+- `/api/public/transparency/appointments/gazette-feed/`
+- `/api/public/transparency/appointments/open/`
+- `/api/public/transparency/appointments/{id}/`
+- `/api/public/transparency/positions/`
+- `/api/public/transparency/positions/vacant/`
+- `/api/public/transparency/officeholders/`
 - `/api/positions/public/`
 - `/api/positions/vacant/`
 - `/api/personnel/officeholders/`
-- `/api/appointments/records/gazette-feed/`
-- `/api/appointments/records/open/`
+- `/api/appointments/records/gazette-feed/` (legacy compatibility, deprecated)
+- `/api/appointments/records/open/` (legacy compatibility, deprecated)
 
 Public appointment feeds are additionally filtered to:
 
@@ -215,8 +223,16 @@ Government registries and lifecycle:
 - `GET /api/appointments/records/{id}/publication/`
 - `POST /api/appointments/records/{id}/publish/`
 - `POST /api/appointments/records/{id}/revoke-publication/`
-- `GET /api/appointments/records/gazette-feed/`
-- `GET /api/appointments/records/open/`
+- `GET /api/public/transparency/summary/`
+- `GET /api/public/transparency/appointments/`
+- `GET /api/public/transparency/appointments/gazette-feed/`
+- `GET /api/public/transparency/appointments/open/`
+- `GET /api/public/transparency/appointments/{id}/`
+- `GET /api/public/transparency/positions/`
+- `GET /api/public/transparency/positions/vacant/`
+- `GET /api/public/transparency/officeholders/`
+- `GET /api/appointments/records/gazette-feed/` (legacy compatibility, deprecated)
+- `GET /api/appointments/records/open/` (legacy compatibility, deprecated)
 - `GET/POST /api/appointments/stage-templates/`
 - `GET/POST /api/appointments/stages/`
 

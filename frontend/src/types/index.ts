@@ -1374,10 +1374,13 @@ export interface AppointmentPublication {
 export interface PublicAppointmentRecord {
   id: string;
   position_title: string;
+  position_branch?: string;
   institution: string;
+  appointment_authority?: string;
   nominee_name: string;
   nominated_by_display: string;
   nominated_by_org: string;
+  nomination_date?: string;
   appointment_date: string | null;
   gazette_number: string;
   gazette_date: string | null;
@@ -1385,6 +1388,37 @@ export interface PublicAppointmentRecord {
   publication_status: AppointmentPublicationStatus;
   publication_reference: string;
   published_at: string | null;
+}
+
+export interface PublicTransparencySummary {
+  published_appointments: number;
+  open_public_appointments: number;
+  public_positions: number;
+  vacant_public_positions: number;
+  active_public_officeholders: number;
+  last_published_at: string | null;
+}
+
+export interface PublicTransparencyPosition {
+  id: string;
+  title: string;
+  branch: string;
+  institution: string;
+  appointment_authority: string;
+  confirmation_required: boolean;
+  constitutional_basis: string;
+  term_length_years: number | null;
+  is_vacant: boolean;
+  current_holder_name: string | null;
+}
+
+export interface PublicTransparencyOfficeholder {
+  id: string;
+  full_name: string;
+  gender: string;
+  bio_summary: string;
+  academic_qualifications: string[];
+  is_active_officeholder: boolean;
 }
 
 export interface AppointmentRecord {

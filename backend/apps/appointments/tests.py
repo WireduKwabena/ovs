@@ -854,12 +854,23 @@ class AppointmentPublicApiTests(APITestCase):
     def test_create_record_allows_hr_and_admin_but_blocks_applicant(self):
         first_nominee = self._build_nominee()
         second_nominee = self._build_nominee()
+        hr_org = Organization.objects.create(
+            code=f"appt-public-create-{uuid4().hex[:8]}",
+            name=f"Appointments Public Create Org {uuid4().hex[:6]}",
+        )
+        OrganizationMembership.objects.create(
+            user=self.ordinary_hr_user,
+            organization=hr_org,
+            is_active=True,
+            is_default=True,
+        )
         payload = {
             "position": str(self.record.position_id),
             "nominee": str(first_nominee.id),
             "nominated_by_display": "H.E. President",
             "nominated_by_org": "Office of the President",
             "nomination_date": str(date.today()),
+            "organization": str(hr_org.id),
         }
 
         self.client.force_authenticate(self.applicant_user)
@@ -1413,6 +1424,164 @@ class AppointmentPublicApiTests(APITestCase):
         self.assertIn("publication_status", item)
         self.assertIn("publication_reference", item)
 
+    def test_legacy_public_endpoints_include_deprecation_headers(self):
+        self._authenticate_with_recent_auth(self.authority_user)
+        publish_response = self.client.post(
+            f"/api/appointments/records/{self.record.id}/publish/",
+            {
+                "publication_reference": "GOV-GAZ-LEGACY-HDR",
+                "publication_document_hash": "b" * 64,
+                "gazette_number": "GN-LEGACY-1",
+                "gazette_date": str(date.today()),
+            },
+            format="json",
+        )
+        self.assertEqual(publish_response.status_code, 200)
+
+        self.client.force_authenticate(user=None)
+
+        legacy_gazette = self.client.get("/api/appointments/records/gazette-feed/")
+        self.assertEqual(legacy_gazette.status_code, 200)
+        self.assertEqual(legacy_gazette["Deprecation"], "true")
+        self.assertEqual(legacy_gazette["X-Deprecated-Endpoint"], "true")
+        self.assertEqual(legacy_gazette["Sunset"], "Thu, 31 Dec 2026 23:59:59 GMT")
+        self.assertIn(
+            "</api/public/transparency/appointments/gazette-feed/>; rel=\"successor-version\"",
+            legacy_gazette["Link"],
+        )
+
+        legacy_open = self.client.get("/api/appointments/records/open/")
+        self.assertEqual(legacy_open.status_code, 200)
+        self.assertEqual(legacy_open["Deprecation"], "true")
+        self.assertEqual(legacy_open["X-Deprecated-Endpoint"], "true")
+        self.assertIn(
+            "</api/public/transparency/appointments/open/>; rel=\"successor-version\"",
+            legacy_open["Link"],
+        )
+
+    def test_legacy_gazette_feed_matches_transparency_gazette_feed(self):
+        self._authenticate_with_recent_auth(self.authority_user)
+        publish_response = self.client.post(
+            f"/api/appointments/records/{self.record.id}/publish/",
+            {
+                "publication_reference": "GOV-GAZ-PARITY-HDR",
+                "publication_document_hash": "c" * 64,
+                "gazette_number": "GN-PARITY-1",
+                "gazette_date": str(date.today()),
+            },
+            format="json",
+        )
+        self.assertEqual(publish_response.status_code, 200)
+
+        self.client.force_authenticate(user=None)
+        legacy_feed = self.client.get("/api/appointments/records/gazette-feed/")
+        modern_feed = self.client.get("/api/public/transparency/appointments/gazette-feed/")
+        self.assertEqual(legacy_feed.status_code, 200)
+        self.assertEqual(modern_feed.status_code, 200)
+
+        legacy_ids = {str(item["id"]) for item in legacy_feed.json()}
+        modern_ids = {str(item["id"]) for item in modern_feed.json()}
+        self.assertSetEqual(legacy_ids, modern_ids)
+
+    def test_public_transparency_appointments_list_and_detail_require_published_state(self):
+        publish_response = self._publish_record(actor=self.admin_user)
+        self.assertEqual(publish_response.status_code, 200)
+
+        unpublished_nominee = self._build_nominee()
+        unpublished = AppointmentRecord.objects.create(
+            position=self.record.position,
+            nominee=unpublished_nominee,
+            appointment_exercise=self.record.appointment_exercise,
+            nominated_by_user=self.admin_user,
+            nominated_by_display="Unpublished Transparency Marker",
+            nomination_date=date.today(),
+            status="nominated",
+            is_public=True,
+        )
+
+        self.client.force_authenticate(user=None)
+        list_response = self.client.get("/api/public/transparency/appointments/")
+        self.assertEqual(list_response.status_code, 200)
+        payload = list_response.json()
+        self.assertIsInstance(payload, list)
+        ids = {str(item["id"]) for item in payload}
+        self.assertIn(str(self.record.id), ids)
+        self.assertNotIn(str(unpublished.id), ids)
+
+        item = next((row for row in payload if str(row["id"]) == str(self.record.id)), None)
+        self.assertIsNotNone(item)
+        self.assertNotIn("committee_recommendation", item)
+        self.assertNotIn("publication_notes", item)
+        self.assertNotIn("publication_document_hash", item)
+        self.assertNotIn("vetting_case", item)
+
+        detail_response = self.client.get(f"/api/public/transparency/appointments/{self.record.id}/")
+        self.assertEqual(detail_response.status_code, 200)
+        detail_payload = detail_response.json()
+        self.assertEqual(str(detail_payload["id"]), str(self.record.id))
+        self.assertEqual(detail_payload.get("publication_status"), "published")
+
+        detail_unpublished = self.client.get(f"/api/public/transparency/appointments/{unpublished.id}/")
+        self.assertEqual(detail_unpublished.status_code, 404)
+
+    def test_public_transparency_revoked_records_disappear_from_list_and_detail(self):
+        publish_response = self._publish_record(actor=self.authority_user)
+        self.assertEqual(publish_response.status_code, 200)
+
+        self._authenticate_with_recent_auth(self.authority_user)
+        revoke_response = self.client.post(
+            f"/api/appointments/records/{self.record.id}/revoke-publication/",
+            {"revocation_reason": "Public correction", "make_private": True},
+            format="json",
+        )
+        self.assertEqual(revoke_response.status_code, 200)
+
+        self.client.force_authenticate(user=None)
+        list_response = self.client.get("/api/public/transparency/appointments/")
+        self.assertEqual(list_response.status_code, 200)
+        ids = {str(item["id"]) for item in list_response.json()}
+        self.assertNotIn(str(self.record.id), ids)
+
+        detail_response = self.client.get(f"/api/public/transparency/appointments/{self.record.id}/")
+        self.assertEqual(detail_response.status_code, 404)
+
+    def test_public_transparency_summary_positions_and_officeholders(self):
+        publish_response = self._publish_record(actor=self.admin_user)
+        self.assertEqual(publish_response.status_code, 200)
+
+        officeholder = PersonnelRecord.objects.create(
+            full_name="Public Officeholder",
+            gender="female",
+            bio_summary="Public service profile.",
+            academic_qualifications=["LLB"],
+            is_active_officeholder=True,
+            is_public=True,
+        )
+
+        self.client.force_authenticate(user=None)
+        summary_response = self.client.get("/api/public/transparency/summary/")
+        self.assertEqual(summary_response.status_code, 200)
+        summary_payload = summary_response.json()
+        self.assertGreaterEqual(summary_payload.get("published_appointments", 0), 1)
+        self.assertGreaterEqual(summary_payload.get("public_positions", 0), 1)
+        self.assertGreaterEqual(summary_payload.get("active_public_officeholders", 0), 1)
+
+        positions_response = self.client.get("/api/public/transparency/positions/")
+        self.assertEqual(positions_response.status_code, 200)
+        positions_payload = positions_response.json()
+        self.assertTrue(any(str(item["id"]) == str(self.record.position_id) for item in positions_payload))
+        first_position = positions_payload[0]
+        self.assertNotIn("required_qualifications", first_position)
+        self.assertNotIn("rubric", first_position)
+
+        officeholders_response = self.client.get("/api/public/transparency/officeholders/")
+        self.assertEqual(officeholders_response.status_code, 200)
+        officeholders_payload = officeholders_response.json()
+        self.assertTrue(any(str(item["id"]) == str(officeholder.id) for item in officeholders_payload))
+        first_officeholder = officeholders_payload[0]
+        self.assertNotIn("contact_email", first_officeholder)
+        self.assertNotIn("national_id_hash", first_officeholder)
+
 
 class AppointmentCommitteeBindingApiTests(APITestCase):
     def setUp(self):
@@ -1497,6 +1666,12 @@ class AppointmentCommitteeBindingApiTests(APITestCase):
         )
         self.org_membership_observer = OrganizationMembership.objects.create(
             user=self.observer_user,
+            organization=self.org_a,
+            is_active=True,
+            is_default=True,
+        )
+        self.org_membership_non_member_group = OrganizationMembership.objects.create(
+            user=self.non_member_group_user,
             organization=self.org_a,
             is_active=True,
             is_default=True,

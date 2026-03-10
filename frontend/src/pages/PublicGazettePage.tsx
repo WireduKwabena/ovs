@@ -32,10 +32,17 @@ export const PublicGazettePage: React.FC = () => {
   const loadFeed = useCallback(async () => {
     setError(null);
     try {
-      const feed = await governmentService.listPublicGazetteFeed();
+      const feed = await governmentService.listPublicTransparencyGazetteFeed({
+        ordering: "-published_at",
+      });
       setRecords(feed);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load gazette feed.");
+      try {
+        const legacyFeed = await governmentService.listPublicGazetteFeed();
+        setRecords(legacyFeed);
+      } catch (legacyError) {
+        setError(legacyError instanceof Error ? legacyError.message : "Unable to load gazette feed.");
+      }
     }
   }, []);
 

@@ -29,6 +29,7 @@ from .models import Document, VettingCase
 from .serializers import DocumentSerializer, DocumentUploadSerializer, VettingCaseSerializer
 from .social_checks import run_case_social_profile_check
 from .tasks import verify_document_async
+from .verification_gateway import build_case_external_verification_snapshot
 
 
 def _candidate_enrollment_id(request) -> int | None:
@@ -409,6 +410,7 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
                     if social_result
                     else None
                 ),
+                "external_verification": build_case_external_verification_snapshot(case),
             }
         )
 

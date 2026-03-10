@@ -10,6 +10,9 @@ import type {
   PaginatedResponse,
   PersonnelRecord,
   PublicAppointmentRecord,
+  PublicTransparencyOfficeholder,
+  PublicTransparencyPosition,
+  PublicTransparencySummary,
   VettingCampaign,
 } from "@/types";
 
@@ -415,6 +418,92 @@ export const governmentService = {
       return Array.isArray(response.data) ? response.data : [];
     } catch (error) {
       throw toServiceError(error, "Failed to fetch open appointments feed.");
+    }
+  },
+
+  async getPublicTransparencySummary(): Promise<PublicTransparencySummary> {
+    try {
+      const response = await api.get<PublicTransparencySummary>("/public/transparency/summary/");
+      return response.data;
+    } catch (error) {
+      throw toServiceError(error, "Failed to fetch transparency summary.");
+    }
+  },
+
+  async listPublicTransparencyAppointments(params?: {
+    search?: string;
+    status?: string;
+    ordering?: string;
+  }): Promise<PublicAppointmentRecord[]> {
+    try {
+      const response = await api.get<PublicAppointmentRecord[]>("/public/transparency/appointments/", { params });
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+      throw toServiceError(error, "Failed to fetch published appointments.");
+    }
+  },
+
+  async listPublicTransparencyGazetteFeed(params?: {
+    search?: string;
+    status?: string;
+    ordering?: string;
+  }): Promise<PublicAppointmentRecord[]> {
+    try {
+      const response = await api.get<PublicAppointmentRecord[]>("/public/transparency/appointments/gazette-feed/", {
+        params,
+      });
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+      throw toServiceError(error, "Failed to fetch public gazette feed.");
+    }
+  },
+
+  async getPublicTransparencyAppointmentDetail(appointmentId: string): Promise<PublicAppointmentRecord> {
+    try {
+      const response = await api.get<PublicAppointmentRecord>(`/public/transparency/appointments/${appointmentId}/`);
+      return response.data;
+    } catch (error) {
+      throw toServiceError(error, "Failed to fetch published appointment detail.");
+    }
+  },
+
+  async listPublicTransparencyOpenAppointments(params?: {
+    search?: string;
+    status?: string;
+    ordering?: string;
+  }): Promise<PublicAppointmentRecord[]> {
+    try {
+      const response = await api.get<PublicAppointmentRecord[]>("/public/transparency/appointments/open/", { params });
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+      throw toServiceError(error, "Failed to fetch open transparency appointments.");
+    }
+  },
+
+  async listPublicTransparencyPositions(): Promise<PublicTransparencyPosition[]> {
+    try {
+      const response = await api.get<PublicTransparencyPosition[]>("/public/transparency/positions/");
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+      throw toServiceError(error, "Failed to fetch public positions.");
+    }
+  },
+
+  async listPublicTransparencyVacantPositions(): Promise<PublicTransparencyPosition[]> {
+    try {
+      const response = await api.get<PublicTransparencyPosition[]>("/public/transparency/positions/vacant/");
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+      throw toServiceError(error, "Failed to fetch vacant public positions.");
+    }
+  },
+
+  async listPublicTransparencyOfficeholders(): Promise<PublicTransparencyOfficeholder[]> {
+    try {
+      const response = await api.get<PublicTransparencyOfficeholder[]>("/public/transparency/officeholders/");
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+      throw toServiceError(error, "Failed to fetch public officeholders.");
     }
   },
 

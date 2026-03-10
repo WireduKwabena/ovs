@@ -248,5 +248,13 @@ Appointment lifecycle:
 
 Public feeds:
 
-- `/api/appointments/records/gazette-feed/`
-- `/api/appointments/records/open/`
+- `/api/public/transparency/summary/`
+- `/api/public/transparency/appointments/`
+- `/api/public/transparency/appointments/gazette-feed/`
+- `/api/public/transparency/appointments/open/`
+- `/api/public/transparency/appointments/{id}/`
+- `/api/public/transparency/positions/`
+- `/api/public/transparency/positions/vacant/`
+- `/api/public/transparency/officeholders/`
+- `/api/appointments/records/gazette-feed/` (legacy compatibility, deprecated)
+- `/api/appointments/records/open/` (legacy compatibility, deprecated)

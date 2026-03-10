@@ -21,6 +21,12 @@ from apps.rubrics.tasks import auto_assign_rubric, evaluate_case_with_rubric
 
 class RubricsApiTests(APITestCase):
     def setUp(self):
+        self.org = Organization.objects.create(
+            code="rubrics-api-org",
+            name="Rubrics API Org",
+            organization_type="agency",
+            is_active=True,
+        )
         self.hr = User.objects.create_user(
             email="hr_rubrics_test@example.com",
             password="Pass1234!",
@@ -45,7 +51,15 @@ class RubricsApiTests(APITestCase):
             is_staff=True,
             is_superuser=True,
         )
+        OrganizationMembership.objects.create(
+            user=self.hr,
+            organization=self.org,
+            membership_role="vetting_officer",
+            is_active=True,
+            is_default=True,
+        )
         self.case = VettingCase.objects.create(
+            organization=self.org,
             applicant=self.applicant,
             assigned_to=self.hr,
             position_applied="Risk Analyst",

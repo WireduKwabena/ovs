@@ -148,6 +148,24 @@ describe("governmentService stage/publication API contract", () => {
     expect(rows[0]).toMatchObject({ id: "appointment-public-1", publication_status: "published" });
   });
 
+  it("calls transparency gazette feed endpoint with query params", async () => {
+    apiGetMock.mockResolvedValueOnce({
+      data: [],
+    });
+
+    await governmentService.listPublicTransparencyGazetteFeed({
+      ordering: "-published_at",
+      search: "Justice",
+    });
+
+    expect(apiGetMock).toHaveBeenCalledWith("/public/transparency/appointments/gazette-feed/", {
+      params: {
+        ordering: "-published_at",
+        search: "Justice",
+      },
+    });
+  });
+
   it("detects RECENT_AUTH_REQUIRED responses for sensitive actions", async () => {
     apiPostMock.mockRejectedValueOnce({
       response: {

@@ -12,7 +12,16 @@ except ModuleNotFoundError:  # pragma: no cover - optional in some setups
 
         return decorator
 
-from .models import ConsistencyCheck, Document, InterrogationFlag, VerificationResult, VettingCase
+from .models import (
+    ConsistencyCheck,
+    Document,
+    ExternalVerificationResult,
+    InterrogationFlag,
+    VerificationRequest,
+    VerificationResult,
+    VerificationSource,
+    VettingCase,
+)
 
 User = get_user_model()
 
@@ -291,3 +300,109 @@ class VettingCaseSerializer(serializers.ModelSerializer):
 class DocumentUploadSerializer(serializers.Serializer):
     document_type = serializers.ChoiceField(choices=Document.DOCUMENT_TYPE_CHOICES)
     file = serializers.FileField()
+
+
+class VerificationSourceSerializer(serializers.ModelSerializer):
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
+    created_by_email = serializers.EmailField(source="created_by.email", read_only=True)
+
+    class Meta:
+        model = VerificationSource
+        fields = [
+            "id",
+            "organization",
+            "organization_name",
+            "key",
+            "name",
+            "source_category",
+            "integration_mode",
+            "advisory_only",
+            "is_active",
+            "description",
+            "configuration",
+            "created_by",
+            "created_by_email",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "organization_name", "created_by", "created_by_email", "created_at", "updated_at"]
+
+
+class ExternalVerificationResultSerializer(serializers.ModelSerializer):
+    source_key = serializers.CharField(source="source.key", read_only=True)
+    source_name = serializers.CharField(source="source.name", read_only=True)
+
+    class Meta:
+        model = ExternalVerificationResult
+        fields = [
+            "id",
+            "organization",
+            "case",
+            "source",
+            "source_key",
+            "source_name",
+            "verification_request",
+            "result_status",
+            "recommendation",
+            "confidence_score",
+            "advisory_flags",
+            "evidence_summary",
+            "normalized_evidence",
+            "raw_payload_redacted",
+            "provider_reference",
+            "received_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+
+class VerificationRequestSerializer(serializers.ModelSerializer):
+    source = VerificationSourceSerializer(read_only=True)
+    source_id = serializers.PrimaryKeyRelatedField(
+        source="source",
+        queryset=VerificationSource.objects.all(),
+        write_only=True,
+    )
+    requested_by_email = serializers.EmailField(source="requested_by.email", read_only=True)
+    result = ExternalVerificationResultSerializer(source="external_result", read_only=True)
+
+    class Meta:
+        model = VerificationRequest
+        fields = [
+            "id",
+            "organization",
+            "case",
+            "source",
+            "source_id",
+            "requested_by",
+            "requested_by_email",
+            "status",
+            "purpose",
+            "idempotency_key",
+            "subject_identifiers",
+            "request_payload",
+            "external_reference",
+            "error_code",
+            "error_message",
+            "requested_at",
+            "submitted_at",
+            "last_polled_at",
+            "completed_at",
+            "updated_at",
+            "result",
+        ]
+        read_only_fields = [
+            "id",
+            "requested_by",
+            "requested_by_email",
+            "status",
+            "external_reference",
+            "error_code",
+            "error_message",
+            "requested_at",
+            "submitted_at",
+            "last_polled_at",
+            "completed_at",
+            "updated_at",
+            "result",
+        ]

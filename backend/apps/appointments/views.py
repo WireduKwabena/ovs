@@ -2,6 +2,7 @@ from django.db import transaction
 from rest_framework.exceptions import ValidationError
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 
@@ -56,6 +57,21 @@ from .services import (
     publish_appointment_record,
     revoke_appointment_publication,
 )
+from .public_services import (
+    apply_public_appointment_query_params,
+    public_open_appointments_queryset,
+    published_appointments_queryset,
+)
+
+LEGACY_PUBLIC_ENDPOINT_SUNSET = "Thu, 31 Dec 2026 23:59:59 GMT"
+
+
+def _apply_legacy_public_endpoint_headers(response: Response, *, successor_path: str) -> Response:
+    response["Deprecation"] = "true"
+    response["Sunset"] = LEGACY_PUBLIC_ENDPOINT_SUNSET
+    response["Link"] = f'<{successor_path}>; rel="successor-version"'
+    response["X-Deprecated-Endpoint"] = "true"
+    return response
 
 
 class ApprovalStageTemplateViewSet(viewsets.ModelViewSet):
@@ -540,24 +556,42 @@ class AppointmentRecordViewSet(viewsets.ModelViewSet):
         publication = ensure_publication_record_for_appointment(appointment=appointment)
         return Response(AppointmentPublicationSerializer(publication).data, status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny], url_path="gazette-feed")
+    @action(
+        detail=False,
+        methods=["get"],
+        permission_classes=[permissions.AllowAny],
+        renderer_classes=[JSONRenderer],
+        url_path="gazette-feed",
+    )
     def gazette_feed(self, request):
-        public_queryset = AppointmentRecord.objects.select_related("position", "nominee", "publication")
-        queryset = self.filter_queryset(
-            public_queryset.filter(is_public=True, publication__status="published").exclude(gazette_number="")
+        queryset = published_appointments_queryset(require_gazette_number=True)
+        queryset = apply_public_appointment_query_params(
+            queryset,
+            query_params=request.query_params,
         )
         serializer = PublicAppointmentRecordSerializer(queryset, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        response = Response(serializer.data, status=status.HTTP_200_OK)
+        return _apply_legacy_public_endpoint_headers(
+            response,
+            successor_path="/api/public/transparency/appointments/gazette-feed/",
+        )
 
-    @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny], url_path="open")
+    @action(
+        detail=False,
+        methods=["get"],
+        permission_classes=[permissions.AllowAny],
+        renderer_classes=[JSONRenderer],
+        url_path="open",
+    )
     def open_appointments(self, request):
-        public_queryset = AppointmentRecord.objects.select_related("position", "nominee", "publication")
-        queryset = self.filter_queryset(
-            public_queryset.filter(
-                status__in={"nominated", "under_vetting", "committee_review", "confirmation_pending"},
-                is_public=True,
-                publication__status="published",
-            )
+        queryset = public_open_appointments_queryset()
+        queryset = apply_public_appointment_query_params(
+            queryset,
+            query_params=request.query_params,
         )
         serializer = PublicAppointmentRecordSerializer(queryset, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        response = Response(serializer.data, status=status.HTTP_200_OK)
+        return _apply_legacy_public_endpoint_headers(
+            response,
+            successor_path="/api/public/transparency/appointments/open/",
+        )

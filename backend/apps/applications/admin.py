@@ -1,6 +1,15 @@
 from django.contrib import admin
 
-from .models import ConsistencyCheck, Document, InterrogationFlag, VerificationResult, VettingCase
+from .models import (
+    ConsistencyCheck,
+    Document,
+    ExternalVerificationResult,
+    InterrogationFlag,
+    VerificationRequest,
+    VerificationResult,
+    VerificationSource,
+    VettingCase,
+)
 
 
 @admin.register(VettingCase)
@@ -64,3 +73,30 @@ class InterrogationFlagAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "addressed_at", "resolved_at")
     filter_horizontal = ("related_documents",)
     list_select_related = ("case", "related_consistency_check", "resolved_by")
+
+
+@admin.register(VerificationSource)
+class VerificationSourceAdmin(admin.ModelAdmin):
+    list_display = ("key", "name", "source_category", "integration_mode", "organization", "is_active", "advisory_only")
+    list_filter = ("source_category", "integration_mode", "is_active", "advisory_only", "organization")
+    search_fields = ("key", "name", "description", "organization__name")
+    readonly_fields = ("created_at", "updated_at")
+    list_select_related = ("organization", "created_by")
+
+
+@admin.register(VerificationRequest)
+class VerificationRequestAdmin(admin.ModelAdmin):
+    list_display = ("id", "case", "source", "status", "organization", "requested_by", "requested_at")
+    list_filter = ("status", "source", "organization", "requested_at")
+    search_fields = ("case__case_id", "source__key", "external_reference", "idempotency_key")
+    readonly_fields = ("requested_at", "updated_at")
+    list_select_related = ("case", "source", "organization", "requested_by")
+
+
+@admin.register(ExternalVerificationResult)
+class ExternalVerificationResultAdmin(admin.ModelAdmin):
+    list_display = ("id", "case", "source", "result_status", "recommendation", "confidence_score", "received_at")
+    list_filter = ("result_status", "recommendation", "source", "organization")
+    search_fields = ("case__case_id", "source__key", "provider_reference")
+    readonly_fields = ("received_at", "updated_at")
+    list_select_related = ("case", "source", "organization", "verification_request")

@@ -1,6 +1,15 @@
 """Lazy public exports for applications app models."""
 
-__all__ = ["VettingCase", "Document", "VerificationResult", "ConsistencyCheck", "InterrogationFlag"]
+__all__ = [
+    "VettingCase",
+    "Document",
+    "VerificationResult",
+    "ConsistencyCheck",
+    "InterrogationFlag",
+    "VerificationSource",
+    "VerificationRequest",
+    "ExternalVerificationResult",
+]
 
 
 def __getattr__(name):

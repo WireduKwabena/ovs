@@ -750,3 +750,237 @@ class InterrogationFlag(models.Model):
         self.status = 'unresolved'
         self.resolution_summary = summary
         self.save()
+
+
+class VerificationSource(models.Model):
+    """
+    Configured external evidence source for inter-agency verification.
+
+    This model stores source metadata only. It does not imply autonomous decision authority.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    SOURCE_CATEGORY_CHOICES = [
+        ("national_identity", "National Identity Registry"),
+        ("civil_service", "Civil Service / Employment Registry"),
+        ("academic_credentials", "Academic Credential Registry"),
+        ("sanctions", "Sanctions / Disciplinary Registry"),
+        ("prior_appointments", "Prior Appointment Registry"),
+        ("organization_legitimacy", "Organization Legitimacy Registry"),
+        ("other", "Other"),
+    ]
+
+    INTEGRATION_MODE_CHOICES = [
+        ("manual", "Manual Upload / Officer Entry"),
+        ("mock", "Mock Provider"),
+        ("api", "API Integration"),
+        ("batch", "Batch Import"),
+    ]
+
+    organization = models.ForeignKey(
+        "governance.Organization",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="verification_sources",
+    )
+    key = models.CharField(max_length=80, unique=True, db_index=True)
+    name = models.CharField(max_length=200)
+    source_category = models.CharField(max_length=40, choices=SOURCE_CATEGORY_CHOICES, default="other", db_index=True)
+    integration_mode = models.CharField(max_length=20, choices=INTEGRATION_MODE_CHOICES, default="manual")
+    advisory_only = models.BooleanField(
+        default=True,
+        help_text="External source outputs remain advisory evidence and never final authority.",
+    )
+    is_active = models.BooleanField(default=True, db_index=True)
+    description = models.TextField(blank=True)
+    configuration = models.JSONField(default=dict, blank=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_verification_sources",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        indexes = [
+            models.Index(fields=["organization", "is_active"]),
+            models.Index(fields=["source_category", "is_active"]),
+        ]
+        verbose_name = "Verification Source"
+        verbose_name_plural = "Verification Sources"
+
+    def __str__(self):
+        return f"{self.name} ({self.key})"
+
+
+class VerificationRequest(models.Model):
+    """
+    Verification request sent to an external/inter-agency source.
+
+    Tracks request lifecycle and idempotency for retried submissions.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("submitted", "Submitted"),
+        ("in_progress", "In Progress"),
+        ("completed", "Completed"),
+        ("failed", "Failed"),
+        ("unavailable", "Unavailable"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    organization = models.ForeignKey(
+        "governance.Organization",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="verification_requests",
+    )
+    case = models.ForeignKey(
+        VettingCase,
+        on_delete=models.CASCADE,
+        related_name="verification_requests",
+    )
+    source = models.ForeignKey(
+        VerificationSource,
+        on_delete=models.PROTECT,
+        related_name="verification_requests",
+    )
+    requested_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="verification_requests",
+    )
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending", db_index=True)
+    purpose = models.CharField(max_length=100, default="vetting_evidence", blank=True)
+    idempotency_key = models.CharField(max_length=120, blank=True, db_index=True)
+    subject_identifiers = models.JSONField(default=dict, blank=True)
+    request_payload = models.JSONField(default=dict, blank=True)
+    external_reference = models.CharField(max_length=255, blank=True, db_index=True)
+    error_code = models.CharField(max_length=100, blank=True)
+    error_message = models.TextField(blank=True)
+
+    requested_at = models.DateTimeField(auto_now_add=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    last_polled_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-requested_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["case", "source", "idempotency_key"],
+                condition=models.Q(idempotency_key__gt=""),
+                name="uniq_verif_req_case_source_idempotency",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["case", "status"]),
+            models.Index(fields=["source", "status"]),
+            models.Index(fields=["organization", "status"]),
+        ]
+        verbose_name = "Verification Request"
+        verbose_name_plural = "Verification Requests"
+
+    def __str__(self):
+        return f"{self.case.case_id}::{self.source.key}::{self.status}"
+
+
+class ExternalVerificationResult(models.Model):
+    """
+    Normalized result from an external verification source.
+
+    Evidence is advisory-only and feeds human-centric rubric/decision support.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    RESULT_STATUS_CHOICES = [
+        ("verified", "Verified"),
+        ("mismatch", "Mismatch"),
+        ("not_found", "Not Found"),
+        ("inconclusive", "Inconclusive"),
+        ("error", "Error"),
+        ("unavailable", "Unavailable"),
+    ]
+
+    RECOMMENDATION_CHOICES = [
+        ("clear", "Clear"),
+        ("review", "Manual Review"),
+        ("escalate", "Escalate"),
+        ("reject", "Reject"),
+        ("unavailable", "Unavailable"),
+    ]
+
+    organization = models.ForeignKey(
+        "governance.Organization",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="external_verification_results",
+    )
+    case = models.ForeignKey(
+        VettingCase,
+        on_delete=models.CASCADE,
+        related_name="external_verification_results",
+    )
+    source = models.ForeignKey(
+        VerificationSource,
+        on_delete=models.PROTECT,
+        related_name="external_verification_results",
+    )
+    verification_request = models.OneToOneField(
+        VerificationRequest,
+        on_delete=models.CASCADE,
+        related_name="external_result",
+    )
+
+    result_status = models.CharField(max_length=20, choices=RESULT_STATUS_CHOICES, db_index=True)
+    recommendation = models.CharField(
+        max_length=20,
+        choices=RECOMMENDATION_CHOICES,
+        default="review",
+        help_text="Advisory recommendation only; final decision remains human.",
+    )
+    confidence_score = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
+    advisory_flags = models.JSONField(default=list, blank=True)
+    evidence_summary = models.JSONField(default=dict, blank=True)
+    normalized_evidence = models.JSONField(default=dict, blank=True)
+    raw_payload = models.JSONField(default=dict, blank=True)
+    raw_payload_redacted = models.BooleanField(
+        default=True,
+        help_text="True when payload is already redacted/sanitized for internal storage.",
+    )
+    provider_reference = models.CharField(max_length=255, blank=True)
+    received_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-received_at"]
+        indexes = [
+            models.Index(fields=["case", "result_status"]),
+            models.Index(fields=["source", "result_status"]),
+            models.Index(fields=["organization", "result_status"]),
+        ]
+        verbose_name = "External Verification Result"
+        verbose_name_plural = "External Verification Results"
+
+    def __str__(self):
+        return f"{self.case.case_id}::{self.source.key}::{self.result_status}"
