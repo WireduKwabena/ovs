@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   confirmSubscription: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
+  useAuth: vi.fn(),
 }));
 
 vi.mock("@/services/subscription.service", () => ({
@@ -34,7 +35,11 @@ vi.mock("react-toastify", () => ({
   },
 }));
 
-const renderAt = (route = "/subscribe?returnTo=%2Fregister") => {
+vi.mock("@/hooks/useAuth", () => ({
+  useAuth: () => mocks.useAuth(),
+}));
+
+const renderAt = (route = "/subscribe") => {
   return render(
     <MemoryRouter initialEntries={[route]}>
       <SubscriptionPlansPage />
@@ -49,6 +54,12 @@ describe("SubscriptionPlansPage hosted checkout integration", () => {
     vi.stubGlobal("location", {
       ...(window.location as Location),
       assign: locationAssignMock,
+    });
+    mocks.useAuth.mockReturnValue({
+      isAuthenticated: true,
+      userType: "hr_manager",
+      activeOrganizationId: "org-1",
+      canManageActiveOrganizationGovernance: true,
     });
   });
 
@@ -89,10 +100,10 @@ describe("SubscriptionPlansPage hosted checkout integration", () => {
       successUrl: string;
       cancelUrl: string;
     };
-    expect(payload.successUrl).toContain("/billing/success?next=%2Fregister");
-    expect(payload.cancelUrl).toContain("/billing/cancel?next=%2Fregister");
+    expect(payload.successUrl).toContain("/billing/success?next=%2Forganization%2Fonboarding");
+    expect(payload.cancelUrl).toContain("/billing/cancel?next=%2Forganization%2Fonboarding");
     expect(locationAssignMock).toHaveBeenCalledWith("https://checkout.stripe.com/c/pay/cs_test_123");
-  });
+  }, 15000);
 
   it("starts Paystack checkout for mobile money and redirects to Paystack URL", async () => {
     mocks.getCheckoutMode.mockReturnValue("paystack");
@@ -133,8 +144,29 @@ describe("SubscriptionPlansPage hosted checkout integration", () => {
       successUrl: string;
       cancelUrl: string;
     };
-    expect(payload.successUrl).toContain("/billing/success?next=%2Fregister");
-    expect(payload.cancelUrl).toContain("/billing/cancel?next=%2Fregister");
+    expect(payload.successUrl).toContain("/billing/success?next=%2Forganization%2Fonboarding");
+    expect(payload.cancelUrl).toContain("/billing/cancel?next=%2Forganization%2Fonboarding");
     expect(locationAssignMock).toHaveBeenCalledWith("https://checkout.paystack.com/OVS-PAYSTACK-TEST");
   }, 15000);
+
+  it("blocks checkout when organization context is missing", async () => {
+    mocks.useAuth.mockReturnValue({
+      isAuthenticated: true,
+      userType: "hr_manager",
+      activeOrganizationId: null,
+      canManageActiveOrganizationGovernance: false,
+    });
+    mocks.getCheckoutMode.mockReturnValue("paystack");
+    mocks.getHostedCheckoutProviders.mockReturnValue(["stripe", "paystack"]);
+
+    renderAt();
+
+    const continueButton = await screen.findByRole("button", { name: /continue to stripe/i });
+    expect((continueButton as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      await screen.findByText(/no active organization context detected/i),
+    ).toBeTruthy();
+    expect(mocks.beginStripeCheckout).not.toHaveBeenCalled();
+    expect(mocks.toastError).not.toHaveBeenCalled();
+  });
 });

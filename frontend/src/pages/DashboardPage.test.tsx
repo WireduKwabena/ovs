@@ -45,7 +45,11 @@ describe("DashboardPage role routing", () => {
   });
 
   it("renders operations dashboard when user type is hr_manager", async () => {
-    mockUseAuth.mockReturnValue({ userType: "hr_manager" });
+    mockUseAuth.mockReturnValue({
+      userType: "hr_manager",
+      canManageActiveOrganizationGovernance: false,
+      activeOrganizationId: null,
+    });
 
     render(
       <MemoryRouter initialEntries={["/dashboard"]}>
@@ -56,6 +60,47 @@ describe("DashboardPage role routing", () => {
     );
 
     expect(await screen.findByText("Operations Dashboard Page")).toBeTruthy();
+  });
+
+  it("redirects org-admin hr_manager users to organization workspace dashboard", async () => {
+    mockUseAuth.mockReturnValue({
+      userType: "hr_manager",
+      canManageActiveOrganizationGovernance: true,
+      activeOrganizationId: "org-1",
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Routes>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/organization/dashboard" element={<div>Organization Workspace Dashboard</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Organization Workspace Dashboard")).toBeTruthy();
+  });
+
+  it("routes committee/vetting actors to appointments workflow when available", async () => {
+    mockUseAuth.mockReturnValue({
+      userType: "hr_manager",
+      canManageActiveOrganizationGovernance: false,
+      activeOrganizationId: "org-1",
+      canAccessAppointments: true,
+      canManageRegistry: false,
+      canViewAuditLogs: false,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Routes>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/government/appointments" element={<div>Appointments Registry Page</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Appointments Registry Page")).toBeTruthy();
   });
 
   it("redirects applicant users to candidate access", async () => {

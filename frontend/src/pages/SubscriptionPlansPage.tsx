@@ -18,6 +18,7 @@ import {
   subscriptionService,
   type HostedCheckoutProvider,
 } from "@/services/subscription.service";
+import { useAuth } from "@/hooks/useAuth";
 
 const env = (import.meta as { env?: Record<string, string | undefined> }).env;
 
@@ -177,6 +178,23 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
   return candidate.response?.data?.message || candidate.response?.data?.detail || fallback;
 };
 
+const getErrorCode = (error: unknown): string => {
+  if (!error || typeof error !== "object") return "";
+  const candidate = error as { response?: { data?: { code?: unknown } } };
+  const code = candidate.response?.data?.code;
+  return typeof code === "string" ? code.trim() : "";
+};
+
+const getErrorSetupPath = (error: unknown): string => {
+  if (!error || typeof error !== "object") return "";
+  const candidate = error as { response?: { data?: { setup_path?: unknown } } };
+  const setupPath = candidate.response?.data?.setup_path;
+  if (typeof setupPath !== "string") return "";
+  const normalized = setupPath.trim();
+  if (!normalized.startsWith("/") || normalized.startsWith("//")) return "";
+  return normalized;
+};
+
 const normalizeReturnPath = (value: string | null | undefined, fallback: string): string => {
   if (!value) return fallback;
   if (!value.startsWith("/") || value.startsWith("//")) return fallback;
@@ -187,6 +205,12 @@ const normalizeReturnPath = (value: string | null | undefined, fallback: string)
 export const SubscriptionPlansPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const {
+    isAuthenticated,
+    userType,
+    activeOrganizationId,
+    canManageActiveOrganizationGovernance,
+  } = useAuth();
 
   const [selectedPlanId, setSelectedPlanId] = useState<string>("growth");
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
@@ -252,8 +276,24 @@ export const SubscriptionPlansPage: React.FC = () => {
     };
   }, []);
 
-  const defaultReturnPath = "/register";
-  const returnToPath = normalizeReturnPath(searchParams.get("returnTo"), defaultReturnPath);
+  const isInternalBillingUser = isAuthenticated && userType !== "applicant";
+  const isMissingOrganizationContext = isInternalBillingUser && !activeOrganizationId;
+  const lacksOrgAdminPermission =
+    isInternalBillingUser &&
+    Boolean(activeOrganizationId) &&
+    !canManageActiveOrganizationGovernance;
+  const canStartOrganizationCheckout =
+    isInternalBillingUser &&
+    Boolean(activeOrganizationId) &&
+    canManageActiveOrganizationGovernance;
+  const organizationSetupPath = "/organization/setup";
+  const onboardingManagementPath = "/organization/onboarding";
+  const returnToPath = isInternalBillingUser
+    ? onboardingManagementPath
+    : normalizeReturnPath(searchParams.get("returnTo"), "/login");
+  const nextStepLabel = isInternalBillingUser
+    ? "Organization Workspace -> Onboarding"
+    : "Sign in to continue";
 
   const selectedPlan = useMemo(
     () => plans.find((plan) => plan.id === selectedPlanId) ?? plans[0],
@@ -296,6 +336,24 @@ export const SubscriptionPlansPage: React.FC = () => {
 
   const handleConfirmSubscription = async () => {
     if (isProcessing) return;
+    if (!canStartOrganizationCheckout) {
+      if (!isAuthenticated) {
+        toast.error("Sign in with your organization account before starting subscription checkout.");
+        navigate("/login");
+        return;
+      }
+      if (userType === "applicant") {
+        toast.error("Applicant accounts cannot manage organization subscriptions.");
+        return;
+      }
+      if (!activeOrganizationId) {
+        toast.error("Create or select an active organization before starting subscription checkout.");
+        navigate(`${organizationSetupPath}?next=${encodeURIComponent("/subscribe")}`);
+        return;
+      }
+      toast.error("Organization admin or platform admin access is required for subscription checkout.");
+      return;
+    }
 
     setIsProcessing(true);
 
@@ -357,13 +415,20 @@ export const SubscriptionPlansPage: React.FC = () => {
       });
 
       if (result.source === "mock") {
-        toast.success("Sandbox subscription confirmed. Continue with registration.");
+        toast.success("Sandbox subscription confirmed. Open the organization onboarding workspace next.");
       } else {
-        toast.success("Subscription confirmed. Continue with organization registration.");
+        toast.success("Subscription confirmed. Open the organization onboarding workspace next.");
       }
 
       navigate(returnToPath, { replace: true });
     } catch (error: unknown) {
+      const errorCode = getErrorCode(error);
+      if (errorCode === "ORG_SETUP_REQUIRED") {
+        const setupPath = getErrorSetupPath(error) || organizationSetupPath;
+        toast.error("Organization setup is required before checkout.");
+        navigate(`${setupPath}?next=${encodeURIComponent("/subscribe")}`);
+        return;
+      }
       toast.error(getErrorMessage(error, "Subscription confirmation failed."), {
         toastId: "subscription-confirm-error",
       });
@@ -400,11 +465,11 @@ export const SubscriptionPlansPage: React.FC = () => {
                 Activate your firm workspace
               </h1>
               <p className="mt-3 max-w-2xl text-sm text-slate-700 sm:text-base">
-                Registration stays locked until subscription is confirmed. Choose a plan,
-                confirm payment mode, then continue to organization account setup.
+                Choose a plan and confirm payment for your active organization. Member registration remains
+                invite-gated and requires an onboarding token from an organization admin.
               </p>
               <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-700">
-                Next step after payment: {returnToPath}
+                Next step after payment: {nextStepLabel}
               </p>
             </div>
 
@@ -412,12 +477,40 @@ export const SubscriptionPlansPage: React.FC = () => {
               <div className="flex items-start gap-2">
                 <ShieldCheck className="mt-0.5 h-4 w-4 text-emerald-700" />
                 <p className="text-xs text-slate-700">
-                  Access ticket validity: <span className="font-semibold">24 hours</span>. Complete registration before expiration.
+                  Payment confirmation activates your organization subscription. Onboarding invite links are managed by
+                  organization admins in the organization workspace.
                 </p>
               </div>
             </div>
           </div>
         </header>
+
+        {!canStartOrganizationCheckout ? (
+          <section className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm text-amber-900">
+              {!isAuthenticated
+                ? "Sign in before checkout so the subscription can be attached to your organization."
+                : userType === "applicant"
+                ? "Applicant accounts cannot purchase or manage organization subscriptions."
+                : isMissingOrganizationContext
+                ? "No active organization context detected. Complete organization setup first, then return for checkout."
+                : lacksOrgAdminPermission
+                ? "Organization subscription checkout is restricted to organization admins or platform admins."
+                : "Checkout is currently unavailable for this account context."}
+            </p>
+            {isMissingOrganizationContext ? (
+              <div className="mt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate(`${organizationSetupPath}?next=${encodeURIComponent("/subscribe")}`)}
+                >
+                  Open Organization Setup
+                </Button>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
         <div className="mb-6 inline-flex rounded-xl border border-slate-700 bg-white p-1 shadow-sm">
           <button
@@ -646,7 +739,7 @@ export const SubscriptionPlansPage: React.FC = () => {
               type="button"
               size="lg"
               onClick={handleConfirmSubscription}
-              disabled={isProcessing}
+              disabled={isProcessing || !canStartOrganizationCheckout}
               className="mt-6 h-12 w-full rounded-xl bg-cyan-700 text-sm font-bold text-white transition hover:bg-cyan-800"
             >
               {isProcessing

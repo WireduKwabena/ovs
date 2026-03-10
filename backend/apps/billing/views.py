@@ -12,7 +12,7 @@ from django.db import transaction
 from django.utils.dateparse import parse_datetime
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -32,6 +32,7 @@ from .quotas import (
     get_active_subscription_for_user,
     get_candidate_quota_snapshot,
     get_latest_subscription_for_user,
+    get_organization_seat_quota_snapshot,
 )
 from .services import (
     build_onboarding_link,
@@ -43,15 +44,15 @@ from .services import (
     validate_organization_onboarding_token,
 )
 
-from apps.core.authz import CAPABILITY_REGISTRY_MANAGE, has_capability
 from apps.core.permissions import (
     get_request_active_organization_id,
-    get_user_allowed_organization_ids,
-    is_hr_or_admin_user,
+    get_request_tenant_context,
     is_platform_admin_user,
 )
+from apps.core.policies.registry_policy import can_manage_registry_governance
 from .serializers import (
     BillingActionErrorSerializer,
+    CheckoutConfirmErrorSerializer,
     BillingExchangeRateResponseSerializer,
     BillingHealthResponseSerializer,
     OrganizationOnboardingTokenGenerateResponseSerializer,
@@ -67,8 +68,10 @@ from .serializers import (
     BillingSubscriptionRetryResponseSerializer,
     BillingWebhookResponseSerializer,
     PaystackCheckoutSessionConfirmSerializer,
+    PaystackCheckoutSessionConfirmResponseSerializer,
     PaystackCheckoutSessionCreateSerializer,
     StripeCheckoutSessionConfirmSerializer,
+    StripeCheckoutSessionConfirmResponseSerializer,
     StripeCheckoutSessionCreateSerializer,
     SubscriptionAccessVerifySerializer,
     SubscriptionConfirmSerializer,
@@ -775,8 +778,35 @@ def _request_billing_organization_id(request) -> str | None:
     return _normalized_organization_id(get_request_active_organization_id(request))
 
 
-def _can_manage_onboarding_tokens(user) -> bool:
-    return bool(is_hr_or_admin_user(user) or has_capability(user, CAPABILITY_REGISTRY_MANAGE))
+def _request_explicit_billing_organization_id(request) -> str | None:
+    query_value = _normalized_organization_id(getattr(request, "query_params", {}).get("organization_id"))
+    if query_value:
+        return query_value
+    data = getattr(request, "data", None)
+    if data is not None and hasattr(data, "get"):
+        return _normalized_organization_id(data.get("organization_id") or data.get("organization"))
+    return None
+
+
+def _can_manage_governance_billing_scope(user, *, organization_id=None) -> bool:
+    return can_manage_registry_governance(
+        user,
+        organization_id=organization_id,
+        allow_membershipless_fallback=False,
+    )
+
+
+def _raise_org_setup_required(*, action_label: str) -> None:
+    raise ValidationError(
+        {
+            "detail": (
+                f"Select or create an active organization before {action_label}. "
+                "Use the organization setup flow first."
+            ),
+            "code": "ORG_SETUP_REQUIRED",
+            "setup_path": "/organization/setup",
+        }
+    )
 
 
 def _resolve_onboarding_management_organization(request):
@@ -786,33 +816,62 @@ def _resolve_onboarding_management_organization(request):
         raise ValidationError("Organization governance module is unavailable.") from exc
 
     user = getattr(request, "user", None)
+    tenant_context = get_request_tenant_context(request)
+    invalid_requested_org_id = str(tenant_context.get("invalid_requested_organization_id") or "").strip()
+    if invalid_requested_org_id and not is_platform_admin_user(user):
+        raise NotFound("Selected organization was not found in your governance scope.")
+
     organization_id = _request_billing_organization_id(request)
+    if not organization_id and is_platform_admin_user(user):
+        organization_id = _request_explicit_billing_organization_id(request)
     if not organization_id:
-        raise ValidationError("Select an active organization before managing onboarding tokens.")
+        _raise_org_setup_required(action_label="managing onboarding tokens")
 
     organization = Organization.objects.filter(id=organization_id, is_active=True).first()
     if organization is None:
-        raise ValidationError("Selected active organization is invalid or inactive.")
+        raise NotFound("Selected organization was not found or is inactive.")
 
     if is_platform_admin_user(user):
         return organization
 
-    if not _can_manage_onboarding_tokens(user):
+    if not _can_manage_governance_billing_scope(user, organization_id=organization_id):
         raise PermissionDenied("You do not have permission to manage organization onboarding tokens.")
+    return organization
 
-    allowed_org_ids = get_user_allowed_organization_ids(user)
-    if allowed_org_ids:
-        if organization_id not in allowed_org_ids:
-            raise PermissionDenied("You cannot manage onboarding tokens for another organization.")
-        return organization
 
-    # Legacy compatibility: users without governance memberships can only manage their legacy org.
-    legacy_org_name = str(getattr(user, "organization", "") or "").strip().lower()
-    organization_name = str(getattr(organization, "name", "") or "").strip().lower()
-    if legacy_org_name and legacy_org_name == organization_name:
-        return organization
+def _resolve_checkout_organization_id(request) -> str:
+    """
+    Resolve and authorize checkout context to prevent unscoped subscription creation.
+    """
+    request_user = getattr(request, "user", None)
+    if not bool(getattr(request_user, "is_authenticated", False)):
+        raise PermissionDenied("Authentication credentials were not provided.")
 
-    raise PermissionDenied("You cannot manage onboarding tokens for another organization.")
+    tenant_context = get_request_tenant_context(request)
+    invalid_requested_org_id = str(tenant_context.get("invalid_requested_organization_id") or "").strip()
+    if invalid_requested_org_id and not is_platform_admin_user(request_user):
+        raise NotFound("Selected organization was not found in your governance scope.")
+
+    organization_id = _request_billing_organization_id(request)
+    if not organization_id and is_platform_admin_user(request_user):
+        organization_id = _request_explicit_billing_organization_id(request)
+    if not organization_id:
+        _raise_org_setup_required(action_label="starting checkout")
+
+    try:
+        from apps.governance.models import Organization
+
+        selected_organization = Organization.objects.filter(id=organization_id, is_active=True).first()
+    except Exception as exc:
+        raise ValidationError("Organization governance module is unavailable.") from exc
+
+    if selected_organization is None:
+        raise NotFound("Selected organization was not found or is inactive.")
+
+    if not _can_manage_governance_billing_scope(request_user, organization_id=organization_id):
+        raise PermissionDenied("You do not have permission to initiate billing checkout.")
+
+    return organization_id
 
 
 def _serialize_onboarding_token_state(token_record):
@@ -899,6 +958,14 @@ def _onboarding_token_validate_rate_limit_per_minute() -> int:
     return max(1, int(getattr(settings, "BILLING_ONBOARDING_TOKEN_VALIDATE_RATE_LIMIT_PER_MINUTE", 30)))
 
 
+def _checkout_confirm_rate_limit_enabled() -> bool:
+    return bool(getattr(settings, "BILLING_CHECKOUT_CONFIRM_RATE_LIMIT_ENABLED", True))
+
+
+def _checkout_confirm_rate_limit_per_minute() -> int:
+    return max(1, int(getattr(settings, "BILLING_CHECKOUT_CONFIRM_RATE_LIMIT_PER_MINUTE", 60)))
+
+
 def _billing_health_require_staff() -> bool:
     return bool(getattr(settings, "BILLING_HEALTH_REQUIRE_STAFF", False))
 
@@ -946,6 +1013,37 @@ def _check_onboarding_token_validate_rate_limit(request) -> tuple[bool, int, int
             count = 1
 
     limit = _onboarding_token_validate_rate_limit_per_minute()
+    return count <= limit, retry_after, count, client_ip
+
+
+def _check_checkout_confirm_rate_limit(
+    request,
+    *,
+    provider: str,
+    identifier: str,
+) -> tuple[bool, int, int, str]:
+    if not _checkout_confirm_rate_limit_enabled():
+        return True, 0, 0, request_ip_address(request) or "unknown"
+
+    now_ts = int(timezone.now().timestamp())
+    bucket = now_ts // 60
+    retry_after = max(1, 60 - (now_ts % 60))
+    client_ip = request_ip_address(request) or "unknown"
+    normalized_provider = str(provider or "unknown").strip().lower() or "unknown"
+    normalized_identifier = str(identifier or "").strip()
+    identifier_digest = hashlib.sha256(normalized_identifier.encode("utf-8")).hexdigest()[:16]
+
+    cache_key = f"billing:checkout-confirm:{normalized_provider}:{identifier_digest}:{client_ip}:{bucket}"
+    if cache.add(cache_key, 1, timeout=120):
+        count = 1
+    else:
+        try:
+            count = int(cache.incr(cache_key))
+        except Exception:
+            cache.set(cache_key, 1, timeout=120)
+            count = 1
+
+    limit = _checkout_confirm_rate_limit_per_minute()
     return count <= limit, retry_after, count, client_ip
 
 
@@ -1259,7 +1357,7 @@ def _persist_paystack_transaction(
 
 
 class SubscriptionConfirmAPIView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     serializer_class = SubscriptionConfirmSerializer
 
     def post(self, request):
@@ -1276,10 +1374,8 @@ class SubscriptionConfirmAPIView(APIView):
         )
 
         request_user = getattr(request, "user", None)
-        workspace_email = None
-        organization_id = _request_billing_organization_id(request)
-        if bool(getattr(request_user, "is_authenticated", False)):
-            workspace_email = str(getattr(request_user, "email", "") or "").strip().lower() or None
+        organization_id = _resolve_checkout_organization_id(request)
+        workspace_email = str(getattr(request_user, "email", "") or "").strip().lower() or None
 
         _persist_sandbox_ticket(
             ticket,
@@ -1820,6 +1916,10 @@ class OrganizationOnboardingTokenStateAPIView(APIView):
         organization = _resolve_onboarding_management_organization(request)
         active_subscription = get_active_subscription_for_organization(organization_id=str(organization.id))
         token_record = get_active_onboarding_token_for_organization(organization_id=str(organization.id))
+        seat_snapshot = get_organization_seat_quota_snapshot(
+            organization_id=str(organization.id),
+            subscription=active_subscription,
+        )
         return Response(
             {
                 "status": "ok",
@@ -1829,6 +1929,9 @@ class OrganizationOnboardingTokenStateAPIView(APIView):
                 "subscription_active": bool(active_subscription is not None),
                 "has_active_token": bool(token_record is not None),
                 "token": _serialize_onboarding_token_state(token_record),
+                "organization_seat_limit": seat_snapshot.limit,
+                "organization_seat_used": seat_snapshot.used,
+                "organization_seat_remaining": seat_snapshot.remaining,
             },
             status=status.HTTP_200_OK,
         )
@@ -2066,10 +2169,11 @@ class SubscriptionAccessVerifyAPIView(APIView):
 
 
 class StripeCheckoutSessionCreateAPIView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     serializer_class = StripeCheckoutSessionCreateSerializer
 
     def post(self, request):
+        organization_id = _resolve_checkout_organization_id(request)
         _ensure_stripe_ready()
 
         serializer = self.serializer_class(data=request.data)
@@ -2093,15 +2197,12 @@ class StripeCheckoutSessionCreateAPIView(APIView):
             "payment_method": "card",
             "amount_usd": f"{amount_usd:.2f}",
         }
-        organization_id = _request_billing_organization_id(request)
-        if organization_id:
-            metadata["organization_id"] = organization_id
+        metadata["organization_id"] = organization_id
 
         request_user = getattr(request, "user", None)
-        if bool(getattr(request_user, "is_authenticated", False)):
-            workspace_email = str(getattr(request_user, "email", "") or "").strip().lower()
-            if workspace_email:
-                metadata["workspace_email"] = workspace_email
+        workspace_email = str(getattr(request_user, "email", "") or "").strip().lower()
+        if workspace_email:
+            metadata["workspace_email"] = workspace_email
 
         try:
             session = _stripe_create_checkout_session(
@@ -2130,7 +2231,7 @@ class StripeCheckoutSessionCreateAPIView(APIView):
         _persist_stripe_session(
             dict(session),
             checkout_url=session.get("url"),
-            organization_id=_request_billing_organization_id(request),
+            organization_id=organization_id,
         )
 
         return Response(
@@ -2147,6 +2248,14 @@ class StripeCheckoutSessionConfirmAPIView(APIView):
     permission_classes = [AllowAny]
     serializer_class = StripeCheckoutSessionConfirmSerializer
 
+    @extend_schema(
+        request=StripeCheckoutSessionConfirmSerializer,
+        responses={
+            200: StripeCheckoutSessionConfirmResponseSerializer,
+            400: BillingActionErrorSerializer,
+            429: CheckoutConfirmErrorSerializer,
+        },
+    )
     def post(self, request):
         _ensure_stripe_ready()
 
@@ -2154,6 +2263,21 @@ class StripeCheckoutSessionConfirmAPIView(APIView):
         serializer.is_valid(raise_exception=True)
 
         session_id = serializer.validated_data["session_id"]
+        allowed, retry_after, _count, _client_ip = _check_checkout_confirm_rate_limit(
+            request,
+            provider="stripe",
+            identifier=session_id,
+        )
+        if not allowed:
+            response = Response(
+                {
+                    "detail": "Rate limit exceeded for checkout confirmation. Please retry shortly.",
+                    "code": "RATE_LIMITED",
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+            response["Retry-After"] = str(retry_after)
+            return response
 
         try:
             session = _stripe_retrieve_checkout_session(session_id)
@@ -2168,7 +2292,6 @@ class StripeCheckoutSessionConfirmAPIView(APIView):
 
         subscription = _persist_stripe_session(
             session_payload,
-            organization_id=_request_billing_organization_id(request),
         )
 
         ticket = _build_subscription_ticket(
@@ -2192,19 +2315,18 @@ class StripeCheckoutSessionConfirmAPIView(APIView):
 
 
 class PaystackCheckoutSessionCreateAPIView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     serializer_class = PaystackCheckoutSessionCreateSerializer
 
     def post(self, request):
+        organization_id = _resolve_checkout_organization_id(request)
         _ensure_paystack_ready()
 
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         request_user = getattr(request, "user", None)
-        workspace_email = ""
-        if bool(getattr(request_user, "is_authenticated", False)):
-            workspace_email = str(getattr(request_user, "email", "") or "").strip().lower()
+        workspace_email = str(getattr(request_user, "email", "") or "").strip().lower()
 
         customer_email = workspace_email or str(
             serializer.validated_data.get("customer_email") or ""
@@ -2228,9 +2350,7 @@ class PaystackCheckoutSessionCreateAPIView(APIView):
             "workspace_email": workspace_email,
             "cancel_url": cancel_url,
         }
-        organization_id = _request_billing_organization_id(request)
-        if organization_id:
-            metadata["organization_id"] = organization_id
+        metadata["organization_id"] = organization_id
 
         payload = {
             "email": customer_email,
@@ -2276,6 +2396,14 @@ class PaystackCheckoutSessionConfirmAPIView(APIView):
     permission_classes = [AllowAny]
     serializer_class = PaystackCheckoutSessionConfirmSerializer
 
+    @extend_schema(
+        request=PaystackCheckoutSessionConfirmSerializer,
+        responses={
+            200: PaystackCheckoutSessionConfirmResponseSerializer,
+            400: CheckoutConfirmErrorSerializer,
+            429: CheckoutConfirmErrorSerializer,
+        },
+    )
     def post(self, request):
         _ensure_paystack_ready()
 
@@ -2283,10 +2411,25 @@ class PaystackCheckoutSessionConfirmAPIView(APIView):
         serializer.is_valid(raise_exception=True)
 
         reference = serializer.validated_data["reference"]
+        allowed, retry_after, _count, _client_ip = _check_checkout_confirm_rate_limit(
+            request,
+            provider="paystack",
+            identifier=reference,
+        )
+        if not allowed:
+            response = Response(
+                {
+                    "detail": "Rate limit exceeded for checkout confirmation. Please retry shortly.",
+                    "code": "RATE_LIMITED",
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+            response["Retry-After"] = str(retry_after)
+            return response
+
         transaction_data = _paystack_verify_transaction(reference)
         subscription = _persist_paystack_transaction(
             transaction_data,
-            organization_id=_request_billing_organization_id(request),
         )
         transaction_status = str(transaction_data.get("status") or "").strip().lower()
         if transaction_status != "success":

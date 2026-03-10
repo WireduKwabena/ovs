@@ -32,7 +32,6 @@ export interface RegisterData {
   onboarding_token: string;
   // Legacy fields retained for backward-compatible payload tolerance.
   organization?: string;
-  subscription_reference?: string;
 }
 
 export interface TwoFactorVerifyPayload {

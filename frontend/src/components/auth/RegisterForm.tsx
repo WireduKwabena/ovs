@@ -20,7 +20,7 @@ interface RegisterFormProps {
   organizationName?: string;
 }
 
-type RegisterFormValues = Omit<RegisterData, "onboarding_token" | "organization" | "subscription_reference">;
+type RegisterFormValues = Omit<RegisterData, "onboarding_token" | "organization">;
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
   if (!error) return fallback;

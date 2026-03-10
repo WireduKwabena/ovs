@@ -26,12 +26,20 @@ export const DOCUMENT_TYPES = [
 
 export const STATUS_COLORS = {
   pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  document_upload: 'bg-amber-100 text-amber-800 border-amber-200',
+  document_analysis: 'bg-violet-100 text-violet-800 border-violet-200',
+  interview_scheduled: 'bg-sky-100 text-sky-800 border-sky-200',
+  interview_in_progress: 'bg-blue-100 text-blue-800 border-blue-200',
   under_review: 'bg-blue-100 text-blue-800 border-blue-200',
   approved: 'bg-green-100 text-green-800 border-green-200',
   rejected: 'bg-red-100 text-red-800 border-red-200',
+  on_hold: 'bg-zinc-100 text-zinc-800 border-zinc-200',
+  uploaded: 'bg-slate-100 text-slate-800 border-slate-200',
+  queued: 'bg-indigo-100 text-indigo-800 border-indigo-200',
   processing: 'bg-purple-100 text-purple-800 border-purple-200',
   verified: 'bg-green-100 text-green-800 border-green-200',
   failed: 'bg-red-100 text-red-800 border-red-200',
+  flagged: 'bg-orange-100 text-orange-800 border-orange-200',
 } as const;
 
 export const CRITERIA_TYPES = [

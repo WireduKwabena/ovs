@@ -29,6 +29,24 @@ class StripeCheckoutSessionConfirmSerializer(serializers.Serializer):
     session_id = serializers.CharField(max_length=255)
 
 
+class SubscriptionTicketSerializer(serializers.Serializer):
+    planId = serializers.CharField()
+    planName = serializers.CharField()
+    billingCycle = serializers.ChoiceField(choices=SubscriptionConfirmSerializer.BILLING_CYCLE_CHOICES)
+    paymentMethod = serializers.ChoiceField(choices=SubscriptionConfirmSerializer.PAYMENT_METHOD_CHOICES)
+    amountUsd = serializers.FloatField()
+    reference = serializers.CharField()
+    confirmedAt = serializers.IntegerField()
+    expiresAt = serializers.IntegerField()
+
+
+class StripeCheckoutSessionConfirmResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    provider = serializers.CharField()
+    stripe_session_id = serializers.CharField()
+    ticket = SubscriptionTicketSerializer()
+
+
 class PaystackCheckoutSessionCreateSerializer(serializers.Serializer):
     BILLING_CYCLE_CHOICES = ("monthly", "annual")
     PAYMENT_METHOD_CHOICES = ("card", "bank_transfer", "mobile_money")
@@ -47,6 +65,21 @@ class PaystackCheckoutSessionConfirmSerializer(serializers.Serializer):
     reference = serializers.CharField(max_length=255)
 
 
+class PaystackCheckoutSessionConfirmResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    provider = serializers.CharField()
+    paystack_reference = serializers.CharField()
+    ticket = SubscriptionTicketSerializer()
+
+
+class CheckoutConfirmErrorSerializer(serializers.Serializer):
+    detail = serializers.CharField(required=False)
+    code = serializers.CharField(required=False)
+    status = serializers.CharField(required=False)
+    reference = serializers.CharField(required=False)
+    checkout_url = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+
 class SubscriptionAccessVerifySerializer(serializers.Serializer):
     reference = serializers.CharField(max_length=255)
 
@@ -54,6 +87,8 @@ class SubscriptionAccessVerifySerializer(serializers.Serializer):
 class BillingActionErrorSerializer(serializers.Serializer):
     detail = serializers.CharField(required=False)
     error = serializers.CharField(required=False)
+    code = serializers.CharField(required=False)
+    setup_path = serializers.CharField(required=False)
 
 
 class BillingHealthAccessSerializer(serializers.Serializer):
@@ -210,6 +245,9 @@ class OrganizationOnboardingTokenStateResponseSerializer(serializers.Serializer)
     subscription_active = serializers.BooleanField()
     has_active_token = serializers.BooleanField()
     token = OnboardingTokenStateSerializer(allow_null=True)
+    organization_seat_limit = serializers.IntegerField(allow_null=True, required=False)
+    organization_seat_used = serializers.IntegerField(allow_null=True, required=False)
+    organization_seat_remaining = serializers.IntegerField(allow_null=True, required=False)
 
 
 class OrganizationOnboardingTokenGenerateSerializer(serializers.Serializer):

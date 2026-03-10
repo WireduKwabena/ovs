@@ -9,9 +9,11 @@ import { rubricService } from "@/services/rubric.service";
 import { toast } from "react-toastify";
 import type { VettingRubric } from "@/types";
 import { formatDate } from "@/utils/helper";
+import { useAuth } from "@/hooks/useAuth";
 
 export const RubricsPage: React.FC = () => {
   const navigate = useNavigate();
+  const { canManageRubrics } = useAuth();
   const [rubrics, setRubrics] = useState<VettingRubric[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -100,13 +102,15 @@ export const RubricsPage: React.FC = () => {
               Create and manage evaluation criteria
             </p>
           </div>
-          <button
-            onClick={() => navigate("/rubrics/new")}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            Create Rubric
-          </button>
+          {canManageRubrics ? (
+            <button
+              onClick={() => navigate("/rubrics/new")}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              Create Rubric
+            </button>
+          ) : null}
         </div>
 
         {/* Filters */}
@@ -114,6 +118,11 @@ export const RubricsPage: React.FC = () => {
           <div className="mb-4 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
             Hover or focus the <Info className="mx-1 inline h-4 w-4 align-text-bottom" /> icons to learn what each control does.
           </div>
+          {!canManageRubrics ? (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              You have read-only rubric access. Create, edit, activate, and delete actions are limited to authorized internal operators.
+            </div>
+          ) : null}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <div className="mb-2 flex items-center gap-1.5">
@@ -203,38 +212,40 @@ export const RubricsPage: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="flex gap-2 ml-4">
-                    {rubric.status !== "active" && (
+                  {canManageRubrics ? (
+                    <div className="flex gap-2 ml-4">
+                      {rubric.status !== "active" && (
+                        <button
+                          onClick={() => handleActivate(rubric.id!)}
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          title="Activate rubric for campaign use"
+                        >
+                          <Plus className="w-5 h-5" />
+                        </button>
+                      )}
                       <button
-                        onClick={() => handleActivate(rubric.id!)}
-                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                        title="Activate rubric for campaign use"
+                        onClick={() => navigate(`/rubrics/${rubric.id}/edit`)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Edit rubric details and criteria"
                       >
-                        <Plus className="w-5 h-5" />
+                        <Edit className="w-5 h-5" />
                       </button>
-                    )}
-                    <button
-                      onClick={() => navigate(`/rubrics/${rubric.id}/edit`)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Edit rubric details and criteria"
-                    >
-                      <Edit className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => handleDuplicate(rubric.id!)}
-                      className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                      title="Duplicate rubric as a starting template"
-                    >
-                      <Copy className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(rubric.id!)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Delete rubric permanently"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
+                      <button
+                        onClick={() => handleDuplicate(rubric.id!)}
+                        className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                        title="Duplicate rubric as a starting template"
+                      >
+                        <Copy className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(rubric.id!)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete rubric permanently"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             ))}
@@ -250,7 +261,7 @@ export const RubricsPage: React.FC = () => {
                 ? "Try adjusting your filters"
                 : "Get started by creating your first rubric"}
             </p>
-            {!searchTerm && statusFilter === "all" && (
+            {!searchTerm && statusFilter === "all" && canManageRubrics && (
               <button
                 onClick={() => navigate("/rubrics/new")}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium"

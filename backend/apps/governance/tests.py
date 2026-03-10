@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError
 from django.test import TestCase
 from django.test import override_settings
 from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.test import APITestCase
 
 from apps.authentication.models import User
 from apps.billing.models import BillingSubscription
@@ -338,3 +340,496 @@ class GovernanceModelTests(TestCase):
             inactive_membership.save(update_fields=["is_active", "updated_at"])
 
         self.assertEqual(exc.exception.detail.get("code"), "ORG_SEAT_QUOTA_EXCEEDED")
+
+
+class GovernanceApiTests(APITestCase):
+    def setUp(self):
+        self.org_a = Organization.objects.create(
+            code="gov-api-org-a",
+            name="Gov API Org A",
+            organization_type="agency",
+        )
+        self.org_b = Organization.objects.create(
+            code="gov-api-org-b",
+            name="Gov API Org B",
+            organization_type="ministry",
+        )
+
+        self.org_admin = User.objects.create_user(
+            email="gov.api.admin@example.com",
+            password="TestPass123!",
+            first_name="Gov",
+            last_name="OrgAdmin",
+            user_type="hr_manager",
+        )
+        self.platform_admin = User.objects.create_user(
+            email="gov.api.platform@example.com",
+            password="TestPass123!",
+            first_name="Gov",
+            last_name="PlatformAdmin",
+            user_type="admin",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.org_b_operator = User.objects.create_user(
+            email="gov.api.operator.b@example.com",
+            password="TestPass123!",
+            first_name="Gov",
+            last_name="OperatorB",
+            user_type="hr_manager",
+        )
+        self.candidate_user = User.objects.create_user(
+            email="gov.api.member@example.com",
+            password="TestPass123!",
+            first_name="Gov",
+            last_name="Member",
+            user_type="hr_manager",
+        )
+
+        self.membership_a_admin = OrganizationMembership.objects.create(
+            user=self.org_admin,
+            organization=self.org_a,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
+        )
+        self.membership_b_operator = OrganizationMembership.objects.create(
+            user=self.org_b_operator,
+            organization=self.org_b,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
+        )
+        self.membership_a_candidate = OrganizationMembership.objects.create(
+            user=self.candidate_user,
+            organization=self.org_a,
+            membership_role="member",
+            is_active=True,
+            is_default=True,
+        )
+
+        self.committee_a = Committee.objects.create(
+            organization=self.org_a,
+            code="api-org-a-main",
+            name="API Org A Main Committee",
+            committee_type="vetting",
+            created_by=self.org_admin,
+        )
+        self.committee_b = Committee.objects.create(
+            organization=self.org_b,
+            code="api-org-b-main",
+            name="API Org B Main Committee",
+            committee_type="approval",
+            created_by=self.org_b_operator,
+        )
+
+        self.committee_membership_b = CommitteeMembership.objects.create(
+            committee=self.committee_b,
+            user=self.org_b_operator,
+            organization_membership=self.membership_b_operator,
+            committee_role="member",
+            can_vote=True,
+        )
+
+    def _results(self, response):
+        payload = response.json()
+        if isinstance(payload, dict) and "results" in payload:
+            return payload["results"]
+        return payload
+
+    def test_org_less_internal_user_can_bootstrap_organization(self):
+        org_less_user = User.objects.create_user(
+            email="gov.api.bootstrap@example.com",
+            password="TestPass123!",
+            first_name="Bootstrap",
+            last_name="Operator",
+            user_type="hr_manager",
+        )
+        self.client.force_authenticate(org_less_user)
+
+        response = self.client.post(
+            "/api/governance/organization/bootstrap/",
+            {
+                "name": "Bootstrap Governance Office",
+                "organization_type": "agency",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        payload = response.json()
+        self.assertEqual(payload["status"], "ok")
+        self.assertEqual(payload["membership"]["membership_role"], "registry_admin")
+        self.assertTrue(payload["membership"]["is_default"])
+
+        membership = OrganizationMembership.objects.get(
+            user=org_less_user,
+            organization_id=payload["organization"]["id"],
+        )
+        self.assertEqual(membership.membership_role, "registry_admin")
+        self.assertTrue(membership.is_default)
+        org_less_user.refresh_from_db()
+        self.assertEqual(org_less_user.organization, payload["organization"]["name"])
+
+    def test_org_bootstrap_rejected_when_active_membership_already_exists_for_non_platform_user(self):
+        self.client.force_authenticate(self.org_admin)
+        response = self.client.post(
+            "/api/governance/organization/bootstrap/",
+            {
+                "name": "Should Not Provision",
+                "organization_type": "agency",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json().get("code"), "ORGANIZATION_ALREADY_PROVISIONED")
+
+    def test_applicant_cannot_bootstrap_organization(self):
+        applicant = User.objects.create_user(
+            email="gov.api.bootstrap.applicant@example.com",
+            password="TestPass123!",
+            first_name="Applicant",
+            last_name="Denied",
+            user_type="applicant",
+        )
+        self.client.force_authenticate(applicant)
+        response = self.client.post(
+            "/api/governance/organization/bootstrap/",
+            {
+                "name": "Applicant Should Not Bootstrap",
+                "organization_type": "agency",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_org_summary_access_and_platform_override(self):
+        self.client.force_authenticate(self.org_admin)
+        response = self.client.get("/api/governance/organization/summary/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["organization"]["id"], str(self.org_a.id))
+
+        self.client.force_authenticate(self.platform_admin)
+        missing_scope = self.client.get("/api/governance/organization/summary/")
+        self.assertEqual(missing_scope.status_code, 400)
+
+        scoped = self.client.get(f"/api/governance/organization/summary/?organization_id={self.org_b.id}")
+        self.assertEqual(scoped.status_code, 200)
+        self.assertEqual(scoped.json()["organization"]["id"], str(self.org_b.id))
+
+    def test_committee_member_cannot_access_governance_management_endpoints(self):
+        committee_group, _ = Group.objects.get_or_create(name="committee_member")
+        self.candidate_user.groups.add(committee_group)
+        self.client.force_authenticate(self.candidate_user)
+
+        summary_response = self.client.get("/api/governance/organization/summary/")
+        self.assertEqual(summary_response.status_code, 403)
+
+        member_list_response = self.client.get("/api/governance/organization/members/")
+        self.assertEqual(member_list_response.status_code, 403)
+
+        committee_create_response = self.client.post(
+            "/api/governance/organization/committees/",
+            {
+                "code": "candidate-denied-committee",
+                "name": "Candidate Denied Committee",
+                "committee_type": "vetting",
+            },
+            format="json",
+        )
+        self.assertEqual(committee_create_response.status_code, 403)
+
+    def test_vetting_officer_cannot_access_governance_management_endpoints(self):
+        vetting_officer = User.objects.create_user(
+            email="gov.api.vetting.officer@example.com",
+            password="TestPass123!",
+            first_name="Gov",
+            last_name="VettingOfficer",
+            user_type="hr_manager",
+        )
+        vetting_group, _ = Group.objects.get_or_create(name="vetting_officer")
+        vetting_officer.groups.add(vetting_group)
+        OrganizationMembership.objects.create(
+            user=vetting_officer,
+            organization=self.org_a,
+            membership_role="vetting_officer",
+            is_active=True,
+            is_default=True,
+        )
+
+        self.client.force_authenticate(vetting_officer)
+        summary_response = self.client.get("/api/governance/organization/summary/")
+        self.assertEqual(summary_response.status_code, 403)
+
+        membership_update_response = self.client.patch(
+            f"/api/governance/organization/members/{self.membership_a_candidate.id}/",
+            {"title": "Should Not Update"},
+            format="json",
+        )
+        self.assertEqual(membership_update_response.status_code, 403)
+
+    def test_member_list_detail_update_scope(self):
+        self.client.force_authenticate(self.org_admin)
+
+        list_response = self.client.get("/api/governance/organization/members/")
+        self.assertEqual(list_response.status_code, 200)
+        ids = {item["id"] for item in self._results(list_response)}
+        self.assertIn(str(self.membership_a_admin.id), ids)
+        self.assertIn(str(self.membership_a_candidate.id), ids)
+        self.assertNotIn(str(self.membership_b_operator.id), ids)
+
+        denied_detail = self.client.get(
+            f"/api/governance/organization/members/{self.membership_b_operator.id}/"
+        )
+        self.assertEqual(denied_detail.status_code, 404)
+
+        update_response = self.client.patch(
+            f"/api/governance/organization/members/{self.membership_a_candidate.id}/",
+            {
+                "title": "Senior Analyst",
+                "membership_role": "committee_member",
+            },
+            format="json",
+        )
+        self.assertEqual(update_response.status_code, 200)
+        self.membership_a_candidate.refresh_from_db()
+        self.assertEqual(self.membership_a_candidate.title, "Senior Analyst")
+        self.assertEqual(self.membership_a_candidate.membership_role, "committee_member")
+
+        unsafe_role = self.client.patch(
+            f"/api/governance/organization/members/{self.membership_a_candidate.id}/",
+            {"membership_role": "member<script>"},
+            format="json",
+        )
+        self.assertEqual(unsafe_role.status_code, 400)
+
+    def test_committee_crud_scope_and_soft_delete(self):
+        self.client.force_authenticate(self.org_admin)
+
+        list_response = self.client.get("/api/governance/organization/committees/")
+        self.assertEqual(list_response.status_code, 200)
+        ids = {item["id"] for item in self._results(list_response)}
+        self.assertIn(str(self.committee_a.id), ids)
+        self.assertNotIn(str(self.committee_b.id), ids)
+
+        create_response = self.client.post(
+            "/api/governance/organization/committees/",
+            {
+                "code": "api-org-a-review",
+                "name": "API Org A Review Committee",
+                "committee_type": "approval",
+                "description": "Review committee",
+            },
+            format="json",
+        )
+        self.assertEqual(create_response.status_code, 201)
+        created_id = create_response.json()["id"]
+        created = Committee.objects.get(id=created_id)
+        self.assertEqual(created.organization_id, self.org_a.id)
+        self.assertTrue(created.is_active)
+
+        denied_detail = self.client.get(f"/api/governance/organization/committees/{self.committee_b.id}/")
+        self.assertEqual(denied_detail.status_code, 404)
+
+        patch_response = self.client.patch(
+            f"/api/governance/organization/committees/{created_id}/",
+            {"name": "Renamed API Org A Review Committee"},
+            format="json",
+        )
+        self.assertEqual(patch_response.status_code, 200)
+
+        delete_response = self.client.delete(f"/api/governance/organization/committees/{created_id}/")
+        self.assertEqual(delete_response.status_code, 204)
+        created.refresh_from_db()
+        self.assertFalse(created.is_active)
+
+    def test_committee_membership_crud_scope_and_soft_delete(self):
+        self.client.force_authenticate(self.org_admin)
+        list_url = "/api/governance/organization/committee-memberships/"
+
+        create_response = self.client.post(
+            list_url,
+            {
+                "committee": str(self.committee_a.id),
+                "user": str(self.candidate_user.id),
+                "committee_role": "member",
+                "can_vote": True,
+            },
+            format="json",
+        )
+        self.assertEqual(create_response.status_code, 201)
+        membership_id = create_response.json()["id"]
+
+        list_response = self.client.get(list_url)
+        self.assertEqual(list_response.status_code, 200)
+        ids = {item["id"] for item in self._results(list_response)}
+        self.assertIn(str(membership_id), ids)
+        self.assertNotIn(str(self.committee_membership_b.id), ids)
+
+        denied_detail = self.client.get(
+            f"/api/governance/organization/committee-memberships/{self.committee_membership_b.id}/"
+        )
+        self.assertEqual(denied_detail.status_code, 404)
+
+        chair_create_denied = self.client.post(
+            list_url,
+            {
+                "committee": str(self.committee_a.id),
+                "user": str(self.org_admin.id),
+                "committee_role": "chair",
+                "can_vote": True,
+            },
+            format="json",
+        )
+        self.assertEqual(chair_create_denied.status_code, 400)
+
+        update_response = self.client.patch(
+            f"/api/governance/organization/committee-memberships/{membership_id}/",
+            {
+                "committee_role": "observer",
+                "can_vote": False,
+            },
+            format="json",
+        )
+        self.assertEqual(update_response.status_code, 200)
+
+        chair_patch_denied = self.client.patch(
+            f"/api/governance/organization/committee-memberships/{membership_id}/",
+            {"committee_role": "chair"},
+            format="json",
+        )
+        self.assertEqual(chair_patch_denied.status_code, 400)
+
+        delete_response = self.client.delete(
+            f"/api/governance/organization/committee-memberships/{membership_id}/"
+        )
+        self.assertEqual(delete_response.status_code, 204)
+        membership = CommitteeMembership.objects.get(id=membership_id)
+        self.assertFalse(membership.is_active)
+        self.assertIsNotNone(membership.left_at)
+
+    def test_chair_reassignment_invariant(self):
+        self.client.force_authenticate(self.org_admin)
+
+        user_one = User.objects.create_user(
+            email="gov.api.chair.one@example.com",
+            password="TestPass123!",
+            first_name="Chair",
+            last_name="One",
+            user_type="hr_manager",
+        )
+        user_two = User.objects.create_user(
+            email="gov.api.chair.two@example.com",
+            password="TestPass123!",
+            first_name="Chair",
+            last_name="Two",
+            user_type="hr_manager",
+        )
+        org_membership_one = OrganizationMembership.objects.create(
+            user=user_one,
+            organization=self.org_a,
+            membership_role="member",
+            is_active=True,
+            is_default=True,
+        )
+        org_membership_two = OrganizationMembership.objects.create(
+            user=user_two,
+            organization=self.org_a,
+            membership_role="member",
+            is_active=True,
+            is_default=True,
+        )
+        committee_member_one = CommitteeMembership.objects.create(
+            committee=self.committee_a,
+            user=user_one,
+            organization_membership=org_membership_one,
+            committee_role="member",
+            can_vote=True,
+        )
+        committee_member_two = CommitteeMembership.objects.create(
+            committee=self.committee_a,
+            user=user_two,
+            organization_membership=org_membership_two,
+            committee_role="member",
+            can_vote=True,
+        )
+
+        endpoint = f"/api/governance/organization/committees/{self.committee_a.id}/reassign-chair/"
+        first_reassignment = self.client.post(
+            endpoint,
+            {"target_committee_membership_id": str(committee_member_one.id)},
+            format="json",
+        )
+        self.assertEqual(first_reassignment.status_code, 200)
+        self.assertEqual(
+            first_reassignment.json()["new_chair"]["user_id"],
+            str(user_one.id),
+        )
+
+        second_reassignment = self.client.post(
+            endpoint,
+            {"target_committee_membership_id": str(committee_member_two.id)},
+            format="json",
+        )
+        self.assertEqual(second_reassignment.status_code, 200)
+        self.assertEqual(
+            second_reassignment.json()["new_chair"]["user_id"],
+            str(user_two.id),
+        )
+
+        active_chairs = CommitteeMembership.objects.filter(
+            committee=self.committee_a,
+            committee_role="chair",
+            is_active=True,
+        )
+        self.assertEqual(active_chairs.count(), 1)
+        self.assertEqual(active_chairs.first().user_id, user_two.id)
+        committee_member_one.refresh_from_db()
+        self.assertEqual(committee_member_one.committee_role, "member")
+
+    def test_cross_org_denial_for_non_admin(self):
+        self.client.force_authenticate(self.org_admin)
+        response = self.client.post(
+            "/api/governance/organization/committee-memberships/",
+            {
+                "committee": str(self.committee_b.id),
+                "user": str(self.candidate_user.id),
+                "committee_role": "member",
+                "can_vote": True,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_platform_admin_override_and_lookups(self):
+        self.client.force_authenticate(self.platform_admin)
+
+        global_members = self.client.get("/api/governance/organization/members/")
+        self.assertEqual(global_members.status_code, 200)
+        member_ids = {item["id"] for item in self._results(global_members)}
+        self.assertIn(str(self.membership_a_admin.id), member_ids)
+        self.assertIn(str(self.membership_b_operator.id), member_ids)
+
+        patch_response = self.client.patch(
+            f"/api/governance/organization/members/{self.membership_b_operator.id}/",
+            {"title": "Platform Updated"},
+            format="json",
+        )
+        self.assertEqual(patch_response.status_code, 200)
+        self.membership_b_operator.refresh_from_db()
+        self.assertEqual(self.membership_b_operator.title, "Platform Updated")
+
+        member_options = self.client.get(
+            f"/api/governance/organization/lookups/member-options/?organization_id={self.org_a.id}"
+        )
+        self.assertEqual(member_options.status_code, 200)
+        option_membership_ids = {row["organization_membership_id"] for row in member_options.json()}
+        self.assertIn(str(self.membership_a_admin.id), option_membership_ids)
+        self.assertNotIn(str(self.membership_b_operator.id), option_membership_ids)
+
+        choices = self.client.get("/api/governance/organization/lookups/choices/")
+        self.assertEqual(choices.status_code, 200)
+        payload = choices.json()
+        self.assertIn("committee_roles", payload)
+        self.assertIn("committee_types", payload)
+        self.assertIn("organization_types", payload)

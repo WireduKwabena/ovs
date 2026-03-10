@@ -7,6 +7,8 @@ import AppointmentsRegistryPage from "./AppointmentsRegistryPage";
 const authHookState = vi.hoisted(() => ({
   isAdmin: false,
   isHrOrAdmin: false,
+  canManageRegistry: false,
+  canManageRegistryInActiveOrganization: false,
   canAdvanceAppointmentStage: true,
   canFinalizeAppointment: false,
   canPublishAppointment: false,
@@ -215,5 +217,20 @@ describe("AppointmentsRegistryPage org + committee visibility", () => {
     expect(await screen.findByText("Appointment Registry")).toBeTruthy();
     expect(screen.getByRole("button", { name: /apply transition/i })).toBeTruthy();
   });
-});
 
+  it("hides nomination and approval-chain authoring controls for non-registry actors", async () => {
+    configureBaseServiceResponses();
+    authHookState.canManageRegistry = false;
+    authHookState.canManageRegistryInActiveOrganization = false;
+    authHookState.hasCommitteeMembership.mockReturnValue(false);
+
+    render(<AppointmentsRegistryPage />);
+
+    await waitFor(() => {
+      expect(serviceMocks.listAppointments).toHaveBeenCalledTimes(1);
+    });
+
+    expect(screen.queryByText(/Initialize Approval Chain/i)).toBeNull();
+    expect(await screen.findByText(/Only registry operators can create nomination records./i)).toBeTruthy();
+  });
+});

@@ -72,6 +72,7 @@ describe("BillingCheckoutResultPage", () => {
     renderAt("/billing/success?next=%2Fsettings&stripe_session_id=cs_test_ok");
 
     expect(await screen.findByText(/payment confirmed/i)).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /open organization dashboard/i })).toBeTruthy();
     expect(mocks.confirmStripeSession).toHaveBeenCalledTimes(1);
     expect(mocks.confirmStripeSession).toHaveBeenCalledWith("cs_test_ok");
   });

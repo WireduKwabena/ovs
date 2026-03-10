@@ -161,6 +161,33 @@ export const CaseReview: React.FC = () => {
     if (score >= 70) return "bg-amber-600";
     return "bg-red-500";
   };
+  const applicantProfile =
+    application.applicant && typeof application.applicant === "object"
+      ? application.applicant
+      : null;
+  const applicationLabel =
+    application.position_applied ||
+    application.application_type?.replace("_", " ") ||
+    "Vetting Case";
+  const resolveDocumentName = (doc: (typeof application.documents)[number]) =>
+    doc.original_filename || doc.file_name || doc.document_type_display || "Document";
+  const resolveDocumentStatus = (doc: (typeof application.documents)[number]) =>
+    doc.status || doc.verification_status;
+  const resolveDocumentConfidence = (doc: (typeof application.documents)[number]) =>
+    doc.ai_confidence_score ?? doc.verification_result?.authenticity_confidence ?? doc.verification_result?.ocr_confidence;
+  const resolveDocumentUploadedAt = (doc: (typeof application.documents)[number]) =>
+    doc.uploaded_at || doc.upload_date || doc.updated_at;
+  const rubricScore =
+    application.rubric_evaluation?.overall_score ??
+    application.rubric_evaluation?.total_weighted_score;
+  const rubricPassed =
+    application.rubric_evaluation?.passed ??
+    application.rubric_evaluation?.passes_threshold;
+  const rubricRecommendation =
+    application.rubric_evaluation?.ai_recommendation ||
+    application.rubric_evaluation?.decision_recommendation?.recommendation_status ||
+    application.rubric_evaluation?.final_decision ||
+    "NO_RECOMMENDATION";
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -198,33 +225,33 @@ export const CaseReview: React.FC = () => {
                 <div>
                   <p className="text-sm text-slate-800">Full Name</p>
                   <p className="font-semibold text-gray-900">
-                    {application.applicant?.full_name || "N/A"}
+                    {applicantProfile?.full_name || application.applicant_email || "N/A"}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-slate-800">Email</p>
                   <p className="font-semibold text-gray-900">
-                    {application.applicant?.email || "N/A"}
+                    {applicantProfile?.email || application.applicant_email || "N/A"}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-slate-800">Phone</p>
                   <p className="font-semibold text-gray-900">
-                    {application.applicant?.phone_number || "N/A"}
+                    {applicantProfile?.phone_number || "N/A"}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-slate-800">Date of Birth</p>
                   <p className="font-semibold text-gray-900">
-                    {application.applicant?.date_of_birth
-                      ? formatDate(application.applicant.date_of_birth)
+                    {applicantProfile?.date_of_birth
+                      ? formatDate(applicantProfile.date_of_birth)
                       : "N/A"}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-slate-800">Application Type</p>
                   <p className="font-semibold text-gray-900 capitalize">
-                    {application.application_type.replace("_", " ")}
+                    {applicationLabel}
                   </p>
                 </div>
                 <div>
@@ -262,23 +289,23 @@ export const CaseReview: React.FC = () => {
                         <FileText className="w-8 h-8 text-slate-800" />
                         <div>
                           <p className="font-semibold text-gray-900 capitalize">
-                            {doc.document_type.replace("_", " ")}
+                            {(doc.document_type_display || doc.document_type).replace("_", " ")}
                           </p>
                           <p className="text-sm text-slate-800">
-                            {doc.file_name} • {formatFileSize(doc.file_size)}
+                            {resolveDocumentName(doc)} • {formatFileSize(doc.file_size)}
                           </p>
                           <p className="mt-1 text-xs text-slate-800">
-                            Uploaded: {formatDate(doc.upload_date)}
+                            Uploaded: {resolveDocumentUploadedAt(doc) ? formatDate(resolveDocumentUploadedAt(doc) || "") : "N/A"}
                           </p>
                         </div>
                       </div>
                       <div className="text-left sm:text-right">
-                        <StatusBadge status={doc.verification_status} />
-                        {doc.ai_confidence_score && (
+                        <StatusBadge status={resolveDocumentStatus(doc)} />
+                        {typeof resolveDocumentConfidence(doc) === "number" && (
                           <p className="mt-2 text-sm text-slate-800">
                             Confidence:{" "}
                             <span className="font-semibold">
-                              {doc.ai_confidence_score.toFixed(1)}%
+                              {resolveDocumentConfidence(doc)?.toFixed(1)}%
                             </span>
                           </p>
                         )}
@@ -372,19 +399,17 @@ export const CaseReview: React.FC = () => {
                         </div>
                         <div className="text-right">
                           <p className="text-3xl font-bold text-indigo-600">
-                            {application.rubric_evaluation.overall_score.toFixed(
-                              1
-                            )}
+                            {typeof rubricScore === "number" ? rubricScore.toFixed(1) : "N/A"}
                             %
                           </p>
                           <p
                             className={`text-sm font-semibold ${
-                              application.rubric_evaluation.passed
+                              rubricPassed
                                 ? "text-green-600"
                                 : "text-red-600"
                             }`}
                           >
-                            {application.rubric_evaluation.passed
+                            {rubricPassed
                               ? "PASSED"
                               : "FAILED"}
                           </p>
@@ -514,7 +539,7 @@ export const CaseReview: React.FC = () => {
             {application.rubric_evaluation && (
               <div
                 className={`rounded-lg shadow-sm p-6 ${
-                  application.rubric_evaluation.passed
+                  rubricPassed
                     ? "bg-green-50 border-2 border-green-200"
                     : "bg-red-50 border-2 border-red-200"
                 }`}
@@ -524,12 +549,12 @@ export const CaseReview: React.FC = () => {
                 </h3>
                 <p
                   className={`text-2xl font-bold ${
-                    application.rubric_evaluation.passed
+                    rubricPassed
                       ? "text-green-600"
                       : "text-red-600"
                   }`}
                 >
-                  {application.rubric_evaluation.ai_recommendation}
+                  {rubricRecommendation}
                 </p>
                 <p className="mt-2 text-sm text-slate-800">
                   Based on rubric evaluation and AI analysis

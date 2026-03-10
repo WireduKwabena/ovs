@@ -1,11 +1,11 @@
 import api from "./api";
 import type {
-  ApiError,
   CandidateEnrollment,
   CandidateProfile,
   CandidateSocialProfile,
   PaginatedResponse,
 } from "@/types";
+import { getApiErrorMessage } from "@/utils/apiError";
 
 const extractResults = <T>(payload: PaginatedResponse<T> | T[]): T[] => {
   if (Array.isArray(payload)) {
@@ -14,10 +14,8 @@ const extractResults = <T>(payload: PaginatedResponse<T> | T[]): T[] => {
   return Array.isArray(payload.results) ? payload.results : [];
 };
 
-const toErrorMessage = (error: unknown, fallback: string): string => {
-  const responseData = (error as { response?: { data?: ApiError } })?.response?.data;
-  return responseData?.message || fallback;
-};
+const toErrorMessage = (error: unknown, fallback: string): string =>
+  getApiErrorMessage(error, fallback);
 
 export const candidateService = {
   async listCandidates(): Promise<CandidateProfile[]> {

@@ -82,6 +82,17 @@ export const ApplicationDetailPage: React.FC = () => {
     );
   }
 
+  const applicationLabel =
+    currentCase.position_applied ||
+    currentCase.application_type?.replace("_", " ") ||
+    "Vetting Case";
+  const resolveDocumentName = (doc: (typeof currentCase.documents)[number]) =>
+    doc.original_filename || doc.file_name || doc.document_type_display || "Document";
+  const resolveDocumentStatus = (doc: (typeof currentCase.documents)[number]) =>
+    doc.status || doc.verification_status;
+  const resolveDocumentConfidence = (doc: (typeof currentCase.documents)[number]) =>
+    doc.ai_confidence_score ?? doc.verification_result?.authenticity_confidence ?? doc.verification_result?.ocr_confidence;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -99,7 +110,7 @@ export const ApplicationDetailPage: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               {currentCase.case_id}
             </h1>
-            <p className="text-slate-700">{currentCase.application_type}</p>
+            <p className="text-slate-700 capitalize">{applicationLabel}</p>
           </div>
           <StatusBadge status={currentCase.status} />
         </div>
@@ -251,18 +262,18 @@ export const ApplicationDetailPage: React.FC = () => {
                       <div className="flex items-center gap-3">
                         <FileText className="w-8 h-8 text-slate-700" />
                         <div>
-                          <p className="font-medium">{doc.file_name}</p>
+                          <p className="font-medium">{resolveDocumentName(doc)}</p>
                           <p className="text-sm text-slate-700">
-                            {doc.document_type} •{" "}
+                            {doc.document_type_display || doc.document_type} •{" "}
                             {formatFileSize(doc.file_size)}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <StatusBadge status={doc.verification_status} />
-                        {doc.ai_confidence_score && (
+                        <StatusBadge status={resolveDocumentStatus(doc)} />
+                        {typeof resolveDocumentConfidence(doc) === "number" && (
                           <span className="text-sm text-slate-700">
-                            {doc.ai_confidence_score.toFixed(1)}% confidence
+                            {resolveDocumentConfidence(doc)?.toFixed(1)}% confidence
                           </span>
                         )}
                       </div>
@@ -288,12 +299,12 @@ export const ApplicationDetailPage: React.FC = () => {
                 {currentCase.documents.map((doc) => (
                   <div key={doc.id} className="mb-4 p-4 bg-gray-50 rounded-lg">
                     <div className="flex justify-between items-start mb-2">
-                      <span className="font-medium">{doc.document_type}</span>
-                      <StatusBadge status={doc.verification_status} />
+                      <span className="font-medium">{doc.document_type_display || doc.document_type}</span>
+                      <StatusBadge status={resolveDocumentStatus(doc)} />
                     </div>
-                    {typeof doc.ai_confidence_score === "number" && (
+                    {typeof resolveDocumentConfidence(doc) === "number" && (
                       <div className="text-sm text-slate-700">
-                        AI Confidence: {doc.ai_confidence_score.toFixed(1)}%
+                        AI Confidence: {resolveDocumentConfidence(doc)?.toFixed(1)}%
                       </div>
                     )}
                   </div>

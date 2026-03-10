@@ -30,8 +30,17 @@ const authHookState = vi.hoisted(() => ({
       }
     | null,
   activeOrganizationId: null as string | null,
+  canManageActiveOrganizationGovernance: false,
   canSwitchOrganization: false,
   switchingActiveOrganization: false,
+  canViewAuditLogs: false,
+  canManageRegistry: false,
+  canAccessAppointments: false,
+  canAccessApplications: false,
+  canAccessCampaigns: false,
+  canAccessVideoCalls: false,
+  canAccessInternalWorkflow: false,
+  canManageRubrics: false,
 }));
 
 vi.mock("@/store/notificationSlice", () => ({
@@ -51,9 +60,18 @@ vi.mock("@/hooks/useAuth", () => ({
     organizations: authHookState.organizations,
     activeOrganization: authHookState.activeOrganization,
     activeOrganizationId: authHookState.activeOrganizationId,
+    canManageActiveOrganizationGovernance: authHookState.canManageActiveOrganizationGovernance,
     canSwitchOrganization: authHookState.canSwitchOrganization,
     switchingActiveOrganization: authHookState.switchingActiveOrganization,
     selectActiveOrganization: mocks.selectActiveOrganization,
+    canViewAuditLogs: authHookState.canViewAuditLogs,
+    canManageRegistry: authHookState.canManageRegistry,
+    canAccessAppointments: authHookState.canAccessAppointments,
+    canAccessApplications: authHookState.canAccessApplications,
+    canAccessCampaigns: authHookState.canAccessCampaigns,
+    canAccessVideoCalls: authHookState.canAccessVideoCalls,
+    canAccessInternalWorkflow: authHookState.canAccessInternalWorkflow,
+    canManageRubrics: authHookState.canManageRubrics,
   }),
 }));
 
@@ -135,8 +153,17 @@ describe("Navbar runtime + active tab behavior", () => {
     authHookState.organizations = [];
     authHookState.activeOrganization = null;
     authHookState.activeOrganizationId = null;
+    authHookState.canManageActiveOrganizationGovernance = false;
     authHookState.canSwitchOrganization = false;
     authHookState.switchingActiveOrganization = false;
+    authHookState.canViewAuditLogs = false;
+    authHookState.canManageRegistry = false;
+    authHookState.canAccessAppointments = false;
+    authHookState.canAccessApplications = false;
+    authHookState.canAccessCampaigns = false;
+    authHookState.canAccessVideoCalls = false;
+    authHookState.canAccessInternalWorkflow = false;
+    authHookState.canManageRubrics = false;
   });
 
   it("opens runtime popover and shows latest reminder counts", async () => {
@@ -291,6 +318,9 @@ describe("Navbar runtime + active tab behavior", () => {
   });
 
   it("shows campaigns and rubrics links for hr_manager users", async () => {
+    authHookState.canAccessCampaigns = true;
+    authHookState.canManageRubrics = true;
+
     renderNavbar("/dashboard", {
       auth: {
         userType: "hr_manager",
@@ -337,6 +367,8 @@ describe("Navbar runtime + active tab behavior", () => {
   });
 
   it("shows government workflow links when hr_manager has registry capability", async () => {
+    authHookState.canAccessAppointments = true;
+    authHookState.canManageRegistry = true;
     renderNavbar("/dashboard", {
       auth: {
         userType: "hr_manager",
@@ -361,7 +393,73 @@ describe("Navbar runtime + active tab behavior", () => {
     expect(screen.getAllByRole("link", { name: /personnel/i }).length).toBeGreaterThan(0);
   });
 
+  it("shows org-admin workspace links for users with governance access", async () => {
+    authHookState.canManageActiveOrganizationGovernance = true;
+    authHookState.activeOrganizationId = "org-1";
+    authHookState.canAccessAppointments = true;
+    authHookState.canManageRegistry = true;
+    authHookState.canAccessCampaigns = true;
+    authHookState.canAccessApplications = true;
+    authHookState.canAccessVideoCalls = true;
+    authHookState.canManageRubrics = true;
+    authHookState.canAccessInternalWorkflow = true;
+
+    renderNavbar("/dashboard", {
+      auth: {
+        userType: "hr_manager",
+        capabilities: ["gams.registry.manage"],
+        user: {
+          user_type: "hr_manager",
+          email: "registry.admin@example.com",
+          full_name: "Registry Admin",
+          first_name: "Registry",
+          last_name: "Admin",
+        },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /more/i }));
+    expect(screen.getAllByRole("link", { name: /org workspace/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /org members/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /committees/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /onboarding/i }).length).toBeGreaterThan(0);
+  });
+
+  it("hides org-admin workspace links when governance access is unavailable", async () => {
+    authHookState.canManageActiveOrganizationGovernance = false;
+    authHookState.activeOrganizationId = "org-1";
+    authHookState.canAccessAppointments = true;
+    authHookState.canManageRegistry = true;
+
+    renderNavbar("/dashboard", {
+      auth: {
+        userType: "hr_manager",
+        capabilities: [],
+        user: {
+          user_type: "hr_manager",
+          email: "ops.user@example.com",
+          full_name: "Ops User",
+          first_name: "Ops",
+          last_name: "User",
+        },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /more/i }));
+    expect(screen.queryByRole("link", { name: /org workspace/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /org members/i })).toBeNull();
+  });
+
   it("shows audit link for hr_manager users with audit capability", async () => {
+    authHookState.canViewAuditLogs = true;
     renderNavbar("/dashboard", {
       auth: {
         userType: "hr_manager",
@@ -385,6 +483,7 @@ describe("Navbar runtime + active tab behavior", () => {
   });
 
   it("hides audit link for hr_manager users without audit capability", async () => {
+    authHookState.canAccessAppointments = true;
     renderNavbar("/dashboard", {
       auth: {
         userType: "hr_manager",

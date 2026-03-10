@@ -90,7 +90,7 @@ describe("auditService.getEventCatalog API contract", () => {
 
     const catalog = await auditService.getEventCatalog();
 
-    expect(apiGetMock).toHaveBeenCalledWith("/audit/logs/event_catalog/");
+    expect(apiGetMock).toHaveBeenCalledWith("/audit/logs/event-catalog/");
     expect(catalog).toHaveLength(1);
     expect(catalog[0]).toMatchObject({ key: "appointment_record_created" });
   });
@@ -116,7 +116,7 @@ describe("auditService.getByUser API contract", () => {
 
     const rows = await auditService.getByUser("actor-uuid-1");
 
-    expect(apiGetMock).toHaveBeenCalledWith("/audit/logs/by_user/", {
+    expect(apiGetMock).toHaveBeenCalledWith("/audit/logs/by-user/", {
       params: { user_id: "actor-uuid-1" },
     });
     expect(rows).toEqual([{ id: "log-user-1", action: "update", entity_type: "AppointmentRecord" }]);
@@ -128,5 +128,29 @@ describe("auditService.getByUser API contract", () => {
     });
 
     await expect(auditService.getByUser("actor-uuid-1")).rejects.toThrow("Actor filter unavailable");
+  });
+});
+
+describe("auditService action route compatibility", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("uses hyphenated by-entity action route", async () => {
+    apiGetMock.mockResolvedValueOnce({ data: [] });
+
+    await auditService.getByEntity("AppointmentRecord", "app-1");
+
+    expect(apiGetMock).toHaveBeenCalledWith("/audit/logs/by-entity/", {
+      params: { entity_type: "AppointmentRecord", entity_id: "app-1" },
+    });
+  });
+
+  it("uses hyphenated recent-activity action route", async () => {
+    apiGetMock.mockResolvedValueOnce({ data: [] });
+
+    await auditService.getRecentActivity();
+
+    expect(apiGetMock).toHaveBeenCalledWith("/audit/logs/recent-activity/");
   });
 });

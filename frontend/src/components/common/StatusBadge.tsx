@@ -11,12 +11,20 @@ export interface StatusBadgeProps {
 
 const statusConfig = {
   pending: { icon: Clock, label: 'Pending' },
+  document_upload: { icon: Clock, label: 'Document Upload' },
+  document_analysis: { icon: Clock, label: 'Document Analysis' },
+  interview_scheduled: { icon: Clock, label: 'Interview Scheduled' },
+  interview_in_progress: { icon: Clock, label: 'Interview In Progress' },
   under_review: { icon: AlertTriangle, label: 'Under Review' },
   approved: { icon: CheckCircle, label: 'Approved' },
   rejected: { icon: XCircle, label: 'Rejected' },
+  on_hold: { icon: AlertTriangle, label: 'On Hold' },
+  uploaded: { icon: Clock, label: 'Uploaded' },
+  queued: { icon: Clock, label: 'Queued' },
   processing: { icon: Clock, label: 'Processing' },
   verified: { icon: CheckCircle, label: 'Verified' },
   failed: { icon: XCircle, label: 'Failed' },
+  flagged: { icon: AlertTriangle, label: 'Flagged' },
 } as const;
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {

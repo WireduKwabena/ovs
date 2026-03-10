@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 
+from django.contrib.auth.models import Group
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import override_settings
@@ -17,6 +18,7 @@ from apps.candidates.models import Candidate, CandidateEnrollment
 from apps.governance.models import Organization, OrganizationMembership
 
 from .models import BillingSubscription, BillingWebhookEvent, OrganizationOnboardingToken
+from .quotas import get_organization_seat_quota_snapshot
 
 
 class BillingApiTests(APITestCase):
@@ -58,6 +60,7 @@ class BillingApiTests(APITestCase):
         *,
         code: str,
         name: str,
+        membership_role: str = "registry_admin",
         is_default: bool = True,
     ) -> Organization:
         organization = Organization.objects.create(
@@ -69,7 +72,7 @@ class BillingApiTests(APITestCase):
         OrganizationMembership.objects.create(
             user=user,
             organization=organization,
-            membership_role="registry_admin",
+            membership_role=membership_role,
             is_active=True,
             is_default=is_default,
         )
@@ -95,6 +98,22 @@ class BillingApiTests(APITestCase):
             amount_usd="399.00",
             reference=reference,
         )
+
+    def _authenticate_checkout_actor(
+        self,
+        *,
+        email: str = "billing-checkout@example.com",
+        code: str = "billing-checkout-org",
+        name: str = "Billing Checkout Org",
+    ) -> tuple:
+        user = self._create_hr_user(email=email)
+        organization = self._create_org_membership(
+            user,
+            code=code,
+            name=name,
+        )
+        self.client.force_authenticate(user=user)
+        return user, organization
 
     @staticmethod
     def _paystack_signature(payload: bytes, secret: str) -> str:
@@ -767,6 +786,189 @@ class BillingApiTests(APITestCase):
         self.assertEqual(candidate_quota["remaining"], 1)
         self.assertEqual(str(candidate_quota["scope"]), f"organization:{scoped_org.id}")
 
+    def test_onboarding_token_management_requires_org_admin_or_platform_admin(self):
+        committee_member = self._create_hr_user(email="billing-committee-denied@example.com")
+        committee_group, _ = Group.objects.get_or_create(name="committee_member")
+        committee_member.groups.add(committee_group)
+        organization = self._create_org_membership(
+            committee_member,
+            code="billing-committee-denied-org",
+            name="Billing Committee Denied Org",
+            membership_role="member",
+        )
+        self._create_active_org_subscription(
+            organization=organization,
+            reference="OVS-ONBOARD-DENIED-COMMITTEE",
+        )
+
+        self.client.force_authenticate(user=committee_member)
+        state_response = self.client.get(
+            self.onboarding_state_endpoint,
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
+        generate_response = self.client.post(
+            self.onboarding_generate_endpoint,
+            {"max_uses": 2, "expires_in_hours": 24},
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
+        revoke_response = self.client.post(
+            self.onboarding_revoke_endpoint,
+            {"reason": "should_not_work"},
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
+
+        self.assertEqual(state_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(generate_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(revoke_response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_checkout_initiation_requires_org_admin_or_platform_admin(self):
+        vetting_user = self._create_hr_user(email="billing-vetting-denied@example.com")
+        vetting_group, _ = Group.objects.get_or_create(name="vetting_officer")
+        vetting_user.groups.add(vetting_group)
+        organization = self._create_org_membership(
+            vetting_user,
+            code="billing-vetting-denied-org",
+            name="Billing Vetting Denied Org",
+            membership_role="vetting_officer",
+        )
+
+        self.client.force_authenticate(user=vetting_user)
+        response = self.client.post(
+            self.sandbox_endpoint,
+            {
+                "plan_id": "starter",
+                "plan_name": "Starter",
+                "billing_cycle": "monthly",
+                "payment_method": "card",
+                "amount_usd": "149.00",
+            },
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_billing_governance_actions_reject_cross_org_scope_for_non_admin(self):
+        org_admin = self._create_hr_user(email="billing-cross-org@example.com")
+        scoped_org = self._create_org_membership(
+            org_admin,
+            code="billing-cross-org-a",
+            name="Billing Cross Org A",
+        )
+        foreign_org = Organization.objects.create(
+            code="billing-cross-org-b",
+            name="Billing Cross Org B",
+            organization_type="agency",
+            is_active=True,
+        )
+        self._create_active_org_subscription(
+            organization=scoped_org,
+            reference="OVS-CROSS-ORG-ONBOARD",
+        )
+
+        self.client.force_authenticate(user=org_admin)
+        onboarding_state_response = self.client.get(
+            self.onboarding_state_endpoint,
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(foreign_org.id),
+        )
+        checkout_response = self.client.post(
+            self.sandbox_endpoint,
+            {
+                "plan_id": "starter",
+                "plan_name": "Starter",
+                "billing_cycle": "monthly",
+                "payment_method": "card",
+                "amount_usd": "149.00",
+            },
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(foreign_org.id),
+        )
+
+        self.assertEqual(onboarding_state_response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(checkout_response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_platform_admin_can_manage_onboarding_with_explicit_org_scope(self):
+        platform_admin = get_user_model().objects.create_user(
+            email="billing-platform-admin@example.com",
+            password="StrongPass123!",
+            first_name="Platform",
+            last_name="Admin",
+            user_type="admin",
+            is_staff=True,
+            is_superuser=True,
+        )
+        owner = self._create_hr_user(email="billing-platform-owned@example.com")
+        organization = self._create_org_membership(
+            owner,
+            code="billing-platform-admin-org",
+            name="Billing Platform Admin Org",
+        )
+        self._create_active_org_subscription(
+            organization=organization,
+            reference="OVS-PLATFORM-ADMIN-ONBOARD",
+        )
+
+        self.client.force_authenticate(user=platform_admin)
+        state_response = self.client.get(
+            f"{self.onboarding_state_endpoint}?organization_id={organization.id}",
+        )
+        self.assertEqual(state_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(str(state_response.data["organization_id"]), str(organization.id))
+
+        generate_response = self.client.post(
+            f"{self.onboarding_generate_endpoint}?organization_id={organization.id}",
+            {"max_uses": 2, "expires_in_hours": 24},
+            format="json",
+        )
+        self.assertEqual(generate_response.status_code, status.HTTP_200_OK)
+        self.assertIn("token", generate_response.data)
+
+        checkout_response = self.client.post(
+            f"{self.sandbox_endpoint}?organization_id={organization.id}",
+            {
+                "plan_id": "starter",
+                "plan_name": "Starter",
+                "billing_cycle": "monthly",
+                "payment_method": "card",
+                "amount_usd": "149.00",
+            },
+            format="json",
+        )
+        self.assertEqual(checkout_response.status_code, status.HTTP_200_OK)
+
+    def test_onboarding_token_state_includes_org_seat_snapshot(self):
+        org_admin = self._create_hr_user(email="billing-seat-state@example.com")
+        organization = self._create_org_membership(
+            org_admin,
+            code="billing-seat-state-org",
+            name="Billing Seat State Org",
+        )
+        subscription = self._create_active_org_subscription(
+            organization=organization,
+            reference="OVS-SEAT-STATE",
+            plan_id="starter",
+            plan_name="Starter",
+        )
+
+        self.client.force_authenticate(user=org_admin)
+        state_response = self.client.get(
+            self.onboarding_state_endpoint,
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
+
+        self.assertEqual(state_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(str(state_response.data["organization_id"]), str(organization.id))
+        self.assertTrue(state_response.data["subscription_active"])
+        expected_snapshot = get_organization_seat_quota_snapshot(
+            organization_id=str(organization.id),
+            subscription=subscription,
+        )
+        self.assertEqual(state_response.data["organization_seat_limit"], expected_snapshot.limit)
+        self.assertEqual(state_response.data["organization_seat_used"], expected_snapshot.used)
+        self.assertEqual(state_response.data["organization_seat_remaining"], expected_snapshot.remaining)
+
     def test_onboarding_token_validate_success(self):
         hr_user = self._create_hr_user(email="onboarding-success@example.com")
         organization = self._create_org_membership(
@@ -1300,7 +1502,7 @@ class BillingApiTests(APITestCase):
         staff_response = self.client.get(self.billing_health_endpoint)
         self.assertEqual(staff_response.status_code, status.HTTP_200_OK)
 
-    def test_confirm_subscription_returns_ticket_for_anonymous_user(self):
+    def test_confirm_subscription_requires_authentication(self):
         response = self.client.post(
             self.sandbox_endpoint,
             {
@@ -1313,22 +1515,7 @@ class BillingApiTests(APITestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["status"], "confirmed")
-        self.assertIn("ticket", response.data)
-
-        ticket = response.data["ticket"]
-        self.assertEqual(ticket["planId"], "growth")
-        self.assertEqual(ticket["planName"], "Growth")
-        self.assertEqual(ticket["billingCycle"], "monthly")
-        self.assertEqual(ticket["paymentMethod"], "card")
-        self.assertEqual(ticket["amountUsd"], 399.0)
-        self.assertTrue(ticket["reference"].startswith("OVS-"))
-        self.assertGreater(ticket["expiresAt"], ticket["confirmedAt"])
-
-        persisted = BillingSubscription.objects.get(provider="sandbox", reference=ticket["reference"])
-        self.assertEqual(persisted.status, "complete")
-        self.assertEqual(float(persisted.amount_usd), 399.0)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_confirm_subscription_binds_authenticated_workspace_email(self):
         hr_user = self._create_hr_user(email="billing-auth-confirm@example.com")
@@ -1349,6 +1536,7 @@ class BillingApiTests(APITestCase):
                 "amount_usd": "149.00",
             },
             format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -1359,6 +1547,12 @@ class BillingApiTests(APITestCase):
         self.assertEqual(persisted.organization_id, organization.id)
 
     def test_confirm_subscription_validates_payment_method(self):
+        _user, organization = self._authenticate_checkout_actor(
+            email="billing-confirm-validation@example.com",
+            code="billing-confirm-validation-org",
+            name="Billing Confirm Validation Org",
+        )
+
         response = self.client.post(
             self.sandbox_endpoint,
             {
@@ -1369,6 +1563,7 @@ class BillingApiTests(APITestCase):
                 "amount_usd": "399.00",
             },
             format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -1376,6 +1571,12 @@ class BillingApiTests(APITestCase):
 
     @override_settings(BILLING_SUBSCRIPTION_TICKET_TTL_HOURS=1)
     def test_confirm_subscription_respects_ttl_setting(self):
+        _user, organization = self._authenticate_checkout_actor(
+            email="billing-confirm-ttl@example.com",
+            code="billing-confirm-ttl-org",
+            name="Billing Confirm TTL Org",
+        )
+
         response = self.client.post(
             self.sandbox_endpoint,
             {
@@ -1386,6 +1587,7 @@ class BillingApiTests(APITestCase):
                 "amount_usd": "1490.00",
             },
             format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -1393,6 +1595,37 @@ class BillingApiTests(APITestCase):
         ttl_ms = ticket["expiresAt"] - ticket["confirmedAt"]
         self.assertGreaterEqual(ttl_ms, 3_590_000)
         self.assertLessEqual(ttl_ms, 3_610_000)
+
+    def test_confirm_subscription_requires_active_organization_context(self):
+        hr_user = self._create_hr_user(email="billing-confirm-no-org@example.com")
+        self.client.force_authenticate(user=hr_user)
+
+        response = self.client.post(
+            self.sandbox_endpoint,
+            {
+                "plan_id": "starter",
+                "plan_name": "Starter",
+                "billing_cycle": "monthly",
+                "payment_method": "card",
+                "amount_usd": "149.00",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("active organization", str(response.data).lower())
+        self.assertEqual(response.data.get("code"), "ORG_SETUP_REQUIRED")
+        self.assertEqual(response.data.get("setup_path"), "/organization/setup")
+
+    def test_onboarding_token_state_requires_active_organization_context(self):
+        hr_user = self._create_hr_user(email="billing-onboarding-no-org@example.com")
+        self.client.force_authenticate(user=hr_user)
+
+        response = self.client.get(self.onboarding_state_endpoint)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data.get("code"), "ORG_SETUP_REQUIRED")
+        self.assertEqual(response.data.get("setup_path"), "/organization/setup")
 
     def test_subscription_access_verify_returns_valid_ticket(self):
         BillingSubscription.objects.create(
@@ -1520,9 +1753,8 @@ class BillingApiTests(APITestCase):
         self.assertEqual(kwargs["changes"]["reason"], "ok")
         self.assertEqual(kwargs["changes"]["rate_limited"], False)
 
-    @override_settings(STRIPE_SECRET_KEY="")
-    def test_stripe_checkout_requires_secret_key(self):
-        response = self.client.post(
+    def test_checkout_session_create_requires_authentication(self):
+        stripe_response = self.client.post(
             self.stripe_checkout_endpoint,
             {
                 "plan_id": "growth",
@@ -1532,11 +1764,51 @@ class BillingApiTests(APITestCase):
             },
             format="json",
         )
+        paystack_response = self.client.post(
+            self.paystack_checkout_endpoint,
+            {
+                "plan_id": "growth",
+                "plan_name": "Growth",
+                "billing_cycle": "monthly",
+                "amount_usd": "399.00",
+                "customer_email": "billing-paystack@example.com",
+            },
+            format="json",
+        )
+
+        self.assertEqual(stripe_response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(paystack_response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    @override_settings(STRIPE_SECRET_KEY="")
+    def test_stripe_checkout_requires_secret_key(self):
+        _user, organization = self._authenticate_checkout_actor(
+            email="billing-stripe-key@example.com",
+            code="billing-stripe-key-org",
+            name="Billing Stripe Key Org",
+        )
+
+        response = self.client.post(
+            self.stripe_checkout_endpoint,
+            {
+                "plan_id": "growth",
+                "plan_name": "Growth",
+                "billing_cycle": "monthly",
+                "amount_usd": "399.00",
+            },
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
+        )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     @override_settings(PAYSTACK_SECRET_KEY="")
     def test_paystack_checkout_requires_secret_key(self):
+        _user, organization = self._authenticate_checkout_actor(
+            email="billing-paystack-key@example.com",
+            code="billing-paystack-key-org",
+            name="Billing Paystack Key Org",
+        )
+
         response = self.client.post(
             self.paystack_checkout_endpoint,
             {
@@ -1547,6 +1819,7 @@ class BillingApiTests(APITestCase):
                 "customer_email": "billing-paystack@example.com",
             },
             format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -1559,6 +1832,11 @@ class BillingApiTests(APITestCase):
             "access_code": "psk_access_123",
             "reference": "OVS-PAYSTACK-TEST-123",
         }
+        _user, organization = self._authenticate_checkout_actor(
+            email="billing-paystack-create@example.com",
+            code="billing-paystack-create-org",
+            name="Billing Paystack Create Org",
+        )
 
         response = self.client.post(
             self.paystack_checkout_endpoint,
@@ -1572,6 +1850,7 @@ class BillingApiTests(APITestCase):
                 "cancel_url": "http://localhost:3000/billing/cancel?next=%2Fregister",
             },
             format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -1596,6 +1875,11 @@ class BillingApiTests(APITestCase):
             "access_code": "psk_access_mobile_money_123",
             "reference": "OVS-PAYSTACK-MOMO-TEST-123",
         }
+        _user, organization = self._authenticate_checkout_actor(
+            email="billing-paystack-mobile-money@example.com",
+            code="billing-paystack-mobile-money-org",
+            name="Billing Paystack Mobile Money Org",
+        )
 
         response = self.client.post(
             self.paystack_checkout_endpoint,
@@ -1610,6 +1894,7 @@ class BillingApiTests(APITestCase):
                 "cancel_url": "http://localhost:3000/billing/cancel?next=%2Fregister",
             },
             format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -1633,6 +1918,11 @@ class BillingApiTests(APITestCase):
             "access_code": "psk_access_bank_transfer_123",
             "reference": "OVS-PAYSTACK-BANK-TEST-123",
         }
+        _user, organization = self._authenticate_checkout_actor(
+            email="billing-paystack-bank-transfer@example.com",
+            code="billing-paystack-bank-transfer-org",
+            name="Billing Paystack Bank Transfer Org",
+        )
 
         response = self.client.post(
             self.paystack_checkout_endpoint,
@@ -1647,6 +1937,7 @@ class BillingApiTests(APITestCase):
                 "cancel_url": "http://localhost:3000/billing/cancel?next=%2Fregister",
             },
             format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -1675,6 +1966,11 @@ class BillingApiTests(APITestCase):
             "access_code": "psk_access_ghs_123",
             "reference": "OVS-PAYSTACK-GHS-TEST-123",
         }
+        _user, organization = self._authenticate_checkout_actor(
+            email="billing-paystack-ghs@example.com",
+            code="billing-paystack-ghs-org",
+            name="Billing Paystack GHS Org",
+        )
 
         response = self.client.post(
             self.paystack_checkout_endpoint,
@@ -1689,6 +1985,7 @@ class BillingApiTests(APITestCase):
                 "cancel_url": "http://localhost:3000/billing/cancel?next=%2Fregister",
             },
             format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -1724,6 +2021,11 @@ class BillingApiTests(APITestCase):
             },
         }
         mock_get.return_value = mock_response
+        _user, organization = self._authenticate_checkout_actor(
+            email="billing-paystack-fx@example.com",
+            code="billing-paystack-fx-org",
+            name="Billing Paystack FX Org",
+        )
 
         response = self.client.post(
             self.paystack_checkout_endpoint,
@@ -1738,6 +2040,7 @@ class BillingApiTests(APITestCase):
                 "cancel_url": "http://localhost:3000/billing/cancel?next=%2Fregister",
             },
             format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -1811,6 +2114,90 @@ class BillingApiTests(APITestCase):
         self.assertEqual(persisted.status, "complete")
         self.assertEqual(persisted.payment_status, "paid")
         self.assertEqual(persisted.payment_method, "mobile_money")
+
+    @override_settings(
+        PAYSTACK_SECRET_KEY="sk_test_paystack",
+        BILLING_CHECKOUT_CONFIRM_RATE_LIMIT_ENABLED=True,
+        BILLING_CHECKOUT_CONFIRM_RATE_LIMIT_PER_MINUTE=1,
+    )
+    @patch("apps.billing.views._paystack_verify_transaction")
+    def test_paystack_confirm_rate_limited(self, mock_verify):
+        mock_verify.return_value = {
+            "reference": "OVS-PAYSTACK-VERIFY-RATE-LIMIT-123",
+            "status": "success",
+            "amount": 39900,
+            "channel": "card",
+            "customer": {"email": "billing-paystack@example.com"},
+            "metadata": {
+                "plan_id": "growth",
+                "plan_name": "Growth",
+                "billing_cycle": "monthly",
+                "amount_usd": "399.00",
+            },
+        }
+
+        first = self.client.post(
+            self.paystack_confirm_endpoint,
+            {"reference": "OVS-PAYSTACK-VERIFY-RATE-LIMIT-123"},
+            format="json",
+            REMOTE_ADDR="10.1.1.50",
+        )
+        second = self.client.post(
+            self.paystack_confirm_endpoint,
+            {"reference": "OVS-PAYSTACK-VERIFY-RATE-LIMIT-123"},
+            format="json",
+            REMOTE_ADDR="10.1.1.50",
+        )
+
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        self.assertEqual(second.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertEqual(second.data.get("code"), "RATE_LIMITED")
+        self.assertIn("Retry-After", second)
+        self.assertEqual(mock_verify.call_count, 1)
+
+    @override_settings(PAYSTACK_SECRET_KEY="sk_test_paystack")
+    @patch("apps.billing.views._paystack_verify_transaction")
+    def test_paystack_confirm_prefers_provider_metadata_organization(self, mock_verify):
+        metadata_org = Organization.objects.create(
+            code="paystack-meta-org",
+            name="Paystack Metadata Org",
+            organization_type="agency",
+            is_active=True,
+        )
+        request_org = Organization.objects.create(
+            code="paystack-request-org",
+            name="Paystack Request Org",
+            organization_type="agency",
+            is_active=True,
+        )
+        mock_verify.return_value = {
+            "reference": "OVS-PAYSTACK-VERIFY-META-ORG-123",
+            "status": "success",
+            "amount": 39900,
+            "channel": "card",
+            "customer": {"email": "billing-paystack@example.com"},
+            "metadata": {
+                "plan_id": "growth",
+                "plan_name": "Growth",
+                "billing_cycle": "monthly",
+                "amount_usd": "399.00",
+                "organization_id": str(metadata_org.id),
+            },
+        }
+
+        response = self.client.post(
+            self.paystack_confirm_endpoint,
+            {"reference": "OVS-PAYSTACK-VERIFY-META-ORG-123"},
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(request_org.id),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        persisted = BillingSubscription.objects.get(
+            provider="paystack",
+            session_id="OVS-PAYSTACK-VERIFY-META-ORG-123",
+        )
+        self.assertEqual(persisted.organization_id, metadata_org.id)
 
     @override_settings(PAYSTACK_SECRET_KEY="sk_test_paystack")
     @patch("apps.billing.views._paystack_verify_transaction")
@@ -2039,6 +2426,11 @@ class BillingApiTests(APITestCase):
             },
             "amount_total": 39900,
         }
+        _user, organization = self._authenticate_checkout_actor(
+            email="billing-stripe-create@example.com",
+            code="billing-stripe-create-org",
+            name="Billing Stripe Create Org",
+        )
 
         response = self.client.post(
             self.stripe_checkout_endpoint,
@@ -2051,6 +2443,7 @@ class BillingApiTests(APITestCase):
                 "cancel_url": "http://localhost:3000/subscribe?stripe_cancelled=1",
             },
             format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -2151,6 +2544,137 @@ class BillingApiTests(APITestCase):
         self.assertEqual(persisted.status, "complete")
         self.assertEqual(persisted.payment_status, "paid")
         self.assertEqual(persisted.payment_intent_id, "pi_test_123")
+
+    @override_settings(
+        STRIPE_SECRET_KEY="sk_test_123",
+        BILLING_CHECKOUT_CONFIRM_RATE_LIMIT_ENABLED=True,
+        BILLING_CHECKOUT_CONFIRM_RATE_LIMIT_PER_MINUTE=1,
+    )
+    @patch("apps.billing.views._ensure_stripe_ready")
+    @patch("apps.billing.views._stripe_retrieve_checkout_session")
+    def test_stripe_confirm_rate_limited(self, mock_retrieve, mock_ready):
+        mock_ready.return_value = None
+        mock_retrieve.return_value = {
+            "id": "cs_test_rate_limit_123",
+            "status": "complete",
+            "payment_status": "paid",
+            "amount_total": 39900,
+            "payment_intent": "pi_test_rate_limit_123",
+            "metadata": {
+                "plan_id": "growth",
+                "plan_name": "Growth",
+                "billing_cycle": "monthly",
+                "payment_method": "card",
+                "amount_usd": "399.00",
+            },
+        }
+
+        first = self.client.post(
+            self.stripe_confirm_endpoint,
+            {"session_id": "cs_test_rate_limit_123"},
+            format="json",
+            REMOTE_ADDR="10.1.1.60",
+        )
+        second = self.client.post(
+            self.stripe_confirm_endpoint,
+            {"session_id": "cs_test_rate_limit_123"},
+            format="json",
+            REMOTE_ADDR="10.1.1.60",
+        )
+
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        self.assertEqual(second.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertEqual(second.data.get("code"), "RATE_LIMITED")
+        self.assertIn("Retry-After", second)
+        self.assertEqual(mock_retrieve.call_count, 1)
+
+    @override_settings(
+        STRIPE_SECRET_KEY="sk_test_123",
+        BILLING_CHECKOUT_CONFIRM_RATE_LIMIT_ENABLED=False,
+    )
+    @patch("apps.billing.views._ensure_stripe_ready")
+    @patch("apps.billing.views._stripe_retrieve_checkout_session")
+    def test_stripe_confirm_is_idempotent_for_retries(self, mock_retrieve, mock_ready):
+        mock_ready.return_value = None
+        mock_retrieve.return_value = {
+            "id": "cs_test_idempotent_123",
+            "status": "complete",
+            "payment_status": "paid",
+            "amount_total": 39900,
+            "payment_intent": "pi_test_idempotent_123",
+            "metadata": {
+                "plan_id": "growth",
+                "plan_name": "Growth",
+                "billing_cycle": "monthly",
+                "payment_method": "card",
+                "amount_usd": "399.00",
+            },
+        }
+
+        first = self.client.post(
+            self.stripe_confirm_endpoint,
+            {"session_id": "cs_test_idempotent_123"},
+            format="json",
+        )
+        second = self.client.post(
+            self.stripe_confirm_endpoint,
+            {"session_id": "cs_test_idempotent_123"},
+            format="json",
+        )
+
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        self.assertEqual(second.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            BillingSubscription.objects.filter(
+                provider="stripe",
+                session_id="cs_test_idempotent_123",
+            ).count(),
+            1,
+        )
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_123")
+    @patch("apps.billing.views._ensure_stripe_ready")
+    @patch("apps.billing.views._stripe_retrieve_checkout_session")
+    def test_stripe_confirm_prefers_provider_metadata_organization(self, mock_retrieve, mock_ready):
+        metadata_org = Organization.objects.create(
+            code="stripe-meta-org",
+            name="Stripe Metadata Org",
+            organization_type="agency",
+            is_active=True,
+        )
+        request_org = Organization.objects.create(
+            code="stripe-request-org",
+            name="Stripe Request Org",
+            organization_type="agency",
+            is_active=True,
+        )
+        mock_ready.return_value = None
+        mock_retrieve.return_value = {
+            "id": "cs_test_metadata_org_123",
+            "status": "complete",
+            "payment_status": "paid",
+            "amount_total": 39900,
+            "payment_intent": "pi_test_metadata_org_123",
+            "metadata": {
+                "plan_id": "growth",
+                "plan_name": "Growth",
+                "billing_cycle": "monthly",
+                "payment_method": "card",
+                "amount_usd": "399.00",
+                "organization_id": str(metadata_org.id),
+            },
+        }
+
+        response = self.client.post(
+            self.stripe_confirm_endpoint,
+            {"session_id": "cs_test_metadata_org_123"},
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(request_org.id),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        persisted = BillingSubscription.objects.get(provider="stripe", session_id="cs_test_metadata_org_123")
+        self.assertEqual(persisted.organization_id, metadata_org.id)
 
     @override_settings(STRIPE_SECRET_KEY="sk_test_123")
     @patch("apps.billing.views._ensure_stripe_ready")

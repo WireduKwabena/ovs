@@ -23,6 +23,7 @@ from .authz import (
 )
 from .policies.appointment_policy import can_view_internal_record
 from .policies.audit_policy import can_view_audit
+from .policies.registry_policy import can_manage_registry_governance
 
 ACTIVE_ORGANIZATION_SESSION_KEY = "auth_active_organization_id"
 ACTIVE_ORGANIZATION_HEADER_KEY = "HTTP_X_ACTIVE_ORGANIZATION_ID"
@@ -93,6 +94,26 @@ class IsRegistryOperatorOrAdmin(BasePermission):
     def has_permission(self, request, view):
         user = getattr(request, "user", None)
         return bool(is_hr_or_admin_user(user) or has_capability(user, CAPABILITY_REGISTRY_MANAGE))
+
+
+def is_registry_governance_admin(user, *, organization_id=None) -> bool:
+    return can_manage_registry_governance(
+        user,
+        organization_id=organization_id,
+        allow_membershipless_fallback=False,
+    )
+
+
+class IsRegistryGovernanceAdmin(BasePermission):
+    message = "Only organization registry administrators or platform administrators can access this resource."
+
+    def has_permission(self, request, view):
+        user = getattr(request, "user", None)
+        organization_id = get_request_active_organization_id(request)
+        return is_registry_governance_admin(
+            user,
+            organization_id=organization_id,
+        )
 
 
 class IsAuditReaderOrAdmin(BasePermission):

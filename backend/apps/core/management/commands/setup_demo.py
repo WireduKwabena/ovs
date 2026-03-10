@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 from django.contrib.auth.models import Group
 from django.core.management.base import BaseCommand, CommandError
@@ -10,6 +10,8 @@ from django.utils import timezone
 
 from apps.appointments.models import AppointmentPublication, AppointmentRecord, ApprovalStage, ApprovalStageTemplate
 from apps.authentication.models import User
+from apps.billing.models import BillingSubscription, OrganizationOnboardingToken
+from apps.billing.services import create_organization_onboarding_token, get_active_onboarding_token_for_organization
 from apps.campaigns.models import VettingCampaign
 from apps.governance.models import Committee, CommitteeMembership, Organization, OrganizationMembership
 from apps.personnel.models import PersonnelRecord
@@ -48,6 +50,9 @@ class Command(BaseCommand):
         parser.add_argument("--committee-email", default="gams.committee@demo.local")
         parser.add_argument("--committee-password", default="DemoCommittee123!")
 
+        parser.add_argument("--committee-chair-email", default="gams.committeechair@demo.local")
+        parser.add_argument("--committee-chair-password", default="DemoCommitteeChair123!")
+
         parser.add_argument("--authority-email", default="gams.authority@demo.local")
         parser.add_argument("--authority-password", default="DemoAuthority123!")
 
@@ -84,6 +89,9 @@ class Command(BaseCommand):
         self.stdout.write(f"  Admin:     {options['admin_email']} / {options['admin_password']}")
         self.stdout.write(f"  Vetting:   {options['vetting_email']} / {options['vetting_password']}")
         self.stdout.write(f"  Committee: {options['committee_email']} / {options['committee_password']}")
+        self.stdout.write(
+            f"  Committee Chair: {options['committee_chair_email']} / {options['committee_chair_password']}"
+        )
         self.stdout.write(f"  Authority: {options['authority_email']} / {options['authority_password']}")
         self.stdout.write(f"  Registry:  {options['registry_email']} / {options['registry_password']}")
         self.stdout.write(f"  Publication: {options['publication_email']} / {options['publication_password']}")
@@ -98,6 +106,8 @@ class Command(BaseCommand):
             VettingCampaign._meta.db_table,
             GovernmentPosition._meta.db_table,
             PersonnelRecord._meta.db_table,
+            BillingSubscription._meta.db_table,
+            OrganizationOnboardingToken._meta.db_table,
         }
         existing_tables = set(connection.introspection.table_names())
         missing_tables = sorted(required_tables - existing_tables)
@@ -169,6 +179,19 @@ class Command(BaseCommand):
         )
         committee_user.groups.add(groups["committee_member"])
 
+        committee_chair_user = self._upsert_user(
+            email=options["committee_chair_email"],
+            password=options["committee_chair_password"],
+            first_name="Committee",
+            last_name="Chair",
+            user_type="hr_manager",
+            is_staff=False,
+            is_superuser=False,
+            organization="Parliamentary Appointments Committee",
+            department="Review",
+        )
+        committee_chair_user.groups.add(groups["committee_chair"])
+
         authority_user = self._upsert_user(
             email=options["authority_email"],
             password=options["authority_password"],
@@ -225,6 +248,7 @@ class Command(BaseCommand):
             "admin": admin_user,
             "vetting": vetting_user,
             "committee": committee_user,
+            "committee_chair": committee_chair_user,
             "authority": authority_user,
             "registry": registry_user,
             "publication": publication_user,
@@ -279,52 +303,59 @@ class Command(BaseCommand):
             )
             organizations[key] = organization
 
+        workflow_org = organizations["admin"]
         memberships: dict[str, OrganizationMembership] = {}
         memberships["admin"] = self._upsert_org_membership(
             user=users["admin"],
-            organization=organizations["admin"],
+            organization=workflow_org,
             membership_role="system_admin",
             is_default=True,
         )
         memberships["vetting"] = self._upsert_org_membership(
             user=users["vetting"],
-            organization=organizations["vetting"],
+            organization=workflow_org,
             membership_role="vetting_officer",
             is_default=True,
         )
         memberships["committee"] = self._upsert_org_membership(
             user=users["committee"],
-            organization=organizations["committee"],
+            organization=workflow_org,
             membership_role="committee_member",
+            is_default=True,
+        )
+        memberships["committee_chair"] = self._upsert_org_membership(
+            user=users["committee_chair"],
+            organization=workflow_org,
+            membership_role="committee_chair",
             is_default=True,
         )
         memberships["authority"] = self._upsert_org_membership(
             user=users["authority"],
-            organization=organizations["authority"],
+            organization=workflow_org,
             membership_role="appointing_authority",
             is_default=True,
         )
         memberships["registry"] = self._upsert_org_membership(
             user=users["registry"],
-            organization=organizations["registry"],
+            organization=workflow_org,
             membership_role="registry_admin",
             is_default=True,
         )
         memberships["publication"] = self._upsert_org_membership(
             user=users["publication"],
-            organization=organizations["publication"],
+            organization=workflow_org,
             membership_role="publication_officer",
             is_default=True,
         )
         memberships["auditor"] = self._upsert_org_membership(
             user=users["auditor"],
-            organization=organizations["auditor"],
+            organization=workflow_org,
             membership_role="auditor",
             is_default=True,
         )
 
         committee = self._upsert_committee(
-            organization=organizations["committee"],
+            organization=workflow_org,
             code="parliamentary-appointments-main",
             name="Parliamentary Appointments Main Committee",
             committee_type="approval",
@@ -337,6 +368,12 @@ class Command(BaseCommand):
             user=users["committee"],
             organization_membership=memberships["committee"],
             committee_role="member",
+            can_vote=True,
+        )
+        CommitteeMembership.assign_active_chair(
+            committee=committee,
+            user=users["committee_chair"],
+            organization_membership=memberships["committee_chair"],
             can_vote=True,
         )
 
@@ -547,15 +584,22 @@ class Command(BaseCommand):
     def _ensure_sample_data(self, *, users: dict[str, User], organizations: dict[str, Organization]) -> None:
         authority_user = users["authority"]
         workflow_org = organizations.get("admin")
-        primary_committee = Committee.objects.filter(code="parliamentary-appointments-main", is_active=True).first()
+        if workflow_org is None:
+            return
+
+        self._ensure_billing_demo_state(
+            organization=workflow_org,
+            org_admin_user=users["registry"],
+        )
+
         committee_for_records = (
-            primary_committee
-            if (
-                workflow_org is not None
-                and primary_committee is not None
-                and primary_committee.organization_id == workflow_org.id
+            Committee.objects.filter(
+                code="parliamentary-appointments-main",
+                organization=workflow_org,
+                is_active=True,
             )
-            else None
+            .order_by("-updated_at")
+            .first()
         )
         stage_template = self._ensure_stage_template(
             created_by=users["admin"],
@@ -622,7 +666,100 @@ class Command(BaseCommand):
             decided_by=authority_user,
             committee=committee_for_records,
         )
-        self._ensure_published_publication(serving_record, publisher=authority_user)
+        self._ensure_published_publication(serving_record, publisher=users["publication"])
+
+    def _ensure_billing_demo_state(
+        self,
+        *,
+        organization: Organization,
+        org_admin_user: User,
+    ) -> None:
+        subscription, _created = BillingSubscription.objects.get_or_create(
+            organization=organization,
+            reference="GAMS-DEMO-ORG-SUBSCRIPTION",
+            defaults={
+                "provider": "sandbox",
+                "status": "complete",
+                "payment_status": "paid",
+                "plan_id": "growth",
+                "plan_name": "Growth",
+                "billing_cycle": "annual",
+                "payment_method": "card",
+                "amount_usd": "3990.00",
+                "registration_consumed_at": timezone.now(),
+                "registration_consumed_by_email": org_admin_user.email,
+                "metadata": {
+                    "seeded_by": "setup_demo",
+                    "organization_id": str(organization.id),
+                },
+            },
+        )
+        subscription_updates: list[str] = []
+        for field, value in {
+            "provider": "sandbox",
+            "status": "complete",
+            "payment_status": "paid",
+            "plan_id": "growth",
+            "plan_name": "Growth",
+            "billing_cycle": "annual",
+            "payment_method": "card",
+            "amount_usd": "3990.00",
+            "registration_consumed_by_email": str(org_admin_user.email or "").strip().lower(),
+        }.items():
+            if getattr(subscription, field) != value:
+                setattr(subscription, field, value)
+                subscription_updates.append(field)
+
+        if not subscription.registration_consumed_at:
+            subscription.registration_consumed_at = timezone.now()
+            subscription_updates.append("registration_consumed_at")
+
+        metadata = subscription.metadata if isinstance(subscription.metadata, dict) else {}
+        if metadata.get("organization_id") != str(organization.id):
+            metadata["organization_id"] = str(organization.id)
+            metadata["seeded_by"] = "setup_demo"
+            subscription.metadata = metadata
+            subscription_updates.append("metadata")
+
+        if subscription_updates:
+            subscription.save(update_fields=subscription_updates + ["updated_at"])
+
+        now = timezone.now()
+        active_token = get_active_onboarding_token_for_organization(organization_id=str(organization.id))
+        token_still_usable = bool(
+            active_token
+            and active_token.is_active
+            and (active_token.expires_at is None or active_token.expires_at > now)
+            and (
+                active_token.max_uses is None
+                or int(active_token.uses or 0) < int(active_token.max_uses)
+            )
+        )
+        if token_still_usable and active_token is not None:
+            token_updates: list[str] = []
+            if active_token.subscription_id != subscription.id:
+                active_token.subscription = subscription
+                token_updates.append("subscription")
+            if not active_token.max_uses:
+                active_token.max_uses = 50
+                token_updates.append("max_uses")
+            if active_token.expires_at is None:
+                active_token.expires_at = now + timedelta(days=30)
+                token_updates.append("expires_at")
+            if token_updates:
+                active_token.save(update_fields=token_updates + ["updated_at"])
+            return
+
+        create_organization_onboarding_token(
+            organization=organization,
+            subscription=subscription,
+            created_by=org_admin_user,
+            expires_at=now + timedelta(days=30),
+            max_uses=50,
+            allowed_email_domain="",
+            rotate=True,
+            metadata={"seeded_by": "setup_demo"},
+        )
 
     def _ensure_stage_template(
         self,

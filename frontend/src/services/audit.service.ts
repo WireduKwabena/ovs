@@ -40,7 +40,7 @@ export const auditService = {
 
   async getRecentActivity(): Promise<AuditLog[]> {
     try {
-      const response = await api.get<AuditLog[]>("/audit/logs/recent_activity/");
+      const response = await api.get<AuditLog[]>("/audit/logs/recent-activity/");
       return Array.isArray(response.data) ? response.data : [];
     } catch (error) {
       throw new Error(toErrorMessage(error, "Failed to fetch recent audit activity"));
@@ -49,7 +49,7 @@ export const auditService = {
 
   async getByEntity(entityType: string, entityId: string): Promise<AuditLog[]> {
     try {
-      const response = await api.get<AuditLog[]>("/audit/logs/by_entity/", {
+      const response = await api.get<AuditLog[]>("/audit/logs/by-entity/", {
         params: { entity_type: entityType, entity_id: entityId },
       });
       return Array.isArray(response.data) ? response.data : [];
@@ -60,7 +60,7 @@ export const auditService = {
 
   async getByUser(userId: string): Promise<AuditLog[]> {
     try {
-      const response = await api.get<AuditLog[]>("/audit/logs/by_user/", {
+      const response = await api.get<AuditLog[]>("/audit/logs/by-user/", {
         params: { user_id: userId },
       });
       return Array.isArray(response.data) ? response.data : [];
@@ -90,7 +90,7 @@ export const auditService = {
   async getEventCatalog(): Promise<AuditEventCatalogItem[]> {
     try {
       const response = await api.get<PaginatedResponse<AuditEventCatalogItem> | AuditEventCatalogItem[]>(
-        "/audit/logs/event_catalog/",
+        "/audit/logs/event-catalog/",
       );
       return extractResults(response.data);
     } catch (error) {

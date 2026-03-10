@@ -45,6 +45,166 @@ export interface OrganizationMembershipContext {
   left_at?: string | null;
 }
 
+export interface GovernanceOrganizationBootstrapPayload {
+  name: string;
+  code?: string;
+  organization_type?: string;
+}
+
+export interface GovernanceOrganizationBootstrapMembership {
+  id: string;
+  user: string;
+  user_email: string;
+  organization: string;
+  organization_name: string;
+  title: string;
+  membership_role: string;
+  is_active: boolean;
+  is_default: boolean;
+  joined_at?: string | null;
+  left_at?: string | null;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  user_full_name?: string;
+}
+
+export interface GovernanceOrganizationBootstrapResponse {
+  status: string;
+  message: string;
+  organization: OrganizationSummary;
+  membership: GovernanceOrganizationBootstrapMembership;
+}
+
+export interface GovernanceOrganizationSummary {
+  id: string;
+  code: string;
+  name: string;
+  organization_type: string;
+  is_active: boolean;
+}
+
+export interface GovernanceOrganizationActorSummary {
+  is_platform_admin: boolean;
+  can_manage_registry: boolean;
+  active_membership_id: string;
+  active_membership_role: string;
+}
+
+export interface GovernanceOrganizationStats {
+  members_total: number;
+  members_active: number;
+  committees_total: number;
+  committees_active: number;
+  committee_memberships_active: number;
+  active_chairs: number;
+}
+
+export interface GovernanceOrganizationSummaryResponse {
+  organization: GovernanceOrganizationSummary;
+  actor: GovernanceOrganizationActorSummary;
+  stats: GovernanceOrganizationStats;
+  active_organization_source: string;
+}
+
+export interface GovernanceOrganizationMember {
+  id: string;
+  user: string;
+  user_email: string;
+  user_full_name?: string;
+  organization: string;
+  organization_name: string;
+  title: string;
+  membership_role: string;
+  is_active: boolean;
+  is_default: boolean;
+  joined_at?: string | null;
+  left_at?: string | null;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GovernanceCommittee {
+  id: string;
+  organization: string;
+  organization_name: string;
+  code: string;
+  name: string;
+  committee_type: string;
+  description: string;
+  is_active: boolean;
+  created_by?: string | null;
+  created_by_email?: string;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GovernanceCommitteeMembership {
+  id: string;
+  committee: string;
+  committee_name: string;
+  organization_name: string;
+  user: string;
+  user_email: string;
+  organization_membership: string | null;
+  committee_role: string;
+  can_vote: boolean;
+  is_active: boolean;
+  joined_at?: string | null;
+  left_at?: string | null;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GovernanceChoiceOption {
+  value: string;
+  label: string;
+}
+
+export interface GovernanceChoicesResponse {
+  organization_types: GovernanceChoiceOption[];
+  committee_types: GovernanceChoiceOption[];
+  committee_roles: GovernanceChoiceOption[];
+}
+
+export interface GovernanceMemberOption {
+  organization_membership_id: string;
+  user_id: string;
+  user_email: string;
+  user_full_name: string;
+  membership_role: string;
+  title: string;
+  is_active: boolean;
+  is_default: boolean;
+}
+
+export interface GovernanceCommitteeChairReassignPayload {
+  target_committee_membership_id?: string;
+  target_user_id?: string;
+  organization_membership_id?: string;
+  can_vote?: boolean;
+  reason_note?: string;
+}
+
+export interface GovernanceCommitteeChairReassignResponse {
+  committee_id: string;
+  previous_chair: {
+    membership_id: string;
+    user_id: string;
+    user_email: string;
+  } | null;
+  new_chair: {
+    membership_id: string;
+    user_id: string;
+    user_email: string;
+    committee_role: string;
+  };
+  changed_at: string;
+}
+
 export interface CommitteeContext {
   id: string;
   committee_id: string;
@@ -130,16 +290,28 @@ export interface ApiError {
   status?: number;
 }
 
-export type ApplicationStatus = 'pending' | 'under_review' | 'approved' | 'rejected';
+export type ApplicationStatus =
+  | 'pending'
+  | 'document_upload'
+  | 'document_analysis'
+  | 'interview_scheduled'
+  | 'interview_in_progress'
+  | 'under_review'
+  | 'approved'
+  | 'rejected'
+  | 'on_hold';
 export type ApplicationType = 'employment' | 'background' | 'credential' | 'education';
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
 
 export interface VettingCase {
   id: string;
   case_id: string;
-  applicant: User;
+  applicant: User | string;
+  applicant_email?: string;
+  position_applied?: string;
+  department?: string;
   status: ApplicationStatus;
-  application_type: ApplicationType;
+  application_type?: ApplicationType;
   priority: Priority;
   consistency_score?: number;
   fraud_risk_score?: number;
@@ -164,33 +336,72 @@ export type DocumentType =
   | 'birth_certificate' 
   | 'other';
 
-export type VerificationStatusType = 'pending' | 'processing' | 'verified' | 'failed' | 'rejected';
+export type VerificationStatusType =
+  | 'uploaded'
+  | 'queued'
+  | 'pending'
+  | 'processing'
+  | 'verified'
+  | 'failed'
+  | 'flagged'
+  | 'rejected';
 
 export interface Document {
   id: string;
+  case?: string;
   document_type: DocumentType;
+  document_type_display?: string;
+  file?: string;
+  original_filename?: string;
   file_name: string;
   file_path: string;
   file_size: number;
+  mime_type?: string;
+  status: VerificationStatusType;
+  status_display?: string;
   verification_status: VerificationStatusType;
+  ocr_completed?: boolean;
+  authenticity_check_completed?: boolean;
+  fraud_check_completed?: boolean;
+  processing_error?: string;
+  retry_count?: number;
+  extracted_text?: string;
+  extracted_data?: Record<string, unknown>;
   ai_confidence_score?: number;
   upload_date: string;
-  updated_at: string;
+  uploaded_at?: string;
+  processed_at?: string | null;
+  updated_at?: string;
   file_url?: string;
+  verification_result?: VerificationResult;
   verification_results?: VerificationResult[];
 }
 
 export interface VerificationResult {
   id: string;
+  document?: string;
   ocr_text: string;
-  ocr_confidence: number;
-  ocr_method: string;
+  ocr_confidence?: number;
+  ocr_language?: string;
+  ocr_method?: string;
   authenticity_score: number;
+  authenticity_confidence?: number;
   is_authentic: boolean;
-  extracted_data: Record<string, any>;
-  cv_checks: Record<string, any>;
-  details: Record<string, any>;
-  verified_at: string;
+  metadata_check_passed?: boolean;
+  visual_check_passed?: boolean;
+  tampering_detected?: boolean;
+  fraud_risk_score?: number;
+  fraud_prediction?: string;
+  fraud_indicators?: string[];
+  extracted_data?: Record<string, any>;
+  cv_checks?: Record<string, any>;
+  detailed_results?: Record<string, any>;
+  details?: Record<string, any>;
+  ocr_model_version?: string;
+  authenticity_model_version?: string;
+  fraud_model_version?: string;
+  created_at?: string;
+  verified_at?: string;
 }
 
 export interface ApplicationWithDocuments extends VettingCase {
@@ -361,16 +572,28 @@ export interface BackgroundCheckEvent {
 
 export interface RubricEvaluation {
   id: string;
-  application: VettingCase;
-  rubric: VettingRubric;
-  overall_score: number;
-  criteria_scores: Record<string, { score: number; weight: number }>;
-  passed: boolean;
-  ai_recommendation: 'AUTO_APPROVE' | 'AUTO_REJECT' | 'MANUAL_REVIEW';
-  evaluation_details: Record<string, any>;
-  flags: string[];
-  warnings: string[];
-  evaluated_at: string;
+  application?: VettingCase | string;
+  rubric?: VettingRubric | string;
+  rubric_id?: string;
+  overall_score?: number;
+  total_weighted_score?: number;
+  criteria_scores?: Record<string, { score: number; weight: number }>;
+  passed?: boolean;
+  passes_threshold?: boolean;
+  ai_recommendation?: 'AUTO_APPROVE' | 'AUTO_REJECT' | 'MANUAL_REVIEW';
+  final_decision?: string;
+  requires_manual_review?: boolean;
+  evaluation_details?: Record<string, any>;
+  flags?: string[];
+  warnings?: string[];
+  decision_recommendation?: {
+    id: string;
+    recommendation_status: string;
+    advisory_only: boolean;
+    blocking_issues_count: number;
+    warnings_count: number;
+  } | null;
+  evaluated_at?: string;
 }
 
 export type NotificationType = 
@@ -761,7 +984,6 @@ export interface RegisterData {
   department: string;
   onboarding_token: string;
   organization?: string;
-  subscription_reference?: string;
 }
 
 export interface CreateApplicationData {

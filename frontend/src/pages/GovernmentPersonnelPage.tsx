@@ -9,7 +9,7 @@ import type { PersonnelRecord } from "@/types";
 import { governmentService } from "@/services/government.service";
 
 const GovernmentPersonnelPage: React.FC = () => {
-  const { activeOrganization, activeOrganizationId } = useAuth();
+  const { activeOrganization, activeOrganizationId, isAdmin, canManageRegistry } = useAuth();
   const [rows, setRows] = useState<PersonnelRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -27,6 +27,7 @@ const GovernmentPersonnelPage: React.FC = () => {
     is_active_officeholder: false,
     is_public: true,
   });
+  const canManagePersonnelRegistry = canManageRegistry && (isAdmin || Boolean(activeOrganizationId));
 
   const loadPersonnel = useCallback(async () => {
     const data = await governmentService.listPersonnel({
@@ -64,6 +65,10 @@ const GovernmentPersonnelPage: React.FC = () => {
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!canManagePersonnelRegistry) {
+      toast.error("Registry authority with active organization context is required to register personnel.");
+      return;
+    }
     if (!form.full_name.trim()) {
       toast.error("Full name is required.");
       return;
@@ -100,14 +105,14 @@ const GovernmentPersonnelPage: React.FC = () => {
   const scopedRows = useMemo(() => {
     return rows.filter((item) => {
       if (!activeOrganizationId) {
-        return true;
+        return isAdmin || !item.organization;
       }
       if (!item.organization) {
         return true;
       }
       return String(item.organization) === activeOrganizationId;
     });
-  }, [activeOrganizationId, rows]);
+  }, [activeOrganizationId, isAdmin, rows]);
 
   const stats = useMemo(() => {
     const total = scopedRows.length;
@@ -136,6 +141,12 @@ const GovernmentPersonnelPage: React.FC = () => {
         </div>
       </header>
 
+      {!isAdmin && !activeOrganizationId ? (
+        <section className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          Select an active organization to view organization-scoped personnel records.
+        </section>
+      ) : null}
+
       <section className="grid gap-4 md:grid-cols-3">
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-700">Total Personnel</p>
@@ -153,7 +164,15 @@ const GovernmentPersonnelPage: React.FC = () => {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-bold text-slate-900">Register Personnel Record</h2>
+        {!canManagePersonnelRegistry ? (
+          <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            {!canManageRegistry
+              ? "Only registry operators can create or edit personnel records."
+              : "Select an active organization before creating personnel records."}
+          </div>
+        ) : null}
         <form onSubmit={handleCreate} className="mt-4 grid gap-3 md:grid-cols-2">
+          <fieldset className="contents disabled:opacity-70" disabled={!canManagePersonnelRegistry || creating}>
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase text-slate-700">Full Name</label>
             <Input
@@ -221,11 +240,12 @@ const GovernmentPersonnelPage: React.FC = () => {
             </label>
           </div>
           <div className="md:col-span-2 flex justify-end">
-            <Button type="submit" disabled={creating}>
+            <Button type="submit" disabled={creating || !canManagePersonnelRegistry}>
               <Plus className="mr-2 h-4 w-4" />
               {creating ? "Saving..." : "Create Personnel"}
             </Button>
           </div>
+          </fieldset>
         </form>
       </section>
 

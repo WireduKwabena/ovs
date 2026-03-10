@@ -26,6 +26,10 @@ vi.mock("./pages/GovernmentPersonnelPage", () => ({
   default: () => <div>Mock Government Personnel Page</div>,
 }));
 
+vi.mock("./pages/OrganizationDashboardPage", () => ({
+  default: () => <div>Mock Organization Dashboard Page</div>,
+}));
+
 vi.mock("./pages/DashboardPage", () => ({
   __esModule: true,
   DashboardPage: () => <div>Mock Dashboard Page</div>,
@@ -34,7 +38,19 @@ vi.mock("./pages/DashboardPage", () => ({
 
 type AuthUserType = "applicant" | "hr_manager" | "admin" | null;
 
-const buildStore = (userType: AuthUserType, capabilitiesOverride?: string[]) => {
+const buildStore = (
+  userType: AuthUserType,
+  capabilitiesOverride?: string[],
+  options?: {
+    activeOrganizationId?: string | null;
+    organizationMemberships?: Array<{
+      id: string;
+      organization_id: string;
+      membership_role: string;
+      is_active: boolean;
+    }>;
+  },
+) => {
   const defaultCapabilities =
     userType === "admin" || userType === "hr_manager"
       ? [
@@ -64,6 +80,14 @@ const buildStore = (userType: AuthUserType, capabilitiesOverride?: string[]) => 
       userType,
       roles: [],
       capabilities,
+      organizations: [],
+      organizationMemberships: options?.organizationMemberships || [],
+      committees: [],
+      activeOrganization: options?.activeOrganizationId
+        ? { id: options.activeOrganizationId, code: "ORG", name: "Org", organization_type: "agency" }
+        : null,
+      activeOrganizationSource: options?.activeOrganizationId ? "header" : "none",
+      invalidRequestedOrganizationId: "",
       loading: false,
       error: null,
       twoFactorRequired: false,
@@ -86,9 +110,22 @@ const buildStore = (userType: AuthUserType, capabilitiesOverride?: string[]) => 
   });
 };
 
-const renderAppAt = (path: string, userType: AuthUserType, capabilitiesOverride?: string[]) => {
+const renderAppAt = (
+  path: string,
+  userType: AuthUserType,
+  capabilitiesOverride?: string[],
+  options?: {
+    activeOrganizationId?: string | null;
+    organizationMemberships?: Array<{
+      id: string;
+      organization_id: string;
+      membership_role: string;
+      is_active: boolean;
+    }>;
+  },
+) => {
   window.history.pushState({}, "", path);
-  const store = buildStore(userType, capabilitiesOverride);
+  const store = buildStore(userType, capabilitiesOverride, options);
   return render(
     <Provider store={store}>
       <App />
@@ -114,6 +151,39 @@ describe("App government route access", () => {
 
   it("redirects applicant away from government appointments route", async () => {
     renderAppAt("/government/appointments", "applicant");
+    expect(await screen.findByText("Mock Dashboard Page")).toBeTruthy();
+  });
+
+  it("allows org-admin scoped hr_manager users to access organization dashboard route", async () => {
+    renderAppAt(
+      "/organization/dashboard",
+      "hr_manager",
+      [],
+      {
+        activeOrganizationId: "org-1",
+        organizationMemberships: [
+          {
+            id: "m-1",
+            organization_id: "org-1",
+            membership_role: "registry_admin",
+            is_active: true,
+          },
+        ],
+      },
+    );
+    expect(await screen.findByText("Mock Organization Dashboard Page")).toBeTruthy();
+  });
+
+  it("redirects non-org-admin hr_manager users away from organization dashboard route", async () => {
+    renderAppAt(
+      "/organization/dashboard",
+      "hr_manager",
+      [],
+      {
+        activeOrganizationId: "org-1",
+        organizationMemberships: [],
+      },
+    );
     expect(await screen.findByText("Mock Dashboard Page")).toBeTruthy();
   });
 });

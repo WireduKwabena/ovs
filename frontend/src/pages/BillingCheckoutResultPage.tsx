@@ -90,6 +90,8 @@ const BillingCheckoutResultPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const organizationDashboardPath = "/organization/dashboard";
+  const onboardingManagementPath = "/organization/onboarding";
   const stripeSessionId = searchParams.get("stripe_session_id") || "";
   const paystackReference =
     searchParams.get("paystack_reference") ||
@@ -102,7 +104,7 @@ const BillingCheckoutResultPage: React.FC = () => {
     ? "paystack"
     : null;
   const checkoutIdentifier = stripeSessionId || paystackReference;
-  const nextPath = normalizeNextPath(searchParams.get("next"), "/register");
+  const nextPath = normalizeNextPath(searchParams.get("next"), onboardingManagementPath);
 
   const [status, setStatus] = useState<ConfirmationStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -245,7 +247,7 @@ const BillingCheckoutResultPage: React.FC = () => {
           </div>
           <h1 className="text-center text-2xl font-black text-slate-900">Payment Confirmed</h1>
           <p className="mt-3 text-center text-sm text-slate-700">
-            Your subscription access has been activated.
+            Your organization subscription is active. Continue into the organization workspace and complete onboarding setup.
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <button
@@ -253,7 +255,14 @@ const BillingCheckoutResultPage: React.FC = () => {
               onClick={() => navigate(nextPath, { replace: true })}
               className="rounded-lg bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800"
             >
-              Continue
+              Open Organization Onboarding
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(organizationDashboardPath)}
+              className="rounded-lg border border-cyan-700 px-4 py-2 text-sm font-semibold text-cyan-700 hover:bg-cyan-50"
+            >
+              Open Organization Dashboard
             </button>
             <Link
               to="/login"

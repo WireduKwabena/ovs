@@ -13,6 +13,13 @@ type GuardAuthState = {
   user: { is_staff?: boolean; is_superuser?: boolean } | null;
   roles: string[];
   capabilities: string[];
+  organizationMemberships: Array<{
+    id: string;
+    organization_id: string;
+    membership_role: string;
+    is_active: boolean;
+  }>;
+  activeOrganization: { id: string } | null;
   twoFactorRequired: boolean;
   twoFactorToken: string | null;
 };
@@ -27,11 +34,13 @@ const createGuardState = (auth: Partial<GuardAuthState> = {}): GuardState => ({
     isAuthenticated: false,
     userType: null,
     user: null,
-    roles: [],
-    capabilities: [],
-    twoFactorRequired: false,
-    twoFactorToken: null,
-    ...auth,
+      roles: [],
+      capabilities: [],
+      organizationMemberships: [],
+      activeOrganization: null,
+      twoFactorRequired: false,
+      twoFactorToken: null,
+      ...auth,
   },
   _persist: { rehydrated: true },
 });
@@ -51,7 +60,8 @@ const renderWithState = (
     | "/government/positions"
     | "/government/personnel"
     | "/government/appointments"
-    | "/audit-logs" = "/private",
+    | "/audit-logs"
+    | "/organization/dashboard" = "/private",
 ) => {
   const store = configureStore({
     reducer: (currentState: GuardState = state) => currentState,
@@ -65,6 +75,7 @@ const renderWithState = (
           <Route path="/login" element={<div>Login page</div>} />
           <Route path="/login/2fa" element={<div>2FA page</div>} />
           <Route path="/dashboard" element={<div>Dashboard page</div>} />
+          <Route path="/organization/setup" element={<div>Organization setup page</div>} />
           <Route
             path="/private"
             element={
@@ -92,7 +103,17 @@ const renderWithState = (
           <Route
             path="/applications"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredCapabilities={[
+                  "gams.registry.manage",
+                  "gams.appointment.stage",
+                  "gams.appointment.decide",
+                  "gams.appointment.publish",
+                  "gams.appointment.view_internal",
+                ]}
+                legacyUserTypeFallback={["hr_manager", "admin"]}
+              >
                 <div>Applications page</div>
               </ProtectedRoute>
             }
@@ -100,7 +121,17 @@ const renderWithState = (
           <Route
             path="/applications/:caseId"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredCapabilities={[
+                  "gams.registry.manage",
+                  "gams.appointment.stage",
+                  "gams.appointment.decide",
+                  "gams.appointment.publish",
+                  "gams.appointment.view_internal",
+                ]}
+                legacyUserTypeFallback={["hr_manager", "admin"]}
+              >
                 <div>Application detail page</div>
               </ProtectedRoute>
             }
@@ -108,7 +139,17 @@ const renderWithState = (
           <Route
             path="/campaigns"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredCapabilities={[
+                  "gams.registry.manage",
+                  "gams.appointment.stage",
+                  "gams.appointment.decide",
+                  "gams.appointment.publish",
+                  "gams.appointment.view_internal",
+                ]}
+                legacyUserTypeFallback={["hr_manager", "admin"]}
+              >
                 <div>Campaigns page</div>
               </ProtectedRoute>
             }
@@ -116,7 +157,17 @@ const renderWithState = (
           <Route
             path="/campaigns/:campaignId"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredCapabilities={[
+                  "gams.registry.manage",
+                  "gams.appointment.stage",
+                  "gams.appointment.decide",
+                  "gams.appointment.publish",
+                  "gams.appointment.view_internal",
+                ]}
+                legacyUserTypeFallback={["hr_manager", "admin"]}
+              >
                 <div>Campaign workspace page</div>
               </ProtectedRoute>
             }
@@ -124,7 +175,15 @@ const renderWithState = (
           <Route
             path="/rubrics"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredCapabilities={[
+                  "gams.registry.manage",
+                  "gams.appointment.stage",
+                  "gams.appointment.decide",
+                ]}
+                legacyUserTypeFallback={["hr_manager", "admin"]}
+              >
                 <div>Rubrics page</div>
               </ProtectedRoute>
             }
@@ -132,7 +191,15 @@ const renderWithState = (
           <Route
             path="/rubrics/new"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredCapabilities={[
+                  "gams.registry.manage",
+                  "gams.appointment.stage",
+                  "gams.appointment.decide",
+                ]}
+                legacyUserTypeFallback={["hr_manager", "admin"]}
+              >
                 <div>Rubric builder page</div>
               </ProtectedRoute>
             }
@@ -176,6 +243,18 @@ const renderWithState = (
                 legacyUserTypeFallback={["hr_manager", "admin"]}
               >
                 <div>Government appointments page</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/organization/dashboard"
+            element={
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requireOrganizationGovernance
+                requireActiveOrganization
+              >
+                <div>Organization dashboard page</div>
               </ProtectedRoute>
             }
           />
@@ -453,6 +532,18 @@ describe("ProtectedRoute integration", () => {
     expect(screen.getByText("Government appointments page")).toBeTruthy();
   });
 
+  it("blocks hr_manager users when capability payload exists but lacks required permission", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "hr_manager",
+        capabilities: ["gams.audit.view"],
+      }),
+      "/government/positions",
+    );
+    expect(screen.getByText("Dashboard page")).toBeTruthy();
+  });
+
   it("allows users with gams.audit.view capability on /audit-logs", () => {
     renderWithState(
       createGuardState({
@@ -486,5 +577,70 @@ describe("ProtectedRoute integration", () => {
       "/audit-logs",
     );
     expect(screen.getByText("Audit logs page")).toBeTruthy();
+  });
+
+  it("allows hr_manager with active org-admin membership on governance routes", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "hr_manager",
+        organizationMemberships: [
+          {
+            id: "m-1",
+            organization_id: "org-1",
+            membership_role: "registry_admin",
+            is_active: true,
+          },
+        ],
+        activeOrganization: { id: "org-1" },
+      }),
+      "/organization/dashboard",
+    );
+    expect(screen.getByText("Organization dashboard page")).toBeTruthy();
+  });
+
+  it("redirects governance actors to organization setup when active organization is missing", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "hr_manager",
+        organizationMemberships: [
+          {
+            id: "m-1",
+            organization_id: "org-1",
+            membership_role: "registry_admin",
+            is_active: true,
+          },
+        ],
+        activeOrganization: null,
+      }),
+      "/organization/dashboard",
+    );
+    expect(screen.getByText("Organization setup page")).toBeTruthy();
+  });
+
+  it("blocks hr_manager without governance membership on governance routes", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "hr_manager",
+        organizationMemberships: [],
+        activeOrganization: { id: "org-1" },
+      }),
+      "/organization/dashboard",
+    );
+    expect(screen.getByText("Dashboard page")).toBeTruthy();
+  });
+
+  it("allows platform admin on governance routes", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "admin",
+        activeOrganization: { id: "org-1" },
+      }),
+      "/organization/dashboard",
+    );
+    expect(screen.getByText("Organization dashboard page")).toBeTruthy();
   });
 });

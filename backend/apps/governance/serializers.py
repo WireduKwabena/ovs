@@ -1,3 +1,5 @@
+import re
+
 from rest_framework import serializers
 
 from .models import Committee, CommitteeMembership, Organization, OrganizationMembership
@@ -174,3 +176,271 @@ class CommitteeMembershipSerializer(serializers.ModelSerializer):
                 )
 
         return attrs
+
+
+_SAFE_MEMBERSHIP_ROLE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _-]{0,79}$")
+
+
+class MembershipRoleValidationMixin:
+    """
+    Keep ``membership_role`` backward-compatible while blocking unsafe edits.
+
+    Existing persisted values remain valid unless edited. New edits are constrained
+    to a safe alphanumeric/underscore/hyphen/space subset.
+    """
+
+    def validate_membership_role(self, value):
+        normalized = str(value or "").strip()
+        if not normalized:
+            return ""
+        if not _SAFE_MEMBERSHIP_ROLE_RE.fullmatch(normalized):
+            raise serializers.ValidationError(
+                "Use only letters, numbers, spaces, underscores, and hyphens."
+            )
+        return normalized
+
+
+class OrganizationMembershipDetailSerializer(OrganizationMembershipSerializer):
+    user_full_name = serializers.SerializerMethodField(read_only=True)
+
+    class Meta(OrganizationMembershipSerializer.Meta):
+        fields = [
+            *OrganizationMembershipSerializer.Meta.fields,
+            "user_full_name",
+        ]
+        read_only_fields = [
+            *OrganizationMembershipSerializer.Meta.read_only_fields,
+            "user_full_name",
+        ]
+
+    def get_user_full_name(self, obj) -> str:
+        user = getattr(obj, "user", None)
+        if user is None:
+            return ""
+        if hasattr(user, "get_full_name"):
+            return str(user.get_full_name() or "").strip()
+        return str(getattr(user, "email", "") or "").strip()
+
+
+class OrganizationMembershipUpdateSerializer(MembershipRoleValidationMixin, serializers.ModelSerializer):
+    class Meta:
+        model = OrganizationMembership
+        fields = [
+            "title",
+            "membership_role",
+            "is_active",
+            "is_default",
+            "left_at",
+            "metadata",
+        ]
+
+    def validate(self, attrs):
+        instance = getattr(self, "instance", None)
+
+        is_active = attrs.get("is_active")
+        if is_active is None and instance is not None:
+            is_active = instance.is_active
+
+        is_default = attrs.get("is_default")
+        if is_default is None and instance is not None:
+            is_default = instance.is_default
+
+        left_at = attrs.get("left_at")
+        if left_at is None and instance is not None:
+            left_at = instance.left_at
+
+        if bool(is_default) and not bool(is_active):
+            raise serializers.ValidationError(
+                {"is_default": "Default membership must remain active."}
+            )
+        if left_at is not None and bool(is_active):
+            raise serializers.ValidationError(
+                {"left_at": "left_at requires inactive membership."}
+            )
+        return attrs
+
+
+class CommitteeCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Committee
+        fields = [
+            "organization",
+            "code",
+            "name",
+            "committee_type",
+            "description",
+            "is_active",
+            "metadata",
+        ]
+        extra_kwargs = {
+            "organization": {"required": False},
+        }
+        validators = []
+
+
+class CommitteeUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Committee
+        fields = [
+            "code",
+            "name",
+            "committee_type",
+            "description",
+            "is_active",
+            "metadata",
+        ]
+
+
+class CommitteeMembershipCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CommitteeMembership
+        fields = [
+            "committee",
+            "user",
+            "organization_membership",
+            "committee_role",
+            "can_vote",
+            "is_active",
+            "metadata",
+        ]
+
+    def validate(self, attrs):
+        attrs = CommitteeMembershipSerializer.validate(self, attrs)
+        if attrs.get("committee_role") == "chair":
+            raise serializers.ValidationError(
+                {
+                    "committee_role": (
+                        "Assigning chair through generic membership create is not allowed. "
+                        "Use committee chair reassignment."
+                    )
+                }
+            )
+        return attrs
+
+
+class CommitteeMembershipUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CommitteeMembership
+        fields = [
+            "committee_role",
+            "can_vote",
+            "is_active",
+            "left_at",
+            "metadata",
+        ]
+
+    def validate(self, attrs):
+        instance = getattr(self, "instance", None)
+        if instance is None:
+            return attrs
+
+        merged = {
+            "committee": getattr(instance, "committee", None),
+            "user": getattr(instance, "user", None),
+            "organization_membership": attrs.get(
+                "organization_membership",
+                getattr(instance, "organization_membership", None),
+            ),
+            "committee_role": attrs.get("committee_role", instance.committee_role),
+            "can_vote": attrs.get("can_vote", instance.can_vote),
+            "is_active": attrs.get("is_active", instance.is_active),
+            "left_at": attrs.get("left_at", instance.left_at),
+        }
+        CommitteeMembershipSerializer.validate(self, merged)
+
+        if merged.get("committee_role") == "chair":
+            raise serializers.ValidationError(
+                {
+                    "committee_role": (
+                        "Chair assignment is restricted to dedicated reassignment flow."
+                    )
+                }
+            )
+
+        if merged.get("left_at") is not None and bool(merged.get("is_active")):
+            raise serializers.ValidationError(
+                {"left_at": "left_at requires inactive committee membership."}
+            )
+        return attrs
+
+
+class GovernanceSummaryOrganizationSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    code = serializers.CharField()
+    name = serializers.CharField()
+    organization_type = serializers.CharField()
+    is_active = serializers.BooleanField()
+
+
+class GovernanceSummaryActorSerializer(serializers.Serializer):
+    is_platform_admin = serializers.BooleanField()
+    can_manage_registry = serializers.BooleanField()
+    active_membership_id = serializers.CharField(allow_blank=True)
+    active_membership_role = serializers.CharField(allow_blank=True)
+
+
+class GovernanceSummaryStatsSerializer(serializers.Serializer):
+    members_total = serializers.IntegerField(min_value=0)
+    members_active = serializers.IntegerField(min_value=0)
+    committees_total = serializers.IntegerField(min_value=0)
+    committees_active = serializers.IntegerField(min_value=0)
+    committee_memberships_active = serializers.IntegerField(min_value=0)
+    active_chairs = serializers.IntegerField(min_value=0)
+
+
+class OrganizationSummaryResponseSerializer(serializers.Serializer):
+    organization = GovernanceSummaryOrganizationSerializer()
+    actor = GovernanceSummaryActorSerializer()
+    stats = GovernanceSummaryStatsSerializer()
+    active_organization_source = serializers.CharField()
+
+
+class GovernanceMemberOptionSerializer(serializers.Serializer):
+    organization_membership_id = serializers.UUIDField()
+    user_id = serializers.UUIDField()
+    user_email = serializers.EmailField()
+    user_full_name = serializers.CharField()
+    membership_role = serializers.CharField(allow_blank=True)
+    title = serializers.CharField(allow_blank=True)
+    is_active = serializers.BooleanField()
+    is_default = serializers.BooleanField()
+
+
+class GovernanceChoicesSerializer(serializers.Serializer):
+    organization_types = serializers.ListField(child=serializers.DictField())
+    committee_types = serializers.ListField(child=serializers.DictField())
+    committee_roles = serializers.ListField(child=serializers.DictField())
+
+
+class CommitteeChairReassignSerializer(serializers.Serializer):
+    target_committee_membership_id = serializers.UUIDField(required=False)
+    target_user_id = serializers.UUIDField(required=False)
+    organization_membership_id = serializers.UUIDField(required=False)
+    can_vote = serializers.BooleanField(required=False, default=True)
+    reason_note = serializers.CharField(required=False, allow_blank=True, max_length=500)
+
+    def validate(self, attrs):
+        target_membership_id = attrs.get("target_committee_membership_id")
+        target_user_id = attrs.get("target_user_id")
+        if bool(target_membership_id) == bool(target_user_id):
+            raise serializers.ValidationError(
+                "Provide exactly one of target_committee_membership_id or target_user_id."
+            )
+        return attrs
+
+
+class OrganizationBootstrapSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=200)
+    code = serializers.SlugField(required=False, allow_blank=True, max_length=80)
+    organization_type = serializers.ChoiceField(
+        required=False,
+        choices=Organization.ORGANIZATION_TYPE_CHOICES,
+        default="other",
+    )
+
+
+class OrganizationBootstrapResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    message = serializers.CharField()
+    organization = OrganizationSerializer()
+    membership = OrganizationMembershipDetailSerializer()

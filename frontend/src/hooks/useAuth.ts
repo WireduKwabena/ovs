@@ -14,11 +14,26 @@ import type {
   AdminUser,
   CommitteeContext,
   LoginCredentials,
+  OrganizationMembershipContext,
   OrganizationSummary,
   RegisterData,
   User,
 } from '@/types';
 import { useCallback } from 'react';
+import { canManageOrganizationGovernance } from '@/utils/organizationGovernance';
+import {
+  APPOINTMENT_ROUTE_CAPABILITIES,
+  APPOINTMENT_WORKFLOW_ROLES,
+  FINAL_DECISION_ROLES,
+  GOVERNMENT_WORKFLOW_CAPABILITIES,
+  PUBLICATION_ROLES,
+  RUBRIC_MANAGE_CAPABILITIES,
+  STAGE_ACTOR_ROLES,
+  STAGE_HISTORY_ROLES,
+  hasAnyCapability as hasAnyCapabilityValue,
+  hasAnyRole as hasAnyRoleValue,
+  shouldUseLegacyCapabilityFallback,
+} from '@/utils/frontendAuthz';
 
 export const useAuth = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -30,6 +45,7 @@ export const useAuth = () => {
     roles,
     capabilities,
     organizations,
+    organizationMemberships,
     committees,
     activeOrganization,
     switchingActiveOrganization,
@@ -39,6 +55,9 @@ export const useAuth = () => {
   const resolvedRoles = Array.isArray(roles) ? roles : [];
   const resolvedCapabilities = Array.isArray(capabilities) ? capabilities : [];
   const resolvedOrganizations = Array.isArray(organizations) ? organizations : [];
+  const resolvedOrganizationMemberships = Array.isArray(organizationMemberships)
+    ? organizationMemberships
+    : [];
   const resolvedCommittees = Array.isArray(committees) ? committees : [];
 
   const hasRole = useCallback(
@@ -76,39 +95,59 @@ export const useAuth = () => {
   const isAdmin = userType === "admin" || hasAdminRole || Boolean(user && user.is_superuser);
   const activeOrganizationId = String(activeOrganization?.id || "").trim() || null;
   const hasMultipleOrganizations = resolvedOrganizations.length > 1;
-  const hasGovernmentCapability = hasAnyCapability([
-    "gams.registry.manage",
-    "gams.appointment.stage",
-    "gams.appointment.decide",
-    "gams.appointment.publish",
-    "gams.appointment.view_internal",
-  ]);
+  const hasGovernmentCapability = hasAnyCapabilityValue(
+    resolvedCapabilities,
+    GOVERNMENT_WORKFLOW_CAPABILITIES,
+  );
+  const legacyCapabilityFallbackEnabled = shouldUseLegacyCapabilityFallback({
+    userType,
+    capabilities: resolvedCapabilities,
+  });
   const isHrOrAdmin = userType === 'admin' || userType === 'hr_manager' || hasGovernmentCapability;
   const isApplicant = userType === 'applicant';
   const canViewAuditLogs = isAdmin || hasCapability("gams.audit.view");
   const canManageRegistry = isAdmin || hasCapability("gams.registry.manage");
-  const canAccessAppointments = isAdmin || hasAnyCapability([
-    "gams.registry.manage",
-    "gams.appointment.stage",
-    "gams.appointment.decide",
-    "gams.appointment.publish",
-    "gams.appointment.view_internal",
-  ]);
+  const canAccessAppointments =
+    isAdmin ||
+    hasAnyCapabilityValue(resolvedCapabilities, APPOINTMENT_ROUTE_CAPABILITIES) ||
+    hasAnyRoleValue(resolvedRoles, APPOINTMENT_WORKFLOW_ROLES) ||
+    legacyCapabilityFallbackEnabled;
   const canAdvanceAppointmentStage =
     isAdmin ||
-    hasAnyRole([
-      "vetting_officer",
-      "committee_member",
-      "committee_chair",
-      "appointing_authority",
-      "registry_admin",
-    ]);
-  const canFinalizeAppointment = isAdmin || hasRole("appointing_authority");
+    hasAnyRoleValue(resolvedRoles, STAGE_ACTOR_ROLES) ||
+    hasCapability("gams.appointment.stage");
+  const canFinalizeAppointment =
+    isAdmin ||
+    hasAnyRoleValue(resolvedRoles, FINAL_DECISION_ROLES) ||
+    hasCapability("gams.appointment.decide");
   const canPublishAppointment =
-    isAdmin || hasAnyRole(["publication_officer", "appointing_authority"]);
-  const canViewAppointmentStageActions =
-    isAdmin || hasAnyRole(["committee_member", "committee_chair"]);
+    isAdmin ||
+    hasAnyRoleValue(resolvedRoles, PUBLICATION_ROLES) ||
+    hasCapability("gams.appointment.publish");
+  const canViewAppointmentStageActions = isAdmin || hasAnyRoleValue(resolvedRoles, STAGE_HISTORY_ROLES);
+  const canAccessInternalWorkflow =
+    isAdmin ||
+    hasGovernmentCapability ||
+    hasAnyRoleValue(resolvedRoles, APPOINTMENT_WORKFLOW_ROLES) ||
+    legacyCapabilityFallbackEnabled;
+  const canAccessApplications = canAccessInternalWorkflow || canViewAuditLogs;
+  const canAccessCampaigns = canAccessInternalWorkflow;
+  const canAccessVideoCalls = canAccessInternalWorkflow;
+  const canManageRubrics =
+    isAdmin ||
+    hasAnyCapabilityValue(resolvedCapabilities, RUBRIC_MANAGE_CAPABILITIES) ||
+    hasAnyRoleValue(resolvedRoles, STAGE_ACTOR_ROLES) ||
+    legacyCapabilityFallbackEnabled;
+  const canManageRegistryInActiveOrganization =
+    canManageRegistry && (isAdmin || Boolean(activeOrganizationId));
   const canSwitchOrganization = isAuthenticated && userType !== "applicant" && hasMultipleOrganizations;
+  const canManageActiveOrganizationGovernance =
+    canManageOrganizationGovernance({
+      isAdmin,
+      capabilities: resolvedCapabilities,
+      memberships: resolvedOrganizationMemberships as OrganizationMembershipContext[],
+      activeOrganizationId,
+    });
 
   const authLogin = useCallback(
     async (credentials: LoginCredentials) => {
@@ -159,6 +198,7 @@ export const useAuth = () => {
     roles: resolvedRoles,
     capabilities: resolvedCapabilities,
     organizations: resolvedOrganizations as OrganizationSummary[],
+    organizationMemberships: resolvedOrganizationMemberships as OrganizationMembershipContext[],
     committees: resolvedCommittees as CommitteeContext[],
     activeOrganization,
     activeOrganizationId,
@@ -175,11 +215,18 @@ export const useAuth = () => {
     isApplicant,
     canViewAuditLogs,
     canManageRegistry,
+    canManageRegistryInActiveOrganization,
     canAccessAppointments,
     canAdvanceAppointmentStage,
     canFinalizeAppointment,
     canPublishAppointment,
     canViewAppointmentStageActions,
+    canAccessInternalWorkflow,
+    canAccessApplications,
+    canAccessCampaigns,
+    canAccessVideoCalls,
+    canManageRubrics,
+    canManageActiveOrganizationGovernance,
     loading,
     error,
     login: authLogin,

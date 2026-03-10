@@ -21,7 +21,7 @@ const SELECT_FIELD_CLASS =
   "h-10 w-full rounded-md border border-border bg-input px-3 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-60";
 
 const GovernmentPositionsPage: React.FC = () => {
-  const { activeOrganization, activeOrganizationId } = useAuth();
+  const { activeOrganization, activeOrganizationId, isAdmin, canManageRegistry } = useAuth();
   const [rows, setRows] = useState<GovernmentPosition[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -39,6 +39,7 @@ const GovernmentPositionsPage: React.FC = () => {
     is_public: true,
     is_vacant: true,
   });
+  const canManagePositionRegistry = canManageRegistry && (isAdmin || Boolean(activeOrganizationId));
 
   const loadPositions = useCallback(async () => {
     const data = await governmentService.listPositions({
@@ -75,6 +76,10 @@ const GovernmentPositionsPage: React.FC = () => {
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!canManagePositionRegistry) {
+      toast.error("Registry authority with active organization context is required to register positions.");
+      return;
+    }
     if (!form.title.trim() || !form.institution.trim() || !form.appointment_authority.trim()) {
       toast.error("Title, institution, and appointment authority are required.");
       return;
@@ -110,14 +115,14 @@ const GovernmentPositionsPage: React.FC = () => {
   const scopedRows = useMemo(() => {
     return rows.filter((item) => {
       if (!activeOrganizationId) {
-        return true;
+        return isAdmin || !item.organization;
       }
       if (!item.organization) {
         return true;
       }
       return String(item.organization) === activeOrganizationId;
     });
-  }, [activeOrganizationId, rows]);
+  }, [activeOrganizationId, isAdmin, rows]);
 
   const stats = useMemo(() => {
     const total = scopedRows.length;
@@ -146,6 +151,12 @@ const GovernmentPositionsPage: React.FC = () => {
         </div>
       </header>
 
+      {!isAdmin && !activeOrganizationId ? (
+        <section className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          Select an active organization to view organization-scoped position records.
+        </section>
+      ) : null}
+
       <section className="grid gap-4 md:grid-cols-3">
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-700">Total Positions</p>
@@ -163,7 +174,15 @@ const GovernmentPositionsPage: React.FC = () => {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-bold text-slate-900">Register Position</h2>
+        {!canManagePositionRegistry ? (
+          <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            {!canManageRegistry
+              ? "Only registry operators can create or edit positions."
+              : "Select an active organization before creating position records."}
+          </div>
+        ) : null}
         <form onSubmit={handleCreate} className="mt-4 grid gap-3 md:grid-cols-2">
+          <fieldset className="contents disabled:opacity-70" disabled={!canManagePositionRegistry || creating}>
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase text-slate-700">Title</label>
             <Input
@@ -245,11 +264,12 @@ const GovernmentPositionsPage: React.FC = () => {
             </label>
           </div>
           <div className="md:col-span-2 flex justify-end">
-            <Button type="submit" disabled={creating}>
+            <Button type="submit" disabled={creating || !canManagePositionRegistry}>
               <Plus className="mr-2 h-4 w-4" />
               {creating ? "Saving..." : "Create Position"}
             </Button>
           </div>
+          </fieldset>
         </form>
       </section>
 

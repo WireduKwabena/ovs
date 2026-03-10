@@ -104,6 +104,15 @@ ROLE_PRECEDENCE: tuple[str, ...] = (
     ROLE_NOMINEE,
 )
 
+DEFAULT_ORG_ADMIN_MEMBERSHIP_ROLES = frozenset(
+    {
+        "registry_admin",
+        "org_admin",
+        "organization_admin",
+        "system_admin",
+    }
+)
+
 
 def _is_authenticated(user) -> bool:
     return bool(getattr(user, "is_authenticated", False))
@@ -252,6 +261,38 @@ def get_user_organization_by_id(user, organization_id) -> dict | None:
             "is_default_membership": bool(membership.get("is_default")),
         }
     return None
+
+
+def normalize_membership_role_key(value) -> str:
+    return str(value or "").strip().lower().replace("-", "_").replace(" ", "_")
+
+
+def has_organization_membership_role(
+    user,
+    *,
+    organization_id=None,
+    allowed_roles=None,
+) -> bool:
+    if not _is_authenticated(user):
+        return False
+
+    normalized_allowed_roles = {
+        normalize_membership_role_key(role_value)
+        for role_value in (allowed_roles or DEFAULT_ORG_ADMIN_MEMBERSHIP_ROLES)
+        if normalize_membership_role_key(role_value)
+    }
+    if not normalized_allowed_roles:
+        return False
+
+    normalized_org_id = str(organization_id or "").strip()
+    for membership in get_user_organization_memberships(user):
+        membership_org_id = str(membership.get("organization_id") or "").strip()
+        if normalized_org_id and membership_org_id != normalized_org_id:
+            continue
+        membership_role = normalize_membership_role_key(membership.get("membership_role"))
+        if membership_role in normalized_allowed_roles:
+            return True
+    return False
 
 
 def get_user_committees(user, *, organization_id: str | None = None) -> list[dict]:
@@ -409,6 +450,7 @@ __all__ = [
     "ROLE_PUBLICATION_OFFICER",
     "ROLE_REGISTRY_ADMIN",
     "ROLE_VETTING_OFFICER",
+    "DEFAULT_ORG_ADMIN_MEMBERSHIP_ROLES",
     "get_group_roles",
     "get_user_committees",
     "get_user_default_organization",
@@ -421,8 +463,10 @@ __all__ = [
     "get_user_roles",
     "has_any_role",
     "has_capability",
+    "has_organization_membership_role",
     "has_role",
     "is_internal_operator",
+    "normalize_membership_role_key",
     "requires_two_factor_for_user",
     "resolve_actor_role",
 ]

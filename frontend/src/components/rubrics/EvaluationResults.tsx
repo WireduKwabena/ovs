@@ -16,6 +16,17 @@ export function EvaluationResults({ evaluation }: EvaluationResultsProps) {
       </div>
     );
   }
+
+  const overallScore =
+    typeof evaluation.overall_score === "number"
+      ? evaluation.overall_score
+      : typeof evaluation.total_weighted_score === "number"
+        ? evaluation.total_weighted_score
+        : 0;
+  const passed =
+    typeof evaluation.passed === "boolean"
+      ? evaluation.passed
+      : Boolean(evaluation.passes_threshold);
   
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
@@ -24,13 +35,13 @@ export function EvaluationResults({ evaluation }: EvaluationResultsProps) {
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-6">Evaluation Results</h2>
           
-          <div className={cn(`inline-block p-8 rounded-2xl ${getScoreBg(evaluation.overall_score)}`)}>
-            <div className={cn(`text-6xl font-bold ${getScoreColor(evaluation.overall_score)} mb-2`)}>
-              {evaluation.overall_score.toFixed(1)}%
+          <div className={cn(`inline-block p-8 rounded-2xl ${getScoreBg(overallScore)}`)}>
+            <div className={cn(`text-6xl font-bold ${getScoreColor(overallScore)} mb-2`)}>
+              {overallScore.toFixed(1)}%
             </div>
             <p className="text-lg text-slate-700 mb-4">Overall Score</p>
             
-            {evaluation.passed ? (
+            {passed ? (
               <div className="inline-flex items-center gap-2 px-6 py-3 bg-green-100 text-green-800 rounded-full font-semibold">
                 <CheckCircle className="w-5 h-5" />
                 PASSED

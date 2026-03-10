@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from apps.appointments.models import AppointmentRecord
 from apps.authentication.models import User
+from apps.billing.models import BillingSubscription, OrganizationOnboardingToken
 from apps.campaigns.models import VettingCampaign
 from apps.core.management.commands.setup_demo import APPOINTMENT_ROLE_GROUPS
 from apps.governance.models import Committee, CommitteeMembership, Organization, OrganizationMembership
@@ -39,6 +40,7 @@ class SetupDemoCommandTests(TestCase):
         self.assertTrue(admin_user.is_staff)
         self.assertFalse(User.objects.get(email="gams.vetting@demo.local").is_staff)
         self.assertFalse(User.objects.get(email="gams.committee@demo.local").is_staff)
+        self.assertFalse(User.objects.get(email="gams.committeechair@demo.local").is_staff)
         self.assertFalse(User.objects.get(email="gams.authority@demo.local").is_staff)
         self.assertFalse(User.objects.get(email="gams.registry@demo.local").is_staff)
         self.assertFalse(User.objects.get(email="gams.publication@demo.local").is_staff)
@@ -59,6 +61,7 @@ class SetupDemoCommandTests(TestCase):
             "gams.admin@demo.local",
             "gams.vetting@demo.local",
             "gams.committee@demo.local",
+            "gams.committeechair@demo.local",
             "gams.authority@demo.local",
             "gams.registry@demo.local",
             "gams.publication@demo.local",
@@ -68,10 +71,22 @@ class SetupDemoCommandTests(TestCase):
             self.assertTrue(OrganizationMembership.objects.filter(user=user, is_active=True).exists())
             self.assertEqual(OrganizationMembership.objects.filter(user=user, is_default=True, is_active=True).count(), 1)
 
-        committee = Committee.objects.get(code="parliamentary-appointments-main")
+        committee = Committee.objects.get(
+            code="parliamentary-appointments-main",
+            organization__code="public-service-commission",
+        )
         committee_user = User.objects.get(email="gams.committee@demo.local")
         self.assertTrue(
             CommitteeMembership.objects.filter(committee=committee, user=committee_user, is_active=True).exists()
+        )
+        committee_chair_user = User.objects.get(email="gams.committeechair@demo.local")
+        self.assertTrue(
+            CommitteeMembership.objects.filter(
+                committee=committee,
+                user=committee_chair_user,
+                committee_role="chair",
+                is_active=True,
+            ).exists()
         )
 
         campaign = VettingCampaign.objects.get(name="GAMS Demo Ministerial Exercise")
@@ -82,7 +97,7 @@ class SetupDemoCommandTests(TestCase):
             maps_to_status="committee_review"
         ).first()
         self.assertIsNotNone(committee_review_stage)
-        self.assertIsNone(committee_review_stage.committee_id)
+        self.assertEqual(committee_review_stage.committee_id, committee.id)
 
         minister_position = GovernmentPosition.objects.get(
             title="GAMS Demo Minister of Health",
@@ -91,7 +106,7 @@ class SetupDemoCommandTests(TestCase):
         nomination_record = AppointmentRecord.objects.get(position=minister_position)
         self.assertEqual(nomination_record.status, "nominated")
         self.assertFalse(nomination_record.is_public)
-        self.assertIsNone(nomination_record.committee_id)
+        self.assertEqual(nomination_record.committee_id, committee.id)
         self.assertIsNone(nomination_record.appointment_date)
         self.assertEqual(nomination_record.publication.status, "draft")
 
@@ -101,10 +116,27 @@ class SetupDemoCommandTests(TestCase):
         )
         serving_record = AppointmentRecord.objects.get(position=chief_justice_position, status="serving")
         self.assertTrue(serving_record.is_public)
-        self.assertIsNone(serving_record.committee_id)
+        self.assertEqual(serving_record.committee_id, committee.id)
         self.assertIsNotNone(serving_record.appointment_date)
         self.assertEqual(serving_record.publication.status, "published")
         self.assertIsNotNone(serving_record.publication.published_at)
+        self.assertEqual(serving_record.publication.published_by.email, "gams.publication@demo.local")
+
+        workflow_org = Organization.objects.get(code="public-service-commission")
+        self.assertTrue(
+            BillingSubscription.objects.filter(
+                organization=workflow_org,
+                reference="GAMS-DEMO-ORG-SUBSCRIPTION",
+                status="complete",
+                payment_status="paid",
+            ).exists()
+        )
+        self.assertTrue(
+            OrganizationOnboardingToken.objects.filter(
+                organization=workflow_org,
+                is_active=True,
+            ).exists()
+        )
 
     def test_setup_demo_is_idempotent_and_resets_demo_nomination_state(self):
         call_command("setup_demo")
@@ -178,6 +210,29 @@ class SetupDemoCommandTests(TestCase):
             CommitteeMembership.objects.filter(
                 committee__code="parliamentary-appointments-main",
                 user__email="gams.committee@demo.local",
+                is_active=True,
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            CommitteeMembership.objects.filter(
+                committee__code="parliamentary-appointments-main",
+                user__email="gams.committeechair@demo.local",
+                committee_role="chair",
+                is_active=True,
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            BillingSubscription.objects.filter(
+                organization__code="public-service-commission",
+                reference="GAMS-DEMO-ORG-SUBSCRIPTION",
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            OrganizationOnboardingToken.objects.filter(
+                organization__code="public-service-commission",
                 is_active=True,
             ).count(),
             1,

@@ -1,15 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  AlertTriangle,
   CheckCircle2,
-  Copy,
   CreditCard,
   Loader2,
   RefreshCw,
-  RotateCcw,
   ShieldCheck,
   Trash2,
+  UsersRound,
   UserCog,
 } from "lucide-react";
 import { useDispatch } from "react-redux";
@@ -22,10 +20,7 @@ import { fetchProfile, updateUserProfile } from "@/store/authSlice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type {
-  OrganizationOnboardingTokenState,
-  OrganizationOnboardingTokenStateResponse,
-} from "@/types";
+import type { OrganizationOnboardingTokenStateResponse } from "@/types";
 import { getUserDisplayName } from "@/utils/userDisplay";
 
 type PaymentMethodChoice = "card" | "bank_transfer" | "mobile_money";
@@ -47,38 +42,6 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
   );
 };
 
-const getErrorCode = (error: unknown): string => {
-  const payload = error as { response?: { data?: { code?: string } } };
-  return String(payload.response?.data?.code || "").trim().toUpperCase();
-};
-
-const getOnboardingReason = (error: unknown): string => {
-  const payload = error as { response?: { data?: { reason?: string } } };
-  return String(payload.response?.data?.reason || "").trim().toLowerCase();
-};
-
-const resolveOnboardingErrorMessage = (error: unknown, fallback: string): string => {
-  if (getErrorCode(error) === "RECENT_AUTH_REQUIRED") {
-    return "Recent authentication verification is required before managing onboarding links.";
-  }
-  if (getErrorCode(error) === "RATE_LIMITED") {
-    return "Too many onboarding validation attempts. Please retry in a moment.";
-  }
-
-  const reason = getOnboardingReason(error);
-  if (reason === "not_found") return "This onboarding link is invalid.";
-  if (reason === "inactive") return "This onboarding link has already been revoked.";
-  if (reason === "expired") return "This onboarding link has expired.";
-  if (reason === "max_uses_reached") return "This onboarding link has reached its maximum uses.";
-  if (reason === "subscription_inactive") {
-    return "Onboarding is unavailable because the organization subscription is inactive.";
-  }
-  if (reason === "email_domain_not_allowed") {
-    return "The provided email domain is not allowed for this onboarding link.";
-  }
-  return getErrorMessage(error, fallback);
-};
-
 const formatDateTimeLabel = (value: string | null | undefined): string => {
   if (!value) return "N/A";
   const parsed = new Date(value);
@@ -92,27 +55,13 @@ const formatDateTimeLabel = (value: string | null | undefined): string => {
   });
 };
 
-const parsePositiveInteger = (rawValue: string): number | undefined => {
-  const normalized = String(rawValue || "").trim();
-  if (!normalized) {
-    return undefined;
-  }
-  const parsed = Number(normalized);
-  if (!Number.isFinite(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
-    return undefined;
-  }
-  return parsed;
-};
-
 const UserSettingsPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const {
     user,
     userType,
-    isAdmin,
-    hasRole,
-    hasCapability,
+    canManageActiveOrganizationGovernance,
     organizations,
     activeOrganization,
     activeOrganizationId,
@@ -142,19 +91,11 @@ const UserSettingsPage: React.FC = () => {
   const [sandboxPaymentMethod, setSandboxPaymentMethod] = useState<PaymentMethodChoice>("card");
   const [onboardingState, setOnboardingState] = useState<OrganizationOnboardingTokenStateResponse | null>(null);
   const [onboardingLoading, setOnboardingLoading] = useState(false);
-  const [onboardingActionLoading, setOnboardingActionLoading] = useState(false);
-  const [issuedOnboardingToken, setIssuedOnboardingToken] = useState<string | null>(null);
-  const [issuedOnboardingLink, setIssuedOnboardingLink] = useState<string | null>(null);
-  const [inviteMaxUses, setInviteMaxUses] = useState("25");
-  const [inviteExpiryHours, setInviteExpiryHours] = useState("72");
-  const [inviteAllowedEmailDomain, setInviteAllowedEmailDomain] = useState("");
 
   const resolvedOrganizations = Array.isArray(organizations) ? organizations : [];
   const organizationFieldLocked = resolvedOrganizations.length > 0;
   const canViewBilling = userType !== "applicant";
-  const canManageOrganizationBilling =
-    canViewBilling && (isAdmin || hasRole("registry_admin") || hasCapability("gams.registry.manage"));
-  const canManageOnboarding = canManageOrganizationBilling && Boolean(activeOrganizationId);
+  const canManageOrganizationBilling = canViewBilling && canManageActiveOrganizationGovernance;
 
   const canEditPhone = useMemo(
     () => Boolean(user && typeof user === "object" && "phone_number" in user),
@@ -177,7 +118,7 @@ const UserSettingsPage: React.FC = () => {
   }, [user]);
 
   const managedSubscription = billingData?.subscription ?? null;
-  const activeOnboardingToken: OrganizationOnboardingTokenState | null = onboardingState?.token ?? null;
+  const activeOnboardingToken = onboardingState?.token ?? null;
   const isStripeManaged = managedSubscription?.provider === "stripe";
   const isSandboxManaged = managedSubscription?.provider === "sandbox";
   const isPaystackManaged = managedSubscription?.provider === "paystack";
@@ -215,7 +156,7 @@ const UserSettingsPage: React.FC = () => {
       setOnboardingState(response);
     } catch (error) {
       setOnboardingState(null);
-      toast.error(resolveOnboardingErrorMessage(error, "Failed to load organization onboarding status."));
+      toast.error(getErrorMessage(error, "Failed to load organization onboarding status."));
     } finally {
       setOnboardingLoading(false);
     }
@@ -257,11 +198,6 @@ const UserSettingsPage: React.FC = () => {
   useEffect(() => {
     void fetchOnboardingState();
   }, [fetchOnboardingState]);
-
-  useEffect(() => {
-    setIssuedOnboardingToken(null);
-    setIssuedOnboardingLink(null);
-  }, [activeOrganizationId]);
 
   const handleRefreshProfile = async () => {
     setRefreshing(true);
@@ -347,92 +283,6 @@ const UserSettingsPage: React.FC = () => {
       toast.error(getErrorMessage(error, "Unable to retry payment."));
     } finally {
       setBillingActionLoading(false);
-    }
-  };
-
-  const copySecureValue = async (value: string | null, label: string) => {
-    const normalized = String(value || "").trim();
-    if (!normalized) {
-      toast.error(`No ${label.toLowerCase()} available to copy.`);
-      return;
-    }
-    try {
-      if (!navigator?.clipboard) {
-        throw new Error("Clipboard API unavailable");
-      }
-      await navigator.clipboard.writeText(normalized);
-      toast.success(`${label} copied.`);
-    } catch {
-      toast.error(`Unable to copy ${label.toLowerCase()} on this browser.`);
-    }
-  };
-
-  const handleGenerateOnboardingToken = async (rotate: boolean) => {
-    if (!canManageOnboarding) {
-      toast.error("Select an active organization and ensure you have organization admin permissions.");
-      return;
-    }
-
-    const parsedMaxUses = parsePositiveInteger(inviteMaxUses);
-    const parsedExpiryHours = parsePositiveInteger(inviteExpiryHours);
-    if (inviteMaxUses.trim() && parsedMaxUses === undefined) {
-      toast.error("Max uses must be a positive whole number.");
-      return;
-    }
-    if (inviteExpiryHours.trim() && parsedExpiryHours === undefined) {
-      toast.error("Expiry hours must be a positive whole number.");
-      return;
-    }
-
-    setOnboardingActionLoading(true);
-    try {
-      const response = await billingService.generateOnboardingToken({
-        rotate,
-        max_uses: parsedMaxUses,
-        expires_in_hours: parsedExpiryHours,
-        allowed_email_domain: inviteAllowedEmailDomain.trim(),
-      });
-
-      setIssuedOnboardingToken(response.token || null);
-      setIssuedOnboardingLink(response.onboarding_link || null);
-      setOnboardingState((previous) => ({
-        status: response.status,
-        organization_id: response.organization_id,
-        organization_name: response.organization_name,
-        subscription_id: previous?.subscription_id ?? response.token_state.subscription_id ?? null,
-        subscription_active: previous?.subscription_active ?? true,
-        has_active_token: true,
-        token: response.token_state,
-        organization_seat_limit: previous?.organization_seat_limit,
-        organization_seat_used: previous?.organization_seat_used,
-        organization_seat_remaining: previous?.organization_seat_remaining,
-      }));
-
-      toast.success(rotate ? "Onboarding link rotated successfully." : "Onboarding link generated.");
-    } catch (error) {
-      toast.error(resolveOnboardingErrorMessage(error, "Failed to generate onboarding link."));
-    } finally {
-      setOnboardingActionLoading(false);
-    }
-  };
-
-  const handleRevokeOnboardingToken = async () => {
-    if (!canManageOnboarding) {
-      toast.error("Select an active organization and ensure you have organization admin permissions.");
-      return;
-    }
-
-    setOnboardingActionLoading(true);
-    try {
-      const response = await billingService.revokeOnboardingToken({ reason: "manual_revocation" });
-      setOnboardingState(response);
-      setIssuedOnboardingToken(null);
-      setIssuedOnboardingLink(null);
-      toast.success("Active onboarding link revoked.");
-    } catch (error) {
-      toast.error(resolveOnboardingErrorMessage(error, "Failed to revoke onboarding link."));
-    } finally {
-      setOnboardingActionLoading(false);
     }
   };
 
@@ -839,7 +689,7 @@ const UserSettingsPage: React.FC = () => {
                     type="button"
                     variant="outline"
                     className="w-full"
-                    onClick={() => navigate("/subscribe?returnTo=/settings")}
+                    onClick={() => navigate("/subscribe?returnTo=/organization/onboarding")}
                   >
                     Add Subscription Plan
                   </Button>
@@ -963,15 +813,21 @@ const UserSettingsPage: React.FC = () => {
           ) : null}
 
           {canManageOrganizationBilling ? (
-            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div
+              id="organization-onboarding-invite"
+              className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4"
+            >
               <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold text-slate-900">Organization Onboarding Invite</h3>
-                <RotateCcw className="h-4 w-4 text-cyan-700" />
+                <h3 className="text-sm font-semibold text-slate-900">Organization Governance Workspace</h3>
+                <UsersRound className="h-4 w-4 text-cyan-700" />
               </div>
+              <p className="mt-2 text-[11px] text-slate-700">
+                Organization billing, onboarding, and governance administration is managed in dedicated organization pages.
+              </p>
 
               {!activeOrganizationId ? (
                 <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  Select an active organization in the navbar before managing onboarding invites.
+                  Select an active organization in the navbar before opening organization governance workspace.
                 </div>
               ) : onboardingLoading ? (
                 <p className="mt-3 text-xs text-slate-700">Loading onboarding status...</p>
@@ -1017,130 +873,25 @@ const UserSettingsPage: React.FC = () => {
                       </p>
                     ) : null}
                   </div>
-
-                  {issuedOnboardingToken || issuedOnboardingLink ? (
-                    <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
-                      <div className="inline-flex items-center gap-2 font-semibold">
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                        Share this invite securely. Full token is shown only now.
-                      </div>
-                      {issuedOnboardingLink ? (
-                        <div className="space-y-1">
-                          <p className="font-semibold">Onboarding link</p>
-                          <p className="break-all rounded border border-emerald-200 bg-white px-2 py-1 text-[11px]">
-                            {issuedOnboardingLink}
-                          </p>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-8"
-                            onClick={() => void copySecureValue(issuedOnboardingLink, "Onboarding link")}
-                          >
-                            <Copy className="mr-1 h-3.5 w-3.5" />
-                            Copy link
-                          </Button>
-                        </div>
-                      ) : null}
-                      {issuedOnboardingToken ? (
-                        <div className="space-y-1">
-                          <p className="font-semibold">Raw token</p>
-                          <p className="break-all rounded border border-emerald-200 bg-white px-2 py-1 text-[11px]">
-                            {issuedOnboardingToken}
-                          </p>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-8"
-                            onClick={() => void copySecureValue(issuedOnboardingToken, "Onboarding token")}
-                          >
-                            <Copy className="mr-1 h-3.5 w-3.5" />
-                            Copy token
-                          </Button>
-                        </div>
-                      ) : null}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-8"
-                        onClick={() => {
-                          setIssuedOnboardingToken(null);
-                          setIssuedOnboardingLink(null);
-                        }}
-                      >
-                        Hide sensitive values
-                      </Button>
-                    </div>
-                  ) : null}
-
-                  <div className="grid gap-2">
-                    <div className="space-y-1">
-                      <Label
-                        htmlFor="onboarding-max-uses"
-                        className="text-[11px] font-semibold uppercase tracking-wide text-slate-700"
-                      >
-                        Max uses
-                      </Label>
-                      <Input
-                        id="onboarding-max-uses"
-                        value={inviteMaxUses}
-                        onChange={(event) => setInviteMaxUses(event.target.value)}
-                        disabled={onboardingActionLoading}
-                        placeholder="25"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label
-                        htmlFor="onboarding-expiry-hours"
-                        className="text-[11px] font-semibold uppercase tracking-wide text-slate-700"
-                      >
-                        Expires in hours
-                      </Label>
-                      <Input
-                        id="onboarding-expiry-hours"
-                        value={inviteExpiryHours}
-                        onChange={(event) => setInviteExpiryHours(event.target.value)}
-                        disabled={onboardingActionLoading}
-                        placeholder="72"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label
-                        htmlFor="onboarding-domain"
-                        className="text-[11px] font-semibold uppercase tracking-wide text-slate-700"
-                      >
-                        Allowed email domain (optional)
-                      </Label>
-                      <Input
-                        id="onboarding-domain"
-                        value={inviteAllowedEmailDomain}
-                        onChange={(event) => setInviteAllowedEmailDomain(event.target.value)}
-                        disabled={onboardingActionLoading}
-                        placeholder="agency.gov"
-                      />
-                    </div>
-                  </div>
-
                   <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
                       variant="outline"
-                      disabled={onboardingActionLoading}
-                      onClick={() => void handleGenerateOnboardingToken(true)}
+                      onClick={() => navigate("/organization/dashboard")}
                     >
-                      {onboardingActionLoading ? "Please wait..." : "Generate / Rotate Invite"}
+                      Open Organization Dashboard
                     </Button>
                     <Button
                       type="button"
-                      variant="destructive"
-                      disabled={onboardingActionLoading || !onboardingState?.has_active_token}
-                      onClick={() => void handleRevokeOnboardingToken()}
+                      variant="outline"
+                      onClick={() => navigate("/organization/onboarding")}
                     >
-                      Revoke Active Invite
+                      Open Organization Onboarding Workspace
                     </Button>
                     <Button
                       type="button"
                       variant="secondary"
-                      disabled={onboardingLoading || onboardingActionLoading}
+                      disabled={onboardingLoading}
                       onClick={() => void fetchOnboardingState()}
                     >
                       Refresh Invite State

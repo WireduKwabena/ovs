@@ -14,6 +14,13 @@ import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { UnauthenticatedRoute } from "./components/auth/UnauthenticatedRoute";
 import { fetchProfile } from "./store/authSlice";
 import { type AppDispatch, type RootState } from "./app/store";
+import {
+  APPOINTMENT_ROUTE_CAPABILITIES,
+  INTERNAL_WORKFLOW_ROUTE_CAPABILITIES,
+  LEGACY_CAPABILITY_STALE_FALLBACK_USER_TYPES,
+  REGISTRY_ROUTE_CAPABILITIES,
+  RUBRIC_MANAGE_CAPABILITIES,
+} from "./utils/frontendAuthz";
 
 const Navbar = React.lazy(() =>
   import("./components/common/Navbar").then((module) => ({ default: module.Navbar })),
@@ -21,6 +28,12 @@ const Navbar = React.lazy(() =>
 const HomePage = React.lazy(() => import("./pages/HomePage"));
 const PublicGazettePage = React.lazy(() => import("./pages/PublicGazettePage"));
 const SubscriptionPlansPage = React.lazy(() => import("./pages/SubscriptionPlansPage"));
+const OrganizationSetupPage = React.lazy(() => import("./pages/OrganizationSetupPage"));
+const OrganizationDashboardPage = React.lazy(() => import("./pages/OrganizationDashboardPage"));
+const OrganizationMembersPage = React.lazy(() => import("./pages/OrganizationMembersPage"));
+const OrganizationCommitteesPage = React.lazy(() => import("./pages/OrganizationCommitteesPage"));
+const CommitteeDetailPage = React.lazy(() => import("./pages/CommitteeDetailPage"));
+const OrganizationOnboardingPage = React.lazy(() => import("./pages/OrganizationOnboardingPage"));
 const LoginPage = React.lazy(() => import("./pages/LoginPage"));
 const TwoFactorPage = React.lazy(() => import("./pages/TwoFactorPage"));
 const RegisterPage = React.lazy(() => import("./pages/RegisterPage"));
@@ -93,6 +106,8 @@ const HIDE_NAVBAR_PREFIXES = [
   "/billing",
 ];
 
+const LEGACY_INTERNAL_FALLBACK: Array<"hr_manager" | "admin"> = [...LEGACY_CAPABILITY_STALE_FALLBACK_USER_TYPES];
+
 const shouldHideNavbar = (pathname: string): boolean => {
   if (pathname === "/") return true;
   return HIDE_NAVBAR_PREFIXES.some((prefix) => prefix !== "/" && pathname.startsWith(prefix));
@@ -143,6 +158,74 @@ const AppShell: React.FC = () => {
           <Route path="/" element={<HomePage />} />
           <Route path="/gazette" element={<PublicGazettePage />} />
           <Route path="/subscribe" element={<SubscriptionPlansPage />} />
+          <Route
+            path="/organization/dashboard"
+            element={
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requireOrganizationGovernance
+                requireActiveOrganization
+              >
+                <OrganizationDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/organization/members"
+            element={
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requireOrganizationGovernance
+                requireActiveOrganization
+              >
+                <OrganizationMembersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/organization/committees"
+            element={
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requireOrganizationGovernance
+                requireActiveOrganization
+              >
+                <OrganizationCommitteesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/organization/committees/:committeeId"
+            element={
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requireOrganizationGovernance
+                requireActiveOrganization
+              >
+                <CommitteeDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/organization/setup"
+            element={
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
+                <OrganizationSetupPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/organization/onboarding"
+            element={
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requireOrganizationGovernance
+                requireActiveOrganization
+              >
+                <OrganizationOnboardingPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/login"
             element={
@@ -243,7 +326,11 @@ const AppShell: React.FC = () => {
           <Route
             path="/fraud-insights"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+              >
                 <FraudInsightsPage />
               </ProtectedRoute>
             }
@@ -251,7 +338,11 @@ const AppShell: React.FC = () => {
           <Route
             path="/background-checks"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+              >
                 <BackgroundChecksPage />
               </ProtectedRoute>
             }
@@ -286,7 +377,11 @@ const AppShell: React.FC = () => {
           <Route
             path="/applications"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+              >
                 <ApplicationsPage />
               </ProtectedRoute>
             }
@@ -294,7 +389,11 @@ const AppShell: React.FC = () => {
           <Route
             path="/applications/:caseId"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+              >
                 <ApplicationDetailPage />
               </ProtectedRoute>
             }
@@ -318,7 +417,11 @@ const AppShell: React.FC = () => {
           <Route
             path="/campaigns"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+              >
                 <CampaignsPage />
               </ProtectedRoute>
             }
@@ -326,7 +429,11 @@ const AppShell: React.FC = () => {
           <Route
             path="/campaigns/:campaignId"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+              >
                 <CampaignWorkspacePage />
               </ProtectedRoute>
             }
@@ -334,7 +441,11 @@ const AppShell: React.FC = () => {
           <Route
             path="/video-calls"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+              >
                 <VideoCallsPage />
               </ProtectedRoute>
             }
@@ -344,8 +455,8 @@ const AppShell: React.FC = () => {
             element={
               <ProtectedRoute
                 disallowUserTypes={["applicant"]}
-                requiredCapabilities={["gams.registry.manage"]}
-                legacyUserTypeFallback={["hr_manager", "admin"]}
+                requiredCapabilities={[...REGISTRY_ROUTE_CAPABILITIES]}
+                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
               >
                 <GovernmentPositionsPage />
               </ProtectedRoute>
@@ -356,8 +467,8 @@ const AppShell: React.FC = () => {
             element={
               <ProtectedRoute
                 disallowUserTypes={["applicant"]}
-                requiredCapabilities={["gams.registry.manage"]}
-                legacyUserTypeFallback={["hr_manager", "admin"]}
+                requiredCapabilities={[...REGISTRY_ROUTE_CAPABILITIES]}
+                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
               >
                 <GovernmentPersonnelPage />
               </ProtectedRoute>
@@ -368,14 +479,8 @@ const AppShell: React.FC = () => {
             element={
               <ProtectedRoute
                 disallowUserTypes={["applicant"]}
-                requiredCapabilities={[
-                  "gams.registry.manage",
-                  "gams.appointment.stage",
-                  "gams.appointment.decide",
-                  "gams.appointment.publish",
-                  "gams.appointment.view_internal",
-                ]}
-                legacyUserTypeFallback={["hr_manager", "admin"]}
+                requiredCapabilities={[...APPOINTMENT_ROUTE_CAPABILITIES]}
+                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
               >
                 <AppointmentsRegistryPage />
               </ProtectedRoute>
@@ -384,7 +489,11 @@ const AppShell: React.FC = () => {
           <Route
             path="/rubrics"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
+                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+              >
                 <RubricsPage />
               </ProtectedRoute>
             }
@@ -393,7 +502,11 @@ const AppShell: React.FC = () => {
           <Route
             path="/rubrics/new"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
+                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+              >
                 <RubricBuilderPage />
               </ProtectedRoute>
             }
@@ -401,7 +514,11 @@ const AppShell: React.FC = () => {
           <Route
             path="/rubrics/:rubricId/edit"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
+                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+              >
                 <RubricBuilderPage />
               </ProtectedRoute>
             }

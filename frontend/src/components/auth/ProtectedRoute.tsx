@@ -5,6 +5,7 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '@/app/store';
 import { Loader } from '../common/Loader';
 import { resolveProtectedRouteRedirect } from '@/utils/authRouting';
+import { canManageOrganizationGovernance } from '@/utils/organizationGovernance';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -13,6 +14,9 @@ interface ProtectedRouteProps {
   requiredRoles?: string[];
   requiredCapabilities?: string[];
   legacyUserTypeFallback?: Array<"hr_manager" | "admin">;
+  requireOrganizationGovernance?: boolean;
+  requireActiveOrganization?: boolean;
+  activeOrganizationRedirectPath?: string;
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
@@ -22,10 +26,21 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requiredRoles = [],
   requiredCapabilities = [],
   legacyUserTypeFallback = [],
+  requireOrganizationGovernance = false,
+  requireActiveOrganization = false,
+  activeOrganizationRedirectPath = "/organization/setup",
 }) => {
-  const { isAuthenticated, userType, user, roles, capabilities, twoFactorRequired, twoFactorToken } = useSelector(
-    (state: RootState) => state.auth,
-  );
+  const {
+    isAuthenticated,
+    userType,
+    user,
+    roles,
+    capabilities,
+    organizationMemberships,
+    activeOrganization,
+    twoFactorRequired,
+    twoFactorToken,
+  } = useSelector((state: RootState) => state.auth);
   const location = useLocation();
 
   const isRehydrated = useSelector(
@@ -69,20 +84,44 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/dashboard" replace />;
   }
 
+  if (requireActiveOrganization) {
+    const activeOrganizationId = String(activeOrganization?.id || "").trim();
+    if (!activeOrganizationId) {
+      const currentPath = `${location.pathname}${location.search || ""}`;
+      const separator = activeOrganizationRedirectPath.includes("?") ? "&" : "?";
+      const redirectTo = `${activeOrganizationRedirectPath}${separator}next=${encodeURIComponent(currentPath)}`;
+      return <Navigate to={redirectTo} replace />;
+    }
+  }
+
   const resolvedCapabilities = Array.from(
     new Set([
       ...(Array.isArray(capabilities) ? capabilities : []),
       ...((user as { capabilities?: string[] } | null)?.capabilities ?? []),
     ]),
   );
+  const resolvedMemberships = Array.isArray(organizationMemberships) ? organizationMemberships : [];
+
+  if (
+    requireOrganizationGovernance &&
+    !canManageOrganizationGovernance({
+      isAdmin: hasAdminAccess,
+      capabilities: resolvedCapabilities,
+      memberships: resolvedMemberships,
+      activeOrganizationId: String(activeOrganization?.id || "").trim() || null,
+    })
+  ) {
+    return <Navigate to="/dashboard" replace />;
+  }
   if (
     requiredCapabilities.length > 0 &&
     !requiredCapabilities.some((capability) => resolvedCapabilities.includes(capability))
   ) {
     const fallbackSet = new Set(legacyUserTypeFallback);
+    const hasCapabilityPayload = resolvedCapabilities.length > 0;
     const canUseLegacyFallback =
       (hasAdminAccess && fallbackSet.has("admin")) ||
-      (userType === "hr_manager" && fallbackSet.has("hr_manager"));
+      (!hasCapabilityPayload && userType === "hr_manager" && fallbackSet.has("hr_manager"));
     if (canUseLegacyFallback) {
       return <>{children}</>;
     }

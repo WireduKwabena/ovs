@@ -7,10 +7,37 @@ import { useAuth } from "@/hooks/useAuth";
 const OperationsDashboardPage = React.lazy(() => import("@/pages/OperationsDashboardPage"));
 
 export const DashboardPage: React.FC = () => {
-  const { userType } = useAuth();
+  const {
+    userType,
+    activeOrganizationId,
+    canManageActiveOrganizationGovernance,
+    canAccessAppointments,
+    canManageRegistry,
+    canViewAuditLogs,
+  } = useAuth();
 
   if (userType === "admin") {
     return <Navigate to="/admin/dashboard" replace />;
+  }
+
+  if (userType === "applicant") {
+    return <Navigate to="/candidate/access" replace />;
+  }
+
+  if (canManageActiveOrganizationGovernance && activeOrganizationId) {
+    return <Navigate to="/organization/dashboard" replace />;
+  }
+
+  if (canAccessAppointments) {
+    return <Navigate to="/government/appointments" replace />;
+  }
+
+  if (canManageRegistry) {
+    return <Navigate to="/government/positions" replace />;
+  }
+
+  if (canViewAuditLogs) {
+    return <Navigate to="/audit-logs" replace />;
   }
 
   if (userType === "hr_manager") {

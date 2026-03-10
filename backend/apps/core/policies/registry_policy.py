@@ -5,9 +5,20 @@ from __future__ import annotations
 from apps.core.authz import (
     CAPABILITY_REGISTRY_MANAGE,
     ROLE_ADMIN,
+    ROLE_REGISTRY_ADMIN,
     get_user_organization_ids,
+    has_organization_membership_role,
     has_capability,
     has_role,
+)
+
+ORG_GOVERNANCE_ADMIN_MEMBERSHIP_ROLES = frozenset(
+    {
+        "registry_admin",
+        "org_admin",
+        "organization_admin",
+        "system_admin",
+    }
 )
 
 
@@ -98,3 +109,39 @@ def can_manage_registry_record(
         allow_membershipless_fallback=allow_membershipless_fallback,
     )
 
+
+def is_registry_governance_admin(
+    user,
+    *,
+    organization_id=None,
+) -> bool:
+    if not _is_authenticated(user):
+        return False
+    if is_platform_admin_actor(user):
+        return True
+    if has_role(user, ROLE_ADMIN) or has_role(user, ROLE_REGISTRY_ADMIN):
+        return True
+    return has_organization_membership_role(
+        user,
+        organization_id=organization_id,
+        allowed_roles=ORG_GOVERNANCE_ADMIN_MEMBERSHIP_ROLES,
+    )
+
+
+def can_manage_registry_governance(
+    user,
+    *,
+    organization_id=None,
+    allow_membershipless_fallback: bool = False,
+) -> bool:
+    if not is_registry_governance_admin(user, organization_id=organization_id):
+        return False
+
+    if organization_id is None:
+        return True
+
+    return has_organization_access(
+        user,
+        organization_id,
+        allow_membershipless_fallback=allow_membershipless_fallback,
+    )

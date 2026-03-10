@@ -117,7 +117,8 @@ const SELECT_FIELD_COMPACT_CLASS =
 const AppointmentsRegistryPage: React.FC = () => {
   const {
     isAdmin,
-    isHrOrAdmin,
+    canManageRegistry,
+    canManageRegistryInActiveOrganization,
     canAdvanceAppointmentStage,
     canFinalizeAppointment,
     canPublishAppointment,
@@ -308,20 +309,25 @@ const AppointmentsRegistryPage: React.FC = () => {
 
   const hasPositionOptions = scopedPositions.length > 0;
   const hasNomineeOptions = scopedPersonnel.length > 0;
-  const canCreateAppointment = isHrOrAdmin && hasPositionOptions && hasNomineeOptions;
+  const canInitializeApprovalChain = canManageRegistryInActiveOrganization;
+  const canCreateAppointment =
+    canManageRegistryInActiveOrganization && hasPositionOptions && hasNomineeOptions;
 
   const isWithinActiveOrganization = useCallback(
     (organizationId: string | null | undefined): boolean => {
-      if (!activeOrganizationId) {
+      if (isAdmin) {
         return true;
       }
       const normalizedOrganizationId = String(organizationId || "").trim();
+      if (!activeOrganizationId) {
+        return !normalizedOrganizationId;
+      }
       if (!normalizedOrganizationId) {
         return true;
       }
       return normalizedOrganizationId === activeOrganizationId;
     },
-    [activeOrganizationId],
+    [activeOrganizationId, isAdmin],
   );
 
   const hasCommitteeAccess = useCallback(
@@ -377,6 +383,12 @@ const AppointmentsRegistryPage: React.FC = () => {
     [canAdvanceAppointmentStage, hasCommitteeAccess, isWithinActiveOrganization],
   );
 
+  const canEnsureLinkageForRow = useCallback(
+    (row: AppointmentRecord): boolean =>
+      canAdvanceAppointmentStage && isWithinActiveOrganization(row.organization),
+    [canAdvanceAppointmentStage, isWithinActiveOrganization],
+  );
+
   const scopedRows = useMemo(() => {
     return rows.filter((row) => isWithinActiveOrganization(row.organization));
   }, [isWithinActiveOrganization, rows]);
@@ -395,6 +407,10 @@ const AppointmentsRegistryPage: React.FC = () => {
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!canManageRegistryInActiveOrganization) {
+      toast.error("Registry authority and active organization context are required to create nominations.");
+      return;
+    }
     if (!canCreateAppointment) {
       toast.error("Create at least one government position and one personnel record before nominating.");
       return;
@@ -754,6 +770,12 @@ const AppointmentsRegistryPage: React.FC = () => {
         </div>
       </header>
 
+      {!isAdmin && !activeOrganizationId ? (
+        <section className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          Select an active organization to view and act on organization-scoped appointment records.
+        </section>
+      ) : null}
+
       <section className="grid gap-4 md:grid-cols-4">
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-700">Total Records</p>
@@ -773,7 +795,7 @@ const AppointmentsRegistryPage: React.FC = () => {
         </article>
       </section>
 
-      {isHrOrAdmin ? (
+      {canInitializeApprovalChain ? (
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <Workflow className="h-5 w-5 text-indigo-700" />
@@ -923,7 +945,11 @@ const AppointmentsRegistryPage: React.FC = () => {
         <h2 className="text-lg font-bold text-slate-900">Create Nomination Record</h2>
         {!canCreateAppointment ? (
           <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-            {!hasPositionOptions || !hasNomineeOptions
+            {!canManageRegistry
+              ? "Only registry operators can create nomination records."
+              : !activeOrganizationId && !isAdmin
+              ? "Select an active organization before creating nomination records."
+              : !hasPositionOptions || !hasNomineeOptions
               ? "Create at least one position and one personnel profile before starting a nomination."
               : "You do not have permission to create nomination records."}
           </div>
@@ -1095,6 +1121,7 @@ const AppointmentsRegistryPage: React.FC = () => {
               const canManageLifecycle = canManageLifecycleForRow(row, statusTarget, selectedStage);
               const canManagePublication = canManagePublicationForRow(row);
               const canViewStageActions = canViewStageActionsForRow(row);
+              const canEnsureLinkage = canEnsureLinkageForRow(row);
               const rowOutOfScope = !isWithinActiveOrganization(row.organization);
               return (
                 <article key={row.id} className="rounded-xl border border-slate-200 p-4">
@@ -1147,15 +1174,21 @@ const AppointmentsRegistryPage: React.FC = () => {
                       </p>
                       <p className="text-xs text-slate-700">Approval chain status: {approvalChainStatus}</p>
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => void handleEnsureLinkage(row)}
-                      disabled={isRowBusy}
-                    >
-                      <Clock3 className="mr-2 h-4 w-4" />
-                      {isLinkageLoading ? "Linking..." : "Ensure Linkage"}
-                    </Button>
+                    {canEnsureLinkage ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void handleEnsureLinkage(row)}
+                        disabled={isRowBusy}
+                      >
+                        <Clock3 className="mr-2 h-4 w-4" />
+                        {isLinkageLoading ? "Linking..." : "Ensure Linkage"}
+                      </Button>
+                    ) : (
+                      <span className="text-xs text-slate-700">
+                        Linkage actions are restricted to authorized stage actors.
+                      </span>
+                    )}
                   </div>
 
                   <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">

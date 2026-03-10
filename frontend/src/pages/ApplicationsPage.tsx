@@ -25,8 +25,27 @@ export const ApplicationsPage: React.FC = () => {
 
   const isAdminView = location.pathname.startsWith("/admin");
   const isCaseManagerView = true;
-  const isValidStatusParam = (value: string | null): value is "pending" | "under_review" | "approved" | "rejected" =>
-    value === "pending" || value === "under_review" || value === "approved" || value === "rejected";
+  const isValidStatusParam = (
+    value: string | null,
+  ): value is
+    | "pending"
+    | "document_upload"
+    | "document_analysis"
+    | "interview_scheduled"
+    | "interview_in_progress"
+    | "under_review"
+    | "approved"
+    | "rejected"
+    | "on_hold" =>
+    value === "pending" ||
+    value === "document_upload" ||
+    value === "document_analysis" ||
+    value === "interview_scheduled" ||
+    value === "interview_in_progress" ||
+    value === "under_review" ||
+    value === "approved" ||
+    value === "rejected" ||
+    value === "on_hold";
   const isValidScopeParam = (value: string | null): value is "all" | "assigned" =>
     value === "all" || value === "assigned";
 
@@ -66,11 +85,21 @@ export const ApplicationsPage: React.FC = () => {
   };
 
   const detailPathPrefix = isAdminView ? "/admin/cases" : "/applications";
+  const resolveApplicantDisplay = (app: (typeof applications)[number]) => {
+    if (app.applicant && typeof app.applicant === "object") {
+      return app.applicant.full_name || app.applicant.email || "";
+    }
+    return app.applicant_email || String(app.applicant || "");
+  };
+  const resolveCaseLabel = (app: (typeof applications)[number]) =>
+    app.position_applied || app.application_type || "vetting";
 
   const filteredApplications = applications.filter((app) => {
+    const applicantDisplay = resolveApplicantDisplay(app).toLowerCase();
     const matchesSearch =
       app.case_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      app.applicant.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      applicantDisplay.includes(searchTerm.toLowerCase()) ||
+      (app.applicant_email || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || app.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -135,9 +164,14 @@ export const ApplicationsPage: React.FC = () => {
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="document_upload">Document Upload</SelectItem>
+                    <SelectItem value="document_analysis">Document Analysis</SelectItem>
+                    <SelectItem value="interview_scheduled">Interview Scheduled</SelectItem>
+                    <SelectItem value="interview_in_progress">Interview In Progress</SelectItem>
                     <SelectItem value="under_review">Under Review</SelectItem>
                     <SelectItem value="approved">Approved</SelectItem>
                     <SelectItem value="rejected">Rejected</SelectItem>
+                    <SelectItem value="on_hold">On Hold</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -199,7 +233,7 @@ export const ApplicationsPage: React.FC = () => {
                       {application.case_id}
                     </h3>
                     <p className="text-slate-700">
-                      {application.application_type}
+                      {resolveCaseLabel(application)}
                     </p>
                   </div>
                   <StatusBadge status={application.status} />

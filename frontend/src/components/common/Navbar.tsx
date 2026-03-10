@@ -45,9 +45,18 @@ export const Navbar: React.FC = () => {
     organizations,
     activeOrganization,
     activeOrganizationId,
+    canManageActiveOrganizationGovernance,
     canSwitchOrganization,
     switchingActiveOrganization,
     selectActiveOrganization,
+    canViewAuditLogs,
+    canManageRegistry,
+    canAccessAppointments: canAccessAppointmentsFromHook,
+    canAccessApplications,
+    canAccessCampaigns,
+    canAccessVideoCalls,
+    canAccessInternalWorkflow,
+    canManageRubrics,
   } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileMenuMounted, setMobileMenuMounted] = useState(false);
@@ -75,34 +84,15 @@ export const Navbar: React.FC = () => {
   const resolvedOrganizations = Array.isArray(organizations) ? organizations : [];
 
   const hasRole = (role: string): boolean => resolvedRoles.includes(role);
-  const hasAnyRole = (requiredRoles: string[]): boolean =>
-    requiredRoles.some((role) => resolvedRoles.includes(role));
   const hasCapability = (capability: string): boolean => resolvedCapabilities.includes(capability);
-  const hasAnyCapability = (requiredCapabilities: string[]): boolean =>
-    requiredCapabilities.some((capability) => resolvedCapabilities.includes(capability));
 
   const hasAdminAccess =
     userType === "admin" || hasRole("admin") || Boolean((user as User | null)?.is_superuser);
-  const canAccessAudit = hasAdminAccess || hasCapability("gams.audit.view");
-  const canAccessRegistry = hasAdminAccess || hasCapability("gams.registry.manage");
-  const canAccessAppointments =
-    hasAdminAccess ||
-    hasAnyCapability([
-      "gams.registry.manage",
-      "gams.appointment.stage",
-      "gams.appointment.decide",
-      "gams.appointment.publish",
-      "gams.appointment.view_internal",
-    ]) ||
-    hasAnyRole([
-      "registry_admin",
-      "vetting_officer",
-      "committee_member",
-      "committee_chair",
-      "appointing_authority",
-      "publication_officer",
-      "auditor",
-    ]);
+  const canAccessAudit = hasAdminAccess || canViewAuditLogs || hasCapability("gams.audit.view");
+  const canAccessRegistry = hasAdminAccess || canManageRegistry;
+  const canAccessAppointments = hasAdminAccess || canAccessAppointmentsFromHook;
+  const canAccessRubrics = hasAdminAccess || canManageRubrics;
+  const canAccessInternalRoutes = hasAdminAccess || canAccessInternalWorkflow;
   const canShowOrganizationContext = userType !== 'applicant' && resolvedOrganizations.length > 0;
   const activeOrganizationLabel = activeOrganization?.name || resolvedOrganizations[0]?.name || 'Default scope';
 
@@ -458,17 +448,28 @@ export const Navbar: React.FC = () => {
   const candidateLinks = [{ to: '/candidate/access', label: 'Candidate Access' }];
   const internalPrimaryLinks = [
     { to: '/dashboard', label: 'Dashboard' },
-    { to: '/campaigns', label: 'Campaigns' },
-    { to: '/applications', label: 'Cases' },
-    { to: '/rubrics', label: 'Rubrics' },
-    { to: '/video-calls', label: 'Video Calls' },
+    ...(canAccessCampaigns ? [{ to: '/campaigns', label: 'Campaigns' }] : []),
+    ...(canAccessApplications ? [{ to: '/applications', label: 'Cases' }] : []),
+    ...(canAccessRubrics ? [{ to: '/rubrics', label: 'Rubrics' }] : []),
+    ...(canAccessVideoCalls ? [{ to: '/video-calls', label: 'Video Calls' }] : []),
   ];
   const internalOverflowLinks = [
+    ...(canManageActiveOrganizationGovernance && !activeOrganizationId
+      ? [{ to: '/organization/setup', label: 'Org Setup' }]
+      : []),
+    ...(canManageActiveOrganizationGovernance && activeOrganizationId
+      ? [
+          { to: '/organization/dashboard', label: 'Org Workspace' },
+          { to: '/organization/members', label: 'Org Members' },
+          { to: '/organization/committees', label: 'Committees' },
+          { to: '/organization/onboarding', label: 'Onboarding' },
+        ]
+      : []),
     ...(canAccessAppointments ? [{ to: '/government/appointments', label: 'Appointments' }] : []),
     ...(canAccessRegistry ? [{ to: '/government/positions', label: 'Positions' }] : []),
     ...(canAccessRegistry ? [{ to: '/government/personnel', label: 'Personnel' }] : []),
-    { to: '/fraud-insights', label: 'Fraud' },
-    { to: '/background-checks', label: 'Checks' },
+    ...(canAccessInternalRoutes ? [{ to: '/fraud-insights', label: 'Fraud' }] : []),
+    ...(canAccessInternalRoutes ? [{ to: '/background-checks', label: 'Checks' }] : []),
     ...(canAccessAudit ? [{ to: '/audit-logs', label: 'Audit' }] : []),
   ];
   const adminPrimaryLinks = [
@@ -478,6 +479,15 @@ export const Navbar: React.FC = () => {
     { to: '/rubrics', label: 'Rubrics' },
   ];
   const adminOverflowLinks = [
+    ...(!activeOrganizationId ? [{ to: '/organization/setup', label: 'Org Setup' }] : []),
+    ...(activeOrganizationId
+      ? [
+          { to: '/organization/dashboard', label: 'Org Workspace' },
+          { to: '/organization/members', label: 'Org Members' },
+          { to: '/organization/committees', label: 'Committees' },
+          { to: '/organization/onboarding', label: 'Onboarding' },
+        ]
+      : []),
     { to: '/government/appointments', label: 'Appointments' },
     { to: '/government/positions', label: 'Positions' },
     { to: '/government/personnel', label: 'Personnel' },

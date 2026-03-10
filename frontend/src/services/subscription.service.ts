@@ -1,11 +1,9 @@
 import axios from "axios";
 import api from "./api";
-import {
-  grantSubscriptionAccess,
-  setSubscriptionAccessTicket,
-  type BillingCycle,
-  type PaymentMethod,
-  type SubscriptionAccessTicket,
+import type {
+  BillingCycle,
+  PaymentMethod,
+  SubscriptionAccessTicket,
 } from "@/utils/subscriptionAccess";
 
 export type CheckoutMode = "mock" | "api" | "stripe" | "paystack";
@@ -24,22 +22,6 @@ export interface ConfirmSubscriptionInput {
 export interface ConfirmSubscriptionResult {
   ticket: SubscriptionAccessTicket;
   source: "mock" | "api";
-}
-
-export interface VerifySubscriptionAccessResult {
-  valid: boolean;
-  reason: string;
-  reference: string;
-  planId?: string;
-  planName?: string;
-  billingCycle?: BillingCycle;
-  paymentMethod?: PaymentMethod;
-  amountUsd?: number;
-  confirmedAt?: number;
-  expiresAt?: number;
-  status?: string;
-  paymentStatus?: string;
-  registrationConsumedAt?: number | null;
 }
 
 export interface PaystackExchangeRateResult {
@@ -213,11 +195,25 @@ const normalizeTicket = (payload: unknown): SubscriptionAccessTicket | null => {
   };
 };
 
+const buildTransientTicket = (input: ConfirmSubscriptionInput): SubscriptionAccessTicket => {
+  const now = Date.now();
+  return {
+    planId: input.planId,
+    planName: input.planName,
+    billingCycle: input.billingCycle,
+    paymentMethod: input.paymentMethod,
+    amountUsd: input.amountUsd,
+    reference: `OVS-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
+    confirmedAt: now,
+    expiresAt: now + 24 * 60 * 60 * 1000,
+  };
+};
+
 const buildMockTicket = async (
   input: ConfirmSubscriptionInput,
 ): Promise<SubscriptionAccessTicket> => {
   await sleep(1100);
-  return grantSubscriptionAccess(input);
+  return buildTransientTicket(input);
 };
 
 const confirmViaApi = async (
@@ -239,7 +235,7 @@ const confirmViaApi = async (
     throw new Error("Subscription confirmation response is invalid.");
   }
 
-  return setSubscriptionAccessTicket(ticket);
+  return ticket;
 };
 
 const getFrontendUrl = (): string => {
@@ -339,7 +335,7 @@ const confirmStripeSession = async (
     throw new Error("Stripe confirmation response is invalid.");
   }
 
-  return setSubscriptionAccessTicket(ticket);
+  return ticket;
 };
 
 const confirmPaystackReference = async (
@@ -355,18 +351,7 @@ const confirmPaystackReference = async (
     throw new Error("Paystack confirmation response is invalid.");
   }
 
-  return setSubscriptionAccessTicket(ticket);
-};
-
-const verifySubscriptionAccess = async (
-  reference: string,
-): Promise<VerifySubscriptionAccessResult> => {
-  const response = await publicApi.post<VerifySubscriptionAccessResult>(
-    "/billing/subscriptions/access/verify/",
-    { reference },
-  );
-
-  return response.data;
+  return ticket;
 };
 
 const getPaystackExchangeRate = async (): Promise<PaystackExchangeRateResult> => {
@@ -399,10 +384,6 @@ export const subscriptionService = {
 
   async confirmPaystackReference(reference: string): Promise<SubscriptionAccessTicket> {
     return confirmPaystackReference(reference);
-  },
-
-  async verifySubscriptionAccess(reference: string): Promise<VerifySubscriptionAccessResult> {
-    return verifySubscriptionAccess(reference);
   },
 
   async getPaystackExchangeRate(): Promise<PaystackExchangeRateResult> {

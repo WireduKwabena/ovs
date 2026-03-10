@@ -58,9 +58,7 @@ describe("UserSettingsPage billing empty-state", () => {
   it("shows add subscription action when subscription is missing", async () => {
     mocks.useAuth.mockReturnValue({
       userType: "hr_manager",
-      isAdmin: false,
-      hasRole: () => false,
-      hasCapability: () => false,
+      canManageActiveOrganizationGovernance: false,
       organizations: [],
       activeOrganization: null,
       activeOrganizationId: null,
@@ -98,12 +96,10 @@ describe("UserSettingsPage billing empty-state", () => {
     ).toBeTruthy();
   });
 
-  it("shows onboarding management for authorized org admins", async () => {
+  it("shows onboarding workspace summary for authorized org admins", async () => {
     mocks.useAuth.mockReturnValue({
       userType: "hr_manager",
-      isAdmin: false,
-      hasRole: (role: string) => role === "registry_admin",
-      hasCapability: () => false,
+      canManageActiveOrganizationGovernance: true,
       organizations: [{ id: "org-1", code: "ORG1", name: "Org One", organization_type: "agency" }],
       activeOrganization: { id: "org-1", code: "ORG1", name: "Org One", organization_type: "agency" },
       activeOrganizationId: "org-1",
@@ -160,7 +156,7 @@ describe("UserSettingsPage billing empty-state", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText(/organization onboarding invite/i)).toBeTruthy();
+    expect(await screen.findByText(/organization governance workspace/i)).toBeTruthy();
     expect(await screen.findByText(/token preview/i)).toBeTruthy();
   });
 });
