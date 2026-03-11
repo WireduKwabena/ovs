@@ -377,11 +377,12 @@ describe("ProtectedRoute integration", () => {
     expect(screen.getByText("Applications page")).toBeTruthy();
   });
 
-  it("allows hr_manager users on /applications", () => {
+  it("allows capability-bearing users on /applications", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
         userType: "hr_manager",
+        capabilities: ["gams.appointment.stage"],
       }),
       "/applications",
     );
@@ -432,11 +433,12 @@ describe("ProtectedRoute integration", () => {
     expect(screen.getByText("Dashboard page")).toBeTruthy();
   });
 
-  it("allows hr_manager on /campaigns", () => {
+  it("allows capability-bearing users on /campaigns", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
         userType: "hr_manager",
+        capabilities: ["gams.appointment.stage"],
       }),
       "/campaigns",
     );
@@ -520,7 +522,7 @@ describe("ProtectedRoute integration", () => {
     expect(screen.getByText("Government appointments page")).toBeTruthy();
   });
 
-  it("allows hr_manager on /government/appointments even when capabilities are stale", () => {
+  it("blocks hr_manager on /government/appointments when capabilities are stale", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
@@ -529,7 +531,7 @@ describe("ProtectedRoute integration", () => {
       }),
       "/government/appointments",
     );
-    expect(screen.getByText("Government appointments page")).toBeTruthy();
+    expect(screen.getByText("Dashboard page")).toBeTruthy();
   });
 
   it("blocks hr_manager users when capability payload exists but lacks required permission", () => {
@@ -625,6 +627,48 @@ describe("ProtectedRoute integration", () => {
         isAuthenticated: true,
         userType: "hr_manager",
         organizationMemberships: [],
+        activeOrganization: { id: "org-1" },
+      }),
+      "/organization/dashboard",
+    );
+    expect(screen.getByText("Dashboard page")).toBeTruthy();
+  });
+
+  it("blocks hr_manager with broad registry capability but no org-admin governance membership", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "hr_manager",
+        capabilities: ["gams.registry.manage"],
+        organizationMemberships: [
+          {
+            id: "m-1",
+            organization_id: "org-1",
+            membership_role: "member",
+            is_active: true,
+          },
+        ],
+        activeOrganization: { id: "org-1" },
+      }),
+      "/organization/dashboard",
+    );
+    expect(screen.getByText("Dashboard page")).toBeTruthy();
+  });
+
+  it("blocks committee members from org-admin governance routes", () => {
+    renderWithState(
+      createGuardState({
+        isAuthenticated: true,
+        userType: "hr_manager",
+        roles: ["committee_member"],
+        organizationMemberships: [
+          {
+            id: "m-1",
+            organization_id: "org-1",
+            membership_role: "committee_member",
+            is_active: true,
+          },
+        ],
         activeOrganization: { id: "org-1" },
       }),
       "/organization/dashboard",

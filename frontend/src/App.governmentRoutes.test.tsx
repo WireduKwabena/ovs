@@ -52,7 +52,7 @@ const buildStore = (
   },
 ) => {
   const defaultCapabilities =
-    userType === "admin" || userType === "hr_manager"
+    userType === "admin"
       ? [
           "gams.registry.manage",
           "gams.appointment.stage",
@@ -139,14 +139,19 @@ describe("App government route access", () => {
     window.history.pushState({}, "", "/");
   });
 
-  it("allows hr_manager to access government appointments route", async () => {
+  it("redirects hr_manager without role/capability grants away from government appointments route", async () => {
     renderAppAt("/government/appointments", "hr_manager");
-    expect(await screen.findByText("Mock Appointments Registry Page")).toBeTruthy();
+    expect(await screen.findByText("Mock Dashboard Page")).toBeTruthy();
   });
 
-  it("allows hr_manager to access government appointments when capability payload is stale", async () => {
+  it("redirects hr_manager with stale capability payload away from government appointments route", async () => {
     renderAppAt("/government/appointments", "hr_manager", []);
-    expect(await screen.findByText("Mock Appointments Registry Page")).toBeTruthy();
+    expect(await screen.findByText("Mock Dashboard Page")).toBeTruthy();
+  });
+
+  it("allows explicit capability-bearing users to access government appointments route", async () => {
+    renderAppAt("/government/appointments", "hr_manager", ["gams.appointment.view_internal"]);
+    expect(await screen.findByText("Mock Appointments Registry Page", {}, { timeout: 5000 })).toBeTruthy();
   });
 
   it("redirects applicant away from government appointments route", async () => {
@@ -185,5 +190,33 @@ describe("App government route access", () => {
       },
     );
     expect(await screen.findByText("Mock Dashboard Page")).toBeTruthy();
+  });
+
+  it("redirects capability-only hr_manager users away from organization dashboard route", async () => {
+    renderAppAt(
+      "/organization/dashboard",
+      "hr_manager",
+      ["gams.registry.manage"],
+      {
+        activeOrganizationId: "org-1",
+        organizationMemberships: [
+          {
+            id: "m-2",
+            organization_id: "org-1",
+            membership_role: "member",
+            is_active: true,
+          },
+        ],
+      },
+    );
+    expect(await screen.findByText("Mock Dashboard Page")).toBeTruthy();
+  });
+
+  it("allows platform admin to access organization dashboard route", async () => {
+    renderAppAt("/organization/dashboard", "admin", [], {
+      activeOrganizationId: "org-1",
+      organizationMemberships: [],
+    });
+    expect(await screen.findByText("Mock Organization Dashboard Page")).toBeTruthy();
   });
 });

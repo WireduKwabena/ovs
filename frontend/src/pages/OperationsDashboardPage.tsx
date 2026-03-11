@@ -48,6 +48,16 @@ interface PendingQuerySync {
   to: string;
 }
 
+interface QuickActionItem {
+  key: string;
+  title: string;
+  description: string;
+  path: string;
+  visible: boolean;
+  enabled: boolean;
+  disabledReason?: string;
+}
+
 const STATUS_FILTER_OPTIONS: DashboardStatusFilter[] = ['all', 'draft', 'active', 'closed', 'archived'];
 const WINDOW_FILTER_OPTIONS: DashboardWindowFilter[] = ['all', '30', '90', '365'];
 const CHART_MODE_OPTIONS: DashboardChartMode[] = ['count', 'percentage'];
@@ -199,7 +209,31 @@ const OperationsDashboardChartsSection = React.lazy(
 const OperationsDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuth();
+  const auth = useAuth();
+  const user = auth.user;
+  const activeOrganizationId = auth.activeOrganizationId || null;
+  const activeOrganizationName = auth.activeOrganization?.name || '';
+  const hasActiveOrganization = Boolean(activeOrganizationId);
+  const canAccessCampaigns = Boolean(auth.canAccessCampaigns);
+  const canAccessVideoCalls = Boolean(auth.canAccessVideoCalls);
+  const canAccessAppointments = Boolean(auth.canAccessAppointments);
+  const canManageRegistry = Boolean(auth.canManageRegistry);
+  const canAccessInternalWorkflow = Boolean(auth.canAccessInternalWorkflow);
+  const canManageActiveOrganizationGovernance = Boolean(auth.canManageActiveOrganizationGovernance);
+  const canSwitchOrganization = Boolean(auth.canSwitchOrganization);
+  const committeeMembershipCount = Array.isArray(auth.committees) ? auth.committees.length : 0;
+  const hasCommitteeMembership = committeeMembershipCount > 0;
+  const canViewCampaignAnalytics = canAccessCampaigns && hasActiveOrganization;
+  const hasOrgScopedDashboardAccess =
+    canAccessCampaigns ||
+    canAccessVideoCalls ||
+    canAccessAppointments ||
+    canManageRegistry ||
+    hasCommitteeMembership;
+  const shouldShowOrgContextNotice = hasOrgScopedDashboardAccess && !hasActiveOrganization;
+  const orgContextHint = canSwitchOrganization
+    ? 'Select an active organization from the navbar to enable organization-scoped actions.'
+    : 'An active organization is required for organization-scoped actions.';
   const chartsSectionTriggerRef = useRef<HTMLDivElement | null>(null);
   const pendingQuerySyncRef = useRef<PendingQuerySync | null>(null);
 
@@ -239,6 +273,13 @@ const OperationsDashboardPage: React.FC = () => {
   const [shouldLoadCharts, setShouldLoadCharts] = useState(false);
 
   const loadDashboard = useCallback(async () => {
+    if (!canViewCampaignAnalytics) {
+      setCampaignStats([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -263,7 +304,7 @@ const OperationsDashboardPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [canViewCampaignAnalytics]);
 
   useEffect(() => {
     void loadDashboard();
@@ -959,6 +1000,89 @@ const OperationsDashboardPage: React.FC = () => {
   );
 
   const displayName = getUserDisplayName(user, 'Team');
+  const quickActionItems = useMemo<QuickActionItem[]>(() => {
+    const orgScopedHint = orgContextHint;
+    const canOpenCampaigns = canAccessCampaigns && hasActiveOrganization;
+    const canOpenVideoCalls = canAccessVideoCalls && hasActiveOrganization;
+    const canOpenAppointments = (canAccessAppointments || hasCommitteeMembership) && hasActiveOrganization;
+    const canOpenRegistry = canManageRegistry && hasActiveOrganization;
+
+    return [
+      {
+        key: 'campaign_manage',
+        title: 'Create / Edit Campaign',
+        description: 'Configure campaign window and rules.',
+        path: '/campaigns',
+        visible: canAccessCampaigns,
+        enabled: canOpenCampaigns,
+        disabledReason: canOpenCampaigns ? undefined : orgScopedHint,
+      },
+      {
+        key: 'campaign_import',
+        title: 'Import Candidate Batch',
+        description: 'Upload candidate list and trigger invitations.',
+        path: '/campaigns',
+        visible: canAccessCampaigns,
+        enabled: canOpenCampaigns,
+        disabledReason: canOpenCampaigns ? undefined : orgScopedHint,
+      },
+      {
+        key: 'alerts',
+        title: 'Review Alerts',
+        description: 'Monitor delivery and vetting notifications.',
+        path: '/notifications',
+        visible: canAccessInternalWorkflow,
+        enabled: true,
+      },
+      {
+        key: 'video_calls',
+        title: 'Schedule Video Meeting',
+        description: 'Create 1v1 or 1vMany live interview sessions.',
+        path: '/video-calls',
+        visible: canAccessVideoCalls,
+        enabled: canOpenVideoCalls,
+        disabledReason: canOpenVideoCalls ? undefined : orgScopedHint,
+      },
+      {
+        key: 'appointments',
+        title: 'Government Appointments',
+        description: hasCommitteeMembership
+          ? 'Review committee-bound appointment stages in your active organization.'
+          : 'Track nomination, vetting stage, and final decisions.',
+        path: '/government/appointments',
+        visible: canAccessAppointments || hasCommitteeMembership,
+        enabled: canOpenAppointments,
+        disabledReason: canOpenAppointments ? undefined : orgScopedHint,
+      },
+      {
+        key: 'positions',
+        title: 'Government Position Registry',
+        description: 'Manage public offices, vacancies, and appointment authority.',
+        path: '/government/positions',
+        visible: canManageRegistry,
+        enabled: canOpenRegistry,
+        disabledReason: canOpenRegistry ? undefined : orgScopedHint,
+      },
+      {
+        key: 'personnel',
+        title: 'Government Personnel Registry',
+        description: 'Maintain nominee and officeholder profiles.',
+        path: '/government/personnel',
+        visible: canManageRegistry,
+        enabled: canOpenRegistry,
+        disabledReason: canOpenRegistry ? undefined : orgScopedHint,
+      },
+    ].filter((item) => item.visible);
+  }, [
+    canAccessAppointments,
+    canAccessCampaigns,
+    canAccessInternalWorkflow,
+    canAccessVideoCalls,
+    canManageRegistry,
+    hasActiveOrganization,
+    hasCommitteeMembership,
+    orgContextHint,
+  ]);
 
   if (loading) {
     return (
@@ -984,7 +1108,8 @@ const OperationsDashboardPage: React.FC = () => {
             <button
               type="button"
               onClick={() => void loadDashboard()}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-800/80 px-4 py-2 text-sm hover:bg-slate-700/80 sm:w-auto"
+              disabled={!canViewCampaignAnalytics}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-800/80 px-4 py-2 text-sm hover:bg-slate-700/80 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             >
               <RefreshCw className="w-4 h-4" />
               Refresh
@@ -992,7 +1117,7 @@ const OperationsDashboardPage: React.FC = () => {
             <button
               type="button"
               onClick={exportCampaignCsv}
-              disabled={filteredCampaignStats.length === 0}
+              disabled={!canViewCampaignAnalytics || filteredCampaignStats.length === 0}
               className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-800/80 px-4 py-2 text-sm hover:bg-slate-700/80 disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
             >
               <Download className="w-4 h-4" />
@@ -1001,7 +1126,7 @@ const OperationsDashboardPage: React.FC = () => {
             <button
               type="button"
               onClick={exportCampaignJson}
-              disabled={filteredCampaignStats.length === 0}
+              disabled={!canViewCampaignAnalytics || filteredCampaignStats.length === 0}
               className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-800/80 px-4 py-2 text-sm hover:bg-slate-700/80 disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
             >
               <Download className="w-4 h-4" />
@@ -1010,26 +1135,54 @@ const OperationsDashboardPage: React.FC = () => {
             <button
               type="button"
               onClick={() => void copyShareLink()}
-              disabled={isCopyingLink}
+              disabled={!canViewCampaignAnalytics || isCopyingLink}
               className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-800/80 px-4 py-2 text-sm hover:bg-slate-700/80 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             >
               <Link2 className="w-4 h-4" />
               {isCopyingLink ? 'Copying...' : linkCopied ? 'Link Copied' : 'Copy Link'}
             </button>
-            <Link
-              to="/campaigns"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-teal-500 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-teal-400 sm:w-auto"
-            >
-              Manage Campaigns
-              <ArrowUpRight className="w-4 h-4" />
-            </Link>
-            <Link
-              to="/video-calls"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400 sm:w-auto"
-            >
-              Video Calls
-              <Video className="w-4 h-4" />
-            </Link>
+            {canAccessCampaigns ? (
+              hasActiveOrganization ? (
+                <Link
+                  to="/campaigns"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-teal-500 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-teal-400 sm:w-auto"
+                >
+                  Manage Campaigns
+                  <ArrowUpRight className="w-4 h-4" />
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  title={orgContextHint}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-teal-300/80 px-4 py-2 text-sm font-medium text-slate-900 opacity-70 sm:w-auto"
+                >
+                  Manage Campaigns
+                  <ArrowUpRight className="w-4 h-4" />
+                </button>
+              )
+            ) : null}
+            {canAccessVideoCalls ? (
+              hasActiveOrganization ? (
+                <Link
+                  to="/video-calls"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400 sm:w-auto"
+                >
+                  Video Calls
+                  <Video className="w-4 h-4" />
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  title={orgContextHint}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-300/80 px-4 py-2 text-sm font-medium text-white opacity-70 sm:w-auto"
+                >
+                  Video Calls
+                  <Video className="w-4 h-4" />
+                </button>
+              )
+            ) : null}
           </div>
         </div>
       </section>
@@ -1038,6 +1191,27 @@ const OperationsDashboardPage: React.FC = () => {
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">{error}</div>
       )}
 
+      {shouldShowOrgContextNotice ? (
+        <section className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
+          <p className="font-medium">No active organization selected</p>
+          <p className="mt-1 text-sm">
+            {orgContextHint}
+            {activeOrganizationName ? ` Current context: ${activeOrganizationName}.` : ''}
+          </p>
+          {canManageActiveOrganizationGovernance ? (
+            <button
+              type="button"
+              onClick={() => navigate('/organization/setup')}
+              className="mt-3 rounded-lg border border-amber-400 bg-white px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100"
+            >
+              Open Organization Setup
+            </button>
+          ) : null}
+        </section>
+      ) : null}
+
+      {canViewCampaignAnalytics ? (
+        <>
       <section className="rounded-xl border border-slate-200 bg-white p-5">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
           <h2 className="text-lg font-semibold">Analytics Filters</h2>
@@ -1280,99 +1454,123 @@ const OperationsDashboardPage: React.FC = () => {
           </div>
         </section>
       )}
+        </>
+      ) : (
+        <section
+          className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-700"
+          data-testid="operations-analytics-unavailable"
+        >
+          {hasActiveOrganization
+            ? 'Campaign analytics are not available for your current role in this organization.'
+            : 'Select an active organization to view campaign analytics.'}
+        </section>
+      )}
 
       <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2 rounded-xl border border-slate-200 bg-white p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold">Campaign Pulse</h2>
-            <div className="flex flex-wrap items-center gap-2">
-              <label htmlFor="campaign-pulse-sort" className="text-xs text-slate-700">
-                Sort by
-              </label>
-              <select
-                id="campaign-pulse-sort"
-                value={campaignPulseSort}
-                onChange={(event) => setCampaignPulseSort(event.target.value as CampaignPulseSort)}
-                className={SELECT_FIELD_COMPACT_CLASS}
-              >
-                {CAMPAIGN_PULSE_SORT_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <Link to="/campaigns" className="text-sm text-indigo-600 hover:text-indigo-700">
-                View all
-              </Link>
-            </div>
-          </div>
-          {campaignPulseRows.length === 0 ? (
-            <div className="py-10 text-center text-slate-700">No campaigns match current filters.</div>
+          {canViewCampaignAnalytics ? (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold">Campaign Pulse</h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <label htmlFor="campaign-pulse-sort" className="text-xs text-slate-700">
+                    Sort by
+                  </label>
+                  <select
+                    id="campaign-pulse-sort"
+                    value={campaignPulseSort}
+                    onChange={(event) => setCampaignPulseSort(event.target.value as CampaignPulseSort)}
+                    className={SELECT_FIELD_COMPACT_CLASS}
+                  >
+                    {CAMPAIGN_PULSE_SORT_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <Link to="/campaigns" className="text-sm text-indigo-600 hover:text-indigo-700">
+                    View all
+                  </Link>
+                </div>
+              </div>
+              {campaignPulseRows.length === 0 ? (
+                <div className="py-10 text-center text-slate-700">No campaigns match current filters.</div>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  {campaignPulseRows.map((row) => (
+                    <article
+                      key={row.campaign.id}
+                      className="rounded-lg border border-slate-200 p-4 hover:border-teal-300 transition-colors"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="font-medium text-slate-900">{row.campaign.name}</p>
+                          <p className="text-xs text-slate-700">Created {formatDate(row.campaign.created_at)}</p>
+                        </div>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+                            statusPillClass[row.campaign.status] || 'bg-slate-200 text-slate-800'
+                          }`}
+                        >
+                          {row.campaign.status}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 text-xs">
+                        <div className="rounded bg-slate-50 px-2 py-1.5">
+                          <p className="text-slate-700">Total</p>
+                          <p className="font-semibold">{row.metrics.total_candidates}</p>
+                        </div>
+                        <div className="rounded bg-slate-50 px-2 py-1.5">
+                          <p className="text-slate-700">In Progress</p>
+                          <p className="font-semibold">{row.metrics.in_progress}</p>
+                        </div>
+                        <div className="rounded bg-slate-50 px-2 py-1.5">
+                          <p className="text-slate-700">Completed</p>
+                          <p className="font-semibold">{row.metrics.completed}</p>
+                        </div>
+                        <div className="rounded bg-slate-50 px-2 py-1.5">
+                          <p className="text-slate-700">Approved</p>
+                          <p className="font-semibold">{row.metrics.approved}</p>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                        <span className="rounded-full bg-teal-50 px-2 py-1 text-teal-700">
+                          Completion:{' '}
+                          {row.metrics.total_candidates > 0
+                            ? `${((row.metrics.completed / row.metrics.total_candidates) * 100).toFixed(1)}%`
+                            : '0.0%'}
+                        </span>
+                        <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">
+                          Approval:{' '}
+                          {row.metrics.total_candidates > 0
+                            ? `${((row.metrics.approved / row.metrics.total_candidates) * 100).toFixed(1)}%`
+                            : '0.0%'}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/campaigns/${row.campaign.id}`)}
+                          className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                        >
+                          Open Workspace
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </>
           ) : (
-            <div className="mt-4 space-y-3">
-              {campaignPulseRows.map((row) => (
-                <article
-                  key={row.campaign.id}
-                  className="rounded-lg border border-slate-200 p-4 hover:border-teal-300 transition-colors"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-slate-900">{row.campaign.name}</p>
-                      <p className="text-xs text-slate-700">Created {formatDate(row.campaign.created_at)}</p>
-                    </div>
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
-                        statusPillClass[row.campaign.status] || 'bg-slate-200 text-slate-800'
-                      }`}
-                    >
-                      {row.campaign.status}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 text-xs">
-                    <div className="rounded bg-slate-50 px-2 py-1.5">
-                      <p className="text-slate-700">Total</p>
-                      <p className="font-semibold">{row.metrics.total_candidates}</p>
-                    </div>
-                    <div className="rounded bg-slate-50 px-2 py-1.5">
-                      <p className="text-slate-700">In Progress</p>
-                      <p className="font-semibold">{row.metrics.in_progress}</p>
-                    </div>
-                    <div className="rounded bg-slate-50 px-2 py-1.5">
-                      <p className="text-slate-700">Completed</p>
-                      <p className="font-semibold">{row.metrics.completed}</p>
-                    </div>
-                    <div className="rounded bg-slate-50 px-2 py-1.5">
-                      <p className="text-slate-700">Approved</p>
-                      <p className="font-semibold">{row.metrics.approved}</p>
-                    </div>
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                    <span className="rounded-full bg-teal-50 px-2 py-1 text-teal-700">
-                      Completion:{' '}
-                      {row.metrics.total_candidates > 0
-                        ? `${((row.metrics.completed / row.metrics.total_candidates) * 100).toFixed(1)}%`
-                        : '0.0%'}
-                    </span>
-                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">
-                      Approval:{' '}
-                      {row.metrics.total_candidates > 0
-                        ? `${((row.metrics.approved / row.metrics.total_candidates) * 100).toFixed(1)}%`
-                        : '0.0%'}
-                    </span>
-                  </div>
-
-                  <div className="mt-3 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/campaigns/${row.campaign.id}`)}
-                      className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
-                    >
-                      Open Workspace
-                    </button>
-                  </div>
-                </article>
-              ))}
+            <div className="space-y-2">
+              <h2 className="text-lg font-semibold">Campaign Pulse</h2>
+              <p className="text-sm text-slate-700">
+                {hasActiveOrganization
+                  ? 'Campaign pulse is hidden because your role does not include campaign analytics access in this organization.'
+                  : 'Campaign pulse is hidden until an active organization is selected.'}
+              </p>
             </div>
           )}
         </div>
@@ -1384,68 +1582,35 @@ const OperationsDashboardPage: React.FC = () => {
               Quick Actions
             </h2>
             <div className="mt-4 space-y-3">
-              <button
-                type="button"
-                onClick={() => navigate('/campaigns')}
-                className="w-full rounded-lg border border-slate-700 px-4 py-3 text-left hover:bg-slate-100"
-              >
-                <p className="font-medium text-slate-900">Create / Edit Campaign</p>
-                <p className="text-xs text-slate-700">Configure campaign window and rules.</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate('/campaigns')}
-                className="w-full rounded-lg border border-slate-700 px-4 py-3 text-left hover:bg-slate-100"
-              >
-                <p className="font-medium text-slate-900">Import Candidate Batch</p>
-                <p className="text-xs text-slate-700">Upload candidate list and trigger invitations.</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate('/notifications')}
-                className="w-full rounded-lg border border-slate-700 px-4 py-3 text-left hover:bg-slate-100"
-              >
-                <p className="font-medium text-slate-900">Review Alerts</p>
-                <p className="text-xs text-slate-700">Monitor delivery and vetting notifications.</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate('/video-calls')}
-                className="w-full rounded-lg border border-slate-700 px-4 py-3 text-left hover:bg-slate-100"
-              >
-                <p className="font-medium text-slate-900">Schedule Video Meeting</p>
-                <p className="text-xs text-slate-700">Create 1v1 or 1vMany live interview sessions.</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate('/government/appointments')}
-                className="w-full rounded-lg border border-slate-700 px-4 py-3 text-left hover:bg-slate-100"
-              >
-                <p className="font-medium text-slate-900">Government Appointments</p>
-                <p className="text-xs text-slate-700">Track nomination, vetting stage, and final decisions.</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate('/government/positions')}
-                className="w-full rounded-lg border border-slate-700 px-4 py-3 text-left hover:bg-slate-100"
-              >
-                <p className="font-medium text-slate-900">Government Position Registry</p>
-                <p className="text-xs text-slate-700">Manage public offices, vacancies, and appointment authority.</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate('/government/personnel')}
-                className="w-full rounded-lg border border-slate-700 px-4 py-3 text-left hover:bg-slate-100"
-              >
-                <p className="font-medium text-slate-900">Government Personnel Registry</p>
-                <p className="text-xs text-slate-700">Maintain nominee and officeholder profiles.</p>
-              </button>
+              {quickActionItems.length === 0 ? (
+                <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
+                  No quick actions are available for your role in the current organization context.
+                </p>
+              ) : (
+                quickActionItems.map((action) => (
+                  <button
+                    key={action.key}
+                    type="button"
+                    onClick={() => {
+                      if (action.enabled) {
+                        navigate(action.path);
+                      }
+                    }}
+                    disabled={!action.enabled}
+                    className={`w-full rounded-lg border px-4 py-3 text-left transition-colors ${
+                      action.enabled
+                        ? 'border-slate-700 hover:bg-slate-100'
+                        : 'border-slate-200 bg-slate-50 text-slate-700 cursor-not-allowed'
+                    }`}
+                  >
+                    <p className="font-medium text-slate-900">{action.title}</p>
+                    <p className="text-xs text-slate-700">{action.description}</p>
+                    {!action.enabled && action.disabledReason ? (
+                      <p className="mt-1 text-[11px] text-amber-700">{action.disabledReason}</p>
+                    ) : null}
+                  </button>
+                ))
+              )}
             </div>
           </div>
         </div>

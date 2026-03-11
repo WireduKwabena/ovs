@@ -539,6 +539,15 @@ class GovernanceApiTests(APITestCase):
         )
         self.assertEqual(committee_create_response.status_code, 403)
 
+    def test_plain_hr_manager_without_governance_role_cannot_access_governance_management_endpoints(self):
+        self.client.force_authenticate(self.candidate_user)
+
+        summary_response = self.client.get("/api/governance/organization/summary/")
+        self.assertEqual(summary_response.status_code, 403)
+
+        member_list_response = self.client.get("/api/governance/organization/members/")
+        self.assertEqual(member_list_response.status_code, 403)
+
     def test_vetting_officer_cannot_access_governance_management_endpoints(self):
         vetting_officer = User.objects.create_user(
             email="gov.api.vetting.officer@example.com",
@@ -602,6 +611,145 @@ class GovernanceApiTests(APITestCase):
             format="json",
         )
         self.assertEqual(unsafe_role.status_code, 400)
+
+    @override_settings(
+        BILLING_ORG_MEMBER_QUOTA_ENFORCEMENT_ENABLED=True,
+        BILLING_PLAN_STARTER_ORG_SEATS=3,
+    )
+    def test_member_reactivation_allowed_within_org_seat_limit(self):
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            organization=self.org_a,
+            status="complete",
+            payment_status="paid",
+            plan_id="starter",
+            plan_name="Starter",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference="GOV-API-REACTIVATE-ALLOW",
+        )
+        inactive_user = User.objects.create_user(
+            email="gov.api.inactive.allow@example.com",
+            password="TestPass123!",
+            first_name="Gov",
+            last_name="InactiveAllow",
+            user_type="hr_manager",
+        )
+        inactive_membership = OrganizationMembership.objects.create(
+            user=inactive_user,
+            organization=self.org_a,
+            membership_role="member",
+            is_active=False,
+            is_default=False,
+        )
+
+        self.client.force_authenticate(self.org_admin)
+        response = self.client.patch(
+            f"/api/governance/organization/members/{inactive_membership.id}/",
+            {"is_active": True},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        inactive_membership.refresh_from_db()
+        self.assertTrue(inactive_membership.is_active)
+
+    @override_settings(
+        BILLING_ORG_MEMBER_QUOTA_ENFORCEMENT_ENABLED=True,
+        BILLING_PLAN_STARTER_ORG_SEATS=2,
+    )
+    def test_member_reactivation_blocked_when_org_seat_limit_exceeded(self):
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            organization=self.org_a,
+            status="complete",
+            payment_status="paid",
+            plan_id="starter",
+            plan_name="Starter",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference="GOV-API-REACTIVATE-DENY",
+        )
+        inactive_user = User.objects.create_user(
+            email="gov.api.inactive.deny@example.com",
+            password="TestPass123!",
+            first_name="Gov",
+            last_name="InactiveDeny",
+            user_type="hr_manager",
+        )
+        inactive_membership = OrganizationMembership.objects.create(
+            user=inactive_user,
+            organization=self.org_a,
+            membership_role="member",
+            is_active=False,
+            is_default=False,
+        )
+
+        self.client.force_authenticate(self.org_admin)
+        response = self.client.patch(
+            f"/api/governance/organization/members/{inactive_membership.id}/",
+            {"is_active": True},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json().get("code"), "ORG_SEAT_QUOTA_EXCEEDED")
+        inactive_membership.refresh_from_db()
+        self.assertFalse(inactive_membership.is_active)
+
+    @override_settings(
+        BILLING_ORG_MEMBER_QUOTA_ENFORCEMENT_ENABLED=True,
+        BILLING_PLAN_STARTER_ORG_SEATS=2,
+    )
+    def test_member_reactivation_is_idempotent_for_already_active_membership(self):
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            organization=self.org_a,
+            status="complete",
+            payment_status="paid",
+            plan_id="starter",
+            plan_name="Starter",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference="GOV-API-REACTIVATE-IDEMPOTENT",
+        )
+
+        self.client.force_authenticate(self.org_admin)
+        response = self.client.patch(
+            f"/api/governance/organization/members/{self.membership_a_candidate.id}/",
+            {"is_active": True},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.membership_a_candidate.refresh_from_db()
+        self.assertTrue(self.membership_a_candidate.is_active)
+
+    def test_member_reactivation_patch_is_denied_across_organizations(self):
+        inactive_user = User.objects.create_user(
+            email="gov.api.inactive.cross@example.com",
+            password="TestPass123!",
+            first_name="Gov",
+            last_name="InactiveCross",
+            user_type="hr_manager",
+        )
+        cross_org_inactive_membership = OrganizationMembership.objects.create(
+            user=inactive_user,
+            organization=self.org_b,
+            membership_role="member",
+            is_active=False,
+            is_default=False,
+        )
+
+        self.client.force_authenticate(self.org_admin)
+        response = self.client.patch(
+            f"/api/governance/organization/members/{cross_org_inactive_membership.id}/",
+            {"is_active": True},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 404)
+        cross_org_inactive_membership.refresh_from_db()
+        self.assertFalse(cross_org_inactive_membership.is_active)
 
     def test_committee_crud_scope_and_soft_delete(self):
         self.client.force_authenticate(self.org_admin)

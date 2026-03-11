@@ -4,6 +4,7 @@ from django.contrib.auth.models import Group
 from django.test import TestCase
 
 from apps.authentication.models import User
+from apps.core.authz import get_user_capabilities, get_user_roles
 from apps.core.policies.appointment_policy import (
     actor_matches_stage_role,
     can_appoint,
@@ -36,6 +37,11 @@ class PolicyEngineTests(TestCase):
         )
         self.hr = User.objects.create_user(
             email="policy.hr@example.com",
+            password="Pass1234!",
+            user_type="hr_manager",
+        )
+        self.registry_admin = User.objects.create_user(
+            email="policy.registry.admin@example.com",
             password="Pass1234!",
             user_type="hr_manager",
         )
@@ -74,12 +80,14 @@ class PolicyEngineTests(TestCase):
         publication_group, _ = Group.objects.get_or_create(name="publication_officer")
         auditor_group, _ = Group.objects.get_or_create(name="auditor")
         committee_group, _ = Group.objects.get_or_create(name="committee_member")
+        registry_group, _ = Group.objects.get_or_create(name="registry_admin")
 
         self.authority.groups.add(appointing_group)
         self.publisher.groups.add(publication_group)
         self.auditor.groups.add(auditor_group)
         self.committee_member.groups.add(committee_group)
         self.group_only_committee_user.groups.add(committee_group)
+        self.registry_admin.groups.add(registry_group)
 
         self.hr_membership = OrganizationMembership.objects.create(
             user=self.hr,
@@ -89,6 +97,12 @@ class PolicyEngineTests(TestCase):
         )
         self.authority_membership = OrganizationMembership.objects.create(
             user=self.authority,
+            organization=self.org_a,
+            is_active=True,
+            is_default=True,
+        )
+        self.registry_admin_membership = OrganizationMembership.objects.create(
+            user=self.registry_admin,
             organization=self.org_a,
             is_active=True,
             is_default=True,
@@ -116,15 +130,22 @@ class PolicyEngineTests(TestCase):
     def test_registry_policy_enforces_org_scope(self):
         self.assertTrue(
             can_manage_registry(
-                self.hr,
+                self.registry_admin,
                 organization_id=self.org_a.id,
                 allow_membershipless_fallback=False,
             )
         )
         self.assertFalse(
             can_manage_registry(
-                self.hr,
+                self.registry_admin,
                 organization_id=self.org_b.id,
+                allow_membershipless_fallback=False,
+            )
+        )
+        self.assertFalse(
+            can_manage_registry(
+                self.hr,
+                organization_id=self.org_a.id,
                 allow_membershipless_fallback=False,
             )
         )
@@ -163,14 +184,20 @@ class PolicyEngineTests(TestCase):
     def test_view_internal_record_policy_supports_org_enforcement_modes(self):
         self.assertTrue(
             can_view_internal_record(
-                self.hr,
+                self.registry_admin,
                 organization_id=self.org_a.id,
             )
         )
         self.assertFalse(
             can_view_internal_record(
-                self.hr,
+                self.registry_admin,
                 organization_id=self.org_b.id,
+            )
+        )
+        self.assertFalse(
+            can_view_internal_record(
+                self.hr,
+                organization_id=self.org_a.id,
             )
         )
         self.assertFalse(
@@ -191,3 +218,32 @@ class PolicyEngineTests(TestCase):
         self.assertTrue(actor_matches_stage_role(self.authority, "appointing_authority"))
         self.assertFalse(actor_matches_stage_role(self.hr, "appointing_authority"))
 
+    def test_org_membership_roles_resolve_governance_capabilities(self):
+        membership_role_user = User.objects.create_user(
+            email="policy.membership.role@example.com",
+            password="Pass1234!",
+            user_type="hr_manager",
+        )
+        OrganizationMembership.objects.create(
+            user=membership_role_user,
+            organization=self.org_a,
+            membership_role="vetting_officer",
+            is_active=True,
+            is_default=True,
+        )
+
+        plain_hr_user = User.objects.create_user(
+            email="policy.plain.hr@example.com",
+            password="Pass1234!",
+            user_type="hr_manager",
+        )
+
+        derived_roles = get_user_roles(membership_role_user)
+        self.assertIn("vetting_officer", derived_roles)
+        self.assertIn("gams.appointment.stage", get_user_capabilities(membership_role_user))
+        self.assertIn("gams.appointment.view_internal", get_user_capabilities(membership_role_user))
+
+        plain_roles = get_user_roles(plain_hr_user)
+        self.assertIn("hr_manager", plain_roles)
+        self.assertNotIn("vetting_officer", plain_roles)
+        self.assertNotIn("gams.appointment.stage", get_user_capabilities(plain_hr_user))

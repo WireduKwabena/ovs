@@ -756,6 +756,48 @@ def enforce_organization_seat_quota(
     )
 
 
+def enforce_membership_activation_seat_quota(
+    *,
+    organization_id: str,
+    additional: int = 1,
+) -> OrganizationSeatQuotaSnapshot | None:
+    """
+    Enforce organization seat quota for membership activation/reactivation.
+
+    Caller is expected to run inside ``transaction.atomic`` so row locks remain
+    held until the membership state change is committed.
+    """
+    normalized_org_id = str(organization_id or "").strip()
+    if not normalized_org_id:
+        return None
+
+    locked_org_exists = Organization.objects.select_for_update().filter(
+        id=normalized_org_id,
+        is_active=True,
+    ).exists()
+    if not locked_org_exists:
+        return None
+
+    from .services import get_active_subscription_for_organization
+
+    active_subscription = get_active_subscription_for_organization(
+        organization_id=normalized_org_id
+    )
+    has_billing_history = BillingSubscription.objects.filter(
+        organization_id=normalized_org_id
+    ).exists()
+
+    # Backward-safe: do not block legacy organizations with no billing history.
+    if active_subscription is None and not has_billing_history:
+        return None
+
+    return enforce_organization_seat_quota(
+        organization_id=normalized_org_id,
+        subscription=active_subscription,
+        additional=additional,
+    )
+
+
 def _vetting_operation_multiplier(operation: str) -> int:
     normalized_operation = str(operation or "").strip().lower()
     default_multipliers = {

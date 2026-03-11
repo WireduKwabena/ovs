@@ -32,7 +32,6 @@ import {
   STAGE_HISTORY_ROLES,
   hasAnyCapability as hasAnyCapabilityValue,
   hasAnyRole as hasAnyRoleValue,
-  shouldUseLegacyCapabilityFallback,
 } from '@/utils/frontendAuthz';
 
 export const useAuth = () => {
@@ -52,8 +51,19 @@ export const useAuth = () => {
     loading,
     error,
   } = useSelector((state: RootState) => state.auth);
-  const resolvedRoles = Array.isArray(roles) ? roles : [];
-  const resolvedCapabilities = Array.isArray(capabilities) ? capabilities : [];
+  const resolvedRoles = Array.from(
+    new Set([
+      ...(Array.isArray(roles) ? roles : []),
+      ...((user as { roles?: string[] } | null)?.roles ?? []),
+      ...((user as { group_roles?: string[] } | null)?.group_roles ?? []),
+    ]),
+  );
+  const resolvedCapabilities = Array.from(
+    new Set([
+      ...(Array.isArray(capabilities) ? capabilities : []),
+      ...((user as { capabilities?: string[] } | null)?.capabilities ?? []),
+    ]),
+  );
   const resolvedOrganizations = Array.isArray(organizations) ? organizations : [];
   const resolvedOrganizationMemberships = Array.isArray(organizationMemberships)
     ? organizationMemberships
@@ -99,19 +109,14 @@ export const useAuth = () => {
     resolvedCapabilities,
     GOVERNMENT_WORKFLOW_CAPABILITIES,
   );
-  const legacyCapabilityFallbackEnabled = shouldUseLegacyCapabilityFallback({
-    userType,
-    capabilities: resolvedCapabilities,
-  });
-  const isHrOrAdmin = userType === 'admin' || userType === 'hr_manager' || hasGovernmentCapability;
+  const isHrOrAdmin = isAdmin || hasGovernmentCapability;
   const isApplicant = userType === 'applicant';
   const canViewAuditLogs = isAdmin || hasCapability("gams.audit.view");
   const canManageRegistry = isAdmin || hasCapability("gams.registry.manage");
   const canAccessAppointments =
     isAdmin ||
     hasAnyCapabilityValue(resolvedCapabilities, APPOINTMENT_ROUTE_CAPABILITIES) ||
-    hasAnyRoleValue(resolvedRoles, APPOINTMENT_WORKFLOW_ROLES) ||
-    legacyCapabilityFallbackEnabled;
+    hasAnyRoleValue(resolvedRoles, APPOINTMENT_WORKFLOW_ROLES);
   const canAdvanceAppointmentStage =
     isAdmin ||
     hasAnyRoleValue(resolvedRoles, STAGE_ACTOR_ROLES) ||
@@ -128,23 +133,21 @@ export const useAuth = () => {
   const canAccessInternalWorkflow =
     isAdmin ||
     hasGovernmentCapability ||
-    hasAnyRoleValue(resolvedRoles, APPOINTMENT_WORKFLOW_ROLES) ||
-    legacyCapabilityFallbackEnabled;
+    hasAnyRoleValue(resolvedRoles, APPOINTMENT_WORKFLOW_ROLES);
   const canAccessApplications = canAccessInternalWorkflow || canViewAuditLogs;
   const canAccessCampaigns = canAccessInternalWorkflow;
   const canAccessVideoCalls = canAccessInternalWorkflow;
   const canManageRubrics =
     isAdmin ||
     hasAnyCapabilityValue(resolvedCapabilities, RUBRIC_MANAGE_CAPABILITIES) ||
-    hasAnyRoleValue(resolvedRoles, STAGE_ACTOR_ROLES) ||
-    legacyCapabilityFallbackEnabled;
+    hasAnyRoleValue(resolvedRoles, STAGE_ACTOR_ROLES);
   const canManageRegistryInActiveOrganization =
     canManageRegistry && (isAdmin || Boolean(activeOrganizationId));
   const canSwitchOrganization = isAuthenticated && userType !== "applicant" && hasMultipleOrganizations;
   const canManageActiveOrganizationGovernance =
     canManageOrganizationGovernance({
       isAdmin,
-      capabilities: resolvedCapabilities,
+      roles: resolvedRoles,
       memberships: resolvedOrganizationMemberships as OrganizationMembershipContext[],
       activeOrganizationId,
     });

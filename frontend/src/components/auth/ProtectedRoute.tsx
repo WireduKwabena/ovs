@@ -84,16 +84,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/dashboard" replace />;
   }
 
-  if (requireActiveOrganization) {
-    const activeOrganizationId = String(activeOrganization?.id || "").trim();
-    if (!activeOrganizationId) {
-      const currentPath = `${location.pathname}${location.search || ""}`;
-      const separator = activeOrganizationRedirectPath.includes("?") ? "&" : "?";
-      const redirectTo = `${activeOrganizationRedirectPath}${separator}next=${encodeURIComponent(currentPath)}`;
-      return <Navigate to={redirectTo} replace />;
-    }
-  }
-
   const resolvedCapabilities = Array.from(
     new Set([
       ...(Array.isArray(capabilities) ? capabilities : []),
@@ -106,22 +96,29 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     requireOrganizationGovernance &&
     !canManageOrganizationGovernance({
       isAdmin: hasAdminAccess,
-      capabilities: resolvedCapabilities,
+      roles: resolvedRoles,
       memberships: resolvedMemberships,
       activeOrganizationId: String(activeOrganization?.id || "").trim() || null,
     })
   ) {
     return <Navigate to="/dashboard" replace />;
   }
+
+  if (requireActiveOrganization) {
+    const activeOrganizationId = String(activeOrganization?.id || "").trim();
+    if (!activeOrganizationId) {
+      const currentPath = `${location.pathname}${location.search || ""}`;
+      const separator = activeOrganizationRedirectPath.includes("?") ? "&" : "?";
+      const redirectTo = `${activeOrganizationRedirectPath}${separator}next=${encodeURIComponent(currentPath)}`;
+      return <Navigate to={redirectTo} replace />;
+    }
+  }
   if (
     requiredCapabilities.length > 0 &&
     !requiredCapabilities.some((capability) => resolvedCapabilities.includes(capability))
   ) {
     const fallbackSet = new Set(legacyUserTypeFallback);
-    const hasCapabilityPayload = resolvedCapabilities.length > 0;
-    const canUseLegacyFallback =
-      (hasAdminAccess && fallbackSet.has("admin")) ||
-      (!hasCapabilityPayload && userType === "hr_manager" && fallbackSet.has("hr_manager"));
+    const canUseLegacyFallback = hasAdminAccess && fallbackSet.has("admin");
     if (canUseLegacyFallback) {
       return <>{children}</>;
     }

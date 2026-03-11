@@ -14,7 +14,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { Loader } from "@/components/common/Loader";
 
 import { toast } from "react-toastify";
-import type { ApplicationWithDocuments } from "@/types";
+import type { ApplicationStatus, ApplicationWithDocuments, VerificationStatusType } from "@/types";
 import { formatDate, formatFileSize } from "@/utils/helper";
 import { Button } from "../ui/button";
 
@@ -29,7 +29,11 @@ export const CaseReview: React.FC = () => {
   const [decision, setDecision] = useState<"approve" | "reject" | null>(null);
 
   const loadApplication = useCallback(async () => {
-    if (!caseId) return;
+    if (!caseId) {
+      setLoading(false);
+      setApplication(null);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -161,18 +165,75 @@ export const CaseReview: React.FC = () => {
     if (score >= 70) return "bg-amber-600";
     return "bg-red-500";
   };
+  const allowedBadgeStatuses = new Set<ApplicationStatus | VerificationStatusType>([
+    "pending",
+    "document_upload",
+    "document_analysis",
+    "interview_scheduled",
+    "interview_in_progress",
+    "under_review",
+    "approved",
+    "rejected",
+    "on_hold",
+    "uploaded",
+    "queued",
+    "processing",
+    "verified",
+    "failed",
+    "flagged",
+  ]);
+  const normalizeBadgeStatus = (value: unknown): ApplicationStatus | VerificationStatusType => {
+    const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
+    if (allowedBadgeStatuses.has(normalized as ApplicationStatus | VerificationStatusType)) {
+      return normalized as ApplicationStatus | VerificationStatusType;
+    }
+    return "pending";
+  };
+  const safeFormatDate = (value: unknown): string => {
+    if (!value) {
+      return "N/A";
+    }
+    try {
+      return formatDate(String(value));
+    } catch {
+      return "N/A";
+    }
+  };
+  const asSafeString = (value: unknown, fallback = "N/A"): string => {
+    if (typeof value === "string") {
+      const normalized = value.trim();
+      return normalized || fallback;
+    }
+    return fallback;
+  };
+  const safePercent = (value: number): number => Math.max(0, Math.min(100, value));
   const applicantProfile =
     application.applicant && typeof application.applicant === "object"
       ? application.applicant
       : null;
+  const applicationTypeLabel =
+    typeof application.application_type === "string"
+      ? application.application_type.replace("_", " ")
+      : "";
   const applicationLabel =
-    application.position_applied ||
-    application.application_type?.replace("_", " ") ||
+    asSafeString(application.position_applied, "") ||
+    asSafeString(applicationTypeLabel, "") ||
     "Vetting Case";
   const resolveDocumentName = (doc: (typeof application.documents)[number]) =>
-    doc.original_filename || doc.file_name || doc.document_type_display || "Document";
+    asSafeString(doc.original_filename, "") ||
+    asSafeString(doc.file_name, "") ||
+    asSafeString(doc.document_type_display, "") ||
+    "Document";
+  const resolveDocumentTypeLabel = (doc: (typeof application.documents)[number]) => {
+    const display = asSafeString(doc.document_type_display, "");
+    if (display) {
+      return display;
+    }
+    const fallbackType = asSafeString(doc.document_type, "Document");
+    return fallbackType === "Document" ? fallbackType : fallbackType.replace(/_/g, " ");
+  };
   const resolveDocumentStatus = (doc: (typeof application.documents)[number]) =>
-    doc.status || doc.verification_status;
+    normalizeBadgeStatus(doc.status ?? doc.verification_status);
   const resolveDocumentConfidence = (doc: (typeof application.documents)[number]) =>
     doc.ai_confidence_score ?? doc.verification_result?.authenticity_confidence ?? doc.verification_result?.ocr_confidence;
   const resolveDocumentUploadedAt = (doc: (typeof application.documents)[number]) =>
@@ -188,6 +249,16 @@ export const CaseReview: React.FC = () => {
     application.rubric_evaluation?.decision_recommendation?.recommendation_status ||
     application.rubric_evaluation?.final_decision ||
     "NO_RECOMMENDATION";
+  const consistencyScore =
+    typeof application.consistency_score === "number"
+      ? application.consistency_score
+      : null;
+  const fraudRiskScore =
+    typeof application.fraud_risk_score === "number"
+      ? application.fraud_risk_score
+      : null;
+  const hasConsistencyScore = consistencyScore !== null;
+  const hasFraudRiskScore = fraudRiskScore !== null;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -206,7 +277,7 @@ export const CaseReview: React.FC = () => {
               Case Review: {application.case_id}
             </h1>
             <p className="mt-1 text-slate-800">
-              Submitted: {formatDate(application.created_at)}
+              Submitted: {safeFormatDate(application.created_at)}
             </p>
           </div>
           <StatusBadge status={application.status} />
@@ -225,26 +296,28 @@ export const CaseReview: React.FC = () => {
                 <div>
                   <p className="text-sm text-slate-800">Full Name</p>
                   <p className="font-semibold text-gray-900">
-                    {applicantProfile?.full_name || application.applicant_email || "N/A"}
+                    {asSafeString(applicantProfile?.full_name, "") ||
+                      asSafeString(application.applicant_email)}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-slate-800">Email</p>
                   <p className="font-semibold text-gray-900">
-                    {applicantProfile?.email || application.applicant_email || "N/A"}
+                    {asSafeString(applicantProfile?.email, "") ||
+                      asSafeString(application.applicant_email)}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-slate-800">Phone</p>
                   <p className="font-semibold text-gray-900">
-                    {applicantProfile?.phone_number || "N/A"}
+                    {asSafeString(applicantProfile?.phone_number)}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-slate-800">Date of Birth</p>
                   <p className="font-semibold text-gray-900">
                     {applicantProfile?.date_of_birth
-                      ? formatDate(applicantProfile.date_of_birth)
+                      ? safeFormatDate(applicantProfile.date_of_birth)
                       : "N/A"}
                   </p>
                 </div>
@@ -289,13 +362,18 @@ export const CaseReview: React.FC = () => {
                         <FileText className="w-8 h-8 text-slate-800" />
                         <div>
                           <p className="font-semibold text-gray-900 capitalize">
-                            {(doc.document_type_display || doc.document_type).replace("_", " ")}
+                            {resolveDocumentTypeLabel(doc)}
                           </p>
                           <p className="text-sm text-slate-800">
-                            {resolveDocumentName(doc)} • {formatFileSize(doc.file_size)}
+                            {resolveDocumentName(doc)} •{" "}
+                            {formatFileSize(
+                              typeof doc.file_size === "number" && Number.isFinite(doc.file_size)
+                                ? doc.file_size
+                                : 0,
+                            )}
                           </p>
                           <p className="mt-1 text-xs text-slate-800">
-                            Uploaded: {resolveDocumentUploadedAt(doc) ? formatDate(resolveDocumentUploadedAt(doc) || "") : "N/A"}
+                            Uploaded: {safeFormatDate(resolveDocumentUploadedAt(doc))}
                           </p>
                         </div>
                       </div>
@@ -305,7 +383,7 @@ export const CaseReview: React.FC = () => {
                           <p className="mt-2 text-sm text-slate-800">
                             Confidence:{" "}
                             <span className="font-semibold">
-                              {resolveDocumentConfidence(doc)?.toFixed(1)}%
+                              {safePercent(resolveDocumentConfidence(doc) as number).toFixed(1)}%
                             </span>
                           </p>
                         )}
@@ -325,8 +403,8 @@ export const CaseReview: React.FC = () => {
             </div>
 
             {/* AI Analysis */}
-            {(application.consistency_score !== undefined ||
-              application.fraud_risk_score !== undefined ||
+            {(hasConsistencyScore ||
+              hasFraudRiskScore ||
               application.rubric_evaluation) && (
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
@@ -335,7 +413,7 @@ export const CaseReview: React.FC = () => {
                 </h2>
 
                 <div className="space-y-6">
-                  {application.consistency_score !== undefined && (
+                  {hasConsistencyScore && (
                     <div>
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-sm font-medium text-slate-800">
@@ -343,18 +421,18 @@ export const CaseReview: React.FC = () => {
                         </span>
                         <span
                           className={`text-lg font-bold ${getScoreColor(
-                            application.consistency_score
+                            consistencyScore
                           )}`}
                         >
-                          {application.consistency_score.toFixed(1)}%
+                          {consistencyScore.toFixed(1)}%
                         </span>
                       </div>
                       <div className="h-3 w-full rounded-full bg-slate-200">
                         <div
                           className={`h-3 rounded-full transition-all ${getScoreBg(
-                            application.consistency_score
+                            consistencyScore
                           )}`}
-                          style={{ width: `${application.consistency_score}%` }}
+                          style={{ width: `${safePercent(consistencyScore)}%` }}
                         />
                       </div>
                       <p className="mt-1 text-xs text-slate-800">
@@ -363,7 +441,7 @@ export const CaseReview: React.FC = () => {
                     </div>
                   )}
 
-                  {application.fraud_risk_score !== undefined && (
+                  {hasFraudRiskScore && (
                     <div>
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-sm font-medium text-slate-800">
@@ -371,16 +449,16 @@ export const CaseReview: React.FC = () => {
                         </span>
                         <span
                           className={`text-lg font-bold ${getScoreColor(
-                            100 - application.fraud_risk_score
+                            100 - fraudRiskScore
                           )}`}
                         >
-                          {application.fraud_risk_score.toFixed(1)}%
+                          {fraudRiskScore.toFixed(1)}%
                         </span>
                       </div>
                       <div className="h-3 w-full rounded-full bg-slate-200">
                         <div
                           className="bg-red-500 h-3 rounded-full transition-all"
-                          style={{ width: `${application.fraud_risk_score}%` }}
+                          style={{ width: `${safePercent(fraudRiskScore)}%` }}
                         />
                       </div>
                       <p className="mt-1 text-xs text-slate-800">
@@ -523,13 +601,13 @@ export const CaseReview: React.FC = () => {
                 <div className="flex items-start justify-between gap-3">
                   <span className="text-slate-800">Created:</span>
                   <span className="font-medium text-gray-900 text-right">
-                    {formatDate(application.created_at)}
+                    {safeFormatDate(application.created_at)}
                   </span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
                   <span className="text-slate-800">Updated:</span>
                   <span className="font-medium text-gray-900 text-right">
-                    {formatDate(application.updated_at)}
+                    {safeFormatDate(application.updated_at)}
                   </span>
                 </div>
               </div>

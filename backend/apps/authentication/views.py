@@ -464,11 +464,7 @@ def two_factor_verification_view(request):
     refresh = RefreshToken.for_user(user)
     _mark_recent_auth(request=request, refresh_token=refresh)
 
-    user_serializer = (
-        AdminUserSerializer(user)
-        if (has_role(user, ROLE_ADMIN) or user.user_type == "hr_manager")
-        else UserSerializer(user)
-    )
+    user_serializer = AdminUserSerializer(user) if has_role(user, ROLE_ADMIN) else UserSerializer(user)
     payload = {
         "user": user_serializer.data,
         "tokens": {
@@ -658,7 +654,7 @@ def profile_view(request):
     """
     UserProfile.objects.get_or_create(user=request.user)
 
-    if has_role(request.user, ROLE_ADMIN) or request.user.user_type == "hr_manager":
+    if has_role(request.user, ROLE_ADMIN):
         serializer = AdminUserSerializer(request.user, context={"request": request})
         user_type = request.user.user_type
     else:
@@ -812,7 +808,7 @@ def update_profile_view(request):
 
     user.refresh_from_db()
 
-    if has_role(request.user, ROLE_ADMIN) or request.user.user_type == "hr_manager":
+    if has_role(request.user, ROLE_ADMIN):
         response_serializer = AdminUserSerializer(user, context={"request": request})
     else:
         response_serializer = UserSerializer(user, context={"request": request})

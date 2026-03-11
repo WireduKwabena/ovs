@@ -150,7 +150,7 @@ const AppShell: React.FC = () => {
       <Suspense
         fallback={
           <div className="flex min-h-[40vh] items-center justify-center">
-            <Loader size="lg" className="animate-spin" />
+            <Loader className="h-8 w-8 animate-spin" />
           </div>
         }
       >
@@ -623,7 +623,7 @@ const App: React.FC = () => {
   if (!isRehydrated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Loader size="lg" className="animate-spin" />
+        <Loader className="h-8 w-8 animate-spin" />
       </div>
     );
   }

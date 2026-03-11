@@ -48,7 +48,10 @@ export const PUBLICATION_ROLES = ["publication_officer", "appointing_authority"]
 
 export const STAGE_HISTORY_ROLES = ["committee_member", "committee_chair"] as const;
 
-export const LEGACY_CAPABILITY_STALE_FALLBACK_USER_TYPES = ["hr_manager", "admin"] as const;
+// Legacy fallback is restricted to true platform admins only.
+// ``hr_manager`` remains a legacy identity marker but no longer grants
+// capability fallback for governance-sensitive UI access.
+export const LEGACY_CAPABILITY_STALE_FALLBACK_USER_TYPES = ["admin"] as const;
 
 type UserType = "applicant" | "hr_manager" | "admin" | null | undefined;
 
@@ -70,7 +73,7 @@ export const shouldUseLegacyCapabilityFallback = (params: {
   userType: UserType;
   capabilities: readonly string[];
 }): boolean => {
-  if (params.userType !== "hr_manager") {
+  if (params.userType !== "admin") {
     return false;
   }
   return !Array.isArray(params.capabilities) || params.capabilities.length === 0;

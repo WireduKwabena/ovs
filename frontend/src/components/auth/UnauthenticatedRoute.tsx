@@ -25,7 +25,7 @@ export const UnauthenticatedRoute: React.FC<UnauthenticatedRouteProps> = ({
   if (!isRehydrated) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center" data-testid="unauth-route-loader">
-        <Loader size="lg" className="animate-spin" />
+        <Loader className="h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -43,4 +43,3 @@ export const UnauthenticatedRoute: React.FC<UnauthenticatedRouteProps> = ({
 
   return children;
 };
-

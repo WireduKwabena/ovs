@@ -841,7 +841,7 @@ class AppointmentPublicApiTests(APITestCase):
         denied = self.client.get("/api/appointments/records/")
         self.assertEqual(denied.status_code, 403)
 
-        self.client.force_authenticate(self.ordinary_hr_user)
+        self.client.force_authenticate(self.vetting_user)
         hr_allowed = self.client.get("/api/appointments/records/")
         self.assertEqual(hr_allowed.status_code, 200)
         self.assertGreaterEqual(len(self._extract_results(hr_allowed)), 1)
@@ -859,7 +859,7 @@ class AppointmentPublicApiTests(APITestCase):
             name=f"Appointments Public Create Org {uuid4().hex[:6]}",
         )
         OrganizationMembership.objects.create(
-            user=self.ordinary_hr_user,
+            user=self.vetting_user,
             organization=hr_org,
             is_active=True,
             is_default=True,
@@ -877,7 +877,7 @@ class AppointmentPublicApiTests(APITestCase):
         denied = self.client.post("/api/appointments/records/", payload, format="json")
         self.assertEqual(denied.status_code, 403)
 
-        self.client.force_authenticate(self.ordinary_hr_user)
+        self.client.force_authenticate(self.vetting_user)
         hr_allowed = self.client.post("/api/appointments/records/", payload, format="json")
         self.assertEqual(hr_allowed.status_code, 201)
         self._assert_audit_row_exists(
@@ -909,7 +909,7 @@ class AppointmentPublicApiTests(APITestCase):
         denied = self.client.patch(detail_url, {"committee_recommendation": "Blocked update"}, format="json")
         self.assertEqual(denied.status_code, 403)
 
-        self.client.force_authenticate(self.ordinary_hr_user)
+        self.client.force_authenticate(self.vetting_user)
         hr_allowed = self.client.patch(
             detail_url,
             {"committee_recommendation": "Update by HR"},
@@ -970,7 +970,7 @@ class AppointmentPublicApiTests(APITestCase):
         self.assertEqual(denied.status_code, 403)
         self.assertTrue(AppointmentRecord.objects.filter(id=blocked_record.id).exists())
 
-        self.client.force_authenticate(self.ordinary_hr_user)
+        self.client.force_authenticate(self.vetting_user)
         hr_allowed = self.client.delete(f"/api/appointments/records/{hr_record.id}/")
         self.assertEqual(hr_allowed.status_code, 204)
         self.assertFalse(AppointmentRecord.objects.filter(id=hr_record.id).exists())
@@ -1070,6 +1070,33 @@ class AppointmentPublicApiTests(APITestCase):
             entity_id=str(self.record.id),
             expected_event=APPOINTMENT_STAGE_TRANSITION_EVENT,
         )
+
+    def test_committee_member_can_take_committee_stage_action_but_cannot_appoint_or_publish(self):
+        self.record.status = "under_vetting"
+        self.record.save(update_fields=["status", "updated_at"])
+
+        self.client.force_authenticate(self.committee_user)
+        stage_allowed = self.client.post(
+            f"/api/appointments/records/{self.record.id}/advance-stage/",
+            {"status": "committee_review"},
+            format="json",
+        )
+        self.assertEqual(stage_allowed.status_code, 200)
+
+        self._authenticate_with_recent_auth(self.committee_user)
+        appoint_denied = self.client.post(
+            f"/api/appointments/records/{self.record.id}/appoint/",
+            {},
+            format="json",
+        )
+        self.assertEqual(appoint_denied.status_code, 403)
+
+        publish_denied = self.client.post(
+            f"/api/appointments/records/{self.record.id}/publish/",
+            {"publication_notes": "Committee member should not publish."},
+            format="json",
+        )
+        self.assertEqual(publish_denied.status_code, 403)
 
     def test_advance_stage_emits_stage_action_audit_and_committee_notification(self):
         self.record.status = "under_vetting"
@@ -2074,6 +2101,8 @@ class AppointmentOrganizationScopeTests(APITestCase):
             is_staff=True,
             is_superuser=True,
         )
+        self.vetting_group, _ = Group.objects.get_or_create(name="vetting_officer")
+        self.hr_a.groups.add(self.vetting_group)
         OrganizationMembership.objects.create(
             user=self.hr_a,
             organization=self.org_a,

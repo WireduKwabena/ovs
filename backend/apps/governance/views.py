@@ -338,11 +338,36 @@ class OrganizationMembershipViewSet(
         scoped_org = self._resolve_non_admin_active_organization()
         return queryset.filter(organization_id=scoped_org.id).order_by("-is_default", "created_at")
 
+    def _enforce_reactivation_seat_quota(self, *, instance: OrganizationMembership, validated_data: dict) -> None:
+        requested_is_active = validated_data.get("is_active")
+        if requested_is_active is None:
+            return
+        if not bool(requested_is_active):
+            return
+        if bool(instance.is_active):
+            return
+
+        from apps.billing.quotas import enforce_membership_activation_seat_quota
+
+        enforce_membership_activation_seat_quota(
+            organization_id=str(instance.organization_id or ""),
+            additional=1,
+        )
+
     @transaction.atomic
     def partial_update(self, request, *args, **kwargs):
         instance = self.get_object()
+        instance = (
+            OrganizationMembership.objects.select_for_update()
+            .select_related("organization", "user")
+            .get(pk=instance.pk)
+        )
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
+        self._enforce_reactivation_seat_quota(
+            instance=instance,
+            validated_data=serializer.validated_data,
+        )
 
         if bool(serializer.validated_data.get("is_default")):
             OrganizationMembership.objects.select_for_update().filter(

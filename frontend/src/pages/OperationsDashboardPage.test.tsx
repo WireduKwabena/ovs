@@ -47,21 +47,39 @@ const renderOperationsDashboard = () =>
   );
 
 describe("OperationsDashboardPage government quick actions", () => {
-  const mockHrContext = () => {
+  const baseUser = {
+    id: "user-1",
+    email: "hr@example.com",
+    first_name: "HR",
+    last_name: "Manager",
+    full_name: "Operations User",
+    phone_number: "",
+    profile_picture_url: "",
+    avatar_url: "",
+    date_of_birth: "",
+    is_active: true,
+    created_at: "2026-01-01T00:00:00Z",
+  };
+
+  const mockHrContext = (overrides: Record<string, unknown> = {}) => {
     mocks.useAuth.mockReturnValue({
-      user: {
-        id: "user-1",
-        email: "hr@example.com",
-        first_name: "HR",
-        last_name: "Manager",
-        full_name: "Operations User",
-        phone_number: "",
-        profile_picture_url: "",
-        avatar_url: "",
-        date_of_birth: "",
-        is_active: true,
-        created_at: "2026-01-01T00:00:00Z",
+      user: baseUser,
+      activeOrganizationId: "org-1",
+      activeOrganization: {
+        id: "org-1",
+        code: "ORG1",
+        name: "Demo Organization",
+        organization_type: "agency",
       },
+      canAccessCampaigns: true,
+      canAccessVideoCalls: true,
+      canAccessAppointments: true,
+      canManageRegistry: true,
+      canAccessInternalWorkflow: true,
+      canManageActiveOrganizationGovernance: true,
+      canSwitchOrganization: true,
+      committees: [],
+      ...overrides,
     });
     mocks.list.mockResolvedValue([]);
     mocks.getDashboard.mockResolvedValue({
@@ -101,6 +119,32 @@ describe("OperationsDashboardPage government quick actions", () => {
     renderOperationsDashboard();
     fireEvent.click(await screen.findByRole("button", { name: /government personnel registry/i }));
     expect(await screen.findByText("Operations Personnel Route")).toBeTruthy();
+  });
+
+  it("hides registry actions when user lacks registry authority", async () => {
+    mockHrContext({
+      canManageRegistry: false,
+    });
+    renderOperationsDashboard();
+    await screen.findByText(/quick actions/i);
+    expect(screen.queryByRole("button", { name: /government position registry/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /government personnel registry/i })).toBeNull();
+  });
+
+  it("shows org-scoped actions disabled when active organization is missing", async () => {
+    mockHrContext({
+      activeOrganizationId: null,
+      activeOrganization: null,
+      canAccessCampaigns: true,
+      canAccessAppointments: true,
+    });
+    renderOperationsDashboard();
+    const appointmentsButton = await screen.findByRole("button", { name: /government appointments/i });
+    expect((appointmentsButton as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      screen.getAllByText(/select an active organization from the navbar to enable organization-scoped actions/i)
+        .length,
+    ).toBeGreaterThan(0);
   });
 });
 

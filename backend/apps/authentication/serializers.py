@@ -78,6 +78,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         validated_data.pop('subscription_reference', None)
         validated_data.pop('onboarding_token', None)
         validated_data.pop('organization', None)
+        # Keep legacy identity default for backward compatibility.
+        # Governance authority is resolved through roles/capabilities/memberships.
         validated_data.setdefault("user_type", "hr_manager")
         user = User.objects.create_user(**validated_data)
         return user

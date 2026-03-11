@@ -33,6 +33,11 @@ TENANT_CONTEXT_CACHE_ATTR = "_tenant_context"
 
 
 def is_hr_or_admin_user(user) -> bool:
+    """
+    Legacy compatibility helper.
+
+    Do not use this helper for governance-sensitive GAMS authorization.
+    """
     if not getattr(user, "is_authenticated", False):
         return False
     if has_role(user, ROLE_ADMIN):
@@ -62,13 +67,21 @@ class IsHRManagerOrAdmin(BasePermission):
         return is_hr_or_admin_user(getattr(request, "user", None))
 
 
-def is_government_workflow_operator(user) -> bool:
+def is_government_workflow_operator(user, *, organization_id=None) -> bool:
     if not getattr(user, "is_authenticated", False):
         return False
-    if is_hr_or_admin_user(user):
+    if is_platform_admin_user(user):
         return True
     if not is_internal_operator(user):
         return False
+    # Organization governance administrators remain valid operators even when
+    # role/capability payloads are stale, but no coarse user_type fallback.
+    if can_manage_registry_governance(
+        user,
+        organization_id=organization_id,
+        allow_membershipless_fallback=False,
+    ):
+        return True
     return any(
         has_capability(user, capability)
         for capability in (
@@ -85,7 +98,10 @@ class IsGovernmentWorkflowOperator(BasePermission):
     message = "Only internal government workflow actors can access this resource."
 
     def has_permission(self, request, view):
-        return is_government_workflow_operator(getattr(request, "user", None))
+        return is_government_workflow_operator(
+            getattr(request, "user", None),
+            organization_id=get_request_active_organization_id(request),
+        )
 
 
 class IsRegistryOperatorOrAdmin(BasePermission):
@@ -93,7 +109,15 @@ class IsRegistryOperatorOrAdmin(BasePermission):
 
     def has_permission(self, request, view):
         user = getattr(request, "user", None)
-        return bool(is_hr_or_admin_user(user) or has_capability(user, CAPABILITY_REGISTRY_MANAGE))
+        if is_platform_admin_user(user):
+            return True
+        if has_capability(user, CAPABILITY_REGISTRY_MANAGE):
+            return True
+        return can_manage_registry_governance(
+            user,
+            organization_id=get_request_active_organization_id(request),
+            allow_membershipless_fallback=False,
+        )
 
 
 def is_registry_governance_admin(user, *, organization_id=None) -> bool:

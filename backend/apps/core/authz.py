@@ -48,13 +48,10 @@ ROLE_CAPABILITIES: dict[str, set[str]] = {
         CAPABILITY_APPOINTMENT_VIEW_INTERNAL,
         CAPABILITY_AUDIT_VIEW,
     },
-    ROLE_HR_MANAGER: {
-        CAPABILITY_REGISTRY_MANAGE,
-        CAPABILITY_APPOINTMENT_STAGE,
-        CAPABILITY_APPOINTMENT_DECIDE,
-        CAPABILITY_APPOINTMENT_PUBLISH,
-        CAPABILITY_APPOINTMENT_VIEW_INTERNAL,
-    },
+    # Legacy ``user_type=hr_manager`` no longer implies governance authority.
+    # Sensitive GAMS actions must be granted through explicit group roles or
+    # organization membership policy checks.
+    ROLE_HR_MANAGER: set(),
     ROLE_REGISTRY_ADMIN: {
         CAPABILITY_REGISTRY_MANAGE,
         CAPABILITY_APPOINTMENT_STAGE,
@@ -112,6 +109,21 @@ DEFAULT_ORG_ADMIN_MEMBERSHIP_ROLES = frozenset(
         "system_admin",
     }
 )
+
+# Membership-role -> authz-role mapping.
+# This keeps ``user_type`` backward-compatible while deriving real operational
+# authority from organization context.
+ORGANIZATION_MEMBERSHIP_ROLE_TO_AUTHZ_ROLES: dict[str, set[str]] = {
+    "registry_admin": {ROLE_REGISTRY_ADMIN},
+    "org_admin": {ROLE_REGISTRY_ADMIN},
+    "organization_admin": {ROLE_REGISTRY_ADMIN},
+    "system_admin": {ROLE_REGISTRY_ADMIN},
+    "vetting_officer": {ROLE_VETTING_OFFICER},
+    "appointing_authority": {ROLE_APPOINTING_AUTHORITY},
+    "publication_officer": {ROLE_PUBLICATION_OFFICER},
+    "auditor": {ROLE_AUDITOR},
+    "nominee": {ROLE_NOMINEE},
+}
 
 
 def _is_authenticated(user) -> bool:
@@ -295,6 +307,19 @@ def has_organization_membership_role(
     return False
 
 
+def _organization_roles_from_memberships(user) -> set[str]:
+    if not _is_authenticated(user):
+        return set()
+
+    resolved_roles: set[str] = set()
+    for membership in get_user_organization_memberships(user):
+        role_key = normalize_membership_role_key(membership.get("membership_role"))
+        if not role_key:
+            continue
+        resolved_roles.update(ORGANIZATION_MEMBERSHIP_ROLE_TO_AUTHZ_ROLES.get(role_key, set()))
+    return resolved_roles
+
+
 def get_user_committees(user, *, organization_id: str | None = None) -> list[dict]:
     if not _is_authenticated(user):
         return []
@@ -366,6 +391,7 @@ def get_user_roles(user) -> set[str]:
 
     roles = get_group_roles(user)
     roles.update(_committee_roles_from_memberships(user))
+    roles.update(_organization_roles_from_memberships(user))
 
     user_type = str(getattr(user, "user_type", "") or "").strip().lower()
     staff_implies_admin = bool(getattr(settings, "AUTHZ_STAFF_IMPLIES_ADMIN", False))

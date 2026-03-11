@@ -1,6 +1,7 @@
 from datetime import date
 
 from django.conf import settings
+from django.contrib.auth.models import Group
 from rest_framework.test import APITestCase
 
 from apps.audit.contracts import (
@@ -31,6 +32,8 @@ class GovernmentPositionApiTests(APITestCase):
             last_name="HR",
             user_type="hr_manager",
         )
+        self.registry_group, _ = Group.objects.get_or_create(name="registry_admin")
+        self.hr_user.groups.add(self.registry_group)
         self.applicant_user = User.objects.create_user(
             email="positions_applicant@example.com",
             password="Pass1234!",
@@ -283,6 +286,31 @@ class GovernmentPositionApiTests(APITestCase):
         hr_rows = hr_response.json()
         self.assertEqual(len(hr_rows), 2)
 
+    def test_hr_manager_without_registry_role_is_denied_registry_endpoints(self):
+        plain_hr_user = User.objects.create_user(
+            email="positions_plain_hr@example.com",
+            password="Pass1234!",
+            first_name="Plain",
+            last_name="HR",
+            user_type="hr_manager",
+        )
+        self.client.force_authenticate(plain_hr_user)
+
+        list_response = self.client.get("/api/positions/")
+        create_response = self.client.post(
+            "/api/positions/",
+            {
+                "title": "Unauthorized Position",
+                "branch": "executive",
+                "institution": "Unauthorized Registry",
+                "appointment_authority": "President",
+            },
+            format="json",
+        )
+
+        self.assertEqual(list_response.status_code, 403)
+        self.assertEqual(create_response.status_code, 403)
+
 
 class GovernmentPositionOrganizationScopeTests(APITestCase):
     def setUp(self):
@@ -303,6 +331,9 @@ class GovernmentPositionOrganizationScopeTests(APITestCase):
             last_name="B",
             user_type="hr_manager",
         )
+        self.registry_group, _ = Group.objects.get_or_create(name="registry_admin")
+        self.hr_a.groups.add(self.registry_group)
+        self.hr_b.groups.add(self.registry_group)
         self.admin_user = User.objects.create_user(
             email="positions_scope_admin@example.com",
             password="Pass1234!",
@@ -378,7 +409,7 @@ class GovernmentPositionOrganizationScopeTests(APITestCase):
         )
         self.assertEqual(allowed.status_code, 200)
 
-    def test_membershipless_hr_list_is_limited_to_legacy_null_scope(self):
+    def test_membershipless_hr_without_registry_role_is_denied_registry_list(self):
         membershipless_hr = User.objects.create_user(
             email="positions_scope_legacy_only@example.com",
             password="Pass1234!",
@@ -388,11 +419,7 @@ class GovernmentPositionOrganizationScopeTests(APITestCase):
         )
         self.client.force_authenticate(membershipless_hr)
         response = self.client.get("/api/positions/")
-        self.assertEqual(response.status_code, 200)
-        ids = {item["id"] for item in self._extract_results(response)}
-        self.assertIn(str(self.position_legacy.id), ids)
-        self.assertNotIn(str(self.position_org_a.id), ids)
-        self.assertNotIn(str(self.position_org_b.id), ids)
+        self.assertEqual(response.status_code, 403)
 
     def test_membershipless_hr_cannot_create_position_without_org_context(self):
         membershipless_hr = User.objects.create_user(
