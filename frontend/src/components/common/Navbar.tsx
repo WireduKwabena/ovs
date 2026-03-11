@@ -36,6 +36,7 @@ const selectUnreadCount = createSelector(
 );
 
 type ReminderRuntimeStatus = 'unknown' | 'healthy' | 'attention' | 'unavailable';
+type NavItem = { to: string; label: string };
 
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
@@ -96,6 +97,7 @@ export const Navbar: React.FC = () => {
   const isApplicantUser = userType === "applicant";
   const canShowOrganizationContext = !isApplicantUser && resolvedOrganizations.length > 0;
   const activeOrganizationLabel = activeOrganization?.name || resolvedOrganizations[0]?.name || 'Default scope';
+  const canManageOrganizationBilling = hasAdminAccess || canManageActiveOrganizationGovernance;
 
   const handleOrganizationSelection = async (rawValue: string) => {
     const nextValue = rawValue === "__default__" ? null : rawValue;
@@ -448,15 +450,25 @@ export const Navbar: React.FC = () => {
     );
   };
 
-  const candidateLinks = [{ to: '/candidate/access', label: 'Candidate Access' }];
-  const internalPrimaryLinks = [
+  const dedupeNavItems = (items: NavItem[]): NavItem[] => {
+    const ordered = new Map<string, NavItem>();
+    items.forEach((item) => {
+      if (!ordered.has(item.to)) {
+        ordered.set(item.to, item);
+      }
+    });
+    return Array.from(ordered.values());
+  };
+
+  const candidateLinks: NavItem[] = [{ to: '/candidate/access', label: 'Candidate Access' }];
+  const internalPrimaryLinks: NavItem[] = [
     { to: '/dashboard', label: 'Dashboard' },
     ...(canAccessCampaigns ? [{ to: '/campaigns', label: 'Campaigns' }] : []),
     ...(canAccessApplications ? [{ to: '/applications', label: 'Cases' }] : []),
     ...(canAccessRubrics ? [{ to: '/rubrics', label: 'Rubrics' }] : []),
     ...(canAccessVideoCalls ? [{ to: '/video-calls', label: 'Video Calls' }] : []),
   ];
-  const internalOverflowLinks = [
+  const internalOverflowLinks: NavItem[] = [
     ...(canManageActiveOrganizationGovernance && !activeOrganizationId
       ? [{ to: '/organization/setup', label: 'Org Setup' }]
       : []),
@@ -466,6 +478,7 @@ export const Navbar: React.FC = () => {
           { to: '/organization/members', label: 'Org Members' },
           { to: '/organization/committees', label: 'Committees' },
           { to: '/organization/onboarding', label: 'Onboarding' },
+          ...(canManageOrganizationBilling ? [{ to: '/subscribe', label: 'Subscription' }] : []),
         ]
       : []),
     ...(canAccessAppointments ? [{ to: '/government/appointments', label: 'Appointments' }] : []),
@@ -475,13 +488,13 @@ export const Navbar: React.FC = () => {
     ...(canAccessInternalRoutes ? [{ to: '/background-checks', label: 'Checks' }] : []),
     ...(canAccessAudit ? [{ to: '/audit-logs', label: 'Audit' }] : []),
   ];
-  const adminPrimaryLinks = [
+  const adminPrimaryLinks: NavItem[] = [
     { to: '/admin/dashboard', label: 'Dashboard' },
     { to: '/admin/cases', label: 'Cases' },
     { to: '/admin/users', label: 'Users' },
     { to: '/rubrics', label: 'Rubrics' },
   ];
-  const adminOverflowLinks = [
+  const adminOverflowLinks: NavItem[] = [
     ...(!activeOrganizationId ? [{ to: '/organization/setup', label: 'Org Setup' }] : []),
     ...(activeOrganizationId
       ? [
@@ -491,6 +504,7 @@ export const Navbar: React.FC = () => {
           { to: '/organization/onboarding', label: 'Onboarding' },
         ]
       : []),
+    ...(canManageOrganizationBilling ? [{ to: '/subscribe', label: 'Subscription' }] : []),
     { to: '/government/appointments', label: 'Appointments' },
     { to: '/government/positions', label: 'Positions' },
     { to: '/government/personnel', label: 'Personnel' },
@@ -505,22 +519,22 @@ export const Navbar: React.FC = () => {
   ];
 
   const navLinks = hasAdminAccess
-    ? [...adminPrimaryLinks, ...adminOverflowLinks]
+    ? dedupeNavItems([...adminPrimaryLinks, ...adminOverflowLinks])
     : isApplicantUser
       ? candidateLinks
-      : [...internalPrimaryLinks, ...internalOverflowLinks];
+      : dedupeNavItems([...internalPrimaryLinks, ...internalOverflowLinks]);
 
   const desktopPrimaryLinks = hasAdminAccess
-    ? adminPrimaryLinks
+    ? dedupeNavItems(adminPrimaryLinks)
     : isApplicantUser
       ? candidateLinks
-      : internalPrimaryLinks;
+      : dedupeNavItems(internalPrimaryLinks);
 
   const desktopOverflowLinks = hasAdminAccess
-    ? adminOverflowLinks
+    ? dedupeNavItems(adminOverflowLinks)
     : isApplicantUser
       ? []
-      : internalOverflowLinks;
+      : dedupeNavItems(internalOverflowLinks);
   const hasActiveOverflowLink = desktopOverflowLinks.some((item) => isRouteActive(item.to));
   
   const initial = getUserInitial(user, '?');

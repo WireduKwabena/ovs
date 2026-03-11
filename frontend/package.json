@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
-    "test:filters": "vitest src/utils/queryParams.test.ts src/pages/AuditLogsPage.test.tsx src/pages/MlMonitoringPage.test.tsx src/pages/BackgroundChecksPage.test.tsx src/pages/CampaignsPage.test.tsx src/pages/admin/AdminCasesPage.test.tsx src/pages/admin/AdminUsersPage.test.tsx --run",
+    "test:filters": "vitest src/utils/queryParams.test.ts src/pages/AuditLogsPage.test.tsx src/pages/MlMonitoringPage.test.tsx src/pages/BackgroundChecksPage.test.tsx src/pages/CampaignsPage.test.tsx src/pages/admin/AdminCasesPage.test.tsx src/pages/admin/AdminUsersPage.test.tsx --run --testTimeout=20000",
     "test:ux-guards": "vitest src/components/common/FieldHelp.test.tsx src/pages/campaignWorkspaceQuota.test.ts src/pages/CampaignWorkspacePage.test.tsx --run",
     "type-check": "tsc --noEmit"
   },

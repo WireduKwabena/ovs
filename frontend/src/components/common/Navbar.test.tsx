@@ -427,6 +427,7 @@ describe("Navbar runtime + active tab behavior", () => {
     expect(screen.getAllByRole("link", { name: /org members/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /committees/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /onboarding/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /subscription/i }).length).toBeGreaterThan(0);
   });
 
   it("hides org-admin workspace links when governance access is unavailable", async () => {
@@ -456,6 +457,7 @@ describe("Navbar runtime + active tab behavior", () => {
     fireEvent.click(screen.getByRole("button", { name: /more/i }));
     expect(screen.queryByRole("link", { name: /org workspace/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /org members/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /subscription/i })).toBeNull();
   });
 
   it("shows audit link for internal users with audit capability", async () => {

@@ -326,6 +326,27 @@ SIMPLE_JWT = {
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS', default='http://localhost:3000')
 CORS_ALLOW_CREDENTIALS = True
+if _has_module("corsheaders"):
+    try:
+        from corsheaders.defaults import default_headers as cors_default_headers
+    except Exception:  # pragma: no cover - defensive fallback
+        cors_default_headers = (
+            "accept",
+            "accept-encoding",
+            "authorization",
+            "content-type",
+            "dnt",
+            "origin",
+            "user-agent",
+            "x-csrftoken",
+            "x-requested-with",
+        )
+
+    # Active organization context is carried in a custom request header.
+    # Explicitly allow it for browser preflight checks.
+    CORS_ALLOW_HEADERS = tuple(
+        dict.fromkeys([*cors_default_headers, "x-active-organization-id"])
+    )
 CSRF_TRUSTED_ORIGINS = env_list(
     "CSRF_TRUSTED_ORIGINS",
     default="http://localhost:3000,http://127.0.0.1:3000",

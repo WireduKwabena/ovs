@@ -3,6 +3,7 @@ import threading
 import time
 from types import SimpleNamespace
 from unittest.mock import patch
+from uuid import uuid4
 
 from django.contrib.auth.models import Group
 from django.contrib.auth.tokens import default_token_generator
@@ -1169,8 +1170,9 @@ class EmailAuthEndpointTests(APITestCase):
 class EmailAuthRegistrationConcurrencyTests(APITransactionTestCase):
     def setUp(self):
         self.password = "Pass1234!"
+        self._run_suffix = uuid4().hex[:8]
         self.inviter = User.objects.create_user(
-            email="concurrency.inviter@example.com",
+            email=f"concurrency.inviter.{self._run_suffix}@example.com",
             password=self.password,
             first_name="Concurrency",
             last_name="Inviter",
@@ -1187,8 +1189,9 @@ class EmailAuthRegistrationConcurrencyTests(APITransactionTestCase):
         max_uses: int,
         allowed_email_domain: str = "example.com",
     ):
+        org_code_with_suffix = f"{org_code}-{self._run_suffix}"
         organization = Organization.objects.create(
-            code=org_code,
+            code=org_code_with_suffix,
             name=org_name,
             organization_type="agency",
             is_active=True,
@@ -1210,7 +1213,7 @@ class EmailAuthRegistrationConcurrencyTests(APITransactionTestCase):
             billing_cycle="monthly",
             payment_method="card",
             amount_usd="399.00",
-            reference=f"OVS-CONCURRENCY-{org_code.upper()}",
+            reference=f"OVS-CONCURRENCY-{org_code_with_suffix.upper()}",
             ticket_confirmed_at=timezone.now(),
             ticket_expires_at=timezone.now() + timedelta(hours=12),
         )
@@ -1289,8 +1292,8 @@ class EmailAuthRegistrationConcurrencyTests(APITransactionTestCase):
         results = self._run_parallel_registrations(
             token=raw_token,
             emails=[
-                "parallel.one@example.com",
-                "parallel.two@example.com",
+                f"parallel.one.{self._run_suffix}@example.com",
+                f"parallel.two.{self._run_suffix}@example.com",
             ],
         )
         status_codes = [entry[1] for entry in results]
@@ -1327,8 +1330,8 @@ class EmailAuthRegistrationConcurrencyTests(APITransactionTestCase):
         results = self._run_parallel_registrations(
             token=raw_token,
             emails=[
-                "token.one@example.com",
-                "token.two@example.com",
+                f"token.one.{self._run_suffix}@example.com",
+                f"token.two.{self._run_suffix}@example.com",
             ],
         )
         status_codes = [entry[1] for entry in results]

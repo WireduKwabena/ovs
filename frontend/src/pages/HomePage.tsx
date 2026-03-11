@@ -14,6 +14,7 @@ import {
   Users,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
+import { useAuth } from "@/hooks/useAuth";
 
 const capabilityCards = [
   {
@@ -101,6 +102,38 @@ const governanceHighlights = [
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
+  const {
+    isAuthenticated,
+    userType,
+    activeOrganizationId,
+    canManageActiveOrganizationGovernance,
+  } = useAuth();
+
+  const startOrganizationPath = "/organization/setup?next=%2Forganization%2Fdashboard";
+
+  const handleGetStarted = () => {
+    if (!isAuthenticated) {
+      navigate("/login");
+      return;
+    }
+
+    if (userType === "applicant") {
+      navigate("/candidate/access");
+      return;
+    }
+
+    if (!activeOrganizationId) {
+      navigate(startOrganizationPath);
+      return;
+    }
+
+    if (canManageActiveOrganizationGovernance) {
+      navigate("/organization/dashboard");
+      return;
+    }
+
+    navigate("/dashboard");
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -114,7 +147,7 @@ export const HomePage: React.FC = () => {
             <ThemeToggle compact />
             <button
               type="button"
-              onClick={() => navigate("/subscribe")}
+              onClick={handleGetStarted}
               className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
             >
               Get Started
@@ -142,10 +175,10 @@ export const HomePage: React.FC = () => {
             <div className="mt-8 flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={() => navigate("/subscribe")}
+                onClick={handleGetStarted}
                 className="inline-flex items-center gap-2 rounded-lg bg-cyan-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-cyan-800"
               >
-                Organization Onboarding
+                Start Organization Setup
                 <ArrowRight className="h-4 w-4" />
               </button>
               <button
@@ -164,7 +197,7 @@ export const HomePage: React.FC = () => {
               </button>
             </div>
             <p className="mt-4 text-xs text-slate-700">
-              Candidate onboarding is invitation-based. Organization/agency users can onboard directly.
+              Candidate onboarding is invitation-based. Organization users start with org setup, then subscription and onboarding.
             </p>
           </div>
 
