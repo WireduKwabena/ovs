@@ -41,7 +41,7 @@ These routes are behind authentication and excluded for applicant-only users.
 
 ## Data Exposure Rules in UI
 
-- Internal appointment registry views are for authenticated HR/admin government actors.
+- Internal appointment registry views are for authenticated internal/admin government actors.
 - Public feeds use separate backend serializers and should not include vetting-case internals.
 - UI labels and state controls are lifecycle-aware, but backend remains source of truth for transition policy.
 

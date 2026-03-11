@@ -109,7 +109,7 @@ class LLMEvaluator:
     ) -> str:
         """Build evaluation prompt."""
         
-        prompt = f"""You are an expert HR interviewer evaluating candidate responses.
+        prompt = f"""You are an expert interviewer evaluating candidate responses.
 
 QUESTION:
 {question}
@@ -178,7 +178,7 @@ Be objective, fair, and specific. Consider:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are an expert HR interviewer. Provide evaluations in valid JSON format only."
+                        "content": "You are an expert interviewer. Provide evaluations in valid JSON format only."
                     },
                     {
                         "role": "user",
