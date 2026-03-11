@@ -43,6 +43,7 @@ aiohttp
 # Utilities
 python-dateutil
 pytz
+attrs
 Pillow==10.2.0
 
 # Production Server
