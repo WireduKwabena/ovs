@@ -6,7 +6,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.core.permissions import IsHRManagerOrAdmin
+from apps.core.permissions import IsGovernmentWorkflowOperator, scope_internal_queryset_to_tenant
 
 from .models import ConsistencyCheckResult, FraudDetectionResult, SocialProfileCheckResult
 from .serializers import (
@@ -27,13 +27,18 @@ class FraudDetectionResultViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = FraudDetectionResult.objects.select_related("application", "application__applicant").all()
     serializer_class = FraudDetectionResultSerializer
-    permission_classes = [IsHRManagerOrAdmin]
+    permission_classes = [IsGovernmentWorkflowOperator]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return FraudDetectionResult.objects.none()
 
         queryset = super().get_queryset()
+        queryset = scope_internal_queryset_to_tenant(
+            queryset,
+            request=self.request,
+            organization_field="application__organization_id",
+        )
 
         case_id = self.request.query_params.get("case_id")
         if case_id:
@@ -77,13 +82,18 @@ class ConsistencyCheckResultViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = ConsistencyCheckResult.objects.select_related("application", "application__applicant").all()
     serializer_class = ConsistencyCheckResultSerializer
-    permission_classes = [IsHRManagerOrAdmin]
+    permission_classes = [IsGovernmentWorkflowOperator]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return ConsistencyCheckResult.objects.none()
 
         queryset = super().get_queryset()
+        queryset = scope_internal_queryset_to_tenant(
+            queryset,
+            request=self.request,
+            organization_field="application__organization_id",
+        )
 
         case_id = self.request.query_params.get("case_id")
         if case_id:
@@ -146,13 +156,18 @@ class SocialProfileCheckResultViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = SocialProfileCheckResult.objects.select_related("application", "application__applicant").all()
     serializer_class = SocialProfileCheckResultSerializer
-    permission_classes = [IsHRManagerOrAdmin]
+    permission_classes = [IsGovernmentWorkflowOperator]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return SocialProfileCheckResult.objects.none()
 
         queryset = super().get_queryset()
+        queryset = scope_internal_queryset_to_tenant(
+            queryset,
+            request=self.request,
+            organization_field="application__organization_id",
+        )
 
         case_id = self.request.query_params.get("case_id")
         if case_id:

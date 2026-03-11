@@ -38,7 +38,7 @@ const capabilityCards = [
     icon: Shield,
     title: "Compliance & Audit",
     description:
-      "Traceable decisions, reviewer actions, and model outputs packaged for HR governance.",
+      "Traceable decisions, reviewer actions, and model outputs packaged for internal governance.",
   },
 ];
 

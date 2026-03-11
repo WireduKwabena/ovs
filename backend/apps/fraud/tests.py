@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.contrib.auth.models import Group
 from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -82,13 +83,15 @@ class FraudApiTests(APITestCase):
             user_type="admin",
             is_staff=True,
         )
-        self.hr_user = User.objects.create_user(
+        self.internal_user = User.objects.create_user(
             email="fraud-hr@example.com",
             password="Pass1234!",
             first_name="Fraud",
-            last_name="HR",
-            user_type="hr_manager",
+            last_name="Reviewer",
+            user_type="internal",
         )
+        vetting_group, _ = Group.objects.get_or_create(name="vetting_officer")
+        self.internal_user.groups.add(vetting_group)
         self.user = User.objects.create_user(
             email="fraud-api-user@example.com",
             password="Pass1234!",
@@ -185,11 +188,23 @@ class FraudApiTests(APITestCase):
         response = self.client.get("/api/fraud/results/")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_hr_manager_sees_all_fraud_results(self):
-        self.client.force_authenticate(self.hr_user)
+    def test_internal_sees_all_fraud_results(self):
+        self.client.force_authenticate(self.internal_user)
         response = self.client.get("/api/fraud/results/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 2)
+
+    def test_plain_internal_without_operational_role_cannot_access_fraud_results(self):
+        plain_internal = User.objects.create_user(
+            email="fraud-plain-hr@example.com",
+            password="Pass1234!",
+            first_name="Plain",
+            last_name="Reviewer",
+            user_type="internal",
+        )
+        self.client.force_authenticate(plain_internal)
+        response = self.client.get("/api/fraud/results/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_admin_sees_all_fraud_results(self):
         self.client.force_authenticate(self.admin_user)
@@ -255,3 +270,5 @@ class FraudApiTests(APITestCase):
         self.client.force_authenticate(self.user)
         response = self.client.get("/api/fraud/social-profiles/statistics/")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+

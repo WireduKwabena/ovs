@@ -35,19 +35,19 @@ class MonitorApiBaseTests(APITestCase):
             user_type="admin",
             is_staff=True,
         )
-        self.hr_user = User.objects.create_user(
-            email="aimonitor-hr@example.com",
+        self.internal_user = User.objects.create_user(
+            email="aimonitor-internal@example.com",
             password="Pass1234!",
             first_name="AI",
-            last_name="HR",
-            user_type="hr_manager",
+            last_name="Internal",
+            user_type="internal",
         )
 
     def authenticate_admin(self):
         self.client.force_authenticate(self.admin_user)
 
-    def authenticate_hr(self):
-        self.client.force_authenticate(self.hr_user)
+    def authenticate_internal(self):
+        self.client.force_authenticate(self.internal_user)
 
     @staticmethod
     def _sample_image_upload(name: str = "doc.png") -> SimpleUploadedFile:
@@ -94,8 +94,8 @@ class MonitorHealthApiTests(MonitorApiBaseTests):
         self.assertEqual(kwargs["changes"]["status"], "ok")
         self.assertEqual(kwargs["changes"]["model_name"], "default")
 
-    def test_health_endpoint_rejects_hr_manager(self):
-        self.authenticate_hr()
+    def test_health_endpoint_rejects_internal_user(self):
+        self.authenticate_internal()
         with patch("ai_ml_services.views.log_event") as mock_log_event:
             response = self.client.get("/api/ai-monitor/health/")
 
@@ -153,8 +153,8 @@ class MonitorDocumentClassificationApiTests(MonitorApiBaseTests):
         self.assertEqual(kwargs["changes"]["top_k"], 3)
         self.assertEqual(kwargs["changes"]["filename"], "doc.png")
 
-    def test_document_classification_endpoint_rejects_hr_manager(self):
-        self.authenticate_hr()
+    def test_document_classification_endpoint_rejects_internal_user(self):
+        self.authenticate_internal()
         upload = self._sample_image_upload()
         with patch("ai_ml_services.views.log_event") as mock_log_event:
             response = self.client.post(
@@ -255,8 +255,8 @@ class MonitorSocialProfileApiTests(MonitorApiBaseTests):
         self.assertEqual(kwargs["changes"]["risk_level"], "low")
         self.assertEqual(kwargs["changes"]["recommendation"], "MANUAL_REVIEW")
 
-    def test_social_profile_check_endpoint_rejects_hr_manager(self):
-        self.authenticate_hr()
+    def test_social_profile_check_endpoint_rejects_internal_user(self):
+        self.authenticate_internal()
         with patch("ai_ml_services.views.log_event") as mock_log_event:
             response = self.client.post(
                 "/api/ai-monitor/check-social-profiles/",

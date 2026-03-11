@@ -62,8 +62,8 @@ Interview content APIs:
 
 The meeting model supports structured scheduling and participant states.
 
-- 1v1: HR and a single candidate.
-- 1vMany: HR with multiple candidate participants.
+- 1v1: Internal reviewer and a single candidate.
+- 1vMany: Internal reviewer with multiple candidate participants.
 
 Always confirm participant list and role metadata before start.
 
@@ -75,4 +75,3 @@ If join fails:
 2. Check LiveKit env configuration (`LIVEKIT_URL`, API key/secret).
 3. Verify meeting state is startable (not canceled/completed).
 4. Check reminder-health endpoint for runtime degradation.
-

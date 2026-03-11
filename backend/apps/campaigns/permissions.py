@@ -1,7 +1,5 @@
-from apps.core.permissions import (
-    IsHRManagerOrAdmin as BaseHRManagerOrAdminPermission,
-    is_hr_or_admin_user,
-)
+from apps.core.permissions import IsGovernmentWorkflowOperator
 
-class IsHRManagerOrAdmin(BaseHRManagerOrAdminPermission):
-    message = "Only HR managers/admin users can access campaigns."
+
+class IsInternalWorkflowOperator(IsGovernmentWorkflowOperator):
+    message = "Only authorized internal workflow actors can access campaigns."

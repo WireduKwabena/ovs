@@ -65,7 +65,7 @@ paths:
       description: |-
         List users for admin management.
         GET /api/admin/users/
-        Supports filtering: ?q=email_or_name&user_type=admin|hr_manager|applicant&is_active=true|false
+        Supports filtering: ?q=email_or_name&user_type=admin|internal|applicant&is_active=true|false
       tags:
       - admin
       security:
@@ -12312,7 +12312,7 @@ components:
           type: integer
           maximum: 100
           minimum: 0
-          description: Weight for manual HR review
+          description: Weight for manual reviewer assessment
         passing_score:
           type: integer
           maximum: 100
@@ -13472,12 +13472,12 @@ components:
     UserTypeEnum:
       enum:
       - admin
-      - hr_manager
+      - internal
       - applicant
       type: string
       description: |-
         * `admin` - System Administrator
-        * `hr_manager` - HR Manager
+        * `internal` - Internal User
         * `applicant` - Applicant
     VerificationResult:
       type: object
@@ -13935,7 +13935,7 @@ components:
           type: integer
           maximum: 100
           minimum: 0
-          description: Weight for manual HR review
+          description: Weight for manual reviewer assessment
         passing_score:
           type: integer
           maximum: 100
@@ -14519,3 +14519,5 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+
+

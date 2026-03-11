@@ -6,7 +6,7 @@ import AppointmentsRegistryPage from "./AppointmentsRegistryPage";
 
 const authHookState = vi.hoisted(() => ({
   isAdmin: false,
-  isHrOrAdmin: false,
+  isInternalOrAdmin: false,
   canManageRegistry: false,
   canManageRegistryInActiveOrganization: false,
   canAdvanceAppointmentStage: true,
@@ -234,3 +234,4 @@ describe("AppointmentsRegistryPage org + committee visibility", () => {
     expect(await screen.findByText(/Only registry operators can create nomination records./i)).toBeTruthy();
   });
 });
+

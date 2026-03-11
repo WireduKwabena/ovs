@@ -6,7 +6,7 @@ export interface User {
   first_name?: string;
   last_name?: string;
   full_name: string;
-  user_type?: 'applicant' | 'hr_manager' | 'admin';
+  user_type?: 'applicant' | 'internal' | 'admin';
   roles?: string[];
   group_roles?: string[];
   capabilities?: string[];
@@ -229,14 +229,14 @@ export interface AdminUser {
   phone_number?: string;
   organization?: string;
   department?: string;
-  user_type?: 'applicant' | 'hr_manager' | 'admin';
+  user_type?: 'applicant' | 'internal' | 'admin';
   roles?: string[];
   group_roles?: string[];
   capabilities?: string[];
   is_internal_operator?: boolean;
   role_display?: string;
   username?: string;
-  role?: 'admin' | 'reviewer' | 'hr_manager' | 'super_admin';
+  role?: 'admin' | 'reviewer' | 'internal' | 'super_admin';
   profile?: ExtendedUserProfile | null;
   is_active: boolean;
   is_staff?: boolean;
@@ -270,7 +270,7 @@ export interface AuthState {
   user: User | AdminUser | null;
   tokens: AuthTokens | null;  // Updated: Full tokens object
   isAuthenticated: boolean;
-  userType: 'applicant' | 'hr_manager' | 'admin' | null;
+  userType: 'applicant' | 'internal' | 'admin' | null;
   roles: string[];
   capabilities: string[];
   organizations: OrganizationSummary[];
@@ -765,7 +765,7 @@ export interface AdminManagedUser {
   first_name: string;
   last_name: string;
   full_name: string;
-  user_type: "admin" | "hr_manager" | "applicant";
+  user_type: "admin" | "internal" | "applicant";
   group_roles?: string[];
   is_active: boolean;
   is_staff: boolean;
@@ -786,7 +786,7 @@ export interface AdminUsersResponse {
 }
 
 export interface AdminUserUpdatePayload {
-  user_type?: "admin" | "hr_manager" | "applicant";
+  user_type?: "admin" | "internal" | "applicant";
   is_active?: boolean;
   is_staff?: boolean;
   reset_two_factor?: boolean;
@@ -1045,12 +1045,12 @@ export interface CreateRubricData {
 export interface LoginResponse {
   user: User | AdminUser;
   tokens: AuthTokens;
-  user_type?: 'applicant' | 'hr_manager' | 'admin';
+  user_type?: 'applicant' | 'internal' | 'admin';
   backup_codes?: string[];
 }
 
 export interface TwoFactorStatusResponse {
-  user_type: "admin" | "hr_manager" | "applicant";
+  user_type: "admin" | "internal" | "applicant";
   two_factor_required: boolean;
   applicant_exempt: boolean;
   is_two_factor_enabled: boolean;
@@ -1070,7 +1070,7 @@ export interface TwoFactorBackupCodesResponse {
 export interface TwoFactorChallengeResponse {
   message: string;
   token: string;
-  user_type?: 'applicant' | 'hr_manager' | 'admin';
+  user_type?: 'applicant' | 'internal' | 'admin';
   setup_required?: boolean;
   expires_in_seconds?: number;
   provisioning_uri?: string | null;
@@ -1080,7 +1080,7 @@ export type LoginAttemptResponse = LoginResponse | TwoFactorChallengeResponse;
 
 export interface RegisterResponse {
   user: User | AdminUser;
-  user_type?: 'applicant' | 'hr_manager' | 'admin';
+  user_type?: 'applicant' | 'internal' | 'admin';
   message?: string;
 }
 
@@ -1098,7 +1098,7 @@ export interface UploadDocumentResponse {
 
 export interface ProfileResponse {
   user: User | AdminUser;
-  user_type: 'applicant' | 'hr_manager' | 'admin';
+  user_type: 'applicant' | 'internal' | 'admin';
   roles?: string[];
   capabilities?: string[];
   is_internal_operator?: boolean;
@@ -1339,7 +1339,7 @@ export interface VideoMeetingParticipant {
   user: string;
   user_email: string;
   user_full_name: string;
-  user_type?: "applicant" | "hr_manager" | "admin";
+  user_type?: "applicant" | "internal" | "admin";
   role: VideoMeetingRole;
   status: VideoMeetingParticipantStatus;
   invited_at: string;
@@ -1448,7 +1448,7 @@ export interface VideoMeetingEvent {
   actor: string | null;
   actor_email: string | null;
   actor_name: string;
-  actor_user_type?: "applicant" | "hr_manager" | "admin";
+  actor_user_type?: "applicant" | "internal" | "admin";
   action: VideoMeetingEventAction;
   scope: VideoMeetingEventScope;
   detail: string;
@@ -1681,6 +1681,7 @@ export interface AppointmentRecord {
   created_at: string;
   updated_at: string;
 }
+
 
 
 

@@ -31,12 +31,12 @@ class AdminDashboardAPITests(APITestCase):
             last_name="User",
             user_type="applicant",
         )
-        self.hr_user = User.objects.create_user(
+        self.internal_user = User.objects.create_user(
             email="hr@example.com",
             password="strongpassword123",
-            first_name="HR",
+            first_name="Internal",
             last_name="Manager",
-            user_type="hr_manager",
+            user_type="internal",
         )
         VettingCase.objects.create(
             applicant=self.regular_user,
@@ -64,8 +64,8 @@ class AdminDashboardAPITests(APITestCase):
         response = self.client.get("/api/admin/dashboard/")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_dashboard_as_hr_manager_is_forbidden(self):
-        self.client.force_authenticate(user=self.hr_user)
+    def test_dashboard_as_internal_is_forbidden(self):
+        self.client.force_authenticate(user=self.internal_user)
         response = self.client.get("/api/admin/dashboard/")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -75,7 +75,7 @@ class AdminDashboardAPITests(APITestCase):
             password="strongpassword123",
             first_name="Staff",
             last_name="NonAdmin",
-            user_type="hr_manager",
+            user_type="internal",
             is_staff=True,
         )
         self.client.force_authenticate(user=staff_user)
@@ -141,7 +141,7 @@ class AdminDashboardAPITests(APITestCase):
 
     def test_users_filter_by_type(self):
         self.client.force_authenticate(user=self.admin_user)
-        response = self.client.get("/api/admin/users/?user_type=hr_manager")
+        response = self.client.get("/api/admin/users/?user_type=internal")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
@@ -150,14 +150,14 @@ class AdminDashboardAPITests(APITestCase):
     def test_admin_can_disable_non_self_user(self):
         self.client.force_authenticate(user=self.admin_user)
         response = self.client.patch(
-            f"/api/admin/users/{self.hr_user.id}/",
+            f"/api/admin/users/{self.internal_user.id}/",
             {"is_active": False},
             format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.hr_user.refresh_from_db()
-        self.assertFalse(self.hr_user.is_active)
+        self.internal_user.refresh_from_db()
+        self.assertFalse(self.internal_user.is_active)
 
     def test_admin_cannot_disable_self(self):
         self.client.force_authenticate(user=self.admin_user)
@@ -172,14 +172,14 @@ class AdminDashboardAPITests(APITestCase):
     def test_admin_can_assign_government_group_roles(self):
         self.client.force_authenticate(user=self.admin_user)
         response = self.client.patch(
-            f"/api/admin/users/{self.hr_user.id}/",
+            f"/api/admin/users/{self.internal_user.id}/",
             {"group_roles": ["vetting_officer", "auditor"]},
             format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.hr_user.refresh_from_db()
-        assigned_roles = set(self.hr_user.groups.values_list("name", flat=True))
+        self.internal_user.refresh_from_db()
+        assigned_roles = set(self.internal_user.groups.values_list("name", flat=True))
         self.assertIn("vetting_officer", assigned_roles)
         self.assertIn("auditor", assigned_roles)
         self.assertTrue(Group.objects.filter(name="vetting_officer").exists())
@@ -193,3 +193,5 @@ class AdminDashboardAPITests(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+

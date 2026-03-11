@@ -38,7 +38,7 @@ describe("AdminUsersPage filters", () => {
           first_name: "Alice",
           last_name: "Admin",
           full_name: "Alice Admin",
-          user_type: "hr_manager",
+          user_type: "internal",
           is_active: true,
           is_staff: false,
           is_superuser: false,
@@ -56,7 +56,7 @@ describe("AdminUsersPage filters", () => {
     });
 
     render(
-      <MemoryRouter initialEntries={["/admin/users?q=alice&user_type=hr_manager&is_active=true"]}>
+      <MemoryRouter initialEntries={["/admin/users?q=alice&user_type=internal&is_active=true"]}>
         <AdminUsersPage />
       </MemoryRouter>,
     );
@@ -65,7 +65,7 @@ describe("AdminUsersPage filters", () => {
       expect(mocks.adminService.getUsers).toHaveBeenCalledWith(
         expect.objectContaining({
           q: "alice",
-          user_type: "hr_manager",
+          user_type: "internal",
           is_active: true,
         }),
       );
@@ -94,3 +94,4 @@ describe("AdminUsersPage filters", () => {
     });
   });
 });
+

@@ -28,11 +28,11 @@ class RubricsApiTests(APITestCase):
             is_active=True,
         )
         self.hr = User.objects.create_user(
-            email="hr_rubrics_test@example.com",
+            email="internal_rubrics_test@example.com",
             password="Pass1234!",
-            first_name="HR",
+            first_name="Internal",
             last_name="Rubrics",
-            user_type="hr_manager",
+            user_type="internal",
             is_staff=True,
         )
         self.applicant = User.objects.create_user(
@@ -637,8 +637,8 @@ class RubricsApiTests(APITestCase):
         self.assertIn("id", response.json())
         mock_delay.assert_not_called()
 
-    def test_hr_manager_can_list_rubrics(self):
-        self._create_rubric("HR Access Rubric")
+    def test_internal_can_list_rubrics(self):
+        self._create_rubric("Internal Access Rubric")
         response = self.client.get("/api/rubrics/vetting-rubrics/")
         self.assertEqual(response.status_code, 200)
         payload = response.json()
@@ -671,6 +671,19 @@ class RubricsApiTests(APITestCase):
         )
         self.assertEqual(create_response.status_code, 403)
 
+    def test_plain_internal_without_operational_role_cannot_access_rubrics_api(self):
+        plain_internal = User.objects.create_user(
+            email="plain-hr-rubrics@example.com",
+            password="Pass1234!",
+            first_name="Plain",
+            last_name="Reviewer",
+            user_type="internal",
+        )
+        self.client.force_authenticate(plain_internal)
+
+        response = self.client.get("/api/rubrics/vetting-rubrics/")
+        self.assertEqual(response.status_code, 403)
+
 
 class RubricTaskTests(TestCase):
     def setUp(self):
@@ -684,8 +697,8 @@ class RubricTaskTests(TestCase):
             email="rubric-task-hr@example.com",
             password="Pass1234!",
             first_name="Task",
-            last_name="HR",
-            user_type="hr_manager",
+            last_name="Reviewer",
+            user_type="internal",
             is_staff=True,
         )
         OrganizationMembership.objects.create(
@@ -805,19 +818,19 @@ class RubricsOrganizationScopeTests(APITestCase):
         self.org_a = Organization.objects.create(code="rub-org-a", name="Rubrics Org A")
         self.org_b = Organization.objects.create(code="rub-org-b", name="Rubrics Org B")
 
-        self.hr_a = User.objects.create_user(
+        self.internal_a = User.objects.create_user(
             email="rubrics_scope_a@example.com",
             password="Pass1234!",
             first_name="Rubrics",
             last_name="ScopeA",
-            user_type="hr_manager",
+            user_type="internal",
         )
-        self.hr_b = User.objects.create_user(
+        self.internal_b = User.objects.create_user(
             email="rubrics_scope_b@example.com",
             password="Pass1234!",
             first_name="Rubrics",
             last_name="ScopeB",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.applicant = User.objects.create_user(
             email="rubrics_scope_applicant@example.com",
@@ -827,14 +840,16 @@ class RubricsOrganizationScopeTests(APITestCase):
             user_type="applicant",
         )
         OrganizationMembership.objects.create(
-            user=self.hr_a,
+            user=self.internal_a,
             organization=self.org_a,
+            membership_role="vetting_officer",
             is_active=True,
             is_default=True,
         )
         OrganizationMembership.objects.create(
-            user=self.hr_b,
+            user=self.internal_b,
             organization=self.org_b,
+            membership_role="vetting_officer",
             is_active=True,
             is_default=True,
         )
@@ -843,23 +858,23 @@ class RubricsOrganizationScopeTests(APITestCase):
             organization=self.org_a,
             name="Scope Rubric A",
             is_active=True,
-            created_by=self.hr_a,
+            created_by=self.internal_a,
         )
         self.rubric_org_b = VettingRubric.objects.create(
             organization=self.org_b,
             name="Scope Rubric B",
             is_active=True,
-            created_by=self.hr_b,
+            created_by=self.internal_b,
         )
         self.rubric_legacy = VettingRubric.objects.create(
             name="Scope Rubric Legacy",
             is_active=True,
-            created_by=self.hr_a,
+            created_by=self.internal_a,
         )
         self.case_org_b = VettingCase.objects.create(
             organization=self.org_b,
             applicant=self.applicant,
-            assigned_to=self.hr_b,
+            assigned_to=self.internal_b,
             position_applied="Compliance Officer",
             department="Audit",
             priority="medium",
@@ -877,7 +892,7 @@ class RubricsOrganizationScopeTests(APITestCase):
         return payload
 
     def test_list_is_scoped_to_org_and_excludes_legacy_null_scope(self):
-        self.client.force_authenticate(self.hr_a)
+        self.client.force_authenticate(self.internal_a)
         response = self.client.get("/api/rubrics/vetting-rubrics/")
         self.assertEqual(response.status_code, 200)
         ids = {item["id"] for item in self._extract_results(response)}
@@ -886,10 +901,12 @@ class RubricsOrganizationScopeTests(APITestCase):
         self.assertNotIn(str(self.rubric_org_b.id), ids)
 
     def test_cross_org_case_evaluation_is_denied(self):
-        self.client.force_authenticate(self.hr_a)
+        self.client.force_authenticate(self.internal_a)
         response = self.client.post(
             f"/api/rubrics/vetting-rubrics/{self.rubric_org_a.id}/evaluate-case/",
             {"case_id": str(self.case_org_b.id)},
             format="json",
         )
         self.assertEqual(response.status_code, 403)
+
+

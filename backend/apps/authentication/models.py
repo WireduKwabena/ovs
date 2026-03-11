@@ -6,7 +6,7 @@ User management models for the AI Vetting System.
 Academic Note:
 --------------
 Implements role-based access control (RBAC) with three user types:
-1. HR Managers (can create vetting processes, review results)
+1. Internal users (can create vetting processes, review results)
 2. Applicants (can submit documents, take interviews)
 3. System Admins (full access)
 """
@@ -76,7 +76,7 @@ class User(AbstractUser):
 
     USER_TYPE_CHOICES = [
         ('admin', 'System Administrator'),
-        ('hr_manager', 'HR Manager'),
+        ('internal', 'Internal User'),
         ('applicant', 'Applicant'),
     ]
     
@@ -145,9 +145,9 @@ class User(AbstractUser):
         return f"{self.get_full_name()} ({self.email})"
     
     @property
-    def is_hr_manager(self):
-        """Check if user is HR manager."""
-        return self.user_type in ['hr_manager', 'admin']
+    def is_internal_user(self):
+        """Check if user is an internal operator identity."""
+        return self.user_type in ['internal', 'admin']
     
     @property
     def is_applicant(self):
@@ -411,3 +411,4 @@ class PasswordResetToken(models.Model):
 
     def __str__(self):
         return f"Token for {self.user.get_full_name()} (Expires: {self.expires_at})"
+

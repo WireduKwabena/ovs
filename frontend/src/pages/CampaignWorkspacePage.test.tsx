@@ -81,7 +81,7 @@ const baseQuota = (overrides: Partial<BillingQuotaResponse['candidate']> = {}): 
 });
 
 const configureDefaultServices = () => {
-  mocks.useAuth.mockReturnValue({ userType: 'hr_manager' });
+  mocks.useAuth.mockReturnValue({ userType: 'internal', isInternalOrAdmin: true });
   mocks.campaignService.getById.mockResolvedValue({
     id: 'camp-1',
     name: 'March Vetting',
@@ -262,3 +262,5 @@ describe('CampaignWorkspacePage import guard', () => {
     });
   });
 });
+
+

@@ -33,7 +33,7 @@ OVS case progression (typical):
 1. Candidate invited/enrolled.
 2. Evidence collection.
 3. AI analysis and score aggregation.
-4. HR/Admin review.
+4. Internal reviewer/admin review.
 5. Final decision:
    - approve,
    - reject,

@@ -81,20 +81,20 @@ const createState = (overrides?: Record<string, any>) => {
       user: {
         id: "u-1",
         email: "hr@example.com",
-        first_name: "HR",
+        first_name: "Internal",
         last_name: "Manager",
         full_name: "Operations User",
         phone_number: "",
         profile_picture_url: "",
         avatar_url: "",
         date_of_birth: "",
-        user_type: "hr_manager",
+        user_type: "internal",
         is_active: true,
         created_at: "2026-01-01T00:00:00Z",
       },
       tokens: { access: "token-access", refresh: "token-refresh" },
       isAuthenticated: true,
-      userType: "hr_manager",
+      userType: "internal",
       roles: [],
       capabilities: [],
       loading: false,
@@ -274,15 +274,15 @@ describe("Navbar runtime + active tab behavior", () => {
     expect(screen.getByText(/runtime unavailable/i)).toBeTruthy();
   });
 
-  it("does not poll reminder runtime for hr_manager users", async () => {
+  it("does not poll reminder runtime for internal users", async () => {
     renderNavbar("/dashboard", {
       auth: {
-        userType: "hr_manager",
+        userType: "internal",
         user: {
-          user_type: "hr_manager",
+          user_type: "internal",
           email: "hr@example.com",
           full_name: "Operations User",
-          first_name: "HR",
+          first_name: "Internal",
           last_name: "Manager",
         },
       },
@@ -317,18 +317,18 @@ describe("Navbar runtime + active tab behavior", () => {
     expect(screen.queryByRole("link", { name: /rubrics/i })).toBeNull();
   });
 
-  it("shows campaigns and rubrics links for hr_manager users", async () => {
+  it("shows campaigns and rubrics links for internal users", async () => {
     authHookState.canAccessCampaigns = true;
     authHookState.canManageRubrics = true;
 
     renderNavbar("/dashboard", {
       auth: {
-        userType: "hr_manager",
+        userType: "internal",
         user: {
-          user_type: "hr_manager",
+          user_type: "internal",
           email: "hr@example.com",
           full_name: "Operations User",
-          first_name: "HR",
+          first_name: "Internal",
           last_name: "Manager",
         },
       },
@@ -342,13 +342,13 @@ describe("Navbar runtime + active tab behavior", () => {
     expect(screen.getAllByRole("link", { name: /rubrics/i }).length).toBeGreaterThan(0);
   });
 
-  it("hides government workflow links when hr_manager lacks workflow capabilities", async () => {
+  it("hides government workflow links when internal lacks workflow capabilities", async () => {
     renderNavbar("/dashboard", {
       auth: {
-        userType: "hr_manager",
+        userType: "internal",
         capabilities: [],
         user: {
-          user_type: "hr_manager",
+          user_type: "internal",
           email: "operator@example.com",
           full_name: "Ops User",
           first_name: "Ops",
@@ -366,15 +366,15 @@ describe("Navbar runtime + active tab behavior", () => {
     expect(screen.queryByRole("link", { name: /personnel/i })).toBeNull();
   });
 
-  it("shows government workflow links when hr_manager has registry capability", async () => {
+  it("shows government workflow links when internal has registry capability", async () => {
     authHookState.canAccessAppointments = true;
     authHookState.canManageRegistry = true;
     renderNavbar("/dashboard", {
       auth: {
-        userType: "hr_manager",
+        userType: "internal",
         capabilities: ["gams.registry.manage"],
         user: {
-          user_type: "hr_manager",
+          user_type: "internal",
           email: "registry@example.com",
           full_name: "Registry User",
           first_name: "Registry",
@@ -406,10 +406,10 @@ describe("Navbar runtime + active tab behavior", () => {
 
     renderNavbar("/dashboard", {
       auth: {
-        userType: "hr_manager",
+        userType: "internal",
         capabilities: ["gams.registry.manage"],
         user: {
-          user_type: "hr_manager",
+          user_type: "internal",
           email: "registry.admin@example.com",
           full_name: "Registry Admin",
           first_name: "Registry",
@@ -437,10 +437,10 @@ describe("Navbar runtime + active tab behavior", () => {
 
     renderNavbar("/dashboard", {
       auth: {
-        userType: "hr_manager",
+        userType: "internal",
         capabilities: [],
         user: {
-          user_type: "hr_manager",
+          user_type: "internal",
           email: "ops.user@example.com",
           full_name: "Ops User",
           first_name: "Ops",
@@ -458,14 +458,14 @@ describe("Navbar runtime + active tab behavior", () => {
     expect(screen.queryByRole("link", { name: /org members/i })).toBeNull();
   });
 
-  it("shows audit link for hr_manager users with audit capability", async () => {
+  it("shows audit link for internal users with audit capability", async () => {
     authHookState.canViewAuditLogs = true;
     renderNavbar("/dashboard", {
       auth: {
-        userType: "hr_manager",
+        userType: "internal",
         capabilities: ["gams.audit.view"],
         user: {
-          user_type: "hr_manager",
+          user_type: "internal",
           email: "auditor@example.com",
           full_name: "Audit Reader",
           first_name: "Audit",
@@ -482,14 +482,14 @@ describe("Navbar runtime + active tab behavior", () => {
     expect(screen.getAllByRole("link", { name: /audit/i }).length).toBeGreaterThan(0);
   });
 
-  it("hides audit link for hr_manager users without audit capability", async () => {
+  it("hides audit link for internal users without audit capability", async () => {
     authHookState.canAccessAppointments = true;
     renderNavbar("/dashboard", {
       auth: {
-        userType: "hr_manager",
+        userType: "internal",
         capabilities: [],
         user: {
-          user_type: "hr_manager",
+          user_type: "internal",
           email: "operator@example.com",
           full_name: "Ops User",
           first_name: "Ops",
@@ -528,10 +528,10 @@ describe("Navbar runtime + active tab behavior", () => {
 
     renderNavbar("/dashboard", {
       auth: {
-        userType: "hr_manager",
+        userType: "internal",
         capabilities: ["gams.registry.manage"],
         user: {
-          user_type: "hr_manager",
+          user_type: "internal",
           email: "registry@example.com",
           full_name: "Registry User",
           first_name: "Registry",
@@ -552,3 +552,4 @@ describe("Navbar runtime + active tab behavior", () => {
     });
   });
 });
+

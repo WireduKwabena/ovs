@@ -27,7 +27,7 @@ interface AuthState {
   user: User | AdminUser | null;
   tokens: AuthTokens | null;
   isAuthenticated: boolean;
-  userType: "applicant" | "hr_manager" | "admin" | null;
+  userType: "applicant" | "internal" | "admin" | null;
   roles: string[];
   capabilities: string[];
   organizations: OrganizationSummary[];
@@ -673,6 +673,7 @@ const authSlice = createSlice({
 
 export const { clearError, clearTwoFactorChallenge, resetPasswordStatus, updateUser } = authSlice.actions;
 export default authSlice.reducer;
+
 
 
 

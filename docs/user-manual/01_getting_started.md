@@ -51,13 +51,13 @@ After environment setup:
 
 ## 1.6 High-Level Workflow Map
 
-1. Admin/HR creates campaign.
-2. HR defines or attaches rubric.
-3. HR adds/imports candidates.
+1. Admin/internal reviewer creates campaign.
+2. Internal reviewer defines or attaches rubric.
+3. Internal reviewer adds/imports candidates.
 4. Candidate receives invitation link or access route.
 5. Candidate submits required evidence and interview responses.
 6. AI analyses are processed asynchronously.
-7. HR/Admin reviews rubric trace + recommendation context and makes a final human decision.
+7. Internal reviewer/admin reviews rubric trace + recommendation context and makes a final human decision.
 8. Notifications and status updates are distributed.
 
 ## 1.7 Data Handling Model
@@ -77,5 +77,5 @@ All major actions are designed to be traceable through logs and model outputs.
 
 - Continue to [Roles, Permissions, and Navigation](02_roles_permissions_navigation.md).
 - Then read either:
-  - [HR Campaign and Rubric Workflows](05_hr_campaigns_rubrics.md), or
+  - [Internal Campaign and Rubric Workflows](05_hr_campaigns_rubrics.md), or
   - [Admin Operations and Control Center](09_admin_operations_control_center.md).

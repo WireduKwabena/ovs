@@ -21,7 +21,7 @@ from apps.core.policies.registry_policy import can_manage_registry, is_platform_
 from .decision_engine import VettingDecisionEngine
 from .engine import RubricEvaluationEngine
 from .models import CriteriaOverride, RubricCriteria, RubricEvaluation, VettingRubric
-from .permissions import IsHRManager
+from .permissions import IsInternalRubricOperator
 from .serializers import (
     CriteriaOverrideSerializer,
     RubricCriteriaSerializer,
@@ -60,7 +60,7 @@ def _parse_ai_signals(payload):
 
 class VettingRubricViewSet(viewsets.ModelViewSet):
     serializer_class = VettingRubricSerializer
-    permission_classes = [IsHRManager]
+    permission_classes = [IsInternalRubricOperator]
 
     def get_queryset(self):
         queryset = VettingRubric.objects.prefetch_related("criteria").all()
@@ -331,7 +331,7 @@ class VettingRubricViewSet(viewsets.ModelViewSet):
 
 class RubricCriteriaViewSet(viewsets.ModelViewSet):
     serializer_class = RubricCriteriaSerializer
-    permission_classes = [IsHRManager]
+    permission_classes = [IsInternalRubricOperator]
 
     def get_queryset(self):
         queryset = RubricCriteria.objects.select_related("rubric").all()
@@ -348,7 +348,7 @@ class RubricCriteriaViewSet(viewsets.ModelViewSet):
 
 class RubricEvaluationViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = RubricEvaluationSerializer
-    permission_classes = [IsHRManager]
+    permission_classes = [IsInternalRubricOperator]
 
     def get_queryset(self):
         queryset = RubricEvaluation.objects.select_related("case", "rubric", "evaluated_by").prefetch_related(
@@ -416,7 +416,7 @@ class RubricEvaluationViewSet(viewsets.ReadOnlyModelViewSet):
     @action(
         detail=True,
         methods=["post"],
-        permission_classes=[IsHRManager, RequiresRecentAuth],
+        permission_classes=[IsInternalRubricOperator, RequiresRecentAuth],
         url_path="override-decision",
     )
     def override_decision(self, request, pk=None):

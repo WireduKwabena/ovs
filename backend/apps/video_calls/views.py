@@ -15,8 +15,9 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.core.permissions import is_admin_user, is_government_workflow_operator
 from apps.video_calls.models import VideoMeeting, VideoMeetingEvent, VideoMeetingParticipant
-from apps.video_calls.permissions import IsMeetingCreatorOrReadOnly, is_admin_user, is_hr_or_admin_user
+from apps.video_calls.permissions import IsMeetingCreatorOrReadOnly
 from apps.video_calls.serializers import (
     VideoMeetingExtendSerializer,
     VideoMeetingEventSerializer,
@@ -66,7 +67,7 @@ class VideoMeetingViewSet(viewsets.ModelViewSet):
         if status_filter:
             queryset = queryset.filter(status=status_filter)
 
-        if is_hr_or_admin_user(user):
+        if is_government_workflow_operator(user):
             return queryset.order_by("scheduled_start", "-created_at")
 
         return queryset.filter(
@@ -485,7 +486,14 @@ class VideoMeetingViewSet(viewsets.ModelViewSet):
             return Response({"error": "Meeting is outside join window."}, status=status.HTTP_400_BAD_REQUEST)
 
         participant = meeting.participants.filter(user=user).first()
-        if participant is None and meeting.organizer_id != user.id and not is_hr_or_admin_user(user):
+        if (
+            participant is None
+            and meeting.organizer_id != user.id
+            and not is_government_workflow_operator(
+                user,
+                organization_id=getattr(getattr(meeting, "case", None), "organization_id", None),
+            )
+        ):
             return Response({"error": "You are not allowed to join this meeting."}, status=status.HTTP_403_FORBIDDEN)
 
         role = participant.role if participant else VideoMeetingParticipant.ROLE_HOST

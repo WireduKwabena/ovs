@@ -49,11 +49,11 @@ export const PUBLICATION_ROLES = ["publication_officer", "appointing_authority"]
 export const STAGE_HISTORY_ROLES = ["committee_member", "committee_chair"] as const;
 
 // Legacy fallback is restricted to true platform admins only.
-// ``hr_manager`` remains a legacy identity marker but no longer grants
+// ``internal`` remains a legacy identity marker but no longer grants
 // capability fallback for governance-sensitive UI access.
 export const LEGACY_CAPABILITY_STALE_FALLBACK_USER_TYPES = ["admin"] as const;
 
-type UserType = "applicant" | "hr_manager" | "admin" | null | undefined;
+type UserType = "applicant" | "internal" | "admin" | null | undefined;
 
 export const hasAnyCapability = (capabilities: readonly string[], required: readonly string[]): boolean => {
   if (!Array.isArray(capabilities) || capabilities.length === 0) {
@@ -78,3 +78,4 @@ export const shouldUseLegacyCapabilityFallback = (params: {
   }
   return !Array.isArray(params.capabilities) || params.capabilities.length === 0;
 };
+

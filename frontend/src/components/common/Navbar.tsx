@@ -93,7 +93,8 @@ export const Navbar: React.FC = () => {
   const canAccessAppointments = hasAdminAccess || canAccessAppointmentsFromHook;
   const canAccessRubrics = hasAdminAccess || canManageRubrics;
   const canAccessInternalRoutes = hasAdminAccess || canAccessInternalWorkflow;
-  const canShowOrganizationContext = userType !== 'applicant' && resolvedOrganizations.length > 0;
+  const isApplicantUser = userType === "applicant";
+  const canShowOrganizationContext = !isApplicantUser && resolvedOrganizations.length > 0;
   const activeOrganizationLabel = activeOrganization?.name || resolvedOrganizations[0]?.name || 'Default scope';
 
   const handleOrganizationSelection = async (rawValue: string) => {
@@ -303,13 +304,15 @@ export const Navbar: React.FC = () => {
   const displayName = getUserDisplayName(user, 'User');
 
   const roleLabel = hasAdminAccess
-    ? 'Admin'
-    : userType === 'hr_manager'
-      ? 'Operations User'
-      : userType === 'applicant'
-        ? 'Candidate Access'
-        : 'User';
-  const canManageTwoFactor = userType !== 'applicant';
+    ? "Admin"
+    : isApplicantUser
+      ? "Candidate Access"
+      : canManageActiveOrganizationGovernance
+        ? "Organization Admin"
+        : canAccessInternalRoutes
+          ? "Operations User"
+          : "User";
+  const canManageTwoFactor = !isApplicantUser;
   const canViewReminderRuntime = hasAdminAccess;
   const reminderStatusMeta: Record<ReminderRuntimeStatus, { dotClass: string; label: string }> = {
     unknown: { dotClass: 'bg-slate-500', label: 'Unknown' },
@@ -503,19 +506,19 @@ export const Navbar: React.FC = () => {
 
   const navLinks = hasAdminAccess
     ? [...adminPrimaryLinks, ...adminOverflowLinks]
-    : userType === 'applicant'
+    : isApplicantUser
       ? candidateLinks
       : [...internalPrimaryLinks, ...internalOverflowLinks];
 
   const desktopPrimaryLinks = hasAdminAccess
     ? adminPrimaryLinks
-    : userType === 'applicant'
+    : isApplicantUser
       ? candidateLinks
       : internalPrimaryLinks;
 
   const desktopOverflowLinks = hasAdminAccess
     ? adminOverflowLinks
-    : userType === 'applicant'
+    : isApplicantUser
       ? []
       : internalOverflowLinks;
   const hasActiveOverflowLink = desktopOverflowLinks.some((item) => isRouteActive(item.to));
@@ -524,7 +527,7 @@ export const Navbar: React.FC = () => {
 
   const profile_picture_url = (user as User)?.profile_picture_url || "";
 
-  const homePath = hasAdminAccess ? "/admin/dashboard" : userType === "applicant" ? "/candidate/access" : "/dashboard";
+  const homePath = hasAdminAccess ? "/admin/dashboard" : isApplicantUser ? "/candidate/access" : "/dashboard";
 
   return (
     <nav className="bg-slate-50 border-b border-slate-200 shadow-sm sticky top-0 z-50">

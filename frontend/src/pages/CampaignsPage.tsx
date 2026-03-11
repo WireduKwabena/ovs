@@ -31,7 +31,7 @@ const parseCampaignListStatusFilter = (value: string | null): CampaignListStatus
 
 const CampaignsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { isHrOrAdmin, userType } = useAuth();
+  const { isInternalOrAdmin, userType } = useAuth();
   const [campaigns, setCampaigns] = useState<VettingCampaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,8 +54,8 @@ const CampaignsPage: React.FC = () => {
     parseCampaignListStatusFilter(searchParams.get('status')),
   );
 
-  const canManageCampaigns = isHrOrAdmin;
-  const shouldShowQuota = userType === 'hr_manager';
+  const canManageCampaigns = isInternalOrAdmin;
+  const shouldShowQuota = canManageCampaigns && userType !== "applicant";
 
   const fetchCampaigns = useCallback(async () => {
     setLoading(true);
@@ -624,3 +624,4 @@ const CampaignsPage: React.FC = () => {
 };
 
 export default CampaignsPage;
+

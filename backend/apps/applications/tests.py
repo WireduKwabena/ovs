@@ -2,6 +2,7 @@ from django.conf import settings
 from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
+from django.contrib.auth.models import Group
 from rest_framework.test import APITestCase
 
 from apps.applications.models import (
@@ -58,14 +59,16 @@ class ApplicationsApiTests(APITestCase):
         )
 
     def setUp(self):
+        vetting_officer_group, _ = Group.objects.get_or_create(name="vetting_officer")
         self.hr = User.objects.create_user(
-            email="hr_apps_test@example.com",
+            email="internal_apps_test@example.com",
             password="Pass1234!",
-            first_name="HR",
+            first_name="Internal",
             last_name="Tester",
-            user_type="hr_manager",
+            user_type="internal",
             is_staff=True,
         )
+        self.hr.groups.add(vetting_officer_group)
         self.applicant = User.objects.create_user(
             email="app_apps_test@example.com",
             password="Pass1234!",
@@ -185,7 +188,7 @@ class ApplicationsApiTests(APITestCase):
         )
         self.assertEqual(allowed_upload.status_code, 201)
 
-    def test_hr_create_case_without_applicant_returns_400(self):
+    def test_internal_create_case_without_applicant_returns_400(self):
         response = self.client.post(
             "/api/applications/cases/",
             {
@@ -204,14 +207,16 @@ class ApplicationsApiTests(APITestCase):
         BILLING_PLAN_STARTER_CANDIDATES_PER_MONTH=0,
         BILLING_PLAN_DEFAULT_CANDIDATES_PER_MONTH=0,
     )
-    def test_hr_create_case_requires_active_subscription_when_not_admin(self):
-        hr_without_subscription = User.objects.create_user(
-            email="hr_no_sub_apps@example.com",
+    def test_internal_create_case_requires_active_subscription_when_not_admin(self):
+        internal_without_subscription = User.objects.create_user(
+            email="internal_no_sub_apps@example.com",
             password="Pass1234!",
             first_name="No",
             last_name="Subscription",
-            user_type="hr_manager",
+            user_type="internal",
         )
+        vetting_officer_group, _ = Group.objects.get_or_create(name="vetting_officer")
+        internal_without_subscription.groups.add(vetting_officer_group)
         organization = Organization.objects.create(
             code="apps-no-subscription-org",
             name="Applications No Subscription Org",
@@ -219,7 +224,7 @@ class ApplicationsApiTests(APITestCase):
             is_active=True,
         )
         OrganizationMembership.objects.create(
-            user=hr_without_subscription,
+            user=internal_without_subscription,
             organization=organization,
             membership_role="registry_admin",
             is_active=True,
@@ -231,7 +236,7 @@ class ApplicationsApiTests(APITestCase):
             payment_status="unpaid",
             plan_id="starter",
         )
-        self.client.force_authenticate(hr_without_subscription)
+        self.client.force_authenticate(internal_without_subscription)
 
         response = self.client.post(
             "/api/applications/cases/",
@@ -259,7 +264,7 @@ class ApplicationsApiTests(APITestCase):
         BILLING_QUOTA_ENFORCEMENT_ENABLED=True,
         BILLING_PLAN_STARTER_CANDIDATES_PER_MONTH=1,
     )
-    def test_hr_create_case_uses_org_scoped_quota_context(self):
+    def test_internal_create_case_uses_org_scoped_quota_context(self):
         organization = Organization.objects.create(
             code="apps-quota-org",
             name="Applications Quota Org",
@@ -324,17 +329,19 @@ class ApplicationsApiTests(APITestCase):
         self.assertEqual(int(quota_payload.get("used")), 1)
         self.assertIn("organization:", str(quota_payload.get("scope", "")))
 
-    def test_hr_cannot_create_case_for_enrollment_outside_owned_campaign(self):
+    def test_internal_cannot_create_case_for_enrollment_outside_owned_campaign(self):
         other_hr = User.objects.create_user(
-            email="hr_other_apps@example.com",
+            email="internal_other_apps@example.com",
             password="Pass1234!",
             first_name="Other",
             last_name="Manager",
-            user_type="hr_manager",
+            user_type="internal",
         )
+        vetting_officer_group, _ = Group.objects.get_or_create(name="vetting_officer")
+        other_hr.groups.add(vetting_officer_group)
         campaign = VettingCampaign.objects.create(
-            name="Other HR Campaign",
-            description="Owned by other HR",
+            name="Other Internal Campaign",
+            description="Owned by other internal reviewer",
             status="active",
             initiated_by=other_hr,
         )
@@ -463,14 +470,16 @@ class ApplicationsApiTests(APITestCase):
             organization_type="agency",
             is_active=True,
         )
-        legacy_hr = User.objects.create_user(
-            email="legacy_org_hr_apps@example.com",
+        legacy_internal_user = User.objects.create_user(
+            email="legacy_org_internal_apps@example.com",
             password="Pass1234!",
             first_name="Legacy",
             last_name="Org",
-            user_type="hr_manager",
+            user_type="internal",
             organization=legacy_org.name,
         )
+        vetting_officer_group, _ = Group.objects.get_or_create(name="vetting_officer")
+        legacy_internal_user.groups.add(vetting_officer_group)
         BillingSubscription.objects.create(
             provider="sandbox",
             organization=legacy_org,
@@ -485,14 +494,14 @@ class ApplicationsApiTests(APITestCase):
         )
         case = VettingCase.objects.create(
             applicant=self.applicant,
-            assigned_to=legacy_hr,
+            assigned_to=legacy_internal_user,
             position_applied="Analyst",
             department="Operations",
             priority="medium",
             status="document_upload",
         )
 
-        self.client.force_authenticate(legacy_hr)
+        self.client.force_authenticate(legacy_internal_user)
         response = self.client.post(
             f"/api/applications/cases/{case.id}/upload-document/",
             {
@@ -566,14 +575,16 @@ class ApplicationsApiTests(APITestCase):
             organization_type="agency",
             is_active=True,
         )
-        legacy_hr = User.objects.create_user(
-            email="legacy_task_hr_apps@example.com",
+        legacy_internal_user = User.objects.create_user(
+            email="legacy_task_internal_apps@example.com",
             password="Pass1234!",
             first_name="Legacy",
             last_name="TaskHR",
-            user_type="hr_manager",
+            user_type="internal",
             organization=legacy_org.name,
         )
+        vetting_officer_group, _ = Group.objects.get_or_create(name="vetting_officer")
+        legacy_internal_user.groups.add(vetting_officer_group)
         self._create_org_subscription(
             legacy_org,
             status="canceled",
@@ -583,7 +594,7 @@ class ApplicationsApiTests(APITestCase):
 
         case = VettingCase.objects.create(
             applicant=self.applicant,
-            assigned_to=legacy_hr,
+            assigned_to=legacy_internal_user,
             position_applied="Analyst",
             department="Operations",
             priority="medium",
@@ -615,11 +626,11 @@ class ApplicationsApiTests(APITestCase):
     )
     def test_verify_document_task_blocks_when_org_context_cannot_be_resolved(self):
         unscoped_hr = User.objects.create_user(
-            email="unscoped_hr_apps@example.com",
+            email="unscoped_internal_apps@example.com",
             password="Pass1234!",
             first_name="Unscoped",
-            last_name="HR",
-            user_type="hr_manager",
+            last_name="Reviewer",
+            user_type="internal",
         )
         unscoped_applicant = User.objects.create_user(
             email="unscoped_app_apps@example.com",
@@ -864,7 +875,7 @@ class ApplicationsApiTests(APITestCase):
         self.assertEqual(response.json()["status"], "skipped")
         mock_run_check.assert_called_once_with(case, actor=self.hr)
 
-    def test_recheck_social_profiles_forbidden_for_non_hr_user(self):
+    def test_recheck_social_profiles_forbidden_for_non_internal_user(self):
         case = VettingCase.objects.create(
             applicant=self.applicant,
             assigned_to=self.hr,
@@ -889,6 +900,19 @@ class ApplicationsApiTests(APITestCase):
             self.assertFalse(
                 AuditLog.objects.filter(entity_type="VettingCase", entity_id=str(case.id)).exists()
             )
+
+    def test_plain_internal_without_operational_role_cannot_list_cases(self):
+        plain_internal = User.objects.create_user(
+            email="plain_internal_apps_cases@example.com",
+            password="Pass1234!",
+            first_name="Plain",
+            last_name="Reviewer",
+            user_type="internal",
+        )
+        self.client.force_authenticate(plain_internal)
+        response = self.client.get("/api/applications/cases/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json().get("results", []), [])
 
     @patch("apps.applications.views.run_case_social_profile_check")
     def test_recheck_social_profiles_writes_audit_log(self, mock_run_check):
@@ -1038,23 +1062,26 @@ class ApplicationsApiTests(APITestCase):
 
 class ApplicationsOrganizationScopeTests(APITestCase):
     def setUp(self):
+        vetting_officer_group, _ = Group.objects.get_or_create(name="vetting_officer")
         self.org_a = Organization.objects.create(code="apps-org-a", name="Applications Org A")
         self.org_b = Organization.objects.create(code="apps-org-b", name="Applications Org B")
 
-        self.hr_a = User.objects.create_user(
+        self.internal_a = User.objects.create_user(
             email="apps_scope_a@example.com",
             password="Pass1234!",
             first_name="Apps",
             last_name="ScopeA",
-            user_type="hr_manager",
+            user_type="internal",
         )
-        self.hr_b = User.objects.create_user(
+        self.internal_a.groups.add(vetting_officer_group)
+        self.internal_b = User.objects.create_user(
             email="apps_scope_b@example.com",
             password="Pass1234!",
             first_name="Apps",
             last_name="ScopeB",
-            user_type="hr_manager",
+            user_type="internal",
         )
+        self.internal_b.groups.add(vetting_officer_group)
         self.applicant = User.objects.create_user(
             email="apps_scope_applicant@example.com",
             password="Pass1234!",
@@ -1063,14 +1090,16 @@ class ApplicationsOrganizationScopeTests(APITestCase):
             user_type="applicant",
         )
         OrganizationMembership.objects.create(
-            user=self.hr_a,
+            user=self.internal_a,
             organization=self.org_a,
+            membership_role="vetting_officer",
             is_active=True,
             is_default=True,
         )
         OrganizationMembership.objects.create(
-            user=self.hr_b,
+            user=self.internal_b,
             organization=self.org_b,
+            membership_role="vetting_officer",
             is_active=True,
             is_default=True,
         )
@@ -1078,13 +1107,13 @@ class ApplicationsOrganizationScopeTests(APITestCase):
         self.campaign_org_a = VettingCampaign.objects.create(
             name="Applications Campaign A",
             organization=self.org_a,
-            initiated_by=self.hr_b,
+            initiated_by=self.internal_b,
             status="active",
         )
         self.campaign_org_b = VettingCampaign.objects.create(
             name="Applications Campaign B",
             organization=self.org_b,
-            initiated_by=self.hr_b,
+            initiated_by=self.internal_b,
             status="active",
         )
         self.candidate_a = Candidate.objects.create(
@@ -1111,7 +1140,7 @@ class ApplicationsOrganizationScopeTests(APITestCase):
             organization=self.org_a,
             applicant=self.applicant,
             candidate_enrollment=self.enrollment_org_a,
-            assigned_to=self.hr_a,
+            assigned_to=self.internal_a,
             position_applied="Policy Analyst",
             department="Secretariat",
             priority="medium",
@@ -1121,7 +1150,7 @@ class ApplicationsOrganizationScopeTests(APITestCase):
             organization=self.org_b,
             applicant=self.applicant,
             candidate_enrollment=self.enrollment_org_b,
-            assigned_to=self.hr_b,
+            assigned_to=self.internal_b,
             position_applied="Policy Analyst",
             department="Secretariat",
             priority="medium",
@@ -1134,16 +1163,16 @@ class ApplicationsOrganizationScopeTests(APITestCase):
             return payload["results"]
         return payload
 
-    def test_hr_list_is_scoped_to_org_memberships(self):
-        self.client.force_authenticate(self.hr_a)
+    def test_internal_list_is_scoped_to_org_memberships(self):
+        self.client.force_authenticate(self.internal_a)
         response = self.client.get("/api/applications/cases/")
         self.assertEqual(response.status_code, 200)
         ids = {item["id"] for item in self._extract_results(response)}
         self.assertIn(str(self.case_org_a.id), ids)
         self.assertNotIn(str(self.case_org_b.id), ids)
 
-    def test_hr_can_create_case_for_same_org_foreign_campaign(self):
-        self.client.force_authenticate(self.hr_a)
+    def test_internal_can_create_case_for_same_org_foreign_campaign(self):
+        self.client.force_authenticate(self.internal_a)
         response = self.client.post(
             "/api/applications/cases/",
             {
@@ -1160,8 +1189,8 @@ class ApplicationsOrganizationScopeTests(APITestCase):
         created = VettingCase.objects.get(id=response.json()["id"])
         self.assertEqual(created.organization_id, self.org_a.id)
 
-    def test_hr_cannot_create_case_for_other_org(self):
-        self.client.force_authenticate(self.hr_a)
+    def test_internal_cannot_create_case_for_other_org(self):
+        self.client.force_authenticate(self.internal_a)
         response = self.client.post(
             "/api/applications/cases/",
             {
@@ -1176,17 +1205,19 @@ class ApplicationsOrganizationScopeTests(APITestCase):
         )
         self.assertEqual(response.status_code, 403)
 
-    def test_membershipless_hr_list_only_shows_assigned_legacy_cases(self):
-        membershipless_hr = User.objects.create_user(
+    def test_membershipless_internal_list_only_shows_assigned_legacy_cases(self):
+        vetting_officer_group, _ = Group.objects.get_or_create(name="vetting_officer")
+        membershipless_internal = User.objects.create_user(
             email="apps_scope_legacy_only@example.com",
             password="Pass1234!",
             first_name="Apps",
             last_name="LegacyOnly",
-            user_type="hr_manager",
+            user_type="internal",
         )
+        membershipless_internal.groups.add(vetting_officer_group)
         legacy_case = VettingCase.objects.create(
             applicant=self.applicant,
-            assigned_to=membershipless_hr,
+            assigned_to=membershipless_internal,
             position_applied="Legacy Analyst",
             department="Secretariat",
             priority="medium",
@@ -1195,14 +1226,14 @@ class ApplicationsOrganizationScopeTests(APITestCase):
         org_case = VettingCase.objects.create(
             organization=self.org_a,
             applicant=self.applicant,
-            assigned_to=membershipless_hr,
+            assigned_to=membershipless_internal,
             position_applied="Scoped Analyst",
             department="Secretariat",
             priority="medium",
             status="under_review",
         )
 
-        self.client.force_authenticate(membershipless_hr)
+        self.client.force_authenticate(membershipless_internal)
         response = self.client.get("/api/applications/cases/")
         self.assertEqual(response.status_code, 200)
         ids = {item["id"] for item in self._extract_results(response)}
@@ -1211,15 +1242,17 @@ class ApplicationsOrganizationScopeTests(APITestCase):
         self.assertNotIn(str(self.case_org_a.id), ids)
         self.assertNotIn(str(self.case_org_b.id), ids)
 
-    def test_membershipless_hr_cannot_create_case_without_org_context(self):
-        membershipless_hr = User.objects.create_user(
+    def test_membershipless_internal_cannot_create_case_without_org_context(self):
+        vetting_officer_group, _ = Group.objects.get_or_create(name="vetting_officer")
+        membershipless_internal = User.objects.create_user(
             email="apps_scope_create_denied@example.com",
             password="Pass1234!",
             first_name="Apps",
             last_name="CreateDenied",
-            user_type="hr_manager",
+            user_type="internal",
         )
-        self.client.force_authenticate(membershipless_hr)
+        membershipless_internal.groups.add(vetting_officer_group)
+        self.client.force_authenticate(membershipless_internal)
         response = self.client.post(
             "/api/applications/cases/",
             {
@@ -1246,8 +1279,8 @@ class VerificationGatewayFoundationTests(APITestCase):
             email="gateway.hr@example.com",
             password="Pass1234!",
             first_name="Gateway",
-            last_name="HR",
-            user_type="hr_manager",
+            last_name="Reviewer",
+            user_type="internal",
             is_staff=True,
         )
         self.applicant = User.objects.create_user(
@@ -1451,3 +1484,6 @@ class VerificationGatewayFoundationTests(APITestCase):
         self.assertEqual(external_snapshot.get("sources_with_advisory_flags"), 1)
         warning_codes = {item.get("code") for item in recommendation.warnings or []}
         self.assertIn("external_verification_flags", warning_codes)
+
+
+

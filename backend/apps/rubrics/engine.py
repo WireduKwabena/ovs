@@ -94,7 +94,7 @@ class RubricEvaluationEngine:
         elif evaluation.final_decision == "auto_rejected":
             headline = "Auto-rejected by configured rubric thresholds/risk rules."
         else:
-            headline = "Manual HR decision required."
+            headline = "Manual reviewer decision required."
 
         score_statement = (
             f"Legacy weighted score {evaluation.total_weighted_score} "

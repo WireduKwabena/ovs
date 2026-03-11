@@ -5,7 +5,7 @@ Dynamic vetting rubric and evaluation models.
 
 Academic Note:
 --------------
-Implements configurable scoring system allowing HR managers to:
+Implements configurable scoring system allowing internal reviewers to:
 1. Define custom evaluation criteria
 2. Assign weights to different components
 3. Set thresholds for pass/fail
@@ -92,7 +92,7 @@ class VettingRubric(models.Model):
     manual_review_weight = models.IntegerField(
         default=10,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
-        help_text="Weight for manual HR review"
+        help_text="Weight for manual reviewer assessment"
     )
     
     # Thresholds
@@ -757,7 +757,7 @@ class CriteriaOverride(models.Model):
     """
     Manual override of AI-generated scores.
     
-    Allows HR managers to adjust scores with justification.
+    Allows internal reviewers to adjust scores with justification.
     Important for bias mitigation and human oversight.
     
     Academic Note:

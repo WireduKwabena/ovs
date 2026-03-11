@@ -90,24 +90,24 @@ class AppointmentTransitionServiceTests(TestCase):
             status="nominated",
             is_public=True,
         )
-        self.hr_user = User.objects.create_user(
+        self.internal_user = User.objects.create_user(
             email="appointments_hr@example.com",
             password="Pass1234!",
             first_name="Vetting",
             last_name="Officer",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.committee_user = User.objects.create_user(
             email="appointments_committee@example.com",
             password="Pass1234!",
             first_name="Committee",
             last_name="Member",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.vetting_group, _ = Group.objects.get_or_create(name="vetting_officer")
         self.committee_group, _ = Group.objects.get_or_create(name="committee_member")
         self.authority_group, _ = Group.objects.get_or_create(name="appointing_authority")
-        self.hr_user.groups.add(self.vetting_group)
+        self.internal_user.groups.add(self.vetting_group)
         self.committee_user.groups.add(self.committee_group)
 
     def _attach_case_with_vetting_decision(
@@ -125,7 +125,7 @@ class AppointmentTransitionServiceTests(TestCase):
         )
         case = VettingCase.objects.create(
             applicant=applicant,
-            assigned_to=self.hr_user,
+            assigned_to=self.internal_user,
             position_applied=self.position.title,
             department=self.position.institution[:100],
             priority="medium",
@@ -203,7 +203,7 @@ class AppointmentTransitionServiceTests(TestCase):
             advance_stage(
                 appointment=self.appointment,
                 new_status="committee_review",
-                actor=self.hr_user,
+                actor=self.internal_user,
                 stage=stage,
             )
 
@@ -223,14 +223,14 @@ class AppointmentTransitionServiceTests(TestCase):
             advance_stage(
                 appointment=self.appointment,
                 new_status="appointed",
-                actor=self.hr_user,
+                actor=self.internal_user,
             )
 
-        self.hr_user.groups.add(self.authority_group)
+        self.internal_user.groups.add(self.authority_group)
         updated = advance_stage(
             appointment=self.appointment,
             new_status="appointed",
-            actor=self.hr_user,
+            actor=self.internal_user,
         )
         self.assertEqual(updated.status, "appointed")
 
@@ -244,7 +244,7 @@ class AppointmentTransitionServiceTests(TestCase):
         )
         case = VettingCase.objects.create(
             applicant=applicant,
-            assigned_to=self.hr_user,
+            assigned_to=self.internal_user,
             position_applied=self.position.title,
             department=self.position.institution[:100],
             priority="medium",
@@ -458,7 +458,7 @@ class AppointmentTransitionServiceTests(TestCase):
         updated = advance_stage(
             appointment=self.appointment,
             new_status="under_vetting",
-            actor=self.hr_user,
+            actor=self.internal_user,
             stage=stage,
         )
         self.assertEqual(updated.status, "under_vetting")
@@ -633,42 +633,42 @@ class AppointmentPublicApiTests(APITestCase):
             password="Pass1234!",
             first_name="Vetting",
             last_name="Officer",
-            user_type="hr_manager",
+            user_type="internal",
         )
-        self.ordinary_hr_user = User.objects.create_user(
+        self.ordinary_internal_user = User.objects.create_user(
             email="ordinary.hr@example.com",
             password="Pass1234!",
             first_name="Ordinary",
-            last_name="HR",
-            user_type="hr_manager",
+            last_name="Reviewer",
+            user_type="internal",
         )
         self.committee_user = User.objects.create_user(
             email="committee.user@example.com",
             password="Pass1234!",
             first_name="Committee",
             last_name="User",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.committee_chair_user = User.objects.create_user(
             email="committee.chair@example.com",
             password="Pass1234!",
             first_name="Committee",
             last_name="Chair",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.authority_user = User.objects.create_user(
             email="authority.user@example.com",
             password="Pass1234!",
             first_name="Authority",
             last_name="User",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.publication_user = User.objects.create_user(
             email="publication.user@example.com",
             password="Pass1234!",
             first_name="Publication",
             last_name="Officer",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.applicant_user = User.objects.create_user(
             email="appointments_applicant@example.com",
@@ -832,7 +832,7 @@ class AppointmentPublicApiTests(APITestCase):
             0,
         )
 
-    def test_list_records_allows_hr_and_admin_but_blocks_applicant(self):
+    def test_list_records_allows_internal_and_admin_but_blocks_applicant(self):
         self.client.force_authenticate(user=None)
         unauthenticated = self.client.get("/api/appointments/records/")
         self.assertIn(unauthenticated.status_code, {401, 403})
@@ -842,25 +842,25 @@ class AppointmentPublicApiTests(APITestCase):
         self.assertEqual(denied.status_code, 403)
 
         self.client.force_authenticate(self.vetting_user)
-        hr_allowed = self.client.get("/api/appointments/records/")
-        self.assertEqual(hr_allowed.status_code, 200)
-        self.assertGreaterEqual(len(self._extract_results(hr_allowed)), 1)
+        internal_allowed = self.client.get("/api/appointments/records/")
+        self.assertEqual(internal_allowed.status_code, 200)
+        self.assertGreaterEqual(len(self._extract_results(internal_allowed)), 1)
 
         self.client.force_authenticate(self.admin_user)
         admin_allowed = self.client.get("/api/appointments/records/")
         self.assertEqual(admin_allowed.status_code, 200)
         self.assertGreaterEqual(len(self._extract_results(admin_allowed)), 1)
 
-    def test_create_record_allows_hr_and_admin_but_blocks_applicant(self):
+    def test_create_record_allows_internal_and_admin_but_blocks_applicant(self):
         first_nominee = self._build_nominee()
         second_nominee = self._build_nominee()
-        hr_org = Organization.objects.create(
+        internal_org = Organization.objects.create(
             code=f"appt-public-create-{uuid4().hex[:8]}",
             name=f"Appointments Public Create Org {uuid4().hex[:6]}",
         )
         OrganizationMembership.objects.create(
             user=self.vetting_user,
-            organization=hr_org,
+            organization=internal_org,
             is_active=True,
             is_default=True,
         )
@@ -870,7 +870,7 @@ class AppointmentPublicApiTests(APITestCase):
             "nominated_by_display": "H.E. President",
             "nominated_by_org": "Office of the President",
             "nomination_date": str(date.today()),
-            "organization": str(hr_org.id),
+            "organization": str(internal_org.id),
         }
 
         self.client.force_authenticate(self.applicant_user)
@@ -878,11 +878,11 @@ class AppointmentPublicApiTests(APITestCase):
         self.assertEqual(denied.status_code, 403)
 
         self.client.force_authenticate(self.vetting_user)
-        hr_allowed = self.client.post("/api/appointments/records/", payload, format="json")
-        self.assertEqual(hr_allowed.status_code, 201)
+        internal_allowed = self.client.post("/api/appointments/records/", payload, format="json")
+        self.assertEqual(internal_allowed.status_code, 201)
         self._assert_audit_row_exists(
             action="create",
-            entity_id=hr_allowed.json()["id"],
+            entity_id=internal_allowed.json()["id"],
             expected_event=APPOINTMENT_RECORD_CREATED_EVENT,
         )
 
@@ -902,7 +902,7 @@ class AppointmentPublicApiTests(APITestCase):
             expected_event=APPOINTMENT_RECORD_CREATED_EVENT,
         )
 
-    def test_update_record_allows_hr_and_admin_but_blocks_applicant(self):
+    def test_update_record_allows_internal_and_admin_but_blocks_applicant(self):
         detail_url = f"/api/appointments/records/{self.record.id}/"
 
         self.client.force_authenticate(self.applicant_user)
@@ -910,12 +910,12 @@ class AppointmentPublicApiTests(APITestCase):
         self.assertEqual(denied.status_code, 403)
 
         self.client.force_authenticate(self.vetting_user)
-        hr_allowed = self.client.patch(
+        internal_allowed = self.client.patch(
             detail_url,
-            {"committee_recommendation": "Update by HR"},
+            {"committee_recommendation": "Update by Internal Reviewer"},
             format="json",
         )
-        self.assertEqual(hr_allowed.status_code, 200)
+        self.assertEqual(internal_allowed.status_code, 200)
 
         self.client.force_authenticate(self.admin_user)
         admin_allowed = self.client.patch(
@@ -930,9 +930,9 @@ class AppointmentPublicApiTests(APITestCase):
             expected_event=APPOINTMENT_RECORD_UPDATED_EVENT,
         )
 
-    def test_delete_record_allows_hr_and_admin_but_blocks_applicant(self):
+    def test_delete_record_allows_internal_and_admin_but_blocks_applicant(self):
         blocked_nominee = self._build_nominee()
-        hr_nominee = self._build_nominee()
+        internal_nominee = self._build_nominee()
         admin_nominee = self._build_nominee()
         blocked_record = AppointmentRecord.objects.create(
             position=self.record.position,
@@ -944,12 +944,12 @@ class AppointmentPublicApiTests(APITestCase):
             status="nominated",
             is_public=False,
         )
-        hr_record = AppointmentRecord.objects.create(
+        internal_record = AppointmentRecord.objects.create(
             position=self.record.position,
-            nominee=hr_nominee,
+            nominee=internal_nominee,
             appointment_exercise=self.record.appointment_exercise,
             nominated_by_user=self.admin_user,
-            nominated_by_display="HR Delete",
+            nominated_by_display="Internal Delete",
             nomination_date=date.today(),
             status="nominated",
             is_public=False,
@@ -971,12 +971,12 @@ class AppointmentPublicApiTests(APITestCase):
         self.assertTrue(AppointmentRecord.objects.filter(id=blocked_record.id).exists())
 
         self.client.force_authenticate(self.vetting_user)
-        hr_allowed = self.client.delete(f"/api/appointments/records/{hr_record.id}/")
-        self.assertEqual(hr_allowed.status_code, 204)
-        self.assertFalse(AppointmentRecord.objects.filter(id=hr_record.id).exists())
+        internal_allowed = self.client.delete(f"/api/appointments/records/{internal_record.id}/")
+        self.assertEqual(internal_allowed.status_code, 204)
+        self.assertFalse(AppointmentRecord.objects.filter(id=internal_record.id).exists())
         self._assert_audit_row_exists(
             action="delete",
-            entity_id=str(hr_record.id),
+            entity_id=str(internal_record.id),
             expected_event=APPOINTMENT_RECORD_DELETED_EVENT,
         )
 
@@ -994,7 +994,7 @@ class AppointmentPublicApiTests(APITestCase):
         self.record.status = "committee_review"
         self.record.save(update_fields=["status", "updated_at"])
 
-        self.client.force_authenticate(self.ordinary_hr_user)
+        self.client.force_authenticate(self.ordinary_internal_user)
         denied = self.client.post(f"/api/appointments/records/{self.record.id}/appoint/", {}, format="json")
         self.assertEqual(denied.status_code, 403)
 
@@ -1011,7 +1011,7 @@ class AppointmentPublicApiTests(APITestCase):
             password="Pass1234!",
             first_name="Staff",
             last_name="Operator",
-            user_type="hr_manager",
+            user_type="internal",
             is_staff=True,
         )
         self._authenticate_with_recent_auth(staff_operator)
@@ -1050,7 +1050,7 @@ class AppointmentPublicApiTests(APITestCase):
         self.record.status = "under_vetting"
         self.record.save(update_fields=["status", "updated_at"])
 
-        self.client.force_authenticate(self.ordinary_hr_user)
+        self.client.force_authenticate(self.ordinary_internal_user)
         denied = self.client.post(
             f"/api/appointments/records/{self.record.id}/advance-stage/",
             {"status": "committee_review"},
@@ -1270,7 +1270,7 @@ class AppointmentPublicApiTests(APITestCase):
         )
 
     def test_publish_and_revoke_allow_publication_officer(self):
-        self.client.force_authenticate(self.ordinary_hr_user)
+        self.client.force_authenticate(self.ordinary_internal_user)
         denied_publish = self.client.post(
             f"/api/appointments/records/{self.record.id}/publish/",
             {"publication_reference": "GOV-GAZ-DENIED", "publication_document_hash": "a" * 64},
@@ -1629,42 +1629,42 @@ class AppointmentCommitteeBindingApiTests(APITestCase):
             password="Pass1234!",
             first_name="Committee",
             last_name="Member",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.chair_user = User.objects.create_user(
             email="appt_committee_chair@example.com",
             password="Pass1234!",
             first_name="Committee",
             last_name="Chair",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.secretary_user = User.objects.create_user(
             email="appt_committee_secretary@example.com",
             password="Pass1234!",
             first_name="Committee",
             last_name="Secretary",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.observer_user = User.objects.create_user(
             email="appt_committee_observer@example.com",
             password="Pass1234!",
             first_name="Committee",
             last_name="Observer",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.non_member_group_user = User.objects.create_user(
             email="appt_committee_group_only@example.com",
             password="Pass1234!",
             first_name="Committee",
             last_name="GroupOnly",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.cross_org_member_user = User.objects.create_user(
             email="appt_committee_cross_org@example.com",
             password="Pass1234!",
             first_name="Committee",
             last_name="CrossOrg",
-            user_type="hr_manager",
+            user_type="internal",
         )
 
         self.committee_group, _ = Group.objects.get_or_create(name="committee_member")
@@ -2085,12 +2085,12 @@ class AppointmentOrganizationScopeTests(APITestCase):
         self.org_a = Organization.objects.create(code="appt-org-a", name="Appointments Org A")
         self.org_b = Organization.objects.create(code="appt-org-b", name="Appointments Org B")
 
-        self.hr_a = User.objects.create_user(
+        self.internal_a = User.objects.create_user(
             email="appointments_scope_a@example.com",
             password="Pass1234!",
             first_name="Appointments",
             last_name="ScopeA",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.admin_user = User.objects.create_user(
             email="appointments_scope_admin@example.com",
@@ -2102,9 +2102,9 @@ class AppointmentOrganizationScopeTests(APITestCase):
             is_superuser=True,
         )
         self.vetting_group, _ = Group.objects.get_or_create(name="vetting_officer")
-        self.hr_a.groups.add(self.vetting_group)
+        self.internal_a.groups.add(self.vetting_group)
         OrganizationMembership.objects.create(
-            user=self.hr_a,
+            user=self.internal_a,
             organization=self.org_a,
             is_active=True,
             is_default=True,
@@ -2190,7 +2190,7 @@ class AppointmentOrganizationScopeTests(APITestCase):
         return payload
 
     def test_list_is_scoped_to_org_and_excludes_legacy_null_scope(self):
-        self.client.force_authenticate(self.hr_a)
+        self.client.force_authenticate(self.internal_a)
         response = self.client.get("/api/appointments/records/")
         self.assertEqual(response.status_code, 200)
         ids = {item["id"] for item in self._extract_results(response)}
@@ -2198,8 +2198,8 @@ class AppointmentOrganizationScopeTests(APITestCase):
         self.assertNotIn(str(self.appointment_legacy.id), ids)
         self.assertNotIn(str(self.appointment_org_b.id), ids)
 
-    def test_update_outside_org_is_denied_for_hr_but_allowed_for_admin(self):
-        self.client.force_authenticate(self.hr_a)
+    def test_update_outside_org_is_denied_for_internal_but_allowed_for_admin(self):
+        self.client.force_authenticate(self.internal_a)
         denied = self.client.patch(
             f"/api/appointments/records/{self.appointment_org_b.id}/",
             {"nominated_by_display": "Blocked Cross Org Edit"},
@@ -2214,3 +2214,6 @@ class AppointmentOrganizationScopeTests(APITestCase):
             format="json",
         )
         self.assertEqual(allowed.status_code, 200)
+
+
+

@@ -29,7 +29,7 @@ class EmailAuthEndpointTests(APITestCase):
             password=self.password,
             first_name="Firm",
             last_name="Admin",
-            user_type="hr_manager",
+            user_type="internal",
         )
 
     def _create_org_subscription_and_token(
@@ -367,7 +367,7 @@ class EmailAuthEndpointTests(APITestCase):
             password=self.password,
             first_name="Existing",
             last_name="Member",
-            user_type="hr_manager",
+            user_type="internal",
         )
         existing_membership_count = OrganizationMembership.objects.filter(
             user=existing_user,
@@ -417,7 +417,7 @@ class EmailAuthEndpointTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         payload = response.json()
         self.assertNotIn("tokens", payload)
-        self.assertEqual(payload["user_type"], "hr_manager")
+        self.assertEqual(payload["user_type"], "internal")
         self.assertTrue(payload.get("setup_required"))
         self.assertIn("token", payload)
         self.assertIn("expires_in_seconds", payload)
@@ -531,7 +531,7 @@ class EmailAuthEndpointTests(APITestCase):
         self.assertEqual(verify_response.status_code, status.HTTP_200_OK)
         payload = verify_response.json()
         self.assertIn("tokens", payload)
-        self.assertEqual(payload["user_type"], "hr_manager")
+        self.assertEqual(payload["user_type"], "internal")
         access_token = AccessToken(payload["tokens"]["access"])
         refresh_token = RefreshToken(payload["tokens"]["refresh"])
         self.assertIsNotNone(access_token.get("recent_auth_at"))
@@ -780,7 +780,7 @@ class EmailAuthEndpointTests(APITestCase):
             password=self.password,
             first_name="Staff",
             last_name="Operator",
-            user_type="hr_manager",
+            user_type="internal",
             is_staff=True,
         )
 
@@ -832,7 +832,7 @@ class EmailAuthEndpointTests(APITestCase):
                 "city": "Accra",
                 "country": "Ghana",
                 "postal_code": "GA-001",
-                "current_job_title": "Lead HR",
+                "current_job_title": "Lead Internal Reviewer",
                 "years_of_experience": 8,
                 "linkedin_url": "https://www.linkedin.com/in/example",
                 "bio": "Profile update integration test",
@@ -910,7 +910,7 @@ class EmailAuthEndpointTests(APITestCase):
         self.assertEqual(admin.two_factor_secret, "A" * 32)
         self.assertIn("provisioning_uri", response.data)
 
-    def test_two_factor_setup_allows_hr_manager(self):
+    def test_two_factor_setup_allows_internal(self):
         self.client.force_authenticate(user=self.user)
 
         with patch(
@@ -964,7 +964,7 @@ class EmailAuthEndpointTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_two_factor_status_for_hr_manager(self):
+    def test_two_factor_status_for_internal(self):
         self.user.is_two_factor_enabled = True
         self.user.two_factor_secret = "A" * 32
         self.user.generate_backup_codes(count=2, length=8)
@@ -973,7 +973,7 @@ class EmailAuthEndpointTests(APITestCase):
         response = self.client.get("/api/auth/2fa/status/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["user_type"], "hr_manager")
+        self.assertEqual(response.data["user_type"], "internal")
         self.assertTrue(response.data["two_factor_required"])
         self.assertFalse(response.data["applicant_exempt"])
         self.assertTrue(response.data["is_two_factor_enabled"])
@@ -1037,7 +1037,7 @@ class EmailAuthEndpointTests(APITestCase):
             password=self.password,
             first_name="Staff",
             last_name="Profile",
-            user_type="hr_manager",
+            user_type="internal",
             is_staff=True,
         )
         self.client.force_authenticate(user=staff_operator)
@@ -1045,7 +1045,7 @@ class EmailAuthEndpointTests(APITestCase):
         response = self.client.get("/api/auth/profile/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("hr_manager", response.data["roles"])
+        self.assertIn("internal", response.data["roles"])
         self.assertNotIn("admin", response.data["roles"])
 
     @override_settings(AUTHZ_STAFF_IMPLIES_ADMIN=True)
@@ -1055,7 +1055,7 @@ class EmailAuthEndpointTests(APITestCase):
             password=self.password,
             first_name="Staff",
             last_name="Compat",
-            user_type="hr_manager",
+            user_type="internal",
             is_staff=True,
         )
         self.client.force_authenticate(user=staff_operator)
@@ -1174,7 +1174,7 @@ class EmailAuthRegistrationConcurrencyTests(APITransactionTestCase):
             password=self.password,
             first_name="Concurrency",
             last_name="Inviter",
-            user_type="hr_manager",
+            user_type="internal",
         )
 
     def _create_org_subscription_and_token(
@@ -1348,3 +1348,5 @@ class EmailAuthRegistrationConcurrencyTests(APITransactionTestCase):
             ).count(),
             2,  # inviter + one successful onboarded user
         )
+
+

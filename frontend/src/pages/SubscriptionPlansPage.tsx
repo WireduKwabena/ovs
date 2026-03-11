@@ -36,7 +36,7 @@ const plans: Plan[] = [
   {
     id: "starter",
     name: "Starter",
-    subtitle: "For small HR teams",
+    subtitle: "For small internal teams",
     monthlyPriceUsd: 149,
     annualPriceUsd: 1490,
     highlights: [

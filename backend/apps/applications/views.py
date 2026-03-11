@@ -19,6 +19,7 @@ from apps.core.permissions import (
     can_access_organization_id,
     get_request_active_organization_id,
     get_user_allowed_organization_ids,
+    is_government_workflow_operator,
     is_platform_admin_user,
     scope_internal_queryset_to_tenant,
 )
@@ -92,7 +93,10 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
         if is_platform_admin_user(user):
             return queryset.order_by("-created_at")
 
-        if getattr(user, "user_type", None) == "hr_manager":
+        if is_government_workflow_operator(
+            user,
+            organization_id=get_request_active_organization_id(self.request),
+        ):
             membership_org_ids = get_user_allowed_organization_ids(user)
             if membership_org_ids:
                 queryset = scope_internal_queryset_to_tenant(
@@ -102,7 +106,7 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
                 )
             else:
                 queryset = queryset.filter(assigned_to=user, organization_id__isnull=True)
-            if getattr(user, "user_type", None) == "hr_manager" and scope in {"assigned", "mine", "my"}:
+            if scope in {"assigned", "mine", "my"}:
                 return queryset.filter(assigned_to=user).order_by("-created_at")
             return queryset.order_by("-created_at")
         return queryset.filter(applicant=user).order_by("-created_at")
@@ -146,8 +150,6 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
                 raise ValidationError({"applicant": "This field is required for non-applicant creators."})
 
             is_admin = is_platform_admin_user(user)
-            is_hr_manager = getattr(user, "user_type", None) == "hr_manager"
-
             resolved_org_id = None
             if requested_org is not None:
                 resolved_org_id = str(requested_org.id)
@@ -157,6 +159,8 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
                 resolved_org_id = get_request_active_organization_id(self.request)
 
             if not is_admin:
+                if not is_government_workflow_operator(user, organization_id=resolved_org_id):
+                    raise PermissionDenied("You do not have permission to create vetting cases.")
                 if requested_org is not None and not can_access_organization_id(
                     user,
                     requested_org.id,
@@ -169,10 +173,10 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
                     allow_membershipless_fallback=False,
                 ):
                     raise PermissionDenied("You cannot create vetting cases for another organization.")
-                if is_hr_manager and not resolved_org_id:
+                if not resolved_org_id:
                     raise PermissionDenied("Active organization context is required to create vetting cases.")
 
-            if is_hr_manager and candidate_enrollment is not None:
+            if not is_admin and candidate_enrollment is not None:
                 campaign_owner_id = getattr(candidate_enrollment.campaign, "initiated_by_id", None)
                 campaign_org_id = getattr(candidate_enrollment.campaign, "organization_id", None)
                 if campaign_owner_id != user.id and not (
@@ -187,7 +191,7 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
 
             # Legacy/manual case creation path can bypass enrollment quota checks,
             # so enforce subscription plan quota here when no enrollment linkage exists.
-            if is_hr_manager and candidate_enrollment is None:
+            if not is_admin and candidate_enrollment is None:
                 enforce_candidate_quota(
                     user=user,
                     additional=1,
@@ -422,19 +426,15 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Candidate session cannot trigger social profile re-check.")
 
         user = request.user
-        if not (
-            getattr(user, "is_staff", False)
-            or getattr(user, "is_superuser", False)
-            or getattr(user, "user_type", None) in {"admin", "hr_manager"}
-        ):
-            raise PermissionDenied("Only HR managers/admins can trigger social profile re-check.")
+        resolved_org_id = resolve_case_organization_id(case, actor=user)
+        if not is_government_workflow_operator(user, organization_id=resolved_org_id):
+            raise PermissionDenied("Only authorized internal workflow actors can trigger social profile re-check.")
 
         try:
             existing_social_result = case.social_profile_result
         except Exception:
             existing_social_result = None
 
-        resolved_org_id = resolve_case_organization_id(case, actor=user)
         quota_actor = None if resolved_org_id else user
         enforce_vetting_operation_quota(
             operation=VETTING_OPERATION_SOCIAL_PROFILE_CHECK,
@@ -479,7 +479,10 @@ class DocumentViewSet(viewsets.ReadOnlyModelViewSet):
             return Document.objects.none()
         if is_platform_admin_user(user):
             return queryset.order_by("-uploaded_at")
-        if getattr(user, "user_type", None) == "hr_manager":
+        if is_government_workflow_operator(
+            user,
+            organization_id=get_request_active_organization_id(self.request),
+        ):
             membership_org_ids = get_user_allowed_organization_ids(user)
             if membership_org_ids:
                 queryset = scope_internal_queryset_to_tenant(

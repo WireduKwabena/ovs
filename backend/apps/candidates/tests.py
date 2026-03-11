@@ -1,5 +1,6 @@
 from rest_framework.test import APITestCase
 from django.test import override_settings
+from django.contrib.auth.models import Group
 
 from apps.authentication.models import User
 from apps.billing.models import BillingSubscription
@@ -10,20 +11,23 @@ from apps.governance.models import Organization, OrganizationMembership
 
 class CandidateEnrollmentAuthorizationTests(APITestCase):
     def setUp(self):
-        self.hr_one = User.objects.create_user(
-            email="hr_candidates_one@example.com",
+        vetting_officer_group, _ = Group.objects.get_or_create(name="vetting_officer")
+        self.internal_one = User.objects.create_user(
+            email="internal_candidates_one@example.com",
             password="Pass1234!",
-            first_name="HR",
+            first_name="Internal",
             last_name="One",
-            user_type="hr_manager",
+            user_type="internal",
         )
-        self.hr_two = User.objects.create_user(
-            email="hr_candidates_two@example.com",
+        self.internal_one.groups.add(vetting_officer_group)
+        self.internal_two = User.objects.create_user(
+            email="internal_candidates_two@example.com",
             password="Pass1234!",
-            first_name="HR",
+            first_name="Internal",
             last_name="Two",
-            user_type="hr_manager",
+            user_type="internal",
         )
+        self.internal_two.groups.add(vetting_officer_group)
         self.admin = User.objects.create_user(
             email="admin_candidates@example.com",
             password="Pass1234!",
@@ -33,8 +37,8 @@ class CandidateEnrollmentAuthorizationTests(APITestCase):
             is_staff=True,
         )
 
-        self.campaign_one = VettingCampaign.objects.create(name="HR1 Campaign", initiated_by=self.hr_one)
-        self.campaign_two = VettingCampaign.objects.create(name="HR2 Campaign", initiated_by=self.hr_two)
+        self.campaign_one = VettingCampaign.objects.create(name="HR1 Campaign", initiated_by=self.internal_one)
+        self.campaign_two = VettingCampaign.objects.create(name="HR2 Campaign", initiated_by=self.internal_two)
         self.candidate = Candidate.objects.create(
             first_name="Jane",
             last_name="Candidate",
@@ -88,21 +92,47 @@ class CandidateEnrollmentAuthorizationTests(APITestCase):
             registration_consumed_by_email=user.email,
         )
 
-    def test_hr_manager_lists_only_own_enrollments(self):
-        self.client.force_authenticate(self.hr_one)
+    def test_internal_lists_only_own_enrollments(self):
+        self.client.force_authenticate(self.internal_one)
         response = self.client.get("/api/enrollments/")
         self.assertEqual(response.status_code, 200)
         ids = {item["id"] for item in self._items(response.json())}
         self.assertIn(str(self.enrollment_one.id), ids)
         self.assertNotIn(str(self.enrollment_two.id), ids)
 
-    def test_hr_manager_cannot_create_enrollment_for_other_campaign(self):
-        self.client.force_authenticate(self.hr_one)
+    def test_internal_cannot_create_enrollment_for_other_campaign(self):
+        self.client.force_authenticate(self.internal_one)
         response = self.client.post(
             "/api/enrollments/",
             {
                 "campaign": self.campaign_two.id,
                 "candidate": self.candidate.id,
+                "status": "invited",
+                "metadata": {},
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_plain_internal_without_operational_role_cannot_create_enrollment(self):
+        plain_internal = User.objects.create_user(
+            email="plain_internal_candidates@example.com",
+            password="Pass1234!",
+            first_name="Plain",
+            last_name="Reviewer",
+            user_type="internal",
+        )
+        fresh_candidate = Candidate.objects.create(
+            first_name="Fresh",
+            last_name="Candidate",
+            email="plain_internal_fresh_candidate@example.com",
+        )
+        self.client.force_authenticate(plain_internal)
+        response = self.client.post(
+            "/api/enrollments/",
+            {
+                "campaign": self.campaign_one.id,
+                "candidate": fresh_candidate.id,
                 "status": "invited",
                 "metadata": {},
             },
@@ -118,8 +148,8 @@ class CandidateEnrollmentAuthorizationTests(APITestCase):
         self.assertIn(str(self.enrollment_one.id), ids)
         self.assertIn(str(self.enrollment_two.id), ids)
 
-    def test_hr_manager_lists_only_own_social_profiles(self):
-        self.client.force_authenticate(self.hr_one)
+    def test_internal_lists_only_own_social_profiles(self):
+        self.client.force_authenticate(self.internal_one)
         response = self.client.get("/api/social-profiles/")
 
         self.assertEqual(response.status_code, 200)
@@ -127,8 +157,8 @@ class CandidateEnrollmentAuthorizationTests(APITestCase):
         self.assertIn(str(self.profile_one.id), ids)
         self.assertNotIn(str(self.profile_two.id), ids)
 
-    def test_hr_manager_cannot_create_social_profile_for_other_campaign_candidate(self):
-        self.client.force_authenticate(self.hr_one)
+    def test_internal_cannot_create_social_profile_for_other_campaign_candidate(self):
+        self.client.force_authenticate(self.internal_one)
         response = self.client.post(
             "/api/social-profiles/",
             {
@@ -163,14 +193,14 @@ class CandidateEnrollmentAuthorizationTests(APITestCase):
         BILLING_QUOTA_ENFORCEMENT_ENABLED=True,
         BILLING_PLAN_STARTER_CANDIDATES_PER_MONTH=2,
     )
-    def test_hr_manager_enrollment_requires_active_subscription(self):
+    def test_internal_enrollment_requires_active_subscription(self):
         candidate = Candidate.objects.create(
             first_name="No",
             last_name="Subscription",
             email="no_subscription@example.com",
         )
 
-        self.client.force_authenticate(self.hr_one)
+        self.client.force_authenticate(self.internal_one)
         response = self.client.post(
             "/api/enrollments/",
             {
@@ -195,7 +225,7 @@ class CandidateEnrollmentAuthorizationTests(APITestCase):
         BILLING_QUOTA_ENFORCEMENT_ENABLED=True,
         BILLING_PLAN_STARTER_CANDIDATES_PER_MONTH=1,
     )
-    def test_hr_manager_org_scoped_quota_blocks_enrollment_at_limit(self):
+    def test_internal_org_scoped_quota_blocks_enrollment_at_limit(self):
         organization = Organization.objects.create(
             code="cand-quota-org",
             name="Candidate Quota Org",
@@ -203,7 +233,7 @@ class CandidateEnrollmentAuthorizationTests(APITestCase):
             is_active=True,
         )
         OrganizationMembership.objects.create(
-            user=self.hr_one,
+            user=self.internal_one,
             organization=organization,
             membership_role="registry_admin",
             is_active=True,
@@ -232,7 +262,7 @@ class CandidateEnrollmentAuthorizationTests(APITestCase):
             email="org_overflow_candidate@example.com",
         )
 
-        self.client.force_authenticate(self.hr_one)
+        self.client.force_authenticate(self.internal_one)
         response = self.client.post(
             "/api/enrollments/",
             {
@@ -257,8 +287,8 @@ class CandidateEnrollmentAuthorizationTests(APITestCase):
         BILLING_QUOTA_ENFORCEMENT_ENABLED=True,
         BILLING_PLAN_STARTER_CANDIDATES_PER_MONTH=2,
     )
-    def test_hr_manager_quota_blocks_new_enrollment_after_plan_limit(self):
-        self._seed_subscription(self.hr_one, plan_id="starter", plan_name="Starter")
+    def test_internal_quota_blocks_new_enrollment_after_plan_limit(self):
+        self._seed_subscription(self.internal_one, plan_id="starter", plan_name="Starter")
 
         for idx in range(2):
             limited_candidate = Candidate.objects.create(
@@ -278,7 +308,7 @@ class CandidateEnrollmentAuthorizationTests(APITestCase):
             email="overflow_candidate@example.com",
         )
 
-        self.client.force_authenticate(self.hr_one)
+        self.client.force_authenticate(self.internal_one)
         response = self.client.post(
             "/api/enrollments/",
             {
@@ -298,3 +328,5 @@ class CandidateEnrollmentAuthorizationTests(APITestCase):
         self.assertIn("period_end", payload["quota"])
         self.assertTrue(str(payload["quota"].get("period_start")))
         self.assertTrue(str(payload["quota"].get("period_end")))
+
+

@@ -680,21 +680,21 @@ Traceback (most recent call last):
 AssertionError: 400 != 201
 
 ======================================================================
-FAIL: test_hr_manager_can_create_background_check (apps.background_checks.tests.BackgroundCheckApiTests.test_hr_manager_can_create_background_check)
+FAIL: test_internal_can_create_background_check (apps.background_checks.tests.BackgroundCheckApiTests.test_internal_can_create_background_check)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
   File "C:\Users\admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\django\test\utils.py", line 456, in inner
     return func(*args, **kwargs)
-  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\tests.py", line 303, in test_hr_manager_can_create_background_check
+  File "A:\projects\Django\OVS-Redo\backend\apps\background_checks\tests.py", line 303, in test_internal_can_create_background_check
     self.assertEqual(response.status_code, status.HTTP_201_CREATED)
     ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 AssertionError: 400 != 201
 
 ======================================================================
-FAIL: test_hr_manager_can_define_required_document_types (apps.campaigns.tests.CampaignAuthorizationTests.test_hr_manager_can_define_required_document_types)
+FAIL: test_internal_can_define_required_document_types (apps.campaigns.tests.CampaignAuthorizationTests.test_internal_can_define_required_document_types)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "A:\projects\Django\OVS-Redo\backend\apps\campaigns\tests.py", line 132, in test_hr_manager_can_define_required_document_types
+  File "A:\projects\Django\OVS-Redo\backend\apps\campaigns\tests.py", line 132, in test_internal_can_define_required_document_types
     self.assertEqual(response.status_code, 201)
     ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
 AssertionError: 403 != 201
@@ -811,3 +811,4 @@ Demo sign-in accounts:
   Registry:  gams.registry@demo.local / DemoRegistry123!
   Publication: gams.publication@demo.local / DemoPublication123!
   Auditor:  gams.auditor@demo.local / DemoAuditor123!
+

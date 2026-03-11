@@ -1,4 +1,4 @@
-export type AuthUserType = "applicant" | "hr_manager" | "admin" | null | undefined;
+export type AuthUserType = "applicant" | "internal" | "admin" | null | undefined;
 
 export const getDashboardPathForUser = (userType: AuthUserType): string => {
   if (userType === "admin") {
@@ -63,3 +63,4 @@ export const resolveUnauthenticatedRouteRedirect = (params: {
 
   return null;
 };
+

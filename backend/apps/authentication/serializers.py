@@ -80,7 +80,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         validated_data.pop('organization', None)
         # Keep legacy identity default for backward compatibility.
         # Governance authority is resolved through roles/capabilities/memberships.
-        validated_data.setdefault("user_type", "hr_manager")
+        validated_data.setdefault("user_type", "internal")
         user = User.objects.create_user(**validated_data)
         return user
 
@@ -421,6 +421,7 @@ class ProfileResponseSerializer(serializers.Serializer):
     active_organization = OrganizationSummarySerializer(allow_null=True, required=False)
     active_organization_source = serializers.CharField(required=False)
     invalid_requested_organization_id = serializers.CharField(required=False, allow_blank=True)
+
 
 
 

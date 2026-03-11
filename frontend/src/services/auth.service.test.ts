@@ -21,7 +21,7 @@ describe("authService organization-context endpoints", () => {
     apiGetMock.mockResolvedValueOnce({
       data: {
         user: { id: "1", email: "ops@example.com" },
-        user_type: "hr_manager",
+        user_type: "internal",
         organizations: [],
       },
     });
@@ -37,7 +37,7 @@ describe("authService organization-context endpoints", () => {
     apiGetMock.mockResolvedValueOnce({
       data: {
         user: { id: "1", email: "ops@example.com" },
-        user_type: "hr_manager",
+        user_type: "internal",
       },
     });
 
@@ -73,4 +73,5 @@ describe("authService organization-context endpoints", () => {
     });
   });
 });
+
 

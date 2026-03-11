@@ -40,20 +40,20 @@ class Command(BaseCommand):
             admin.save(update_fields=["password"])
             self.stdout.write(self.style.SUCCESS("Created admin user (admin@test.com)"))
 
-        hr_manager, created = User.objects.get_or_create(
-            email="hr@test.com",
+        internal, created = User.objects.get_or_create(
+            email="internal@test.com",
             defaults={
-                "first_name": "HR",
-                "last_name": "Manager",
-                "user_type": "hr_manager",
+                "first_name": "Internal",
+                "last_name": "Reviewer",
+                "user_type": "internal",
                 "is_staff": True,
                 "email_verified": True,
             },
         )
         if created:
-            hr_manager.set_password("hr123")
-            hr_manager.save(update_fields=["password"])
-            self.stdout.write(self.style.SUCCESS("Created HR manager (hr@test.com)"))
+            internal.set_password("internal123")
+            internal.save(update_fields=["password"])
+            self.stdout.write(self.style.SUCCESS("Created internal reviewer (internal@test.com)"))
 
         applicants: list[User] = []
         for index in range(requested_users):
@@ -78,7 +78,7 @@ class Command(BaseCommand):
         positions = [
             "Software Engineer",
             "Data Analyst",
-            "HR Associate",
+            "People Operations Associate",
             "Finance Officer",
             "Operations Manager",
         ]
@@ -89,7 +89,7 @@ class Command(BaseCommand):
             VettingCase.objects.create(
                 applicant=applicant,
                 position_applied=random.choice(positions),
-                department=random.choice(["Technology", "Operations", "Finance", "HR"]),
+                department=random.choice(["Technology", "Operations", "Finance", "People Operations"]),
                 status=random.choice(statuses),
                 priority=random.choice(priorities),
                 document_authenticity_score=round(random.uniform(60.0, 98.0), 2),
@@ -106,7 +106,7 @@ class Command(BaseCommand):
                 "rubric_type": "general",
                 "is_active": True,
                 "is_default": True,
-                "created_by": hr_manager,
+                "created_by": internal,
             },
         )
 
@@ -155,5 +155,6 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Test data generation complete."))
         self.stdout.write("Login credentials:")
         self.stdout.write("  Admin: admin@test.com / admin123")
-        self.stdout.write("  HR Manager: hr@test.com / hr123")
+        self.stdout.write("  Internal Reviewer: internal@test.com / internal123")
         self.stdout.write("  Applicant: user0@test.com / test123")
+

@@ -31,7 +31,7 @@ describe("canManageOrganizationGovernance", () => {
     ).toBe(true);
   });
 
-  it("denies plain hr_manager capability-only access without governance membership", () => {
+  it("denies plain internal capability-only access without governance membership", () => {
     expect(
       canManageOrganizationGovernance({
         isAdmin: false,
@@ -65,3 +65,4 @@ describe("canManageOrganizationGovernance", () => {
     ).toBe(false);
   });
 });
+

@@ -24,11 +24,11 @@ class InterviewsApiTests(APITestCase):
             is_active=True,
         )
         self.hr = User.objects.create_user(
-            email="hr_interviews_test@example.com",
+            email="internal_interviews_test@example.com",
             password="Pass1234!",
-            first_name="HR",
+            first_name="Internal",
             last_name="Interviews",
-            user_type="hr_manager",
+            user_type="internal",
             is_staff=True,
         )
         OrganizationMembership.objects.create(
@@ -479,7 +479,7 @@ class InterviewsApiTests(APITestCase):
         )
         mock_delay.assert_called_once_with(created.id)
 
-    def test_admin_service_actions_require_hr_or_service(self):
+    def test_admin_service_actions_require_internal_or_service(self):
         self.client.force_authenticate(self.applicant)
 
         analytics_response = self.client.get("/api/interviews/sessions/analytics-dashboard/?days=30")
@@ -498,6 +498,18 @@ class InterviewsApiTests(APITestCase):
             format="json",
         )
         self.assertEqual(generate_flags_response.status_code, 403)
+
+    def test_plain_internal_without_operational_role_cannot_access_service_actions(self):
+        plain_internal = User.objects.create_user(
+            email="plain_internal_interviews@example.com",
+            password="Pass1234!",
+            first_name="Plain",
+            last_name="Reviewer",
+            user_type="internal",
+        )
+        self.client.force_authenticate(plain_internal)
+        response = self.client.get("/api/interviews/sessions/analytics-dashboard/?days=30")
+        self.assertEqual(response.status_code, 403)
 
     def test_services_actions_playback_analytics_compare_and_flag_generation(self):
         session_one = InterviewSession.objects.create(
@@ -627,11 +639,11 @@ class InterviewServiceTokenApiTests(APITestCase):
             is_active=True,
         )
         self.hr = User.objects.create_user(
-            email="hr_interviews_service@example.com",
+            email="internal_interviews_service@example.com",
             password="Pass1234!",
-            first_name="HR",
+            first_name="Internal",
             last_name="Service",
-            user_type="hr_manager",
+            user_type="internal",
             is_staff=True,
         )
         OrganizationMembership.objects.create(
@@ -743,11 +755,11 @@ class InterviewTaskIdentityMatchTests(APITestCase):
             is_active=True,
         )
         self.hr = User.objects.create_user(
-            email="hr_interviews_task@example.com",
+            email="internal_interviews_task@example.com",
             password="Pass1234!",
-            first_name="HR",
+            first_name="Internal",
             last_name="Task",
-            user_type="hr_manager",
+            user_type="internal",
             is_staff=True,
         )
         OrganizationMembership.objects.create(
@@ -898,3 +910,5 @@ class InterviewTaskIdentityMatchTests(APITestCase):
         self.assertEqual(result.get("code"), "subscription_required")
         self.assertEqual((result.get("quota") or {}).get("operation"), "interview_analysis")
         self.assertIn(str(legacy_org.id), str((result.get("quota") or {}).get("scope", "")))
+
+

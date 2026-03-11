@@ -7,6 +7,7 @@ import logging
 from celery import shared_task
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
+from django.db.models import Q
 from django.template import TemplateDoesNotExist
 from django.template.loader import render_to_string
 
@@ -116,7 +117,7 @@ def send_high_deception_alert(self, session_id, exchange_id):
         return {"success": False, "error": f"InterviewResponse {exchange_id} not found"}
 
     analysis = _get_response_analysis(exchange)
-    hr_emails = get_hr_manager_emails()
+    internal_emails = get_internal_emails(organization_id=getattr(session.case, "organization_id", None))
 
     context = {
         "session_id": session.session_id,
@@ -137,7 +138,7 @@ def send_high_deception_alert(self, session_id, exchange_id):
             html_template="emails/high_deception_alert.html",
             text_template="emails/high_deception_alert.txt",
             context=context,
-            to=hr_emails,
+            to=internal_emails,
         )
     except Exception as exc:
         _retry_with_backoff(self, exc, message="Failed to send high deception/stress alert.")
@@ -161,7 +162,7 @@ def send_critical_flags_alert(self, session_id):
         severity="critical",
         status__in=["pending", "addressed"],
     )
-    hr_emails = get_hr_manager_emails()
+    internal_emails = get_internal_emails(organization_id=getattr(session.case, "organization_id", None))
 
     context = {
         "session_id": session.session_id,
@@ -185,7 +186,7 @@ def send_critical_flags_alert(self, session_id):
             html_template="emails/critical_flags_alert.html",
             text_template="emails/critical_flags_alert.txt",
             context=context,
-            to=hr_emails,
+            to=internal_emails,
         )
     except Exception as exc:
         _retry_with_backoff(self, exc, message="Failed to send critical flags alert.")
@@ -211,7 +212,7 @@ def send_poor_response_alert(self, session_id, exchange_id):
         logger.warning("Skipping poor response alert: InterviewResponse %s not found.", exchange_id)
         return {"success": False, "error": f"InterviewResponse {exchange_id} not found"}
 
-    hr_emails = get_hr_manager_emails()
+    internal_emails = get_internal_emails(organization_id=getattr(session.case, "organization_id", None))
 
     context = {
         "session_id": session.session_id,
@@ -230,7 +231,7 @@ def send_poor_response_alert(self, session_id, exchange_id):
             html_template="emails/poor_response_alert.html",
             text_template="emails/poor_response_alert.txt",
             context=context,
-            to=hr_emails,
+            to=internal_emails,
         )
     except Exception as exc:
         _retry_with_backoff(self, exc, message="Failed to send poor response alert.")
@@ -255,7 +256,7 @@ def send_behavioral_alert(self, session_id, exchange_id):
         return {"success": False, "error": f"InterviewResponse {exchange_id} not found"}
 
     analysis = _get_response_analysis(exchange)
-    hr_emails = get_hr_manager_emails()
+    internal_emails = get_internal_emails(organization_id=getattr(session.case, "organization_id", None))
 
     context = {
         "session_id": session.session_id,
@@ -275,7 +276,7 @@ def send_behavioral_alert(self, session_id, exchange_id):
             html_template="emails/behavioral_alert.html",
             text_template="emails/behavioral_alert.txt",
             context=context,
-            to=hr_emails,
+            to=internal_emails,
         )
     except Exception as exc:
         _retry_with_backoff(self, exc, message="Failed to send behavioral alert.")
@@ -293,7 +294,7 @@ def send_completion_summary(self, session_id):
         logger.warning("Skipping completion summary: InterviewSession %s not found.", session_id)
         return {"success": False, "error": f"InterviewSession {session_id} not found"}
 
-    hr_emails = get_hr_manager_emails()
+    internal_emails = get_internal_emails(organization_id=getattr(session.case, "organization_id", None))
 
     responses = session.responses.select_related("question").all()
     flags = session.case.interrogation_flags.all()
@@ -322,7 +323,7 @@ def send_completion_summary(self, session_id):
             html_template="emails/completion_summary.html",
             text_template="emails/completion_summary.txt",
             context=context,
-            to=hr_emails,
+            to=internal_emails,
         )
     except Exception as exc:
         _retry_with_backoff(self, exc, message="Failed to send completion summary.")
@@ -331,15 +332,35 @@ def send_completion_summary(self, session_id):
     return {"success": True, "session_id": session_id}
 
 
-def get_hr_manager_emails():
-    """Get active HR/admin emails for interview alerts."""
-    from apps.authentication.models import User
+def get_internal_emails(*, organization_id=None):
+    """
+    Get active internal workflow actor emails for interview alerts.
 
-    hr_users = User.objects.filter(
-        user_type__in=["hr_manager", "admin"],
-        is_active=True,
-    ).only("email")
-    return [user.email for user in hr_users if user.email]
+    Legacy function name retained for compatibility with existing imports.
+    """
+    from apps.authentication.models import User
+    from apps.core.permissions import is_government_workflow_operator, is_platform_admin_user
+
+    users = User.objects.filter(is_active=True)
+    if organization_id:
+        users = users.filter(
+            Q(
+                organization_memberships__organization_id=organization_id,
+                organization_memberships__is_active=True,
+                organization_memberships__organization__is_active=True,
+            )
+            | Q(user_type="admin")
+            | Q(is_superuser=True)
+        )
+    users = users.distinct().only("id", "email", "user_type", "is_superuser")
+
+    recipients: list[str] = []
+    for user in users:
+        if not user.email:
+            continue
+        if is_platform_admin_user(user) or is_government_workflow_operator(user, organization_id=organization_id):
+            recipients.append(user.email)
+    return recipients
 
 
 def calculate_avg_deception(responses):
@@ -353,4 +374,5 @@ def calculate_avg_deception(responses):
     if not stress_scores:
         return 0.0
     return round(sum(stress_scores) / len(stress_scores), 1)
+
 

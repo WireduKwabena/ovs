@@ -10,10 +10,10 @@ import { canManageOrganizationGovernance } from '@/utils/organizationGovernance'
 interface ProtectedRouteProps {
   children: React.ReactNode;
   adminOnly?: boolean;
-  disallowUserTypes?: Array<"applicant" | "hr_manager" | "admin">;
+  disallowUserTypes?: Array<"applicant" | "internal" | "admin">;
   requiredRoles?: string[];
   requiredCapabilities?: string[];
-  legacyUserTypeFallback?: Array<"hr_manager" | "admin">;
+  legacyUserTypeFallback?: Array<"admin">;
   requireOrganizationGovernance?: boolean;
   requireActiveOrganization?: boolean;
   activeOrganizationRedirectPath?: string;
@@ -127,3 +127,4 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   return <>{children}</>;
 };
+

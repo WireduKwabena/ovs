@@ -44,14 +44,14 @@ class BillingApiTests(APITestCase):
     def setUp(self):
         cache.clear()
 
-    def _create_hr_user(self, email: str = "billing-hr@example.com"):
+    def _create_internal_user(self, email: str = "billing-hr@example.com"):
         user_model = get_user_model()
         return user_model.objects.create_user(
             email=email,
             password="StrongPass123!",
             first_name="Billing",
             last_name="Manager",
-            user_type="hr_manager",
+            user_type="internal",
         )
 
     def _create_org_membership(
@@ -106,7 +106,7 @@ class BillingApiTests(APITestCase):
         code: str = "billing-checkout-org",
         name: str = "Billing Checkout Org",
     ) -> tuple:
-        user = self._create_hr_user(email=email)
+        user = self._create_internal_user(email=email)
         organization = self._create_org_membership(
             user,
             code=code,
@@ -128,7 +128,7 @@ class BillingApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_billing_manage_returns_active_subscription_summary(self):
-        hr_user = self._create_hr_user()
+        internal_user = self._create_internal_user()
         BillingSubscription.objects.create(
             provider="sandbox",
             status="complete",
@@ -139,7 +139,7 @@ class BillingApiTests(APITestCase):
             payment_method="card",
             amount_usd="399.00",
             reference="OVS-MANAGE-SUMMARY",
-            registration_consumed_by_email=hr_user.email,
+            registration_consumed_by_email=internal_user.email,
             metadata={
                 "payment_method_summary": {
                     "type": "card",
@@ -152,7 +152,7 @@ class BillingApiTests(APITestCase):
             },
         )
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
         response = self.client.get(self.billing_manage_endpoint)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -163,9 +163,9 @@ class BillingApiTests(APITestCase):
         self.assertEqual(response.data["subscription"]["payment_method"]["display"], "Card")
 
     def test_billing_manage_prefers_org_owned_subscription_when_available(self):
-        hr_user = self._create_hr_user(email="billing-org-manage@example.com")
+        internal_user = self._create_internal_user(email="billing-org-manage@example.com")
         organization = self._create_org_membership(
-            hr_user,
+            internal_user,
             code="billing-org-manage",
             name="Billing Org Manage",
         )
@@ -191,10 +191,10 @@ class BillingApiTests(APITestCase):
             payment_method="card",
             amount_usd="149.00",
             reference="OVS-LEGACY-MANAGE-STARTER",
-            registration_consumed_by_email=hr_user.email,
+            registration_consumed_by_email=internal_user.email,
         )
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
         response = self.client.get(self.billing_manage_endpoint)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -204,9 +204,9 @@ class BillingApiTests(APITestCase):
         self.assertEqual(response.data["subscription"]["organization_name"], organization.name)
 
     def test_billing_manage_falls_back_to_legacy_subscription_when_org_owned_missing(self):
-        hr_user = self._create_hr_user(email="billing-org-fallback@example.com")
+        internal_user = self._create_internal_user(email="billing-org-fallback@example.com")
         self._create_org_membership(
-            hr_user,
+            internal_user,
             code="billing-org-fallback",
             name="Billing Org Fallback",
         )
@@ -220,10 +220,10 @@ class BillingApiTests(APITestCase):
             payment_method="card",
             amount_usd="149.00",
             reference="OVS-LEGACY-FALLBACK-STARTER",
-            registration_consumed_by_email=hr_user.email,
+            registration_consumed_by_email=internal_user.email,
         )
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
         response = self.client.get(self.billing_manage_endpoint)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -232,7 +232,7 @@ class BillingApiTests(APITestCase):
         self.assertIsNone(response.data["subscription"]["organization_id"])
 
     def test_billing_manage_patch_updates_sandbox_payment_method(self):
-        hr_user = self._create_hr_user(email="billing-update@example.com")
+        internal_user = self._create_internal_user(email="billing-update@example.com")
         subscription = BillingSubscription.objects.create(
             provider="sandbox",
             status="complete",
@@ -243,10 +243,10 @@ class BillingApiTests(APITestCase):
             payment_method="card",
             amount_usd="149.00",
             reference="OVS-MANAGE-UPDATE",
-            registration_consumed_by_email=hr_user.email,
+            registration_consumed_by_email=internal_user.email,
         )
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
         response = self.client.patch(
             self.billing_manage_endpoint,
             {"payment_method": "bank_transfer"},
@@ -259,7 +259,7 @@ class BillingApiTests(APITestCase):
         self.assertEqual(response.data["subscription"]["payment_method"]["type"], "bank_transfer")
 
     def test_billing_manage_delete_schedules_end_of_period_cancellation(self):
-        hr_user = self._create_hr_user(email="billing-delete@example.com")
+        internal_user = self._create_internal_user(email="billing-delete@example.com")
         subscription = BillingSubscription.objects.create(
             provider="sandbox",
             status="complete",
@@ -270,10 +270,10 @@ class BillingApiTests(APITestCase):
             payment_method="card",
             amount_usd="149.00",
             reference="OVS-MANAGE-DELETE",
-            registration_consumed_by_email=hr_user.email,
+            registration_consumed_by_email=internal_user.email,
         )
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
         response = self.client.delete(self.billing_manage_endpoint)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -284,7 +284,7 @@ class BillingApiTests(APITestCase):
         self.assertIn("end of current billing period", response.data.get("message", "").lower())
 
     def test_billing_retry_creates_new_sandbox_subscription_for_failed_payment(self):
-        hr_user = self._create_hr_user(email="billing-retry@example.com")
+        internal_user = self._create_internal_user(email="billing-retry@example.com")
         BillingSubscription.objects.create(
             provider="sandbox",
             status="failed",
@@ -295,10 +295,10 @@ class BillingApiTests(APITestCase):
             payment_method="card",
             amount_usd="399.00",
             reference="OVS-MANAGE-RETRY-FAILED",
-            registration_consumed_by_email=hr_user.email,
+            registration_consumed_by_email=internal_user.email,
         )
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
         response = self.client.post(self.billing_retry_endpoint, {}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -306,7 +306,7 @@ class BillingApiTests(APITestCase):
         self.assertEqual(response.data["status"], "ok")
         self.assertEqual(
             BillingSubscription.objects.filter(
-                registration_consumed_by_email=hr_user.email,
+                registration_consumed_by_email=internal_user.email,
                 status="complete",
                 payment_status="paid",
             ).count(),
@@ -327,7 +327,7 @@ class BillingApiTests(APITestCase):
             "reference": "OVS-PAYSTACK-RETRY-TEST-123",
         }
 
-        hr_user = self._create_hr_user(email="billing-retry-paystack@example.com")
+        internal_user = self._create_internal_user(email="billing-retry-paystack@example.com")
         BillingSubscription.objects.create(
             provider="paystack",
             status="failed",
@@ -339,10 +339,10 @@ class BillingApiTests(APITestCase):
             payment_method="mobile_money",
             amount_usd="399.00",
             reference="OVS-PAYSTACK-RETRY-FAILED-001",
-            registration_consumed_by_email=hr_user.email,
+            registration_consumed_by_email=internal_user.email,
         )
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
         response = self.client.post(self.billing_retry_endpoint, {}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -370,7 +370,7 @@ class BillingApiTests(APITestCase):
         mock_ready.return_value = None
         mock_create_portal.return_value = {"url": "https://billing.stripe.com/session/test"}
 
-        hr_user = self._create_hr_user(email="billing-portal@example.com")
+        internal_user = self._create_internal_user(email="billing-portal@example.com")
         BillingSubscription.objects.create(
             provider="stripe",
             status="complete",
@@ -382,14 +382,14 @@ class BillingApiTests(APITestCase):
             payment_method="card",
             amount_usd="399.00",
             reference="OVS-MANAGE-PORTAL",
-            registration_consumed_by_email=hr_user.email,
+            registration_consumed_by_email=internal_user.email,
             metadata={
                 "stripe_customer_id": "cus_portal_123",
                 "stripe_subscription_id": "sub_portal_123",
             },
         )
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
         response = self.client.post(self.billing_manage_update_session_endpoint, {}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -405,12 +405,12 @@ class BillingApiTests(APITestCase):
     )
     def test_billing_quota_returns_candidate_usage_snapshot(self):
         user_model = get_user_model()
-        hr_user = user_model.objects.create_user(
+        internal_user = user_model.objects.create_user(
             email="hr-quota-check@example.com",
             password="StrongPass123!",
             first_name="Quota",
             last_name="Owner",
-            user_type="hr_manager",
+            user_type="internal",
         )
 
         BillingSubscription.objects.create(
@@ -423,14 +423,14 @@ class BillingApiTests(APITestCase):
             payment_method="card",
             amount_usd="149.00",
             reference="OVS-QUOTA-SNAPSHOT",
-            registration_consumed_by_email=hr_user.email,
+            registration_consumed_by_email=internal_user.email,
         )
 
         campaign = VettingCampaign.objects.create(
             name="Quota Campaign",
             description="Quota visibility",
             status="active",
-            initiated_by=hr_user,
+            initiated_by=internal_user,
         )
 
         candidate_one = Candidate.objects.create(
@@ -446,7 +446,7 @@ class BillingApiTests(APITestCase):
         CandidateEnrollment.objects.create(campaign=campaign, candidate=candidate_one, status="invited")
         CandidateEnrollment.objects.create(campaign=campaign, candidate=candidate_two, status="invited")
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
         response = self.client.get(self.billing_quotas_endpoint)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -463,9 +463,9 @@ class BillingApiTests(APITestCase):
         BILLING_PLAN_STARTER_CANDIDATES_PER_MONTH=2,
     )
     def test_billing_quota_uses_org_owned_subscription_and_org_usage_scope(self):
-        hr_user = self._create_hr_user(email="hr-org-quota@example.com")
+        internal_user = self._create_internal_user(email="hr-org-quota@example.com")
         scoped_org = self._create_org_membership(
-            hr_user,
+            internal_user,
             code="billing-org-quota",
             name="Billing Org Quota",
         )
@@ -498,10 +498,10 @@ class BillingApiTests(APITestCase):
             payment_method="card",
             amount_usd="399.00",
             reference="OVS-LEGACY-QUOTA-FALLBACK",
-            registration_consumed_by_email=hr_user.email,
+            registration_consumed_by_email=internal_user.email,
         )
 
-        other_owner = self._create_hr_user(email="other-owner@example.com")
+        other_owner = self._create_internal_user(email="other-owner@example.com")
         scoped_campaign = VettingCampaign.objects.create(
             organization=scoped_org,
             name="Scoped Quota Campaign",
@@ -536,7 +536,7 @@ class BillingApiTests(APITestCase):
         CandidateEnrollment.objects.create(campaign=scoped_campaign, candidate=candidate_two, status="invited")
         CandidateEnrollment.objects.create(campaign=offscope_campaign, candidate=candidate_three, status="invited")
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
         response = self.client.get(
             self.billing_quotas_endpoint,
             HTTP_X_ACTIVE_ORGANIZATION_ID=str(scoped_org.id),
@@ -556,15 +556,15 @@ class BillingApiTests(APITestCase):
         BILLING_PLAN_GROWTH_CANDIDATES_PER_MONTH=5,
     )
     def test_billing_quota_isolated_by_active_organization_context(self):
-        hr_user = self._create_hr_user(email="hr-org-isolation@example.com")
+        internal_user = self._create_internal_user(email="hr-org-isolation@example.com")
         org_a = self._create_org_membership(
-            hr_user,
+            internal_user,
             code="billing-org-isolation-a",
             name="Billing Org Isolation A",
             is_default=True,
         )
         org_b = self._create_org_membership(
-            hr_user,
+            internal_user,
             code="billing-org-isolation-b",
             name="Billing Org Isolation B",
             is_default=False,
@@ -588,14 +588,14 @@ class BillingApiTests(APITestCase):
             name="Org A Campaign",
             description="Org A usage scope",
             status="active",
-            initiated_by=hr_user,
+            initiated_by=internal_user,
         )
         campaign_b = VettingCampaign.objects.create(
             organization=org_b,
             name="Org B Campaign",
             description="Org B usage scope",
             status="active",
-            initiated_by=hr_user,
+            initiated_by=internal_user,
         )
 
         CandidateEnrollment.objects.create(
@@ -626,7 +626,7 @@ class BillingApiTests(APITestCase):
             status="invited",
         )
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
 
         response_org_a = self.client.get(
             self.billing_quotas_endpoint,
@@ -656,15 +656,15 @@ class BillingApiTests(APITestCase):
         BILLING_QUOTA_ENFORCEMENT_ENABLED=True,
     )
     def test_billing_quota_denies_ambiguous_legacy_fallback_for_multi_org_member(self):
-        hr_user = self._create_hr_user(email="hr-org-ambiguous@example.com")
+        internal_user = self._create_internal_user(email="hr-org-ambiguous@example.com")
         org_a = self._create_org_membership(
-            hr_user,
+            internal_user,
             code="billing-org-ambiguous-a",
             name="Billing Org Ambiguous A",
             is_default=True,
         )
         self._create_org_membership(
-            hr_user,
+            internal_user,
             code="billing-org-ambiguous-b",
             name="Billing Org Ambiguous B",
             is_default=False,
@@ -680,10 +680,10 @@ class BillingApiTests(APITestCase):
             payment_method="card",
             amount_usd="399.00",
             reference="OVS-LEGACY-AMBIGUOUS-ORG",
-            registration_consumed_by_email=hr_user.email,
+            registration_consumed_by_email=internal_user.email,
         )
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
         response = self.client.get(
             self.billing_quotas_endpoint,
             HTTP_X_ACTIVE_ORGANIZATION_ID=str(org_a.id),
@@ -702,9 +702,9 @@ class BillingApiTests(APITestCase):
         BILLING_PLAN_STARTER_CANDIDATES_PER_MONTH=2,
     )
     def test_billing_quota_allows_single_org_legacy_fallback_during_migration(self):
-        hr_user = self._create_hr_user(email="hr-org-legacy-single@example.com")
+        internal_user = self._create_internal_user(email="hr-org-legacy-single@example.com")
         scoped_org = self._create_org_membership(
-            hr_user,
+            internal_user,
             code="billing-org-legacy-single",
             name="Billing Org Legacy Single",
             is_default=True,
@@ -726,7 +726,7 @@ class BillingApiTests(APITestCase):
             payment_method="card",
             amount_usd="149.00",
             reference="OVS-LEGACY-SINGLE-ORG",
-            registration_consumed_by_email=hr_user.email,
+            registration_consumed_by_email=internal_user.email,
         )
 
         legacy_scoped_campaign = VettingCampaign.objects.create(
@@ -734,7 +734,7 @@ class BillingApiTests(APITestCase):
             name="Legacy Scoped Campaign",
             description="Legacy null-org campaign for scoped owner",
             status="active",
-            initiated_by=hr_user,
+            initiated_by=internal_user,
         )
         CandidateEnrollment.objects.create(
             campaign=legacy_scoped_campaign,
@@ -746,7 +746,7 @@ class BillingApiTests(APITestCase):
             status="invited",
         )
 
-        outsider = self._create_hr_user(email="hr-org-legacy-outsider@example.com")
+        outsider = self._create_internal_user(email="hr-org-legacy-outsider@example.com")
         OrganizationMembership.objects.create(
             user=outsider,
             organization=other_org,
@@ -771,7 +771,7 @@ class BillingApiTests(APITestCase):
             status="invited",
         )
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
         response = self.client.get(
             self.billing_quotas_endpoint,
             HTTP_X_ACTIVE_ORGANIZATION_ID=str(scoped_org.id),
@@ -787,7 +787,7 @@ class BillingApiTests(APITestCase):
         self.assertEqual(str(candidate_quota["scope"]), f"organization:{scoped_org.id}")
 
     def test_onboarding_token_management_requires_org_admin_or_platform_admin(self):
-        committee_member = self._create_hr_user(email="billing-committee-denied@example.com")
+        committee_member = self._create_internal_user(email="billing-committee-denied@example.com")
         committee_group, _ = Group.objects.get_or_create(name="committee_member")
         committee_member.groups.add(committee_group)
         organization = self._create_org_membership(
@@ -824,7 +824,7 @@ class BillingApiTests(APITestCase):
         self.assertEqual(revoke_response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_checkout_initiation_requires_org_admin_or_platform_admin(self):
-        vetting_user = self._create_hr_user(email="billing-vetting-denied@example.com")
+        vetting_user = self._create_internal_user(email="billing-vetting-denied@example.com")
         vetting_group, _ = Group.objects.get_or_create(name="vetting_officer")
         vetting_user.groups.add(vetting_group)
         organization = self._create_org_membership(
@@ -851,7 +851,7 @@ class BillingApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_billing_governance_actions_reject_cross_org_scope_for_non_admin(self):
-        org_admin = self._create_hr_user(email="billing-cross-org@example.com")
+        org_admin = self._create_internal_user(email="billing-cross-org@example.com")
         scoped_org = self._create_org_membership(
             org_admin,
             code="billing-cross-org-a",
@@ -899,7 +899,7 @@ class BillingApiTests(APITestCase):
             is_staff=True,
             is_superuser=True,
         )
-        owner = self._create_hr_user(email="billing-platform-owned@example.com")
+        owner = self._create_internal_user(email="billing-platform-owned@example.com")
         organization = self._create_org_membership(
             owner,
             code="billing-platform-admin-org",
@@ -939,7 +939,7 @@ class BillingApiTests(APITestCase):
         self.assertEqual(checkout_response.status_code, status.HTTP_200_OK)
 
     def test_onboarding_token_state_includes_org_seat_snapshot(self):
-        org_admin = self._create_hr_user(email="billing-seat-state@example.com")
+        org_admin = self._create_internal_user(email="billing-seat-state@example.com")
         organization = self._create_org_membership(
             org_admin,
             code="billing-seat-state-org",
@@ -970,9 +970,9 @@ class BillingApiTests(APITestCase):
         self.assertEqual(state_response.data["organization_seat_remaining"], expected_snapshot.remaining)
 
     def test_onboarding_token_validate_success(self):
-        hr_user = self._create_hr_user(email="onboarding-success@example.com")
+        internal_user = self._create_internal_user(email="onboarding-success@example.com")
         organization = self._create_org_membership(
-            hr_user,
+            internal_user,
             code="onboarding-success",
             name="Onboarding Success Org",
         )
@@ -981,7 +981,7 @@ class BillingApiTests(APITestCase):
             reference="OVS-ONBOARD-SUCCESS",
         )
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
         issue_response = self.client.post(
             self.onboarding_generate_endpoint,
             {"max_uses": 3, "expires_in_hours": 24},
@@ -1007,9 +1007,9 @@ class BillingApiTests(APITestCase):
         BILLING_ONBOARDING_TOKEN_VALIDATE_RATE_LIMIT_PER_MINUTE=1,
     )
     def test_onboarding_token_validate_rate_limited(self):
-        hr_user = self._create_hr_user(email="onboarding-rate-limit@example.com")
+        internal_user = self._create_internal_user(email="onboarding-rate-limit@example.com")
         organization = self._create_org_membership(
-            hr_user,
+            internal_user,
             code="onboarding-rate-limit",
             name="Onboarding Rate Limit Org",
         )
@@ -1018,7 +1018,7 @@ class BillingApiTests(APITestCase):
             reference="OVS-ONBOARD-RATE-LIMIT",
         )
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
         issue_response = self.client.post(
             self.onboarding_generate_endpoint,
             {"max_uses": 3, "expires_in_hours": 24},
@@ -1046,9 +1046,9 @@ class BillingApiTests(APITestCase):
         self.assertEqual(second_response.data.get("code"), "RATE_LIMITED")
 
     def test_onboarding_token_validate_fails_when_expired(self):
-        hr_user = self._create_hr_user(email="onboarding-expired@example.com")
+        internal_user = self._create_internal_user(email="onboarding-expired@example.com")
         organization = self._create_org_membership(
-            hr_user,
+            internal_user,
             code="onboarding-expired",
             name="Onboarding Expired Org",
         )
@@ -1057,7 +1057,7 @@ class BillingApiTests(APITestCase):
             reference="OVS-ONBOARD-EXPIRED",
         )
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
         issue_response = self.client.post(
             self.onboarding_generate_endpoint,
             {"max_uses": 2, "expires_in_hours": 24},
@@ -1081,9 +1081,9 @@ class BillingApiTests(APITestCase):
         self.assertEqual(validate_response.data["reason"], "expired")
 
     def test_onboarding_token_validate_fails_when_max_uses_reached(self):
-        hr_user = self._create_hr_user(email="onboarding-max@example.com")
+        internal_user = self._create_internal_user(email="onboarding-max@example.com")
         organization = self._create_org_membership(
-            hr_user,
+            internal_user,
             code="onboarding-max",
             name="Onboarding Max Org",
         )
@@ -1092,7 +1092,7 @@ class BillingApiTests(APITestCase):
             reference="OVS-ONBOARD-MAX",
         )
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
         issue_response = self.client.post(
             self.onboarding_generate_endpoint,
             {"max_uses": 1, "expires_in_hours": 24},
@@ -1116,9 +1116,9 @@ class BillingApiTests(APITestCase):
         self.assertEqual(validate_response.data["reason"], "max_uses_reached")
 
     def test_onboarding_token_validate_fails_when_inactive(self):
-        hr_user = self._create_hr_user(email="onboarding-inactive@example.com")
+        internal_user = self._create_internal_user(email="onboarding-inactive@example.com")
         organization = self._create_org_membership(
-            hr_user,
+            internal_user,
             code="onboarding-inactive",
             name="Onboarding Inactive Org",
         )
@@ -1127,7 +1127,7 @@ class BillingApiTests(APITestCase):
             reference="OVS-ONBOARD-INACTIVE",
         )
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
         issue_response = self.client.post(
             self.onboarding_generate_endpoint,
             {"max_uses": 2, "expires_in_hours": 24},
@@ -1153,9 +1153,9 @@ class BillingApiTests(APITestCase):
         self.assertEqual(validate_response.data["reason"], "inactive")
 
     def test_onboarding_token_validate_fails_when_subscription_inactive(self):
-        hr_user = self._create_hr_user(email="onboarding-sub-inactive@example.com")
+        internal_user = self._create_internal_user(email="onboarding-sub-inactive@example.com")
         organization = self._create_org_membership(
-            hr_user,
+            internal_user,
             code="onboarding-sub-inactive",
             name="Onboarding Subscription Inactive Org",
         )
@@ -1164,7 +1164,7 @@ class BillingApiTests(APITestCase):
             reference="OVS-ONBOARD-SUB-INACTIVE",
         )
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
         issue_response = self.client.post(
             self.onboarding_generate_endpoint,
             {"max_uses": 2, "expires_in_hours": 24},
@@ -1189,9 +1189,9 @@ class BillingApiTests(APITestCase):
         self.assertEqual(validate_response.data["reason"], "subscription_inactive")
 
     def test_onboarding_token_generate_rotates_previous_active_token(self):
-        hr_user = self._create_hr_user(email="onboarding-rotate@example.com")
+        internal_user = self._create_internal_user(email="onboarding-rotate@example.com")
         organization = self._create_org_membership(
-            hr_user,
+            internal_user,
             code="onboarding-rotate",
             name="Onboarding Rotate Org",
         )
@@ -1200,7 +1200,7 @@ class BillingApiTests(APITestCase):
             reference="OVS-ONBOARD-ROTATE",
         )
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
         first_response = self.client.post(
             self.onboarding_generate_endpoint,
             {"max_uses": 3, "expires_in_hours": 24},
@@ -1232,9 +1232,9 @@ class BillingApiTests(APITestCase):
         )
 
     def test_onboarding_token_rotation_invalidates_previous_raw_token(self):
-        hr_user = self._create_hr_user(email="onboarding-rotate-invalidates@example.com")
+        internal_user = self._create_internal_user(email="onboarding-rotate-invalidates@example.com")
         organization = self._create_org_membership(
-            hr_user,
+            internal_user,
             code="onboarding-rotate-invalidates",
             name="Onboarding Rotate Invalidates Org",
         )
@@ -1243,7 +1243,7 @@ class BillingApiTests(APITestCase):
             reference="OVS-ONBOARD-ROTATE-OLD",
         )
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
         first_response = self.client.post(
             self.onboarding_generate_endpoint,
             {"max_uses": 3, "expires_in_hours": 24},
@@ -1271,9 +1271,9 @@ class BillingApiTests(APITestCase):
         self.assertEqual(old_validate_response.data["reason"], "inactive")
 
     def test_onboarding_token_revoke_deactivates_active_token(self):
-        hr_user = self._create_hr_user(email="onboarding-revoke@example.com")
+        internal_user = self._create_internal_user(email="onboarding-revoke@example.com")
         organization = self._create_org_membership(
-            hr_user,
+            internal_user,
             code="onboarding-revoke",
             name="Onboarding Revoke Org",
         )
@@ -1282,7 +1282,7 @@ class BillingApiTests(APITestCase):
             reference="OVS-ONBOARD-REVOKE",
         )
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
         issue_response = self.client.post(
             self.onboarding_generate_endpoint,
             {"max_uses": 2, "expires_in_hours": 24},
@@ -1307,9 +1307,9 @@ class BillingApiTests(APITestCase):
         )
 
     def test_onboarding_token_audit_payload_excludes_raw_token_value(self):
-        hr_user = self._create_hr_user(email="onboarding-audit-safety@example.com")
+        internal_user = self._create_internal_user(email="onboarding-audit-safety@example.com")
         organization = self._create_org_membership(
-            hr_user,
+            internal_user,
             code="onboarding-audit-safe",
             name="Onboarding Audit Safe Org",
         )
@@ -1318,7 +1318,7 @@ class BillingApiTests(APITestCase):
             reference="OVS-ONBOARD-AUDIT-SAFE",
         )
 
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
         issue_response = self.client.post(
             self.onboarding_generate_endpoint,
             {"max_uses": 2, "expires_in_hours": 24},
@@ -1488,7 +1488,7 @@ class BillingApiTests(APITestCase):
             password="StrongPass123!",
             first_name="Health",
             last_name="Checker",
-            user_type="hr_manager",
+            user_type="internal",
         )
 
         self.client.force_authenticate(user=user)
@@ -1518,13 +1518,13 @@ class BillingApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_confirm_subscription_binds_authenticated_workspace_email(self):
-        hr_user = self._create_hr_user(email="billing-auth-confirm@example.com")
+        internal_user = self._create_internal_user(email="billing-auth-confirm@example.com")
         organization = self._create_org_membership(
-            hr_user,
+            internal_user,
             code="billing-auth-confirm-org",
             name="Billing Auth Confirm Org",
         )
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
 
         response = self.client.post(
             self.sandbox_endpoint,
@@ -1542,7 +1542,7 @@ class BillingApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         ticket = response.data["ticket"]
         persisted = BillingSubscription.objects.get(provider="sandbox", reference=ticket["reference"])
-        self.assertEqual(persisted.registration_consumed_by_email, hr_user.email)
+        self.assertEqual(persisted.registration_consumed_by_email, internal_user.email)
         self.assertIsNotNone(persisted.registration_consumed_at)
         self.assertEqual(persisted.organization_id, organization.id)
 
@@ -1597,8 +1597,8 @@ class BillingApiTests(APITestCase):
         self.assertLessEqual(ttl_ms, 3_610_000)
 
     def test_confirm_subscription_requires_active_organization_context(self):
-        hr_user = self._create_hr_user(email="billing-confirm-no-org@example.com")
-        self.client.force_authenticate(user=hr_user)
+        internal_user = self._create_internal_user(email="billing-confirm-no-org@example.com")
+        self.client.force_authenticate(user=internal_user)
 
         response = self.client.post(
             self.sandbox_endpoint,
@@ -1618,8 +1618,8 @@ class BillingApiTests(APITestCase):
         self.assertEqual(response.data.get("setup_path"), "/organization/setup")
 
     def test_onboarding_token_state_requires_active_organization_context(self):
-        hr_user = self._create_hr_user(email="billing-onboarding-no-org@example.com")
-        self.client.force_authenticate(user=hr_user)
+        internal_user = self._create_internal_user(email="billing-onboarding-no-org@example.com")
+        self.client.force_authenticate(user=internal_user)
 
         response = self.client.get(self.onboarding_state_endpoint)
 
@@ -2478,13 +2478,13 @@ class BillingApiTests(APITestCase):
             "amount_total": 39900,
         }
 
-        hr_user = self._create_hr_user(email="billing-auth-checkout@example.com")
+        internal_user = self._create_internal_user(email="billing-auth-checkout@example.com")
         organization = self._create_org_membership(
-            hr_user,
+            internal_user,
             code="billing-auth-checkout-org",
             name="Billing Auth Checkout Org",
         )
-        self.client.force_authenticate(user=hr_user)
+        self.client.force_authenticate(user=internal_user)
 
         response = self.client.post(
             self.stripe_checkout_endpoint,
@@ -2504,7 +2504,7 @@ class BillingApiTests(APITestCase):
         self.assertEqual(response.data["session_id"], "cs_test_auth_123")
         self.assertEqual(mock_create.call_count, 1)
         create_kwargs = mock_create.call_args.kwargs
-        self.assertEqual(create_kwargs["metadata"]["workspace_email"], hr_user.email)
+        self.assertEqual(create_kwargs["metadata"]["workspace_email"], internal_user.email)
         self.assertEqual(create_kwargs["metadata"]["organization_id"], str(organization.id))
 
     @override_settings(STRIPE_SECRET_KEY="sk_test_123")
@@ -2872,6 +2872,8 @@ class BillingApiTests(APITestCase):
         self.assertEqual(subscription.status, "canceled")
         self.assertEqual(subscription.payment_status, "unpaid")
         self.assertIn("cancellation_effective_at", subscription.metadata)
+
+
 
 
 

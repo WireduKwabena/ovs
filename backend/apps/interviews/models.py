@@ -560,7 +560,7 @@ class VideoAnalysis(models.Model):
 
 class InterviewFeedback(models.Model):
     """
-    HR manager feedback on interview results.
+    Internal reviewer feedback on interview results.
     
     Allows manual review and override of AI evaluation.
     
@@ -652,4 +652,3 @@ class InterviewFeedback(models.Model):
 DynamicInterviewSession = InterviewSession
 InterviewExchange = InterviewResponse
 NonVerbalAnalysis = VideoAnalysis
-

@@ -23,7 +23,7 @@ class GovernanceModelTests(TestCase):
             password="TestPass123!",
             first_name="Gov",
             last_name="Member",
-            user_type="hr_manager",
+            user_type="internal",
             organization="Legacy Secretariat",
         )
         self.organization = Organization.objects.create(
@@ -149,7 +149,7 @@ class GovernanceModelTests(TestCase):
             password="TestPass123!",
             first_name="Gov",
             last_name="SecondChair",
-            user_type="hr_manager",
+            user_type="internal",
             organization="Legacy Secretariat",
         )
         second_membership = OrganizationMembership.objects.create(
@@ -182,7 +182,7 @@ class GovernanceModelTests(TestCase):
             password="TestPass123!",
             first_name="Gov",
             last_name="NextChair",
-            user_type="hr_manager",
+            user_type="internal",
             organization="Legacy Secretariat",
         )
         next_org_membership = OrganizationMembership.objects.create(
@@ -282,7 +282,7 @@ class GovernanceModelTests(TestCase):
             password="TestPass123!",
             first_name="Gov",
             last_name="Second",
-            user_type="hr_manager",
+            user_type="internal",
         )
 
         with self.assertRaises(DRFValidationError) as exc:
@@ -325,7 +325,7 @@ class GovernanceModelTests(TestCase):
             password="TestPass123!",
             first_name="Gov",
             last_name="Inactive",
-            user_type="hr_manager",
+            user_type="internal",
         )
         inactive_membership = OrganizationMembership.objects.create(
             user=inactive_user,
@@ -360,7 +360,7 @@ class GovernanceApiTests(APITestCase):
             password="TestPass123!",
             first_name="Gov",
             last_name="OrgAdmin",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.platform_admin = User.objects.create_user(
             email="gov.api.platform@example.com",
@@ -376,14 +376,14 @@ class GovernanceApiTests(APITestCase):
             password="TestPass123!",
             first_name="Gov",
             last_name="OperatorB",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.candidate_user = User.objects.create_user(
             email="gov.api.member@example.com",
             password="TestPass123!",
             first_name="Gov",
             last_name="Member",
-            user_type="hr_manager",
+            user_type="internal",
         )
 
         self.membership_a_admin = OrganizationMembership.objects.create(
@@ -443,7 +443,7 @@ class GovernanceApiTests(APITestCase):
             password="TestPass123!",
             first_name="Bootstrap",
             last_name="Operator",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.client.force_authenticate(org_less_user)
 
@@ -539,7 +539,7 @@ class GovernanceApiTests(APITestCase):
         )
         self.assertEqual(committee_create_response.status_code, 403)
 
-    def test_plain_hr_manager_without_governance_role_cannot_access_governance_management_endpoints(self):
+    def test_plain_internal_without_governance_role_cannot_access_governance_management_endpoints(self):
         self.client.force_authenticate(self.candidate_user)
 
         summary_response = self.client.get("/api/governance/organization/summary/")
@@ -554,7 +554,7 @@ class GovernanceApiTests(APITestCase):
             password="TestPass123!",
             first_name="Gov",
             last_name="VettingOfficer",
-            user_type="hr_manager",
+            user_type="internal",
         )
         vetting_group, _ = Group.objects.get_or_create(name="vetting_officer")
         vetting_officer.groups.add(vetting_group)
@@ -634,7 +634,7 @@ class GovernanceApiTests(APITestCase):
             password="TestPass123!",
             first_name="Gov",
             last_name="InactiveAllow",
-            user_type="hr_manager",
+            user_type="internal",
         )
         inactive_membership = OrganizationMembership.objects.create(
             user=inactive_user,
@@ -676,7 +676,7 @@ class GovernanceApiTests(APITestCase):
             password="TestPass123!",
             first_name="Gov",
             last_name="InactiveDeny",
-            user_type="hr_manager",
+            user_type="internal",
         )
         inactive_membership = OrganizationMembership.objects.create(
             user=inactive_user,
@@ -731,7 +731,7 @@ class GovernanceApiTests(APITestCase):
             password="TestPass123!",
             first_name="Gov",
             last_name="InactiveCross",
-            user_type="hr_manager",
+            user_type="internal",
         )
         cross_org_inactive_membership = OrganizationMembership.objects.create(
             user=inactive_user,
@@ -864,14 +864,14 @@ class GovernanceApiTests(APITestCase):
             password="TestPass123!",
             first_name="Chair",
             last_name="One",
-            user_type="hr_manager",
+            user_type="internal",
         )
         user_two = User.objects.create_user(
             email="gov.api.chair.two@example.com",
             password="TestPass123!",
             first_name="Chair",
             last_name="Two",
-            user_type="hr_manager",
+            user_type="internal",
         )
         org_membership_one = OrganizationMembership.objects.create(
             user=user_one,
@@ -981,3 +981,4 @@ class GovernanceApiTests(APITestCase):
         self.assertIn("committee_roles", payload)
         self.assertIn("committee_types", payload)
         self.assertIn("organization_types", payload)
+

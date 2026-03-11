@@ -5,7 +5,7 @@
 OVS user types:
 
 - `admin` (system administrator),
-- `hr_manager` (firm-side vetting operator),
+- `internal` (firm-side vetting operator),
 - `applicant` (candidate participant).
 
 ## 2.2 Route Access Logic (Frontend)
@@ -13,7 +13,7 @@ OVS user types:
 The frontend enforces role-aware route guards:
 
 - Admin-only routes: e.g. `/admin/*`, `/audit-logs`, `/ml-monitoring`, `/ai-monitor`.
-- HR/Staff routes: campaigns, rubrics, applications, video calls, background checks.
+- Internal-staff routes: campaigns, rubrics, applications, video calls, background checks.
 - Applicant-restricted routes:
   - cannot access admin dashboards,
   - cannot access staff-only security pages.
@@ -113,3 +113,4 @@ If a user cannot see expected menu items:
 2. Confirm successful authentication and profile fetch.
 3. Confirm no pending 2FA challenge state.
 4. Check backend permissions or token freshness.
+

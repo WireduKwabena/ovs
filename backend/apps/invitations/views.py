@@ -8,6 +8,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.applications.models import Document, VettingCase
+from apps.core.permissions import (
+    can_access_organization_id,
+    get_request_active_organization_id,
+    get_user_allowed_organization_ids,
+    is_government_workflow_operator,
+    is_platform_admin_user,
+    scope_internal_queryset_to_tenant,
+)
 from apps.interviews.models import InterviewSession
 
 try:
@@ -54,9 +62,20 @@ class InvitationViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = Invitation.objects.select_related("enrollment__campaign", "enrollment__candidate").all()
 
-        if not (getattr(user, "is_staff", False) or getattr(user, "is_superuser", False) or getattr(user, "user_type", None) == "admin"):
-            if getattr(user, "user_type", None) == "hr_manager":
-                queryset = queryset.filter(enrollment__campaign__initiated_by=user)
+        if not is_platform_admin_user(user):
+            if is_government_workflow_operator(
+                user,
+                organization_id=get_request_active_organization_id(self.request),
+            ):
+                membership_org_ids = get_user_allowed_organization_ids(user)
+                if membership_org_ids:
+                    queryset = scope_internal_queryset_to_tenant(
+                        queryset,
+                        request=self.request,
+                        organization_field="enrollment__campaign__organization_id",
+                    )
+                else:
+                    queryset = queryset.filter(enrollment__campaign__initiated_by=user)
             else:
                 queryset = queryset.none()
 
@@ -81,10 +100,14 @@ class InvitationViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         enrollment = serializer.validated_data["enrollment"]
-        if not (getattr(user, "is_staff", False) or getattr(user, "is_superuser", False) or getattr(user, "user_type", None) == "admin"):
-            if getattr(user, "user_type", None) != "hr_manager":
-                raise PermissionDenied("Only HR managers/admins can create invitations.")
-            if enrollment.campaign.initiated_by_id != user.id:
+        if not is_platform_admin_user(user):
+            campaign_org_id = getattr(enrollment.campaign, "organization_id", None)
+            if not is_government_workflow_operator(user, organization_id=campaign_org_id):
+                raise PermissionDenied("Only authorized internal workflow actors can create invitations.")
+            if campaign_org_id:
+                if not can_access_organization_id(user, campaign_org_id, allow_membershipless_fallback=False):
+                    raise PermissionDenied("You cannot create invitations for another organization.")
+            elif enrollment.campaign.initiated_by_id != user.id:
                 raise PermissionDenied("You cannot create invitations for another manager's campaign.")
 
         invitation = serializer.save(created_by=self.request.user)

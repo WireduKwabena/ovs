@@ -64,11 +64,10 @@ Related candidate APIs:
 
 ## 6.7 Candidate Experience Checklist
 
-From HR perspective, verify candidate can:
+From an internal reviewer perspective, verify candidate can:
 
 - Open invitation link,
 - Authenticate into access session,
 - Upload required documents,
 - Complete interview stage if required,
 - View result summary once published.
-

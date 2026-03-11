@@ -17,7 +17,7 @@ ROLE_AUDITOR = "auditor"
 ROLE_NOMINEE = "nominee"
 
 ROLE_ADMIN = "admin"
-ROLE_HR_MANAGER = "hr_manager"
+ROLE_INTERNAL = "internal"
 ROLE_APPLICANT = "applicant"
 
 GOVERNMENT_ROLE_GROUPS = frozenset(
@@ -48,10 +48,10 @@ ROLE_CAPABILITIES: dict[str, set[str]] = {
         CAPABILITY_APPOINTMENT_VIEW_INTERNAL,
         CAPABILITY_AUDIT_VIEW,
     },
-    # Legacy ``user_type=hr_manager`` no longer implies governance authority.
+    # Legacy ``user_type=internal`` no longer implies governance authority.
     # Sensitive GAMS actions must be granted through explicit group roles or
     # organization membership policy checks.
-    ROLE_HR_MANAGER: set(),
+    ROLE_INTERNAL: set(),
     ROLE_REGISTRY_ADMIN: {
         CAPABILITY_REGISTRY_MANAGE,
         CAPABILITY_APPOINTMENT_STAGE,
@@ -97,7 +97,7 @@ ROLE_PRECEDENCE: tuple[str, ...] = (
     ROLE_VETTING_OFFICER,
     ROLE_PUBLICATION_OFFICER,
     ROLE_AUDITOR,
-    ROLE_HR_MANAGER,
+    ROLE_INTERNAL,
     ROLE_NOMINEE,
 )
 
@@ -401,8 +401,8 @@ def get_user_roles(user) -> set[str]:
         or (staff_implies_admin and getattr(user, "is_staff", False))
     ):
         roles.add(ROLE_ADMIN)
-    elif user_type == ROLE_HR_MANAGER:
-        roles.add(ROLE_HR_MANAGER)
+    elif user_type == ROLE_INTERNAL:
+        roles.add(ROLE_INTERNAL)
     elif user_type == ROLE_APPLICANT:
         roles.add(ROLE_NOMINEE)
 
@@ -471,7 +471,7 @@ __all__ = [
     "ROLE_AUDITOR",
     "ROLE_COMMITTEE_CHAIR",
     "ROLE_COMMITTEE_MEMBER",
-    "ROLE_HR_MANAGER",
+    "ROLE_INTERNAL",
     "ROLE_NOMINEE",
     "ROLE_PUBLICATION_OFFICER",
     "ROLE_REGISTRY_ADMIN",
@@ -496,3 +496,4 @@ __all__ = [
     "requires_two_factor_for_user",
     "resolve_actor_role",
 ]
+

@@ -43,7 +43,7 @@ describe("OrganizationOnboardingPage", () => {
 
   it("renders onboarding token state for org-admin users", async () => {
     mocks.useAuth.mockReturnValue({
-      userType: "hr_manager",
+      userType: "internal",
       activeOrganization: { id: "org-1", code: "ORG1", name: "Org One", organization_type: "agency" },
       activeOrganizationId: "org-1",
       canManageActiveOrganizationGovernance: true,
@@ -116,4 +116,5 @@ describe("OrganizationOnboardingPage", () => {
     });
   });
 });
+
 

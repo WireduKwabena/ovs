@@ -13,12 +13,12 @@ from apps.candidates.models import Candidate, CandidateEnrollment, CandidateSoci
 
 class TestCaseSocialProfiles(TestCase):
     def setUp(self):
-        self.hr = User.objects.create_user(
-            email="social_case_hr@example.com",
+        self.internal_user = User.objects.create_user(
+            email="social_case_internal@example.com",
             password="Pass1234!",
-            first_name="HR",
-            last_name="Manager",
-            user_type="hr_manager",
+            first_name="Internal",
+            last_name="Reviewer",
+            user_type="internal",
         )
         self.applicant = User.objects.create_user(
             email="social_case_applicant@example.com",
@@ -29,7 +29,7 @@ class TestCaseSocialProfiles(TestCase):
         )
 
     def test_extracts_candidate_social_profiles_and_consent(self):
-        campaign = VettingCampaign.objects.create(name="Campaign", initiated_by=self.hr)
+        campaign = VettingCampaign.objects.create(name="Campaign", initiated_by=self.internal_user)
         candidate = Candidate.objects.create(
             first_name="Jane",
             last_name="Doe",

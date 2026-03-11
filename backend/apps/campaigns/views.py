@@ -16,11 +16,12 @@ from apps.core.permissions import (
     is_platform_admin_user,
     scope_internal_queryset_to_tenant,
 )
+from apps.core.policies.registry_policy import can_manage_registry
 from apps.invitations.models import Invitation
 from apps.invitations.tasks import send_invitation_task
 
 from .models import CampaignRubricVersion, VettingCampaign
-from .permissions import IsHRManagerOrAdmin
+from .permissions import IsInternalWorkflowOperator
 from .serializers import CampaignRubricVersionSerializer, VettingCampaignSerializer
 
 
@@ -56,7 +57,7 @@ def _project_new_enrollment_count(campaign, candidates_data) -> int:
 
 class VettingCampaignViewSet(viewsets.ModelViewSet):
     serializer_class = VettingCampaignSerializer
-    permission_classes = [IsHRManagerOrAdmin]
+    permission_classes = [IsInternalWorkflowOperator]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
@@ -78,9 +79,17 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
-        if getattr(user, "user_type", None) not in {"admin", "hr_manager"} and not getattr(user, "is_staff", False):
-            raise PermissionDenied("Only HR managers/admins can create campaigns.")
         requested_org = serializer.validated_data.get("organization")
+        active_org_id = get_request_active_organization_id(self.request)
+        target_org_id = str(getattr(requested_org, "id", "") or "").strip() or str(active_org_id or "").strip() or None
+
+        if not is_platform_admin_user(user) and not can_manage_registry(
+            user,
+            organization_id=target_org_id,
+            allow_membershipless_fallback=False,
+        ):
+            raise PermissionDenied("You do not have permission to create campaigns.")
+
         if not is_platform_admin_user(user):
             if requested_org is not None and not can_access_organization_id(
                 user,
@@ -88,7 +97,6 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
                 allow_membershipless_fallback=False,
             ):
                 raise PermissionDenied("You cannot create campaigns for another organization.")
-            active_org_id = get_request_active_organization_id(self.request)
             if requested_org is None and not active_org_id:
                 raise PermissionDenied("Active organization context is required to create campaigns.")
             if requested_org is None and active_org_id:
@@ -197,11 +205,7 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
             )
 
         user = request.user
-        is_admin = bool(
-            getattr(user, "is_staff", False)
-            or getattr(user, "is_superuser", False)
-            or getattr(user, "user_type", None) == "admin"
-        )
+        is_admin = bool(is_platform_admin_user(user))
         if not is_admin:
             projected_new_enrollments = _project_new_enrollment_count(campaign, candidates_data)
             if projected_new_enrollments > 0:

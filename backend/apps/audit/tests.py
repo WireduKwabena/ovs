@@ -57,19 +57,19 @@ class AuditApiTests(APITestCase):
             last_name="Other",
             user_type="applicant",
         )
-        self.hr_user = User.objects.create_user(
+        self.internal_user = User.objects.create_user(
             email="audit-hr@example.com",
             password="Pass1234!",
             first_name="Audit",
-            last_name="HR",
-            user_type="hr_manager",
+            last_name="Reviewer",
+            user_type="internal",
         )
         self.auditor_user = User.objects.create_user(
             email="audit-reader@example.com",
             password="Pass1234!",
             first_name="Audit",
             last_name="Reader",
-            user_type="hr_manager",
+            user_type="internal",
         )
         OrganizationMembership.objects.create(
             user=self.auditor_user,
@@ -147,8 +147,8 @@ class AuditApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_hr_manager_cannot_access_audit_logs(self):
-        self.client.force_authenticate(self.hr_user)
+    def test_internal_cannot_access_audit_logs(self):
+        self.client.force_authenticate(self.internal_user)
         response = self.client.get("/api/audit/logs/")
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -329,7 +329,7 @@ class AuditApiTests(APITestCase):
         self.assertEqual(appointment_response.data[0]["id"], str(self.log_appointment.id))
 
     def test_event_catalog_requires_admin(self):
-        self.client.force_authenticate(self.hr_user)
+        self.client.force_authenticate(self.internal_user)
         denied = self.client.get("/api/audit/logs/event_catalog/")
         self.assertEqual(denied.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -565,3 +565,5 @@ class AuditApiTests(APITestCase):
         self.assertTrue(created)
         row = AuditLog.objects.get(entity_type="SanitizeTest", entity_id="S-2")
         self.assertEqual(row.changes, {"value": ["a", "b"]})
+
+

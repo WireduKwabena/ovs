@@ -63,7 +63,7 @@ export const adminService = {
 
   async getUsers(params?: {
     q?: string;
-    user_type?: 'admin' | 'hr_manager' | 'applicant';
+    user_type?: 'admin' | 'internal' | 'applicant';
     is_active?: boolean;
     page?: number;
     page_size?: number;
@@ -86,3 +86,4 @@ export const adminService = {
     }
   },
 };
+

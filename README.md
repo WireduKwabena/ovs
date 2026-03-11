@@ -169,7 +169,7 @@ DB guardrails include:
 
 ## Public vs Internal Data Rules
 
-Internal endpoints (HR/admin restricted):
+Internal endpoints (internal/admin restricted):
 
 - `/api/positions/`
 - `/api/personnel/`
@@ -198,7 +198,7 @@ Public appointment feeds are additionally filtered to:
 - publication status `published`
 - no internal vetting fields in response serializer.
 
-Authenticated non-HR/admin users calling appointment history endpoints only receive records with `is_public=True`.
+Authenticated non-internal/admin users calling appointment history endpoints only receive records with `is_public=True`.
 
 ---
 
@@ -748,3 +748,4 @@ For questions or feedback:
 ---
 
 **⭐ If this project helped you, please give it a star!**
+

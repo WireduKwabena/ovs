@@ -1,4 +1,4 @@
-# 5) HR Campaign and Rubric Workflows
+# 5) Internal Campaign and Rubric Workflows
 
 ## 5.1 Campaign Lifecycle Overview
 
@@ -120,7 +120,7 @@ Override behavior:
 
 Human authority remains final: recommendation output does not auto-approve or auto-reject an appointment.
 
-## 5.8 HR Daily Workflow Example
+## 5.8 Internal Daily Workflow Example
 
 1. Open campaign workspace.
 2. Confirm active rubric version.

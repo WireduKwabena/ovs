@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
                 ('is_active', models.BooleanField(default=True, help_text='Designates whether this user should be treated as active. Unselect this instead of deleting accounts.', verbose_name='active')),
                 ('date_joined', models.DateTimeField(default=django.utils.timezone.now, verbose_name='date joined')),
                 ('email', models.EmailField(db_index=True, error_messages={'unique': 'A user with that email already exists.'}, max_length=254, unique=True, verbose_name='email address')),
-                ('user_type', models.CharField(choices=[('admin', 'System Administrator'), ('hr_manager', 'HR Manager'), ('applicant', 'Applicant')], db_index=True, default='applicant', max_length=20)),
+                ('user_type', models.CharField(choices=[('admin', 'System Administrator'), ('internal', 'Internal User'), ('applicant', 'Applicant')], db_index=True, default='applicant', max_length=20)),
                 ('phone_number', models.CharField(blank=True, max_length=20, validators=[django.core.validators.RegexValidator(message='Phone number must be in format: +999999999', regex='^\\+?1?\\d{9,15}$')])),
                 ('organization', models.CharField(blank=True, max_length=200)),
                 ('department', models.CharField(blank=True, max_length=100)),

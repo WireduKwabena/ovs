@@ -50,7 +50,7 @@ describe("OperationsDashboardPage government quick actions", () => {
   const baseUser = {
     id: "user-1",
     email: "hr@example.com",
-    first_name: "HR",
+    first_name: "Internal",
     last_name: "Manager",
     full_name: "Operations User",
     phone_number: "",

@@ -1,5 +1,6 @@
 from rest_framework.test import APITestCase
 from django.test import override_settings
+from django.contrib.auth.models import Group
 
 from apps.authentication.models import User
 from apps.billing.models import BillingSubscription
@@ -10,19 +11,19 @@ from apps.governance.models import Organization, OrganizationMembership
 
 class CampaignAuthorizationTests(APITestCase):
     def setUp(self):
-        self.hr_one = User.objects.create_user(
-            email="hr_campaign_one@example.com",
+        self.internal_one = User.objects.create_user(
+            email="internal_campaign_one@example.com",
             password="Pass1234!",
-            first_name="HR",
+            first_name="Internal",
             last_name="One",
-            user_type="hr_manager",
+            user_type="internal",
         )
-        self.hr_two = User.objects.create_user(
-            email="hr_campaign_two@example.com",
+        self.internal_two = User.objects.create_user(
+            email="internal_campaign_two@example.com",
             password="Pass1234!",
-            first_name="HR",
+            first_name="Internal",
             last_name="Two",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.admin = User.objects.create_user(
             email="admin_campaign@example.com",
@@ -39,8 +40,11 @@ class CampaignAuthorizationTests(APITestCase):
             last_name="User",
             user_type="applicant",
         )
-        self.campaign_one = VettingCampaign.objects.create(name="Campaign One", initiated_by=self.hr_one)
-        self.campaign_two = VettingCampaign.objects.create(name="Campaign Two", initiated_by=self.hr_two)
+        registry_admin_group, _ = Group.objects.get_or_create(name="registry_admin")
+        self.internal_one.groups.add(registry_admin_group)
+        self.internal_two.groups.add(registry_admin_group)
+        self.campaign_one = VettingCampaign.objects.create(name="Campaign One", initiated_by=self.internal_one)
+        self.campaign_two = VettingCampaign.objects.create(name="Campaign Two", initiated_by=self.internal_two)
         self.version_one = CampaignRubricVersion.objects.create(
             campaign=self.campaign_one,
             version=1,
@@ -53,7 +57,7 @@ class CampaignAuthorizationTests(APITestCase):
             auto_reject_threshold=40,
             rubric_payload={"source": "unit-test"},
             is_active=True,
-            created_by=self.hr_one,
+            created_by=self.internal_one,
         )
         self.version_two = CampaignRubricVersion.objects.create(
             campaign=self.campaign_one,
@@ -67,7 +71,7 @@ class CampaignAuthorizationTests(APITestCase):
             auto_reject_threshold=42,
             rubric_payload={"source": "unit-test-two"},
             is_active=False,
-            created_by=self.hr_one,
+            created_by=self.internal_one,
         )
 
     def _items(self, payload):
@@ -89,8 +93,8 @@ class CampaignAuthorizationTests(APITestCase):
             registration_consumed_by_email=user.email,
         )
 
-    def test_hr_manager_sees_only_own_campaigns(self):
-        self.client.force_authenticate(self.hr_one)
+    def test_internal_sees_only_own_campaigns(self):
+        self.client.force_authenticate(self.internal_one)
         response = self.client.get("/api/campaigns/")
         self.assertEqual(response.status_code, 200)
         ids = {item["id"] for item in self._items(response.json())}
@@ -107,8 +111,20 @@ class CampaignAuthorizationTests(APITestCase):
         response = self.client.post("/api/campaigns/", {"name": "Applicant Campaign"}, format="json")
         self.assertEqual(response.status_code, 403)
 
-    def test_hr_manager_cannot_access_other_campaign_detail(self):
-        self.client.force_authenticate(self.hr_one)
+    def test_plain_internal_without_operational_role_cannot_list_campaigns(self):
+        plain_internal = User.objects.create_user(
+            email="plain_internal_campaign@example.com",
+            password="Pass1234!",
+            first_name="Plain",
+            last_name="Reviewer",
+            user_type="internal",
+        )
+        self.client.force_authenticate(plain_internal)
+        response = self.client.get("/api/campaigns/")
+        self.assertEqual(response.status_code, 403)
+
+    def test_internal_cannot_access_other_campaign_detail(self):
+        self.client.force_authenticate(self.internal_one)
         response = self.client.get(f"/api/campaigns/{self.campaign_two.id}/")
         self.assertEqual(response.status_code, 404)
 
@@ -120,7 +136,7 @@ class CampaignAuthorizationTests(APITestCase):
         self.assertIn(str(self.campaign_one.id), ids)
         self.assertIn(str(self.campaign_two.id), ids)
 
-    def test_hr_manager_can_define_required_document_types(self):
+    def test_internal_can_define_required_document_types(self):
         organization = Organization.objects.create(
             code="campaign-required-docs-org",
             name="Campaign Required Docs Org",
@@ -128,13 +144,13 @@ class CampaignAuthorizationTests(APITestCase):
             is_active=True,
         )
         OrganizationMembership.objects.create(
-            user=self.hr_one,
+            user=self.internal_one,
             organization=organization,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
         )
-        self.client.force_authenticate(self.hr_one)
+        self.client.force_authenticate(self.internal_one)
         payload = {
             "name": "Required Docs Campaign",
             "status": "draft",
@@ -155,8 +171,8 @@ class CampaignAuthorizationTests(APITestCase):
         settings_json = campaign.settings_json if isinstance(campaign.settings_json, dict) else {}
         self.assertEqual(settings_json.get("required_document_types"), ["id_card", "passport"])
 
-    def test_hr_manager_can_list_own_campaign_rubric_versions(self):
-        self.client.force_authenticate(self.hr_one)
+    def test_internal_can_list_own_campaign_rubric_versions(self):
+        self.client.force_authenticate(self.internal_one)
         response = self.client.get(f"/api/campaigns/{self.campaign_one.id}/rubrics/versions/")
         self.assertEqual(response.status_code, 200)
         payload = response.json()
@@ -165,13 +181,13 @@ class CampaignAuthorizationTests(APITestCase):
         self.assertEqual(ids, {str(self.version_one.id), str(self.version_two.id)})
         self.assertEqual(payload[0]["version"], 2)
 
-    def test_hr_manager_cannot_list_other_campaign_rubric_versions(self):
-        self.client.force_authenticate(self.hr_one)
+    def test_internal_cannot_list_other_campaign_rubric_versions(self):
+        self.client.force_authenticate(self.internal_one)
         response = self.client.get(f"/api/campaigns/{self.campaign_two.id}/rubrics/versions/")
         self.assertEqual(response.status_code, 404)
 
-    def test_hr_manager_can_add_campaign_rubric_version(self):
-        self.client.force_authenticate(self.hr_one)
+    def test_internal_can_add_campaign_rubric_version(self):
+        self.client.force_authenticate(self.internal_one)
         payload = {
             "name": "New version",
             "description": "Updated thresholds",
@@ -191,8 +207,8 @@ class CampaignAuthorizationTests(APITestCase):
         self.assertEqual(data["name"], "New version")
         self.assertEqual(data["campaign"], str(self.campaign_one.id))
 
-    def test_hr_manager_can_activate_campaign_rubric_version(self):
-        self.client.force_authenticate(self.hr_one)
+    def test_internal_can_activate_campaign_rubric_version(self):
+        self.client.force_authenticate(self.internal_one)
         payload = {"version_id": str(self.version_two.id)}
         response = self.client.post(
             f"/api/campaigns/{self.campaign_one.id}/rubrics/versions/activate/",
@@ -205,8 +221,8 @@ class CampaignAuthorizationTests(APITestCase):
         self.assertFalse(self.version_one.is_active)
         self.assertTrue(self.version_two.is_active)
 
-    def test_hr_manager_cannot_activate_other_campaign_rubric_version(self):
-        self.client.force_authenticate(self.hr_one)
+    def test_internal_cannot_activate_other_campaign_rubric_version(self):
+        self.client.force_authenticate(self.internal_one)
         outsider_version = CampaignRubricVersion.objects.create(
             campaign=self.campaign_two,
             version=1,
@@ -219,7 +235,7 @@ class CampaignAuthorizationTests(APITestCase):
             auto_reject_threshold=40,
             rubric_payload={"source": "other"},
             is_active=True,
-            created_by=self.hr_two,
+            created_by=self.internal_two,
         )
         payload = {"version_id": str(outsider_version.id)}
         response = self.client.post(
@@ -233,9 +249,9 @@ class CampaignAuthorizationTests(APITestCase):
         BILLING_QUOTA_ENFORCEMENT_ENABLED=True,
         BILLING_PLAN_STARTER_CANDIDATES_PER_MONTH=2,
     )
-    def test_hr_manager_import_candidates_respects_plan_quota(self):
-        self._seed_subscription(self.hr_one, plan_id="starter", plan_name="Starter")
-        self.client.force_authenticate(self.hr_one)
+    def test_internal_import_candidates_respects_plan_quota(self):
+        self._seed_subscription(self.internal_one, plan_id="starter", plan_name="Starter")
+        self.client.force_authenticate(self.internal_one)
 
         payload = {
             "send_invites": False,
@@ -284,8 +300,8 @@ class CampaignAuthorizationTests(APITestCase):
     @override_settings(
         BILLING_QUOTA_ENFORCEMENT_ENABLED=True,
     )
-    def test_hr_manager_import_candidates_requires_active_subscription(self):
-        self.client.force_authenticate(self.hr_one)
+    def test_internal_import_candidates_requires_active_subscription(self):
+        self.client.force_authenticate(self.internal_one)
 
         payload = {
             "send_invites": False,
@@ -326,28 +342,31 @@ class CampaignOrganizationScopeTests(APITestCase):
         self.org_a = Organization.objects.create(code="camp-org-a", name="Campaign Org A")
         self.org_b = Organization.objects.create(code="camp-org-b", name="Campaign Org B")
 
-        self.hr_a = User.objects.create_user(
+        self.internal_a = User.objects.create_user(
             email="campaign_scope_a@example.com",
             password="Pass1234!",
             first_name="Scope",
             last_name="A",
-            user_type="hr_manager",
+            user_type="internal",
         )
-        self.hr_b = User.objects.create_user(
+        self.internal_b = User.objects.create_user(
             email="campaign_scope_b@example.com",
             password="Pass1234!",
             first_name="Scope",
             last_name="B",
-            user_type="hr_manager",
+            user_type="internal",
         )
+        vetting_officer_group, _ = Group.objects.get_or_create(name="vetting_officer")
+        self.internal_a.groups.add(vetting_officer_group)
+        self.internal_b.groups.add(vetting_officer_group)
         OrganizationMembership.objects.create(
-            user=self.hr_a,
+            user=self.internal_a,
             organization=self.org_a,
             is_active=True,
             is_default=True,
         )
         OrganizationMembership.objects.create(
-            user=self.hr_b,
+            user=self.internal_b,
             organization=self.org_b,
             is_active=True,
             is_default=True,
@@ -356,12 +375,12 @@ class CampaignOrganizationScopeTests(APITestCase):
         self.same_org_foreign_owner_campaign = VettingCampaign.objects.create(
             name="Org A Campaign (Owned by B)",
             organization=self.org_a,
-            initiated_by=self.hr_b,
+            initiated_by=self.internal_b,
         )
         self.other_org_campaign = VettingCampaign.objects.create(
             name="Org B Campaign",
             organization=self.org_b,
-            initiated_by=self.hr_b,
+            initiated_by=self.internal_b,
         )
 
     def _items(self, payload):
@@ -369,16 +388,16 @@ class CampaignOrganizationScopeTests(APITestCase):
             return payload
         return payload.get("results", [])
 
-    def test_hr_with_org_membership_can_view_same_org_campaigns(self):
-        self.client.force_authenticate(self.hr_a)
+    def test_internal_with_org_membership_can_view_same_org_campaigns(self):
+        self.client.force_authenticate(self.internal_a)
         response = self.client.get("/api/campaigns/")
         self.assertEqual(response.status_code, 200)
         ids = {item["id"] for item in self._items(response.json())}
         self.assertIn(str(self.same_org_foreign_owner_campaign.id), ids)
         self.assertNotIn(str(self.other_org_campaign.id), ids)
 
-    def test_hr_cannot_create_campaign_for_other_org(self):
-        self.client.force_authenticate(self.hr_a)
+    def test_internal_cannot_create_campaign_for_other_org(self):
+        self.client.force_authenticate(self.internal_a)
         response = self.client.post(
             "/api/campaigns/",
             {
@@ -389,18 +408,30 @@ class CampaignOrganizationScopeTests(APITestCase):
         )
         self.assertEqual(response.status_code, 403)
 
-    def test_membershipless_hr_cannot_create_campaign_without_org_context(self):
-        membershipless_hr = User.objects.create_user(
+    def test_membershipless_internal_cannot_create_campaign_without_org_context(self):
+        membershipless_internal = User.objects.create_user(
             email="campaign_scope_create_denied@example.com",
             password="Pass1234!",
             first_name="Campaign",
             last_name="CreateDenied",
-            user_type="hr_manager",
+            user_type="internal",
         )
-        self.client.force_authenticate(membershipless_hr)
+        self.client.force_authenticate(membershipless_internal)
         response = self.client.post(
             "/api/campaigns/",
             {"name": "Membershipless Create Campaign"},
             format="json",
         )
         self.assertEqual(response.status_code, 403)
+
+    def test_non_registry_member_cannot_create_campaign_within_active_org(self):
+        self.client.force_authenticate(self.internal_a)
+        response = self.client.post(
+            "/api/campaigns/",
+            {"name": "Insufficient Role Campaign"},
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(self.org_a.id),
+        )
+        self.assertEqual(response.status_code, 403)
+
+

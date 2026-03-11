@@ -294,7 +294,7 @@ class RubricEvaluationSerializer(serializers.ModelSerializer):
     def get_decision_explanation(self, obj):
         if not isinstance(obj.criterion_scores, dict):
             return {
-                "headline": "Manual HR decision required.",
+                "headline": "Manual reviewer decision required.",
                 "score_statement": "",
                 "decision_basis": [],
                 "review_reasons": list(obj.review_reasons or []),
@@ -304,7 +304,7 @@ class RubricEvaluationSerializer(serializers.ModelSerializer):
         if isinstance(payload, dict):
             return payload
         return {
-            "headline": "Manual HR decision required." if obj.final_decision == "pending" else "",
+            "headline": "Manual reviewer decision required." if obj.final_decision == "pending" else "",
             "score_statement": "",
             "decision_basis": [],
             "review_reasons": list(obj.review_reasons or []),

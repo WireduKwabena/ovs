@@ -303,7 +303,7 @@ def admin_users(request):
     """
     List users for admin management.
     GET /api/admin/users/
-    Supports filtering: ?q=email_or_name&user_type=admin|hr_manager|applicant&is_active=true|false
+    Supports filtering: ?q=email_or_name&user_type=admin|internal|applicant&is_active=true|false
     """
     users = User.objects.all()
 
@@ -428,5 +428,6 @@ def admin_user_update(request, user_id):
         managed_user.groups.set(target_groups)
 
     return Response(AdminManagedUserSerializer(managed_user).data)
+
 
 

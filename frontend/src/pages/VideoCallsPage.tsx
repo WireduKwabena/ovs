@@ -171,7 +171,7 @@ const triggerFileDownload = (blob: Blob, filename: string): void => {
 };
 
 const VideoCallsPage: React.FC = () => {
-  const { isHrOrAdmin, isAdmin, user } = useAuth();
+  const { isInternalOrAdmin, isAdmin, user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [meetings, setMeetings] = useState<VideoMeeting[]>([]);
   const [caseOptions, setCaseOptions] = useState<CaseOption[]>([]);
@@ -254,7 +254,7 @@ const VideoCallsPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!isHrOrAdmin) {
+    if (!isInternalOrAdmin) {
       setCaseOptions([]);
       return;
     }
@@ -309,7 +309,7 @@ const VideoCallsPage: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [isHrOrAdmin, isAdmin, user?.id]);
+  }, [isInternalOrAdmin, isAdmin, user?.id]);
 
   const applyDurationFromStart = (durationMinutes: number) => {
     if (!form.start) {
@@ -374,7 +374,7 @@ const VideoCallsPage: React.FC = () => {
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!isHrOrAdmin) {
+    if (!isInternalOrAdmin) {
       return;
     }
 
@@ -964,7 +964,7 @@ const VideoCallsPage: React.FC = () => {
 
         {isAdmin && <ReminderHealthCard />}
 
-        {isHrOrAdmin && (
+        {isInternalOrAdmin && (
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-900 inline-flex items-center gap-1.5">
               Schedule a meeting
@@ -1334,7 +1334,7 @@ const VideoCallsPage: React.FC = () => {
                         {loadingEventsId === meeting.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <History className="h-3.5 w-3.5" />}
                         History
                       </button>
-                      {isHrOrAdmin && meeting.series_id && (
+                      {isInternalOrAdmin && meeting.series_id && (
                         <label className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-white px-2 py-1 text-xs text-slate-700">
                           <span>Series</span>
                           <select
@@ -1347,7 +1347,7 @@ const VideoCallsPage: React.FC = () => {
                           </select>
                         </label>
                       )}
-                      {isHrOrAdmin && meeting.status === "scheduled" && (
+                      {isInternalOrAdmin && meeting.status === "scheduled" && (
                         <>
                           <button
                             type="button"
@@ -1414,7 +1414,7 @@ const VideoCallsPage: React.FC = () => {
                           )}
                         </>
                       )}
-                      {isHrOrAdmin && meeting.status === "ongoing" && (
+                      {isInternalOrAdmin && meeting.status === "ongoing" && (
                         <>
                           <button
                             type="button"
@@ -1448,7 +1448,7 @@ const VideoCallsPage: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  {isHrOrAdmin && expandedRescheduleId === meeting.id && (
+                  {isInternalOrAdmin && expandedRescheduleId === meeting.id && (
                     <div className="mt-3 grid gap-3 rounded-lg border border-slate-200 bg-white p-3 md:grid-cols-3">
                       <label className="space-y-1 text-xs text-slate-700">
                         <span>Start</span>
@@ -1708,3 +1708,4 @@ const VideoCallsPage: React.FC = () => {
 };
 
 export default VideoCallsPage;
+

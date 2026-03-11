@@ -36,8 +36,8 @@ describe('CampaignsPage list filters', () => {
 
   it('hydrates list filters from URL and clears all active filters', async () => {
     mocks.useAuth.mockReturnValue({
-      isHrOrAdmin: true,
-      userType: 'hr_manager',
+      isInternalOrAdmin: true,
+      userType: 'internal',
     });
     mocks.billingService.getQuota.mockResolvedValue({
       status: 'ok',
@@ -120,3 +120,5 @@ describe('CampaignsPage list filters', () => {
     expect(await screen.findByText(/Executive Vetting/i)).toBeTruthy();
   });
 });
+
+

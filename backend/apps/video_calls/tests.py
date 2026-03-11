@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
+from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.test import override_settings
 from django.urls import reverse
@@ -27,13 +28,15 @@ class VideoMeetingApiTests(APITestCase):
             user_type="admin",
             is_staff=True,
         )
-        self.hr_user = User.objects.create_user(
+        self.internal_user = User.objects.create_user(
             email="hr-video-tests@example.com",
             password="SecurePass123!",
-            first_name="HR",
+            first_name="Internal",
             last_name="Manager",
-            user_type="hr_manager",
+            user_type="internal",
         )
+        vetting_group, _ = Group.objects.get_or_create(name="vetting_officer")
+        self.internal_user.groups.add(vetting_group)
         self.candidate = User.objects.create_user(
             email="candidate-video-tests@example.com",
             password="SecurePass123!",
@@ -46,9 +49,9 @@ class VideoMeetingApiTests(APITestCase):
             position_applied="Backend Engineer",
             priority="medium",
         )
-        self.client.force_authenticate(self.hr_user)
+        self.client.force_authenticate(self.internal_user)
 
-    def test_hr_can_schedule_video_meeting(self):
+    def test_internal_can_schedule_video_meeting(self):
         response = self.client.post(
             reverse("video-meeting-list"),
             data={
@@ -65,14 +68,37 @@ class VideoMeetingApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(VideoMeeting.objects.count(), 1)
         meeting = VideoMeeting.objects.first()
-        self.assertEqual(meeting.organizer, self.hr_user)
+        self.assertEqual(meeting.organizer, self.internal_user)
         self.assertTrue(meeting.participants.filter(user=self.candidate).exists())
         self.assertEqual(meeting.reminder_before_minutes, 25)
         self.assertTrue(
             meeting.events.filter(action=VideoMeetingEvent.ACTION_CREATED, scope=VideoMeetingEvent.SCOPE_SINGLE).exists()
         )
 
-    def test_hr_can_schedule_meeting_with_participant_emails(self):
+    def test_plain_internal_without_operational_role_cannot_schedule_video_meeting(self):
+        plain_internal = User.objects.create_user(
+            email="plain-video-hr@example.com",
+            password="SecurePass123!",
+            first_name="Plain",
+            last_name="Reviewer",
+            user_type="internal",
+        )
+        self.client.force_authenticate(plain_internal)
+        response = self.client.post(
+            reverse("video-meeting-list"),
+            data={
+                "title": "Unauthorized Candidate Follow-up",
+                "description": "Should be denied.",
+                "case": str(self.case.id),
+                "scheduled_start": (timezone.now() + timedelta(hours=1)).isoformat(),
+                "scheduled_end": (timezone.now() + timedelta(hours=2)).isoformat(),
+                "timezone": "UTC",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_internal_can_schedule_meeting_with_participant_emails(self):
         response = self.client.post(
             reverse("video-meeting-list"),
             data={
@@ -89,7 +115,7 @@ class VideoMeetingApiTests(APITestCase):
         meeting = VideoMeeting.objects.get(id=response.data["id"])
         self.assertTrue(meeting.participants.filter(user=self.candidate).exists())
 
-    def test_hr_can_schedule_daily_series(self):
+    def test_internal_can_schedule_daily_series(self):
         response = self.client.post(
             reverse("video-meeting-schedule-series"),
             data={
@@ -118,7 +144,7 @@ class VideoMeetingApiTests(APITestCase):
         self.assertEqual(len(series_ids), 1)
         self.assertIsNotNone(next(iter(series_ids)))
 
-    def test_hr_can_reschedule_future_series_occurrences(self):
+    def test_internal_can_reschedule_future_series_occurrences(self):
         base_start = timezone.now() + timedelta(hours=2)
         response = self.client.post(
             reverse("video-meeting-schedule-series"),
@@ -159,7 +185,7 @@ class VideoMeetingApiTests(APITestCase):
         self.assertEqual(meetings[1].scheduled_start, new_anchor_start)
         self.assertEqual(meetings[2].scheduled_start, new_anchor_start + timedelta(days=7))
 
-    def test_hr_can_cancel_all_series_occurrences(self):
+    def test_internal_can_cancel_all_series_occurrences(self):
         base_start = timezone.now() + timedelta(hours=3)
         response = self.client.post(
             reverse("video-meeting-schedule-series"),
@@ -214,14 +240,14 @@ class VideoMeetingApiTests(APITestCase):
     )
     def test_participant_can_fetch_join_token(self):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Live interview",
             scheduled_start=timezone.now() - timedelta(minutes=1),
             scheduled_end=timezone.now() + timedelta(minutes=30),
             timezone="UTC",
         )
-        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.internal_user, role="host")
         meeting.participants.create(user=self.candidate, role="candidate")
 
         self.client.force_authenticate(self.candidate)
@@ -237,14 +263,14 @@ class VideoMeetingApiTests(APITestCase):
     )
     def test_join_token_returns_503_when_livekit_not_configured(self):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Live interview",
             scheduled_start=timezone.now() - timedelta(minutes=1),
             scheduled_end=timezone.now() + timedelta(minutes=30),
             timezone="UTC",
         )
-        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.internal_user, role="host")
         meeting.participants.create(user=self.candidate, role="candidate")
 
         self.client.force_authenticate(self.candidate)
@@ -253,14 +279,14 @@ class VideoMeetingApiTests(APITestCase):
 
     def test_reminder_task_completes_past_meetings(self):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Expired interview",
             scheduled_start=timezone.now() - timedelta(hours=2),
             scheduled_end=timezone.now() - timedelta(minutes=1),
             timezone="UTC",
         )
-        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.internal_user, role="host")
         meeting.participants.create(user=self.candidate, role="candidate")
 
         result = process_video_meeting_reminders()
@@ -271,14 +297,14 @@ class VideoMeetingApiTests(APITestCase):
 
     def test_calendar_ics_endpoint_returns_file(self):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Calendar Interview",
             scheduled_start=timezone.now() + timedelta(minutes=30),
             scheduled_end=timezone.now() + timedelta(minutes=90),
             timezone="UTC",
         )
-        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.internal_user, role="host")
         meeting.participants.create(user=self.candidate, role="candidate")
 
         response = self.client.get(reverse("video-meeting-calendar-ics", kwargs={"pk": meeting.pk}))
@@ -291,7 +317,7 @@ class VideoMeetingApiTests(APITestCase):
     @patch("apps.notifications.services.send_mail", return_value=1)
     def test_notify_meeting_start_now_is_idempotent(self, _send_mail):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Idempotent start-now reminder",
             status=VideoMeeting.STATUS_ONGOING,
@@ -299,7 +325,7 @@ class VideoMeetingApiTests(APITestCase):
             scheduled_end=timezone.now() + timedelta(minutes=20),
             timezone="UTC",
         )
-        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.internal_user, role="host")
         meeting.participants.create(user=self.candidate, role="candidate")
         Notification.objects.filter(metadata__event_type="video_call_start_now").delete()
 
@@ -321,7 +347,7 @@ class VideoMeetingApiTests(APITestCase):
 
     def test_reminder_task_uses_per_meeting_lead_minutes(self):
         starts_in_ten = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Ten minute meeting",
             scheduled_start=timezone.now() + timedelta(minutes=10),
@@ -329,11 +355,11 @@ class VideoMeetingApiTests(APITestCase):
             timezone="UTC",
             reminder_before_minutes=5,
         )
-        starts_in_ten.participants.create(user=self.hr_user, role="host")
+        starts_in_ten.participants.create(user=self.internal_user, role="host")
         starts_in_ten.participants.create(user=self.candidate, role="candidate")
 
         starts_in_four = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Four minute meeting",
             scheduled_start=timezone.now() + timedelta(minutes=4),
@@ -341,7 +367,7 @@ class VideoMeetingApiTests(APITestCase):
             timezone="UTC",
             reminder_before_minutes=5,
         )
-        starts_in_four.participants.create(user=self.hr_user, role="host")
+        starts_in_four.participants.create(user=self.internal_user, role="host")
         starts_in_four.participants.create(user=self.candidate, role="candidate")
 
         result = process_video_meeting_reminders()
@@ -354,7 +380,7 @@ class VideoMeetingApiTests(APITestCase):
 
     def test_reminder_task_resets_claim_when_soon_notification_fails(self):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Soon reminder failure retry",
             scheduled_start=timezone.now() + timedelta(minutes=4),
@@ -362,7 +388,7 @@ class VideoMeetingApiTests(APITestCase):
             timezone="UTC",
             reminder_before_minutes=5,
         )
-        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.internal_user, role="host")
         meeting.participants.create(user=self.candidate, role="candidate")
 
         with patch("apps.video_calls.tasks.notify_meeting_starting_soon", side_effect=RuntimeError("delivery failed")):
@@ -379,7 +405,7 @@ class VideoMeetingApiTests(APITestCase):
     @override_settings(VIDEO_CALLS_REMINDER_RETRY_MAX_ATTEMPTS=2)
     def test_reminder_task_skips_soon_notification_after_max_failures(self):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Skip after max failures",
             scheduled_start=timezone.now() + timedelta(minutes=4),
@@ -388,7 +414,7 @@ class VideoMeetingApiTests(APITestCase):
             reminder_before_minutes=5,
             reminder_before_failure_count=2,
         )
-        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.internal_user, role="host")
         meeting.participants.create(user=self.candidate, role="candidate")
 
         with patch("apps.video_calls.tasks.notify_meeting_starting_soon") as notify_mock:
@@ -401,7 +427,7 @@ class VideoMeetingApiTests(APITestCase):
 
     def test_reminder_task_skips_soon_notification_before_retry_window(self):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Skip before retry window",
             scheduled_start=timezone.now() + timedelta(minutes=4),
@@ -411,7 +437,7 @@ class VideoMeetingApiTests(APITestCase):
             reminder_before_failure_count=1,
             reminder_before_next_retry_at=timezone.now() + timedelta(minutes=2),
         )
-        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.internal_user, role="host")
         meeting.participants.create(user=self.candidate, role="candidate")
 
         with patch("apps.video_calls.tasks.notify_meeting_starting_soon") as notify_mock:
@@ -424,7 +450,7 @@ class VideoMeetingApiTests(APITestCase):
 
     def test_start_now_notification_failure_records_retry_state(self):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Start now failure retry",
             status=VideoMeeting.STATUS_ONGOING,
@@ -432,7 +458,7 @@ class VideoMeetingApiTests(APITestCase):
             scheduled_end=timezone.now() + timedelta(minutes=29),
             timezone="UTC",
         )
-        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.internal_user, role="host")
         meeting.participants.create(user=self.candidate, role="candidate")
 
         with patch("apps.video_calls.tasks.notify_meeting_start_now", side_effect=RuntimeError("start delivery failed")):
@@ -449,7 +475,7 @@ class VideoMeetingApiTests(APITestCase):
     @override_settings(VIDEO_CALLS_REMINDER_RETRY_MAX_ATTEMPTS=1)
     def test_start_now_notification_skipped_after_max_failures(self):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Start now max failures",
             status=VideoMeeting.STATUS_ONGOING,
@@ -458,7 +484,7 @@ class VideoMeetingApiTests(APITestCase):
             timezone="UTC",
             reminder_start_failure_count=1,
         )
-        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.internal_user, role="host")
         meeting.participants.create(user=self.candidate, role="candidate")
 
         with patch("apps.video_calls.tasks.notify_meeting_start_now") as notify_mock:
@@ -471,7 +497,7 @@ class VideoMeetingApiTests(APITestCase):
 
     def test_time_up_notification_failure_records_retry_state(self):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Time up failure retry",
             status=VideoMeeting.STATUS_COMPLETED,
@@ -479,7 +505,7 @@ class VideoMeetingApiTests(APITestCase):
             scheduled_end=timezone.now() - timedelta(minutes=1),
             timezone="UTC",
         )
-        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.internal_user, role="host")
         meeting.participants.create(user=self.candidate, role="candidate")
 
         with patch("apps.video_calls.tasks.notify_meeting_time_up", side_effect=RuntimeError("time up delivery failed")):
@@ -496,7 +522,7 @@ class VideoMeetingApiTests(APITestCase):
     @override_settings(VIDEO_CALLS_REMINDER_RETRY_MAX_ATTEMPTS=1)
     def test_time_up_notification_skipped_after_max_failures(self):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Time up max failures",
             status=VideoMeeting.STATUS_COMPLETED,
@@ -505,7 +531,7 @@ class VideoMeetingApiTests(APITestCase):
             timezone="UTC",
             reminder_time_up_failure_count=1,
         )
-        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.internal_user, role="host")
         meeting.participants.create(user=self.candidate, role="candidate")
 
         with patch("apps.video_calls.tasks.notify_meeting_time_up") as notify_mock:
@@ -518,14 +544,14 @@ class VideoMeetingApiTests(APITestCase):
 
     def test_reschedule_rejects_duration_over_eight_hours(self):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Long interview",
             scheduled_start=timezone.now() + timedelta(hours=2),
             scheduled_end=timezone.now() + timedelta(hours=3),
             timezone="UTC",
         )
-        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.internal_user, role="host")
         meeting.participants.create(user=self.candidate, role="candidate")
 
         response = self.client.post(
@@ -542,14 +568,14 @@ class VideoMeetingApiTests(APITestCase):
 
     def test_extend_rejects_when_total_duration_exceeds_eight_hours(self):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Near max duration interview",
             scheduled_start=timezone.now() + timedelta(hours=1),
             scheduled_end=timezone.now() + timedelta(hours=8, minutes=30),
             timezone="UTC",
         )
-        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.internal_user, role="host")
         meeting.participants.create(user=self.candidate, role="candidate")
 
         response = self.client.post(
@@ -562,14 +588,14 @@ class VideoMeetingApiTests(APITestCase):
 
     def test_meeting_events_endpoint_returns_recent_events(self):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Event timeline interview",
             scheduled_start=timezone.now() + timedelta(hours=1),
             scheduled_end=timezone.now() + timedelta(hours=2),
             timezone="UTC",
         )
-        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.internal_user, role="host")
         meeting.participants.create(user=self.candidate, role="candidate")
 
         self.client.post(reverse("video-meeting-start", kwargs={"pk": meeting.pk}), data={}, format="json")
@@ -620,14 +646,14 @@ class VideoMeetingApiTests(APITestCase):
 
     def test_complete_requires_meeting_to_be_in_progress(self):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Cannot complete scheduled",
             scheduled_start=timezone.now() + timedelta(hours=1),
             scheduled_end=timezone.now() + timedelta(hours=2),
             timezone="UTC",
         )
-        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.internal_user, role="host")
         meeting.participants.create(user=self.candidate, role="candidate")
 
         response = self.client.post(
@@ -642,14 +668,14 @@ class VideoMeetingApiTests(APITestCase):
 
     def test_cancel_rejects_completed_meeting(self):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Cannot cancel completed",
             scheduled_start=timezone.now() - timedelta(minutes=5),
             scheduled_end=timezone.now() + timedelta(minutes=30),
             timezone="UTC",
         )
-        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.internal_user, role="host")
         meeting.participants.create(user=self.candidate, role="candidate")
 
         start_response = self.client.post(reverse("video-meeting-start", kwargs={"pk": meeting.pk}), data={}, format="json")
@@ -666,7 +692,7 @@ class VideoMeetingApiTests(APITestCase):
 
     def test_reschedule_rejects_non_scheduled_meeting(self):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Cannot reschedule ongoing",
             status=VideoMeeting.STATUS_ONGOING,
@@ -674,7 +700,7 @@ class VideoMeetingApiTests(APITestCase):
             scheduled_end=timezone.now() + timedelta(minutes=20),
             timezone="UTC",
         )
-        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.internal_user, role="host")
         meeting.participants.create(user=self.candidate, role="candidate")
 
         response = self.client.post(
@@ -690,7 +716,7 @@ class VideoMeetingApiTests(APITestCase):
 
     def test_reschedule_resets_all_reminder_retry_state(self):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Reset reminder state on reschedule",
             status=VideoMeeting.STATUS_SCHEDULED,
@@ -710,7 +736,7 @@ class VideoMeetingApiTests(APITestCase):
             reminder_time_up_last_failure_at=timezone.now(),
             reminder_time_up_next_retry_at=timezone.now() + timedelta(minutes=5),
         )
-        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.internal_user, role="host")
         meeting.participants.create(user=self.candidate, role="candidate")
 
         response = self.client.post(
@@ -823,7 +849,7 @@ class VideoMeetingApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertIn("Only admin users", str(response.data.get("error", "")))
 
-        self.client.force_authenticate(self.hr_user)
+        self.client.force_authenticate(self.internal_user)
         response = self.client.get(reverse("video-meeting-reminder-health"))
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertIn("Only admin users", str(response.data.get("error", "")))
@@ -838,7 +864,7 @@ class VideoMeetingApiTests(APITestCase):
         now = timezone.now()
 
         VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Soon pending",
             status=VideoMeeting.STATUS_SCHEDULED,
@@ -849,7 +875,7 @@ class VideoMeetingApiTests(APITestCase):
             reminder_before_next_retry_at=now - timedelta(minutes=1),
         )
         VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Soon exhausted",
             status=VideoMeeting.STATUS_SCHEDULED,
@@ -859,7 +885,7 @@ class VideoMeetingApiTests(APITestCase):
             reminder_before_failure_count=3,
         )
         VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Start pending",
             status=VideoMeeting.STATUS_ONGOING,
@@ -870,7 +896,7 @@ class VideoMeetingApiTests(APITestCase):
             reminder_start_next_retry_at=now - timedelta(seconds=30),
         )
         VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Start exhausted",
             status=VideoMeeting.STATUS_ONGOING,
@@ -880,7 +906,7 @@ class VideoMeetingApiTests(APITestCase):
             reminder_start_failure_count=3,
         )
         VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Time up pending",
             status=VideoMeeting.STATUS_COMPLETED,
@@ -891,7 +917,7 @@ class VideoMeetingApiTests(APITestCase):
             reminder_time_up_next_retry_at=now - timedelta(minutes=2),
         )
         VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Time up exhausted",
             status=VideoMeeting.STATUS_COMPLETED,
@@ -939,7 +965,7 @@ class VideoMeetingApiTests(APITestCase):
         self.client.force_authenticate(self.admin_user)
         now = timezone.now()
         VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Soon exhausted via floor",
             status=VideoMeeting.STATUS_SCHEDULED,
@@ -950,7 +976,7 @@ class VideoMeetingApiTests(APITestCase):
             reminder_before_next_retry_at=now - timedelta(minutes=1),
         )
         VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Start exhausted via floor",
             status=VideoMeeting.STATUS_ONGOING,
@@ -961,7 +987,7 @@ class VideoMeetingApiTests(APITestCase):
             reminder_start_next_retry_at=now - timedelta(minutes=1),
         )
         VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Time up exhausted via floor",
             status=VideoMeeting.STATUS_COMPLETED,
@@ -984,7 +1010,7 @@ class VideoMeetingApiTests(APITestCase):
 
     def test_joinability_respects_configured_join_grace_minutes(self):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Grace window check",
             status=VideoMeeting.STATUS_ONGOING,
@@ -1001,7 +1027,7 @@ class VideoMeetingApiTests(APITestCase):
 
     def test_meeting_participant_unique_constraint(self):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Unique participant check",
             scheduled_start=timezone.now() + timedelta(hours=1),
@@ -1022,14 +1048,14 @@ class VideoMeetingApiTests(APITestCase):
 
     def test_reminder_task_skips_start_notification_if_status_transition_fails(self):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Start transition failure",
             scheduled_start=timezone.now(),
             scheduled_end=timezone.now() + timedelta(minutes=30),
             timezone="UTC",
         )
-        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.internal_user, role="host")
         meeting.participants.create(user=self.candidate, role="candidate")
 
         with patch.object(VideoMeeting, "mark_ongoing", side_effect=ValidationError("transition blocked")):
@@ -1041,7 +1067,7 @@ class VideoMeetingApiTests(APITestCase):
 
     def test_reminder_task_skips_time_up_notification_if_completion_transition_fails(self):
         meeting = VideoMeeting.objects.create(
-            organizer=self.hr_user,
+            organizer=self.internal_user,
             case=self.case,
             title="Completion transition failure",
             status=VideoMeeting.STATUS_ONGOING,
@@ -1049,7 +1075,7 @@ class VideoMeetingApiTests(APITestCase):
             scheduled_end=timezone.now() - timedelta(minutes=1),
             timezone="UTC",
         )
-        meeting.participants.create(user=self.hr_user, role="host")
+        meeting.participants.create(user=self.internal_user, role="host")
         meeting.participants.create(user=self.candidate, role="candidate")
 
         with patch.object(VideoMeeting, "mark_completed", side_effect=ValidationError("completion blocked")):
@@ -1060,3 +1086,6 @@ class VideoMeetingApiTests(APITestCase):
         self.assertEqual(meeting.status, VideoMeeting.STATUS_ONGOING)
         self.assertEqual(stats["completed"], 0)
         notify_mock.assert_not_called()
+
+
+

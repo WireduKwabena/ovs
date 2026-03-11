@@ -6,7 +6,7 @@ Use `apps.notifications.interview_alerts` as the canonical module.
 from apps.notifications.interview_alerts import (  # noqa: F401
     InterviewAlertService,
     calculate_avg_deception,
-    get_hr_manager_emails,
+    get_internal_emails,
     send_behavioral_alert,
     send_completion_summary,
     send_critical_flags_alert,
@@ -21,6 +21,7 @@ __all__ = [
     "send_poor_response_alert",
     "send_behavioral_alert",
     "send_completion_summary",
-    "get_hr_manager_emails",
+    "get_internal_emails",
     "calculate_avg_deception",
 ]
+

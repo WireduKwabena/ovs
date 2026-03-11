@@ -37,12 +37,12 @@ class MLMonitoringAPITests(APITestCase):
             last_name="User",
             user_type="applicant",
         )
-        self.hr_user = User.objects.create_user(
+        self.internal_user = User.objects.create_user(
             email="hr@example.com",
             password="strongpassword123",
-            first_name="HR",
+            first_name="Internal",
             last_name="Manager",
-            user_type="hr_manager",
+            user_type="internal",
         )
         MLModelMetrics.objects.create(
             model_name="authenticity_detector",
@@ -74,8 +74,8 @@ class MLMonitoringAPITests(APITestCase):
         response = self.client.get("/api/ml-monitoring/")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_list_metrics_as_hr_manager(self):
-        self.client.force_authenticate(user=self.hr_user)
+    def test_list_metrics_as_internal(self):
+        self.client.force_authenticate(user=self.internal_user)
         response = self.client.get("/api/ml-monitoring/")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -162,3 +162,5 @@ class MLMonitoringMiddlewareTests(SimpleTestCase):
 
         mock_info.assert_called_once()
         self.assertEqual(mock_info.call_args[0][4], "Anonymous")
+
+

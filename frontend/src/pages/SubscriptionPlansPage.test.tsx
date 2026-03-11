@@ -57,7 +57,7 @@ describe("SubscriptionPlansPage hosted checkout integration", () => {
     });
     mocks.useAuth.mockReturnValue({
       isAuthenticated: true,
-      userType: "hr_manager",
+      userType: "internal",
       activeOrganizationId: "org-1",
       canManageActiveOrganizationGovernance: true,
     });
@@ -152,7 +152,7 @@ describe("SubscriptionPlansPage hosted checkout integration", () => {
   it("blocks checkout when organization context is missing", async () => {
     mocks.useAuth.mockReturnValue({
       isAuthenticated: true,
-      userType: "hr_manager",
+      userType: "internal",
       activeOrganizationId: null,
       canManageActiveOrganizationGovernance: false,
     });
@@ -170,3 +170,4 @@ describe("SubscriptionPlansPage hosted checkout integration", () => {
     expect(mocks.toastError).not.toHaveBeenCalled();
   });
 });
+

@@ -44,9 +44,10 @@ describe("DashboardPage role routing", () => {
     expect(await screen.findByText("Admin Dashboard Page")).toBeTruthy();
   });
 
-  it("renders operations dashboard when user type is hr_manager", async () => {
+  it("renders operations dashboard when internal workflow access is available", async () => {
     mockUseAuth.mockReturnValue({
-      userType: "hr_manager",
+      userType: "internal",
+      canAccessInternalWorkflow: true,
       canManageActiveOrganizationGovernance: false,
       activeOrganizationId: null,
     });
@@ -62,9 +63,10 @@ describe("DashboardPage role routing", () => {
     expect(await screen.findByText("Operations Dashboard Page")).toBeTruthy();
   });
 
-  it("redirects org-admin hr_manager users to organization workspace dashboard", async () => {
+  it("redirects org-admin internal users to organization workspace dashboard", async () => {
     mockUseAuth.mockReturnValue({
-      userType: "hr_manager",
+      userType: "internal",
+      canAccessInternalWorkflow: true,
       canManageActiveOrganizationGovernance: true,
       activeOrganizationId: "org-1",
     });
@@ -83,7 +85,8 @@ describe("DashboardPage role routing", () => {
 
   it("routes committee/vetting actors to appointments workflow when available", async () => {
     mockUseAuth.mockReturnValue({
-      userType: "hr_manager",
+      userType: "internal",
+      canAccessInternalWorkflow: true,
       canManageActiveOrganizationGovernance: false,
       activeOrganizationId: "org-1",
       canAccessAppointments: true,
@@ -118,4 +121,5 @@ describe("DashboardPage role routing", () => {
     expect(await screen.findByText("Candidate Access Page")).toBeTruthy();
   });
 });
+
 

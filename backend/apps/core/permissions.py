@@ -32,17 +32,14 @@ ACTIVE_ORGANIZATION_CONTEXT_CACHE_ATTR = "_active_organization_context"
 TENANT_CONTEXT_CACHE_ATTR = "_tenant_context"
 
 
-def is_hr_or_admin_user(user) -> bool:
+def is_internal_or_admin_user(user) -> bool:
     """
     Legacy compatibility helper.
 
     Do not use this helper for governance-sensitive GAMS authorization.
     """
-    if not getattr(user, "is_authenticated", False):
-        return False
-    if has_role(user, ROLE_ADMIN):
-        return True
-    return getattr(user, "user_type", None) == "hr_manager"
+    # Keep helper narrow; operational authority remains role/capability/policy based.
+    return is_government_workflow_operator(user)
 
 
 def is_admin_user(user) -> bool:
@@ -60,11 +57,11 @@ def is_platform_admin_user(user) -> bool:
     return bool(getattr(user, "is_superuser", False) or getattr(user, "user_type", None) == "admin")
 
 
-class IsHRManagerOrAdmin(BasePermission):
-    message = "Only HR managers/admin users can access this resource."
+class IsInternalOperatorOrAdmin(BasePermission):
+    message = "Only authorized internal operators/admin users can access this resource."
 
     def has_permission(self, request, view):
-        return is_hr_or_admin_user(getattr(request, "user", None))
+        return is_internal_or_admin_user(getattr(request, "user", None))
 
 
 def is_government_workflow_operator(user, *, organization_id=None) -> bool:
@@ -379,3 +376,4 @@ def scope_internal_queryset_to_tenant(
         include_null_legacy=include_null_legacy,
         allow_membershipless_fallback=False,
     )
+

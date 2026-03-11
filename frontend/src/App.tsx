@@ -106,7 +106,7 @@ const HIDE_NAVBAR_PREFIXES = [
   "/billing",
 ];
 
-const LEGACY_INTERNAL_FALLBACK: Array<"hr_manager" | "admin"> = [...LEGACY_CAPABILITY_STALE_FALLBACK_USER_TYPES];
+const LEGACY_INTERNAL_FALLBACK: Array<"admin"> = [...LEGACY_CAPABILITY_STALE_FALLBACK_USER_TYPES];
 
 const shouldHideNavbar = (pathname: string): boolean => {
   if (pathname === "/") return true;

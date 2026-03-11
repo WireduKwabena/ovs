@@ -46,7 +46,7 @@ describe("OrganizationDashboardPage", () => {
 
   it("renders org-admin summary cards and onboarding context", async () => {
     mocks.useAuth.mockReturnValue({
-      userType: "hr_manager",
+      userType: "internal",
       activeOrganization: { id: "org-1", code: "ORG1", name: "Org One", organization_type: "agency" },
       activeOrganizationId: "org-1",
       canManageActiveOrganizationGovernance: true,
@@ -142,7 +142,7 @@ describe("OrganizationDashboardPage", () => {
 
   it("shows active organization requirement when context is missing", async () => {
     mocks.useAuth.mockReturnValue({
-      userType: "hr_manager",
+      userType: "internal",
       activeOrganization: null,
       activeOrganizationId: null,
       canManageActiveOrganizationGovernance: true,
@@ -157,4 +157,5 @@ describe("OrganizationDashboardPage", () => {
     expect(await screen.findByText(/active organization required/i)).toBeTruthy();
   });
 });
+
 

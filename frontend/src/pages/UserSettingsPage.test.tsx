@@ -57,7 +57,7 @@ describe("UserSettingsPage billing empty-state", () => {
 
   it("shows add subscription action when subscription is missing", async () => {
     mocks.useAuth.mockReturnValue({
-      userType: "hr_manager",
+      userType: "internal",
       canManageActiveOrganizationGovernance: false,
       organizations: [],
       activeOrganization: null,
@@ -65,7 +65,7 @@ describe("UserSettingsPage billing empty-state", () => {
       user: {
         id: "user-1",
         email: "hr@example.com",
-        first_name: "HR",
+        first_name: "Internal",
         last_name: "Manager",
         full_name: "Operations User",
         phone_number: "",
@@ -98,7 +98,7 @@ describe("UserSettingsPage billing empty-state", () => {
 
   it("shows onboarding workspace summary for authorized org admins", async () => {
     mocks.useAuth.mockReturnValue({
-      userType: "hr_manager",
+      userType: "internal",
       canManageActiveOrganizationGovernance: true,
       organizations: [{ id: "org-1", code: "ORG1", name: "Org One", organization_type: "agency" }],
       activeOrganization: { id: "org-1", code: "ORG1", name: "Org One", organization_type: "agency" },
@@ -160,3 +160,4 @@ describe("UserSettingsPage billing empty-state", () => {
     expect(await screen.findByText(/token preview/i)).toBeTruthy();
   });
 });
+

@@ -9,6 +9,7 @@ const OperationsDashboardPage = React.lazy(() => import("@/pages/OperationsDashb
 export const DashboardPage: React.FC = () => {
   const {
     userType,
+    canAccessInternalWorkflow,
     activeOrganizationId,
     canManageActiveOrganizationGovernance,
     canAccessAppointments,
@@ -40,7 +41,7 @@ export const DashboardPage: React.FC = () => {
     return <Navigate to="/audit-logs" replace />;
   }
 
-  if (userType === "hr_manager") {
+  if (canAccessInternalWorkflow) {
     return (
       <Suspense
         fallback={

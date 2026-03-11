@@ -14,7 +14,7 @@ describe("authRouting", () => {
     });
 
     it("returns standard dashboard for internal non-admin roles", () => {
-      expect(getDashboardPathForUser("hr_manager")).toBe("/dashboard");
+      expect(getDashboardPathForUser("internal")).toBe("/dashboard");
       expect(getDashboardPathForUser(null)).toBe("/dashboard");
     });
 
@@ -102,7 +102,7 @@ describe("authRouting", () => {
       expect(
         resolveUnauthenticatedRouteRedirect({
           isAuthenticated: true,
-          userType: "hr_manager",
+          userType: "internal",
           twoFactorRequired: false,
           twoFactorToken: null,
         }),
@@ -130,3 +130,4 @@ describe("authRouting", () => {
     });
   });
 });
+

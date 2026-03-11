@@ -100,7 +100,7 @@ class VettingCase(models.Model):
         null=True,
         blank=True,
         related_name='assigned_cases',
-        limit_choices_to={'user_type__in': ['hr_manager', 'admin']}
+        limit_choices_to={'user_type__in': ['internal', 'admin']}
     )
     
     # Case details
@@ -289,7 +289,7 @@ class Document(models.Model):
     
     Academic Note:
     --------------
-    Supports multiple document types commonly used in HR vetting.
+    Supports multiple document types commonly used in personnel vetting.
     Tracks processing pipeline stages for performance metrics.
     """
     
@@ -984,3 +984,4 @@ class ExternalVerificationResult(models.Model):
 
     def __str__(self):
         return f"{self.case.case_id}::{self.source.key}::{self.result_status}"
+

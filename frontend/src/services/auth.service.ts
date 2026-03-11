@@ -42,7 +42,7 @@ export interface TwoFactorVerifyPayload {
 
 export interface ProfileResponse {
   user: User | AdminUser;
-  user_type: "applicant" | "hr_manager" | "admin";
+  user_type: "applicant" | "internal" | "admin";
   roles?: string[];
   capabilities?: string[];
   is_internal_operator?: boolean;
@@ -264,4 +264,5 @@ export const authService = {
     }
   },
 };
+
 

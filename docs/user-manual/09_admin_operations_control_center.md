@@ -36,7 +36,7 @@ Admin dashboard endpoints:
 For each user update:
 
 1. Validate reason for change.
-2. Confirm role impact (admin/hr/applicant).
+2. Confirm role impact (admin/internal/applicant).
 3. Apply change and verify route/access behavior.
 4. Log and communicate action where required.
 
@@ -60,9 +60,8 @@ Admin case review focuses on:
 
 Admins should avoid day-to-day vetting execution when possible.
 
-- HR managers run campaign execution.
+- Internal reviewers run campaign execution.
 - Admins focus on:
   - policy enforcement,
   - platform stability,
   - compliance and forensic readiness.
-

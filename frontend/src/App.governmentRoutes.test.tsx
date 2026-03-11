@@ -36,7 +36,7 @@ vi.mock("./pages/DashboardPage", () => ({
   default: () => <div>Mock Dashboard Page</div>,
 }));
 
-type AuthUserType = "applicant" | "hr_manager" | "admin" | null;
+type AuthUserType = "applicant" | "internal" | "admin" | null;
 
 const buildStore = (
   userType: AuthUserType,
@@ -139,18 +139,18 @@ describe("App government route access", () => {
     window.history.pushState({}, "", "/");
   });
 
-  it("redirects hr_manager without role/capability grants away from government appointments route", async () => {
-    renderAppAt("/government/appointments", "hr_manager");
+  it("redirects internal without role/capability grants away from government appointments route", async () => {
+    renderAppAt("/government/appointments", "internal");
     expect(await screen.findByText("Mock Dashboard Page")).toBeTruthy();
   });
 
-  it("redirects hr_manager with stale capability payload away from government appointments route", async () => {
-    renderAppAt("/government/appointments", "hr_manager", []);
+  it("redirects internal with stale capability payload away from government appointments route", async () => {
+    renderAppAt("/government/appointments", "internal", []);
     expect(await screen.findByText("Mock Dashboard Page")).toBeTruthy();
   });
 
   it("allows explicit capability-bearing users to access government appointments route", async () => {
-    renderAppAt("/government/appointments", "hr_manager", ["gams.appointment.view_internal"]);
+    renderAppAt("/government/appointments", "internal", ["gams.appointment.view_internal"]);
     expect(await screen.findByText("Mock Appointments Registry Page", {}, { timeout: 5000 })).toBeTruthy();
   });
 
@@ -159,10 +159,10 @@ describe("App government route access", () => {
     expect(await screen.findByText("Mock Dashboard Page")).toBeTruthy();
   });
 
-  it("allows org-admin scoped hr_manager users to access organization dashboard route", async () => {
+  it("allows org-admin scoped internal users to access organization dashboard route", async () => {
     renderAppAt(
       "/organization/dashboard",
-      "hr_manager",
+      "internal",
       [],
       {
         activeOrganizationId: "org-1",
@@ -179,10 +179,10 @@ describe("App government route access", () => {
     expect(await screen.findByText("Mock Organization Dashboard Page")).toBeTruthy();
   });
 
-  it("redirects non-org-admin hr_manager users away from organization dashboard route", async () => {
+  it("redirects non-org-admin internal users away from organization dashboard route", async () => {
     renderAppAt(
       "/organization/dashboard",
-      "hr_manager",
+      "internal",
       [],
       {
         activeOrganizationId: "org-1",
@@ -192,10 +192,10 @@ describe("App government route access", () => {
     expect(await screen.findByText("Mock Dashboard Page")).toBeTruthy();
   });
 
-  it("redirects capability-only hr_manager users away from organization dashboard route", async () => {
+  it("redirects capability-only internal users away from organization dashboard route", async () => {
     renderAppAt(
       "/organization/dashboard",
-      "hr_manager",
+      "internal",
       ["gams.registry.manage"],
       {
         activeOrganizationId: "org-1",
@@ -220,3 +220,4 @@ describe("App government route access", () => {
     expect(await screen.findByText("Mock Organization Dashboard Page")).toBeTruthy();
   });
 });
+

@@ -32,7 +32,7 @@ A: Yes, through settings billing controls. Exact path depends on provider (Strip
 
 ### Q: Who should create rubrics?
 
-A: HR managers typically own rubric design per campaign. Admins can oversee governance.
+A: Internal reviewers typically own rubric design per campaign. Admins can oversee governance.
 
 ### Q: Can a rubric be changed after activation?
 

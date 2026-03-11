@@ -125,7 +125,7 @@ class Migration(migrations.Migration):
                 ('completed_at', models.DateTimeField(blank=True, null=True)),
                 ('expected_completion_date', models.DateTimeField(blank=True, null=True)),
                 ('applicant', models.ForeignKey(limit_choices_to={'user_type': 'applicant'}, on_delete=django.db.models.deletion.CASCADE, related_name='vetting_cases', to=settings.AUTH_USER_MODEL)),
-                ('assigned_to', models.ForeignKey(blank=True, limit_choices_to={'user_type__in': ['hr_manager', 'admin']}, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='assigned_cases', to=settings.AUTH_USER_MODEL)),
+                ('assigned_to', models.ForeignKey(blank=True, limit_choices_to={'user_type__in': ['internal', 'admin']}, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='assigned_cases', to=settings.AUTH_USER_MODEL)),
                 ('decided_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='decided_cases', to=settings.AUTH_USER_MODEL)),
             ],
             options={

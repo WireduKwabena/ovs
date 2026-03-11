@@ -78,7 +78,7 @@ const getSourceRubricId = (payload?: Record<string, unknown>): string | null => 
 };
 
 const CampaignWorkspacePage: React.FC = () => {
-  const { userType } = useAuth();
+  const { isInternalOrAdmin, userType } = useAuth();
   const { campaignId } = useParams<{ campaignId: string }>();
   const [campaign, setCampaign] = useState<VettingCampaign | null>(null);
   const [dashboard, setDashboard] = useState<CampaignDashboard | null>(null);
@@ -102,7 +102,7 @@ const CampaignWorkspacePage: React.FC = () => {
   const [resendingInvitationId, setResendingInvitationId] = useState<string | null>(null);
   const [completingEnrollmentId, setCompletingEnrollmentId] = useState<string | null>(null);
 
-  const shouldShowQuota = userType === 'hr_manager';
+  const shouldShowQuota = isInternalOrAdmin && userType !== "applicant";
 
   const loadWorkspace = useCallback(async () => {
     if (!campaignId) {
@@ -865,3 +865,4 @@ const CampaignWorkspacePage: React.FC = () => {
 };
 
 export default CampaignWorkspacePage;
+

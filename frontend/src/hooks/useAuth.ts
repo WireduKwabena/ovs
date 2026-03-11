@@ -109,7 +109,7 @@ export const useAuth = () => {
     resolvedCapabilities,
     GOVERNMENT_WORKFLOW_CAPABILITIES,
   );
-  const isHrOrAdmin = isAdmin || hasGovernmentCapability;
+  const isInternalOrAdmin = isAdmin || hasGovernmentCapability;
   const isApplicant = userType === 'applicant';
   const canViewAuditLogs = isAdmin || hasCapability("gams.audit.view");
   const canManageRegistry = isAdmin || hasCapability("gams.registry.manage");
@@ -214,7 +214,7 @@ export const useAuth = () => {
     hasAnyCapability,
     hasCommitteeMembership,
     isAdmin,
-    isHrOrAdmin: isHrOrAdmin,
+    isInternalOrAdmin: isInternalOrAdmin,
     isApplicant,
     canViewAuditLogs,
     canManageRegistry,
@@ -241,3 +241,4 @@ export const useAuth = () => {
     clearError: clearAuthError,
   };
 };
+

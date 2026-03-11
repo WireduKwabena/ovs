@@ -9,7 +9,7 @@ import { UnauthenticatedRoute } from "./UnauthenticatedRoute";
 
 type PublicAuthState = {
   isAuthenticated: boolean;
-  userType: "applicant" | "hr_manager" | "admin" | null;
+  userType: "applicant" | "internal" | "admin" | null;
   twoFactorRequired: boolean;
   twoFactorToken: string | null;
 };
@@ -133,7 +133,7 @@ describe("UnauthenticatedRoute integration", () => {
     renderWithState(
       createPublicState({
         isAuthenticated: true,
-        userType: "hr_manager",
+        userType: "internal",
       }),
       "/forgot-password",
     );
@@ -160,3 +160,4 @@ describe("UnauthenticatedRoute integration", () => {
     expect(screen.queryByText("Login page")).toBeNull();
   });
 });
+

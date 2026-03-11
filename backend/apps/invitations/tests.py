@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, override_settings
+from django.contrib.auth.models import Group
 from django.utils import timezone
 from rest_framework.test import APITestCase, APIRequestFactory
 
@@ -20,22 +21,25 @@ from apps.invitations.services import CandidateAccessError, issue_candidate_acce
 
 class InvitationAuthorizationAndNegativeTests(APITestCase):
     def setUp(self):
-        self.hr_one = User.objects.create_user(
-            email="hr_invites_one@example.com",
+        vetting_officer_group, _ = Group.objects.get_or_create(name="vetting_officer")
+        self.internal_one = User.objects.create_user(
+            email="internal_invites_one@example.com",
             password="Pass1234!",
-            first_name="HR",
+            first_name="Internal",
             last_name="One",
-            user_type="hr_manager",
+            user_type="internal",
         )
-        self.hr_two = User.objects.create_user(
-            email="hr_invites_two@example.com",
+        self.internal_one.groups.add(vetting_officer_group)
+        self.internal_two = User.objects.create_user(
+            email="internal_invites_two@example.com",
             password="Pass1234!",
-            first_name="HR",
+            first_name="Internal",
             last_name="Two",
-            user_type="hr_manager",
+            user_type="internal",
         )
+        self.internal_two.groups.add(vetting_officer_group)
 
-        campaign = VettingCampaign.objects.create(name="Invite Campaign", initiated_by=self.hr_one)
+        campaign = VettingCampaign.objects.create(name="Invite Campaign", initiated_by=self.internal_one)
         candidate = Candidate.objects.create(
             first_name="Invite",
             last_name="Candidate",
@@ -47,7 +51,7 @@ class InvitationAuthorizationAndNegativeTests(APITestCase):
             channel="email",
             send_to=candidate.email,
             expires_at=timezone.now() + timedelta(hours=24),
-            created_by=self.hr_one,
+            created_by=self.internal_one,
         )
 
     def _items(self, payload):
@@ -55,8 +59,8 @@ class InvitationAuthorizationAndNegativeTests(APITestCase):
             return payload
         return payload.get("results", [])
 
-    def test_hr_manager_cannot_create_invitation_for_other_campaign(self):
-        self.client.force_authenticate(self.hr_two)
+    def test_internal_cannot_create_invitation_for_other_campaign(self):
+        self.client.force_authenticate(self.internal_two)
         response = self.client.post(
             "/api/invitations/",
             {
@@ -68,11 +72,31 @@ class InvitationAuthorizationAndNegativeTests(APITestCase):
         )
         self.assertEqual(response.status_code, 403)
 
-    def test_hr_manager_lists_only_own_invitations(self):
-        self.client.force_authenticate(self.hr_two)
+    def test_internal_lists_only_own_invitations(self):
+        self.client.force_authenticate(self.internal_two)
         response = self.client.get("/api/invitations/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(self._items(response.json())), 0)
+
+    def test_plain_internal_without_operational_role_cannot_create_invitation(self):
+        plain_internal = User.objects.create_user(
+            email="plain_internal_invites@example.com",
+            password="Pass1234!",
+            first_name="Plain",
+            last_name="Reviewer",
+            user_type="internal",
+        )
+        self.client.force_authenticate(plain_internal)
+        response = self.client.post(
+            "/api/invitations/",
+            {
+                "enrollment": self.enrollment.id,
+                "channel": "email",
+                "expires_in_hours": 24,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
 
     def test_accept_invalid_token_returns_404(self):
         response = self.client.post(
@@ -88,7 +112,7 @@ class InvitationAuthorizationAndNegativeTests(APITestCase):
             channel="email",
             send_to=self.enrollment.candidate.email,
             expires_at=timezone.now() - timedelta(hours=1),
-            created_by=self.hr_one,
+            created_by=self.internal_one,
         )
         response = self.client.post(
             "/api/invitations/accept/",
@@ -103,11 +127,11 @@ class InvitationAuthorizationAndNegativeTests(APITestCase):
 class CandidateAccessPassFlowTests(APITestCase):
     def setUp(self):
         self.hr = User.objects.create_user(
-            email="hr_candidate_access@example.com",
+            email="internal_candidate_access@example.com",
             password="Pass1234!",
-            first_name="HR",
+            first_name="Internal",
             last_name="Owner",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.campaign = VettingCampaign.objects.create(name="Candidate Access Campaign", initiated_by=self.hr)
         self.candidate = Candidate.objects.create(
@@ -272,11 +296,11 @@ class CandidateAccessVettingEndpointsTests(APITestCase):
             is_active=True,
         )
         self.hr = User.objects.create_user(
-            email="hr_candidate_endpoints@example.com",
+            email="internal_candidate_endpoints@example.com",
             password="Pass1234!",
-            first_name="HR",
+            first_name="Internal",
             last_name="Owner",
-            user_type="hr_manager",
+            user_type="internal",
         )
         OrganizationMembership.objects.create(
             user=self.hr,
@@ -564,11 +588,11 @@ class ServiceTokenPermissionTests(SimpleTestCase):
 class InvitationServiceHardeningTests(APITestCase):
     def setUp(self):
         self.hr = User.objects.create_user(
-            email="hr_inv_service@example.com",
+            email="internal_inv_service@example.com",
             password="Pass1234!",
-            first_name="HR",
+            first_name="Internal",
             last_name="Service",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.campaign = VettingCampaign.objects.create(name="Invitation Service Campaign", initiated_by=self.hr)
         self.candidate = Candidate.objects.create(
@@ -633,4 +657,6 @@ class InvitationServiceHardeningTests(APITestCase):
 
         self.assertEqual(exc.exception.code, "unsupported_channel")
         self.assertEqual(CandidateAccessPass.objects.filter(invitation=invitation).count(), 0)
+
+
 

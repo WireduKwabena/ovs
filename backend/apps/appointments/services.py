@@ -22,6 +22,7 @@ from apps.core.authz import (
     ROLE_COMMITTEE_MEMBER,
     resolve_actor_role,
 )
+from apps.core.permissions import is_government_workflow_operator, is_platform_admin_user
 from apps.core.policies.appointment_policy import (
     actor_matches_stage_role,
     can_appoint,
@@ -517,7 +518,16 @@ def ensure_vetting_linkage_for_appointment(*, appointment: AppointmentRecord, ac
         campaign=appointment.appointment_exercise,
         candidate=candidate,
     ).first()
-    if existing_enrollment is None and getattr(actor, "user_type", "") == "hr_manager":
+    should_enforce_enrollment_quota = bool(
+        existing_enrollment is None
+        and getattr(actor, "is_authenticated", False)
+        and not is_platform_admin_user(actor)
+        and is_government_workflow_operator(
+            actor,
+            organization_id=str(getattr(appointment, "organization_id", "") or "") or None,
+        )
+    )
+    if should_enforce_enrollment_quota:
         enforce_candidate_quota(
             user=actor,
             additional=1,

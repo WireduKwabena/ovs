@@ -8,7 +8,7 @@ import { ApplicationsPage } from "./ApplicationsPage";
 const mocks = vi.hoisted(() => ({
   refetch: vi.fn(),
   authState: {
-    isHrOrAdmin: false,
+    isInternalOrAdmin: false,
     isAdmin: false,
   },
 }));
@@ -37,12 +37,12 @@ describe("ApplicationsPage scope fetching", () => {
   afterEach(() => {
     cleanup();
     mocks.refetch.mockReset();
-    mocks.authState.isHrOrAdmin = false;
+    mocks.authState.isInternalOrAdmin = false;
     mocks.authState.isAdmin = false;
   });
 
   it("fetches admin scope as all", async () => {
-    mocks.authState.isHrOrAdmin = true;
+    mocks.authState.isInternalOrAdmin = true;
     mocks.authState.isAdmin = true;
 
     renderPage("/applications");
@@ -53,7 +53,7 @@ describe("ApplicationsPage scope fetching", () => {
   });
 
   it("fetches hr scope as assigned by default", async () => {
-    mocks.authState.isHrOrAdmin = true;
+    mocks.authState.isInternalOrAdmin = true;
 
     renderPage("/applications");
 
@@ -63,7 +63,7 @@ describe("ApplicationsPage scope fetching", () => {
   });
 
   it("fetches hr scope as all when scope query is set", async () => {
-    mocks.authState.isHrOrAdmin = true;
+    mocks.authState.isInternalOrAdmin = true;
 
     renderPage("/applications?scope=all");
 
@@ -72,3 +72,4 @@ describe("ApplicationsPage scope fetching", () => {
     });
   });
 });
+

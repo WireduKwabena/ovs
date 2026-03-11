@@ -38,7 +38,7 @@ The platform supports:
 2. Candidate uploads document set.
 3. Case enters queued/processing analysis state.
 4. Results are persisted and exposed in case detail.
-5. HR reviews evidence and decides or escalates.
+5. Internal reviewer reviews evidence and decides or escalates.
 
 ## 7.5 Verification Status Interpretation
 
@@ -75,4 +75,3 @@ Before final decision:
 - Cross-check authenticity, fraud, and consistency outputs.
 - Consider background check and interview context where available.
 - Record rationale for overrides/escalations.
-

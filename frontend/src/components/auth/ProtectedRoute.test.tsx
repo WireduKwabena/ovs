@@ -9,7 +9,7 @@ import { ProtectedRoute } from "./ProtectedRoute";
 
 type GuardAuthState = {
   isAuthenticated: boolean;
-  userType: "applicant" | "hr_manager" | "admin" | null;
+  userType: "applicant" | "internal" | "admin" | null;
   user: { is_staff?: boolean; is_superuser?: boolean } | null;
   roles: string[];
   capabilities: string[];
@@ -112,7 +112,7 @@ const renderWithState = (
                   "gams.appointment.publish",
                   "gams.appointment.view_internal",
                 ]}
-                legacyUserTypeFallback={["hr_manager", "admin"]}
+                legacyUserTypeFallback={["admin"]}
               >
                 <div>Applications page</div>
               </ProtectedRoute>
@@ -130,7 +130,7 @@ const renderWithState = (
                   "gams.appointment.publish",
                   "gams.appointment.view_internal",
                 ]}
-                legacyUserTypeFallback={["hr_manager", "admin"]}
+                legacyUserTypeFallback={["admin"]}
               >
                 <div>Application detail page</div>
               </ProtectedRoute>
@@ -148,7 +148,7 @@ const renderWithState = (
                   "gams.appointment.publish",
                   "gams.appointment.view_internal",
                 ]}
-                legacyUserTypeFallback={["hr_manager", "admin"]}
+                legacyUserTypeFallback={["admin"]}
               >
                 <div>Campaigns page</div>
               </ProtectedRoute>
@@ -166,7 +166,7 @@ const renderWithState = (
                   "gams.appointment.publish",
                   "gams.appointment.view_internal",
                 ]}
-                legacyUserTypeFallback={["hr_manager", "admin"]}
+                legacyUserTypeFallback={["admin"]}
               >
                 <div>Campaign workspace page</div>
               </ProtectedRoute>
@@ -182,7 +182,7 @@ const renderWithState = (
                   "gams.appointment.stage",
                   "gams.appointment.decide",
                 ]}
-                legacyUserTypeFallback={["hr_manager", "admin"]}
+                legacyUserTypeFallback={["admin"]}
               >
                 <div>Rubrics page</div>
               </ProtectedRoute>
@@ -198,7 +198,7 @@ const renderWithState = (
                   "gams.appointment.stage",
                   "gams.appointment.decide",
                 ]}
-                legacyUserTypeFallback={["hr_manager", "admin"]}
+                legacyUserTypeFallback={["admin"]}
               >
                 <div>Rubric builder page</div>
               </ProtectedRoute>
@@ -210,7 +210,7 @@ const renderWithState = (
               <ProtectedRoute
                 disallowUserTypes={["applicant"]}
                 requiredCapabilities={["gams.registry.manage"]}
-                legacyUserTypeFallback={["hr_manager", "admin"]}
+                legacyUserTypeFallback={["admin"]}
               >
                 <div>Government positions page</div>
               </ProtectedRoute>
@@ -222,7 +222,7 @@ const renderWithState = (
               <ProtectedRoute
                 disallowUserTypes={["applicant"]}
                 requiredCapabilities={["gams.registry.manage"]}
-                legacyUserTypeFallback={["hr_manager", "admin"]}
+                legacyUserTypeFallback={["admin"]}
               >
                 <div>Government personnel page</div>
               </ProtectedRoute>
@@ -240,7 +240,7 @@ const renderWithState = (
                   "gams.appointment.publish",
                   "gams.appointment.view_internal",
                 ]}
-                legacyUserTypeFallback={["hr_manager", "admin"]}
+                legacyUserTypeFallback={["admin"]}
               >
                 <div>Government appointments page</div>
               </ProtectedRoute>
@@ -300,7 +300,7 @@ describe("ProtectedRoute integration", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
-        userType: "hr_manager",
+        userType: "internal",
       }),
       "/private",
     );
@@ -311,7 +311,7 @@ describe("ProtectedRoute integration", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
-        userType: "hr_manager",
+        userType: "internal",
       }),
       "/admin-private",
     );
@@ -322,7 +322,7 @@ describe("ProtectedRoute integration", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
-        userType: "hr_manager",
+        userType: "internal",
         user: { is_staff: true, is_superuser: false },
       }),
       "/admin-private",
@@ -334,7 +334,7 @@ describe("ProtectedRoute integration", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
-        userType: "hr_manager",
+        userType: "internal",
         roles: ["admin"],
       }),
       "/admin-private",
@@ -381,7 +381,7 @@ describe("ProtectedRoute integration", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
-        userType: "hr_manager",
+        userType: "internal",
         capabilities: ["gams.appointment.stage"],
       }),
       "/applications",
@@ -437,7 +437,7 @@ describe("ProtectedRoute integration", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
-        userType: "hr_manager",
+        userType: "internal",
         capabilities: ["gams.appointment.stage"],
       }),
       "/campaigns",
@@ -498,11 +498,11 @@ describe("ProtectedRoute integration", () => {
     });
   });
 
-  it("allows hr_manager on /government/appointments", () => {
+  it("allows internal on /government/appointments", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
-        userType: "hr_manager",
+        userType: "internal",
         capabilities: ["gams.appointment.stage"],
       }),
       "/government/appointments",
@@ -522,11 +522,11 @@ describe("ProtectedRoute integration", () => {
     expect(screen.getByText("Government appointments page")).toBeTruthy();
   });
 
-  it("blocks hr_manager on /government/appointments when capabilities are stale", () => {
+  it("blocks internal on /government/appointments when capabilities are stale", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
-        userType: "hr_manager",
+        userType: "internal",
         capabilities: [],
       }),
       "/government/appointments",
@@ -534,11 +534,11 @@ describe("ProtectedRoute integration", () => {
     expect(screen.getByText("Dashboard page")).toBeTruthy();
   });
 
-  it("blocks hr_manager users when capability payload exists but lacks required permission", () => {
+  it("blocks internal users when capability payload exists but lacks required permission", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
-        userType: "hr_manager",
+        userType: "internal",
         capabilities: ["gams.audit.view"],
       }),
       "/government/positions",
@@ -550,7 +550,7 @@ describe("ProtectedRoute integration", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
-        userType: "hr_manager",
+        userType: "internal",
         capabilities: ["gams.audit.view"],
       }),
       "/audit-logs",
@@ -562,7 +562,7 @@ describe("ProtectedRoute integration", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
-        userType: "hr_manager",
+        userType: "internal",
       }),
       "/audit-logs",
     );
@@ -581,11 +581,11 @@ describe("ProtectedRoute integration", () => {
     expect(screen.getByText("Audit logs page")).toBeTruthy();
   });
 
-  it("allows hr_manager with active org-admin membership on governance routes", () => {
+  it("allows internal with active org-admin membership on governance routes", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
-        userType: "hr_manager",
+        userType: "internal",
         organizationMemberships: [
           {
             id: "m-1",
@@ -605,7 +605,7 @@ describe("ProtectedRoute integration", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
-        userType: "hr_manager",
+        userType: "internal",
         organizationMemberships: [
           {
             id: "m-1",
@@ -621,11 +621,11 @@ describe("ProtectedRoute integration", () => {
     expect(screen.getByText("Organization setup page")).toBeTruthy();
   });
 
-  it("blocks hr_manager without governance membership on governance routes", () => {
+  it("blocks internal without governance membership on governance routes", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
-        userType: "hr_manager",
+        userType: "internal",
         organizationMemberships: [],
         activeOrganization: { id: "org-1" },
       }),
@@ -634,11 +634,11 @@ describe("ProtectedRoute integration", () => {
     expect(screen.getByText("Dashboard page")).toBeTruthy();
   });
 
-  it("blocks hr_manager with broad registry capability but no org-admin governance membership", () => {
+  it("blocks internal with broad registry capability but no org-admin governance membership", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
-        userType: "hr_manager",
+        userType: "internal",
         capabilities: ["gams.registry.manage"],
         organizationMemberships: [
           {
@@ -659,7 +659,7 @@ describe("ProtectedRoute integration", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
-        userType: "hr_manager",
+        userType: "internal",
         roles: ["committee_member"],
         organizationMemberships: [
           {
@@ -688,3 +688,4 @@ describe("ProtectedRoute integration", () => {
     expect(screen.getByText("Organization dashboard page")).toBeTruthy();
   });
 });
+

@@ -116,7 +116,7 @@ const CandidateAccessPage: React.FC = () => {
     { key: 'registered', title: 'Access Registered', description: 'Your candidate session is confirmed.' },
     { key: 'in_progress', title: 'Vetting In Progress', description: 'Document/interview checks are running.' },
     { key: 'completed', title: 'Evaluation Completed', description: 'Initial scoring has finished.' },
-    { key: 'reviewed', title: 'Reviewed By Initiator', description: 'HR or reviewer examined your results.' },
+    { key: 'reviewed', title: 'Reviewed By Initiator', description: 'An internal reviewer examined your results.' },
     { key: 'decision', title: `Outcome (${outcomeLabel})`, description: 'Final decision and notification step.' },
   ];
   const requiredDocumentTypes = useMemo(

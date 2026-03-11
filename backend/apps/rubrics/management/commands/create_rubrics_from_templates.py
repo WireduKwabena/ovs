@@ -16,7 +16,7 @@ class Command(BaseCommand):
             "--owner-email",
             type=str,
             default="hr@system.local",
-            help="Email of rubric owner (created as HR manager if missing).",
+            help="Email of rubric owner (created as internal reviewer if missing).",
         )
         parser.add_argument(
             "--template",
@@ -28,8 +28,8 @@ class Command(BaseCommand):
     def _get_or_create_owner(self, email: str) -> User:
         owner = User.objects.filter(email=email).first()
         if owner:
-            if owner.user_type not in {"hr_manager", "admin"}:
-                owner.user_type = "hr_manager"
+            if owner.user_type not in {"internal", "admin"}:
+                owner.user_type = "internal"
                 owner.is_staff = True
                 owner.save(update_fields=["user_type", "is_staff", "updated_at"])
             return owner
@@ -37,9 +37,9 @@ class Command(BaseCommand):
         owner = User.objects.create_user(
             email=email,
             password="ChangeMe123!",
-            first_name="HR",
-            last_name="Manager",
-            user_type="hr_manager",
+            first_name="Internal",
+            last_name="Reviewer",
+            user_type="internal",
             is_staff=True,
             email_verified=True,
         )
@@ -70,3 +70,4 @@ class Command(BaseCommand):
         if failed:
             self.stdout.write(self.style.WARNING(f"Completed with {failed} failure(s)."))
         self.stdout.write(self.style.SUCCESS(f"Processed {created} template(s) successfully."))
+

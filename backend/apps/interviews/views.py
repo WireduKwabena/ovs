@@ -21,6 +21,13 @@ from apps.billing.quotas import (
     enforce_vetting_operation_quota,
     resolve_case_organization_id,
 )
+from apps.core.permissions import (
+    can_access_organization_id,
+    get_request_active_organization_id,
+    get_user_allowed_organization_ids,
+    is_government_workflow_operator,
+    is_platform_admin_user,
+)
 from apps.governance.models import Organization
 
 try:
@@ -33,7 +40,7 @@ except ModuleNotFoundError:  # pragma: no cover - optional in some setups
         return decorator
 
 from .models import InterviewFeedback, InterviewQuestion, InterviewResponse, InterviewSession
-from .permissions import IsHrAdminOrServiceAuthenticated, is_hr_admin_user
+from .permissions import IsHrAdminOrServiceAuthenticated
 from .serializers import (
     InterviewActionErrorSerializer,
     InterviewAnalyticsDashboardQuerySerializer,
@@ -79,6 +86,76 @@ def _candidate_enrollment_id(request) -> int | None:
 
 def _is_service_authenticated_request(request) -> bool:
     return bool(getattr(request, "service_authenticated", False))
+
+
+def _is_internal_interview_operator(request, *, organization_id=None) -> bool:
+    org_id = organization_id
+    if org_id is None:
+        org_id = get_request_active_organization_id(request)
+    return is_government_workflow_operator(
+        getattr(request, "user", None),
+        organization_id=org_id,
+    )
+
+
+def _scope_internal_interview_queryset(
+    queryset,
+    *,
+    request,
+    organization_field: str,
+    assigned_field: str,
+):
+    user = getattr(request, "user", None)
+    if is_platform_admin_user(user):
+        return queryset
+    membership_org_ids = get_user_allowed_organization_ids(user)
+    if membership_org_ids:
+        explicit_active_org_id = str(
+            getattr(request, "META", {}).get("HTTP_X_ACTIVE_ORGANIZATION_ID", "")
+            or getattr(request, "query_params", {}).get("active_organization_id", "")
+            or ""
+        ).strip()
+        if explicit_active_org_id and explicit_active_org_id in membership_org_ids:
+            return queryset.filter(**{organization_field: explicit_active_org_id})
+        return queryset.filter(**{f"{organization_field}__in": list(membership_org_ids)})
+    return queryset.filter(
+        **{
+            assigned_field: user,
+            f"{organization_field}__isnull": True,
+        }
+    )
+
+
+def _assert_case_interview_access(request, case: VettingCase) -> None:
+    enrollment_id = _candidate_enrollment_id(request)
+    if enrollment_id:
+        if case.candidate_enrollment_id != enrollment_id:
+            raise PermissionDenied("Candidate access session cannot access interviews for another enrollment.")
+        return
+
+    if _is_service_authenticated_request(request):
+        return
+
+    user = getattr(request, "user", None)
+    if not getattr(user, "is_authenticated", False):
+        raise PermissionDenied("Authentication is required.")
+    if is_platform_admin_user(user):
+        return
+
+    case_org_id = getattr(case, "organization_id", None)
+    if _is_internal_interview_operator(request, organization_id=case_org_id):
+        if case_org_id and not can_access_organization_id(
+            user,
+            case_org_id,
+            allow_membershipless_fallback=False,
+        ):
+            raise PermissionDenied("You cannot access interview data for another organization.")
+        if not case_org_id and getattr(case, "assigned_to_id", None) != getattr(user, "id", None):
+            raise PermissionDenied("Legacy unscoped interview data is restricted to assigned actors.")
+        return
+
+    if case.applicant_id != getattr(user, "id", None) and case.assigned_to_id != getattr(user, "id", None):
+        raise PermissionDenied("You do not have access to this interview case.")
 
 
 def _reserve_interview_analysis_quota(*, case, actor, additional: int) -> None:
@@ -156,10 +233,21 @@ class InterviewSessionViewSet(viewsets.ModelViewSet):
             return queryset.order_by("-created_at")
 
         user = self.request.user
-        if not is_hr_admin_user(user) and not getattr(user, "is_authenticated", False):
+        scope = str(self.request.query_params.get("scope", "") or "").strip().lower()
+        if not getattr(user, "is_authenticated", False):
             return InterviewSession.objects.none()
-        if is_hr_admin_user(user):
-            return queryset.order_by("-created_at")
+
+        if _is_internal_interview_operator(self.request):
+            scoped = _scope_internal_interview_queryset(
+                queryset,
+                request=self.request,
+                organization_field="case__organization_id",
+                assigned_field="case__assigned_to",
+            )
+            if scope in {"assigned", "mine", "my"}:
+                scoped = scoped.filter(case__assigned_to=user)
+            return scoped.order_by("-created_at")
+
         return queryset.filter(Q(case__applicant=user) | Q(case__assigned_to=user)).order_by("-created_at")
 
     def get_object(self):
@@ -183,6 +271,8 @@ class InterviewSessionViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         if _candidate_enrollment_id(self.request):
             raise PermissionDenied("Candidates cannot create interview sessions directly.")
+        case = serializer.validated_data["case"]
+        _assert_case_interview_access(self.request, case)
         serializer.save()
 
     @action(detail=True, methods=["post"], url_path="start")
@@ -470,7 +560,12 @@ class InterviewQuestionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return InterviewQuestion.objects.none()
+        user = self.request.user
         queryset = InterviewQuestion.objects.all()
+        if not is_platform_admin_user(user) and not _is_internal_interview_operator(self.request):
+            return InterviewQuestion.objects.none()
         question_type = self.request.query_params.get("question_type")
         difficulty = self.request.query_params.get("difficulty")
         active = self.request.query_params.get("active")
@@ -485,6 +580,9 @@ class InterviewQuestionViewSet(viewsets.ModelViewSet):
         return queryset.order_by("question_type", "difficulty", "id")
 
     def perform_create(self, serializer):
+        user = self.request.user
+        if not is_platform_admin_user(user) and not _is_internal_interview_operator(self.request):
+            raise PermissionDenied("Only authorized internal workflow actors can manage interview questions.")
         serializer.save(created_by=self.request.user)
 
 
@@ -511,10 +609,18 @@ class InterviewResponseViewSet(viewsets.ModelViewSet):
             return queryset.order_by("session_id", "sequence_number")
 
         user = self.request.user
-        if not is_hr_admin_user(user) and not getattr(user, "is_authenticated", False):
+        if not getattr(user, "is_authenticated", False):
             return InterviewResponse.objects.none()
-        if is_hr_admin_user(user):
-            return queryset.order_by("session_id", "sequence_number")
+
+        if _is_internal_interview_operator(self.request):
+            scoped = _scope_internal_interview_queryset(
+                queryset,
+                request=self.request,
+                organization_field="session__case__organization_id",
+                assigned_field="session__case__assigned_to",
+            )
+            return scoped.order_by("session_id", "sequence_number")
+
         return queryset.filter(
             Q(session__case__applicant=user) | Q(session__case__assigned_to=user)
         ).order_by("session_id", "sequence_number")
@@ -525,6 +631,7 @@ class InterviewResponseViewSet(viewsets.ModelViewSet):
         if enrollment_id:
             if session.case.candidate_enrollment_id != enrollment_id:
                 raise PermissionDenied("You cannot submit responses for this interview session.")
+        _assert_case_interview_access(self.request, session.case)
         _reserve_interview_analysis_quota(
             case=session.case,
             actor=self.request.user,
@@ -560,13 +667,31 @@ class InterviewFeedbackViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return InterviewFeedback.objects.none()
+        user = self.request.user
         queryset = InterviewFeedback.objects.select_related("session", "reviewer")
+        if not is_platform_admin_user(user):
+            if _is_internal_interview_operator(self.request):
+                queryset = _scope_internal_interview_queryset(
+                    queryset,
+                    request=self.request,
+                    organization_field="session__case__organization_id",
+                    assigned_field="session__case__assigned_to",
+                )
+            else:
+                queryset = queryset.filter(
+                    Q(session__case__applicant=user) | Q(session__case__assigned_to=user)
+                )
         session_id = self.request.query_params.get("session")
         if session_id:
             queryset = queryset.filter(session_id=session_id)
         return queryset.order_by("-created_at")
 
     def perform_create(self, serializer):
+        user = self.request.user
+        if not is_platform_admin_user(user) and not _is_internal_interview_operator(self.request):
+            raise PermissionDenied("Only authorized internal workflow actors can submit interview feedback.")
         serializer.save(reviewer=self.request.user)
 
 
@@ -609,6 +734,7 @@ class LegacyInterviewStartAPIView(APIView):
         enrollment_id = _candidate_enrollment_id(request)
         if enrollment_id and case.candidate_enrollment_id != enrollment_id:
             raise PermissionDenied("Candidate access session cannot start interviews for another enrollment.")
+        _assert_case_interview_access(request, case)
 
         session = (
             InterviewSession.objects.filter(case=case)
@@ -664,6 +790,7 @@ class InterviewResponseUploadAPIView(APIView):
             session = InterviewSession.objects.filter(id=session_ref).first()
         if session is None:
             return Response({"error": "Interview session not found."}, status=status.HTTP_404_NOT_FOUND)
+        _assert_case_interview_access(request, session.case)
 
         upload_path = f"interview_uploads/{session.session_id}/{uuid.uuid4().hex}.webm"
         saved_path = default_storage.save(upload_path, video)

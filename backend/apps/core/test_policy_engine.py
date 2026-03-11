@@ -5,6 +5,7 @@ from django.test import TestCase
 
 from apps.authentication.models import User
 from apps.core.authz import get_user_capabilities, get_user_roles
+from apps.core.permissions import is_internal_or_admin_user
 from apps.core.policies.appointment_policy import (
     actor_matches_stage_role,
     can_appoint,
@@ -38,37 +39,37 @@ class PolicyEngineTests(TestCase):
         self.hr = User.objects.create_user(
             email="policy.hr@example.com",
             password="Pass1234!",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.registry_admin = User.objects.create_user(
             email="policy.registry.admin@example.com",
             password="Pass1234!",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.authority = User.objects.create_user(
             email="policy.authority@example.com",
             password="Pass1234!",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.publisher = User.objects.create_user(
             email="policy.publisher@example.com",
             password="Pass1234!",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.auditor = User.objects.create_user(
             email="policy.auditor@example.com",
             password="Pass1234!",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.committee_member = User.objects.create_user(
             email="policy.committee.member@example.com",
             password="Pass1234!",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.group_only_committee_user = User.objects.create_user(
             email="policy.committee.group.only@example.com",
             password="Pass1234!",
-            user_type="hr_manager",
+            user_type="internal",
         )
         self.applicant = User.objects.create_user(
             email="policy.applicant@example.com",
@@ -89,7 +90,7 @@ class PolicyEngineTests(TestCase):
         self.group_only_committee_user.groups.add(committee_group)
         self.registry_admin.groups.add(registry_group)
 
-        self.hr_membership = OrganizationMembership.objects.create(
+        self.internal_membership = OrganizationMembership.objects.create(
             user=self.hr,
             organization=self.org_a,
             is_active=True,
@@ -222,7 +223,7 @@ class PolicyEngineTests(TestCase):
         membership_role_user = User.objects.create_user(
             email="policy.membership.role@example.com",
             password="Pass1234!",
-            user_type="hr_manager",
+            user_type="internal",
         )
         OrganizationMembership.objects.create(
             user=membership_role_user,
@@ -232,10 +233,10 @@ class PolicyEngineTests(TestCase):
             is_default=True,
         )
 
-        plain_hr_user = User.objects.create_user(
+        plain_internal_user = User.objects.create_user(
             email="policy.plain.hr@example.com",
             password="Pass1234!",
-            user_type="hr_manager",
+            user_type="internal",
         )
 
         derived_roles = get_user_roles(membership_role_user)
@@ -243,7 +244,16 @@ class PolicyEngineTests(TestCase):
         self.assertIn("gams.appointment.stage", get_user_capabilities(membership_role_user))
         self.assertIn("gams.appointment.view_internal", get_user_capabilities(membership_role_user))
 
-        plain_roles = get_user_roles(plain_hr_user)
-        self.assertIn("hr_manager", plain_roles)
+        plain_roles = get_user_roles(plain_internal_user)
+        self.assertIn("internal", plain_roles)
         self.assertNotIn("vetting_officer", plain_roles)
-        self.assertNotIn("gams.appointment.stage", get_user_capabilities(plain_hr_user))
+        self.assertNotIn("gams.appointment.stage", get_user_capabilities(plain_internal_user))
+
+    def test_legacy_internal_or_admin_helper_requires_operational_authority(self):
+        self.assertTrue(is_internal_or_admin_user(self.admin))
+        self.assertTrue(is_internal_or_admin_user(self.registry_admin))
+        self.assertFalse(is_internal_or_admin_user(self.hr))
+        self.assertFalse(is_internal_or_admin_user(self.applicant))
+
+
+

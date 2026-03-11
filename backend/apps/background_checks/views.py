@@ -6,7 +6,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.permissions import IsHRManagerOrAdmin
+from apps.core.permissions import IsGovernmentWorkflowOperator, scope_internal_queryset_to_tenant
+from apps.core.policies.appointment_policy import can_view_internal_record
+from apps.core.policies.registry_policy import is_platform_admin_actor
 
 from .models import BackgroundCheck
 from .serializers import (
@@ -21,7 +23,7 @@ from .tasks import refresh_background_check_task
 
 class BackgroundCheckViewSet(viewsets.ModelViewSet):
     queryset = BackgroundCheck.objects.select_related("case", "case__applicant", "submitted_by").all()
-    permission_classes = [IsHRManagerOrAdmin]
+    permission_classes = [IsGovernmentWorkflowOperator]
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -33,6 +35,11 @@ class BackgroundCheckViewSet(viewsets.ModelViewSet):
             return BackgroundCheck.objects.none()
 
         queryset = super().get_queryset()
+        queryset = scope_internal_queryset_to_tenant(
+            queryset,
+            request=self.request,
+            organization_field="case__organization_id",
+        )
 
         case_id = self.request.query_params.get("case_id")
         if case_id:
@@ -53,6 +60,13 @@ class BackgroundCheckViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         case = serializer.validated_data["case"]
+        if not is_platform_admin_actor(request.user) and not can_view_internal_record(
+            request.user,
+            organization_id=getattr(case, "organization_id", None),
+            allow_membershipless_fallback=False,
+            enforce_org_scope_for_null=True,
+        ):
+            raise ValidationError("You cannot submit background checks outside your organization scope.")
 
         run_async = serializer.validated_data.get("run_async", False)
 

@@ -32,18 +32,18 @@ class ReassignLegacyUnscopedCommandTests(TestCase):
             last_name="Applicant",
             user_type="applicant",
         )
-        self.hr_user = User.objects.create_user(
+        self.internal_user = User.objects.create_user(
             email=f"legacy.reassign.hr.{suffix}@example.com",
             password="Pass1234!",
             first_name="Legacy",
-            last_name="HR",
-            user_type="hr_manager",
+            last_name="Reviewer",
+            user_type="internal",
         )
 
         self.case = VettingCase.objects.create(
             organization=self.source_org,
             applicant=self.applicant,
-            assigned_to=self.hr_user,
+            assigned_to=self.internal_user,
             position_applied="Analyst",
             department="Operations",
             priority="medium",
@@ -53,7 +53,7 @@ class ReassignLegacyUnscopedCommandTests(TestCase):
             organization=self.source_org,
             name=f"Legacy Reassign Rubric {suffix}",
             description="Command test rubric",
-            created_by=self.hr_user,
+            created_by=self.internal_user,
         )
 
     def test_reassign_moves_records_to_target_org(self):
@@ -84,3 +84,5 @@ class ReassignLegacyUnscopedCommandTests(TestCase):
         self.rubric.refresh_from_db()
         self.assertEqual(self.case.organization_id, self.source_org.id)
         self.assertEqual(self.rubric.organization_id, self.source_org.id)
+
+

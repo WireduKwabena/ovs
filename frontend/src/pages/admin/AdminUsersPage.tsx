@@ -11,13 +11,13 @@ import type { AdminManagedUser, AdminUsersResponse } from "@/types";
 import { formatDate } from "@/utils/helper";
 import { applyQueryUpdates } from "@/utils/queryParams";
 
-type UserTypeFilter = "all" | "admin" | "hr_manager" | "applicant";
+type UserTypeFilter = "all" | "admin" | "internal" | "applicant";
 type ActiveFilter = "all" | "active" | "inactive";
 
 const PAGE_SIZE = 20;
 const USER_TYPE_LABELS: Record<Exclude<UserTypeFilter, "all">, string> = {
   admin: "Admin",
-  hr_manager: "Operations User",
+  internal: "Operations User",
   applicant: "Applicant",
 };
 
@@ -27,7 +27,7 @@ const parsePage = (value: string | null): number => {
 };
 
 const parseUserTypeFilter = (value: string | null): UserTypeFilter => {
-  if (value === "admin" || value === "hr_manager" || value === "applicant") {
+  if (value === "admin" || value === "internal" || value === "applicant") {
     return value;
   }
   return "all";
@@ -206,7 +206,7 @@ const AdminUsersPage: React.FC = () => {
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="hr_manager">Operations User</SelectItem>
+                  <SelectItem value="internal">Operations User</SelectItem>
                   <SelectItem value="applicant">Applicant</SelectItem>
                 </SelectContent>
               </Select>
@@ -352,7 +352,7 @@ const AdminUsersPage: React.FC = () => {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="hr_manager">Operations User</SelectItem>
+                              <SelectItem value="internal">Operations User</SelectItem>
                               <SelectItem value="applicant">Applicant</SelectItem>
                             </SelectContent>
                           </Select>
@@ -463,3 +463,4 @@ const AdminUsersPage: React.FC = () => {
 };
 
 export default AdminUsersPage;
+

@@ -6,7 +6,14 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.billing.quotas import enforce_candidate_quota
-from apps.core.permissions import get_request_active_organization_id
+from apps.core.permissions import (
+    can_access_organization_id,
+    get_request_active_organization_id,
+    get_user_allowed_organization_ids,
+    is_government_workflow_operator,
+    is_platform_admin_user,
+    scope_internal_queryset_to_tenant,
+)
 
 from .models import Candidate, CandidateEnrollment, CandidateSocialProfile
 from .serializers import (
@@ -17,15 +24,7 @@ from .serializers import (
 
 
 def _is_admin(user) -> bool:
-    return bool(
-        getattr(user, "is_staff", False)
-        or getattr(user, "is_superuser", False)
-        or getattr(user, "user_type", None) == "admin"
-    )
-
-
-def _is_hr_or_admin(user) -> bool:
-    return _is_admin(user) or getattr(user, "user_type", None) == "hr_manager"
+    return bool(is_platform_admin_user(user))
 
 
 class CandidateViewSet(viewsets.ModelViewSet):
@@ -40,14 +39,25 @@ class CandidateViewSet(viewsets.ModelViewSet):
 
         if _is_admin(user):
             return queryset.order_by("-created_at")
-        if getattr(user, "user_type", None) == "hr_manager":
+        if is_government_workflow_operator(
+            user,
+            organization_id=get_request_active_organization_id(self.request),
+        ):
+            membership_org_ids = get_user_allowed_organization_ids(user)
+            if membership_org_ids:
+                scoped = scope_internal_queryset_to_tenant(
+                    queryset,
+                    request=self.request,
+                    organization_field="enrollments__campaign__organization_id",
+                )
+                return scoped.distinct().order_by("-created_at")
             return queryset.filter(enrollments__campaign__initiated_by=user).distinct().order_by("-created_at")
         return Candidate.objects.none()
 
     def perform_create(self, serializer):
         user = self.request.user
-        if not _is_hr_or_admin(user):
-            raise PermissionDenied("Only HR managers/admins can create candidates.")
+        if not (_is_admin(user) or is_government_workflow_operator(user)):
+            raise PermissionDenied("Only authorized internal workflow actors can create candidates.")
         serializer.save()
 
 
@@ -64,8 +74,19 @@ class CandidateSocialProfileViewSet(viewsets.ModelViewSet):
 
         if _is_admin(user):
             scoped = queryset
-        elif getattr(user, "user_type", None) == "hr_manager":
-            scoped = queryset.filter(candidate__enrollments__campaign__initiated_by=user).distinct()
+        elif is_government_workflow_operator(
+            user,
+            organization_id=get_request_active_organization_id(self.request),
+        ):
+            membership_org_ids = get_user_allowed_organization_ids(user)
+            if membership_org_ids:
+                scoped = scope_internal_queryset_to_tenant(
+                    queryset,
+                    request=self.request,
+                    organization_field="candidate__enrollments__campaign__organization_id",
+                ).distinct()
+            else:
+                scoped = queryset.filter(candidate__enrollments__campaign__initiated_by=user).distinct()
         else:
             scoped = CandidateSocialProfile.objects.none()
 
@@ -81,12 +102,16 @@ class CandidateSocialProfileViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
-        if not _is_hr_or_admin(user):
-            raise PermissionDenied("Only HR managers/admins can create social profiles.")
+        if not (_is_admin(user) or is_government_workflow_operator(user)):
+            raise PermissionDenied("Only authorized internal workflow actors can create social profiles.")
 
         candidate = serializer.validated_data["candidate"]
         if not _is_admin(user):
-            has_access = candidate.enrollments.filter(campaign__initiated_by=user).exists()
+            membership_org_ids = get_user_allowed_organization_ids(user)
+            if membership_org_ids:
+                has_access = candidate.enrollments.filter(campaign__organization_id__in=membership_org_ids).exists()
+            else:
+                has_access = candidate.enrollments.filter(campaign__initiated_by=user).exists()
             if not has_access:
                 raise PermissionDenied("You cannot create social profiles for candidates outside your campaigns.")
 
@@ -106,8 +131,19 @@ class CandidateEnrollmentViewSet(viewsets.ModelViewSet):
         status_value = self.request.query_params.get("status")
 
         if not _is_admin(user):
-            if getattr(user, "user_type", None) == "hr_manager":
-                queryset = queryset.filter(campaign__initiated_by=user)
+            if is_government_workflow_operator(
+                user,
+                organization_id=get_request_active_organization_id(self.request),
+            ):
+                membership_org_ids = get_user_allowed_organization_ids(user)
+                if membership_org_ids:
+                    queryset = scope_internal_queryset_to_tenant(
+                        queryset,
+                        request=self.request,
+                        organization_field="campaign__organization_id",
+                    )
+                else:
+                    queryset = queryset.filter(campaign__initiated_by=user)
             else:
                 queryset = queryset.none()
 
@@ -124,9 +160,16 @@ class CandidateEnrollmentViewSet(viewsets.ModelViewSet):
         candidate = serializer.validated_data["candidate"]
 
         if not _is_admin(user):
-            if getattr(user, "user_type", None) != "hr_manager":
-                raise PermissionDenied("Only HR managers/admins can create enrollments.")
-            if campaign.initiated_by_id != user.id:
+            if not is_government_workflow_operator(
+                user,
+                organization_id=getattr(campaign, "organization_id", None),
+            ):
+                raise PermissionDenied("Only authorized internal workflow actors can create enrollments.")
+            campaign_org_id = getattr(campaign, "organization_id", None)
+            if campaign_org_id:
+                if not can_access_organization_id(user, campaign_org_id, allow_membershipless_fallback=False):
+                    raise PermissionDenied("You cannot create enrollments for another organization.")
+            elif campaign.initiated_by_id != user.id:
                 raise PermissionDenied("You cannot create enrollments for another manager's campaign.")
 
             already_enrolled = CandidateEnrollment.objects.filter(

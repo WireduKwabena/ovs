@@ -250,12 +250,12 @@ class BackgroundCheckApiTests(APITestCase):
             user_type="admin",
             is_staff=True,
         )
-        self.hr_user = User.objects.create_user(
+        self.internal_user = User.objects.create_user(
             email="bg-hr@example.com",
             password="Pass1234!",
             first_name="BG",
-            last_name="HR",
-            user_type="hr_manager",
+            last_name="Reviewer",
+            user_type="internal",
         )
         self.user = User.objects.create_user(
             email="bg-api-user@example.com",
@@ -272,7 +272,7 @@ class BackgroundCheckApiTests(APITestCase):
             user_type="applicant",
         )
         OrganizationMembership.objects.create(
-            user=self.hr_user,
+            user=self.internal_user,
             organization=self.organization,
             membership_role="registry_admin",
             is_active=True,
@@ -331,8 +331,8 @@ class BackgroundCheckApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True)
-    def test_hr_manager_can_create_background_check(self):
-        self.client.force_authenticate(self.hr_user)
+    def test_internal_can_create_background_check(self):
+        self.client.force_authenticate(self.internal_user)
         response = self.client.post(
             "/api/background-checks/checks/",
             {
@@ -349,8 +349,31 @@ class BackgroundCheckApiTests(APITestCase):
         self.assertEqual(response.data["case"], self.case.id)
         self.assertEqual(response.data["status"], "submitted")
 
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True)
+    def test_plain_internal_without_operational_role_cannot_create_background_check(self):
+        plain_internal = User.objects.create_user(
+            email="bg-plain-hr@example.com",
+            password="Pass1234!",
+            first_name="BG",
+            last_name="PlainHR",
+            user_type="internal",
+        )
+        self.client.force_authenticate(plain_internal)
+        response = self.client.post(
+            "/api/background-checks/checks/",
+            {
+                "case": self.case.id,
+                "check_type": "kyc_aml",
+                "provider_key": "mock",
+                "request_payload": {"country": "US"},
+                "consent_evidence": {"granted": True},
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
     @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True, BILLING_VETTING_OPERATION_QUOTA_ENFORCEMENT_ENABLED=True)
-    def test_hr_manager_create_blocks_when_org_subscription_is_inactive(self):
+    def test_internal_create_blocks_when_org_subscription_is_inactive(self):
         organization = Organization.objects.create(
             code="bg-api-sub-inactive",
             name="Background Check API Inactive Subscription Org",
@@ -358,7 +381,7 @@ class BackgroundCheckApiTests(APITestCase):
             is_active=True,
         )
         OrganizationMembership.objects.create(
-            user=self.hr_user,
+            user=self.internal_user,
             organization=organization,
             membership_role="registry_admin",
             is_active=True,
@@ -373,7 +396,7 @@ class BackgroundCheckApiTests(APITestCase):
         self.case.organization = organization
         self.case.save(update_fields=["organization", "updated_at"])
 
-        self.client.force_authenticate(self.hr_user)
+        self.client.force_authenticate(self.internal_user)
         response = self.client.post(
             "/api/background-checks/checks/",
             {
@@ -408,7 +431,7 @@ class BackgroundCheckApiTests(APITestCase):
     @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True)
     @patch("apps.background_checks.views.refresh_background_check_task.delay", return_value=None)
     def test_create_with_async_queues_refresh(self, mock_delay):
-        self.client.force_authenticate(self.hr_user)
+        self.client.force_authenticate(self.internal_user)
         response = self.client.post(
             "/api/background-checks/checks/",
             {
@@ -429,7 +452,7 @@ class BackgroundCheckApiTests(APITestCase):
     @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True)
     @patch("apps.background_checks.services.log_event", return_value=True)
     def test_create_passes_request_to_audit_log(self, mock_log_event):
-        self.client.force_authenticate(self.hr_user)
+        self.client.force_authenticate(self.internal_user)
         response = self.client.post(
             "/api/background-checks/checks/",
             {
@@ -454,12 +477,12 @@ class BackgroundCheckApiTests(APITestCase):
         check = submit_background_check(
             case=self.case,
             check_type="employment",
-            submitted_by=self.hr_user,
+            submitted_by=self.internal_user,
             consent_evidence={"granted": True},
         )
         mock_log_event.reset_mock()
 
-        self.client.force_authenticate(self.hr_user)
+        self.client.force_authenticate(self.internal_user)
         response = self.client.post(
             f"/api/background-checks/checks/{check.id}/refresh/",
             {},
@@ -478,20 +501,20 @@ class BackgroundCheckApiTests(APITestCase):
         submit_background_check(
             case=self.case,
             check_type="employment",
-            submitted_by=self.hr_user,
+            submitted_by=self.internal_user,
             consent_evidence={"granted": True},
         )
         submit_background_check(
             case=self.other_case,
             check_type="employment",
-            submitted_by=self.hr_user,
+            submitted_by=self.internal_user,
             consent_evidence={"granted": True},
         )
 
-        self.client.force_authenticate(self.hr_user)
-        hr_response = self.client.get("/api/background-checks/checks/")
-        self.assertEqual(hr_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(hr_response.data["count"], 2)
+        self.client.force_authenticate(self.internal_user)
+        internal_response = self.client.get("/api/background-checks/checks/")
+        self.assertEqual(internal_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(internal_response.data["count"], 2)
 
         self.client.force_authenticate(self.admin_user)
         admin_response = self.client.get("/api/background-checks/checks/")
@@ -553,3 +576,5 @@ class BackgroundCheckApiTests(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
