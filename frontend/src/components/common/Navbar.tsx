@@ -95,6 +95,7 @@ export const Navbar: React.FC = () => {
   const canAccessRubrics = hasAdminAccess || canManageRubrics;
   const canAccessInternalRoutes = hasAdminAccess || canAccessInternalWorkflow;
   const isApplicantUser = userType === "applicant";
+  const canAccessNotifications = !isApplicantUser;
   const canShowOrganizationContext = !isApplicantUser && resolvedOrganizations.length > 0;
   const activeOrganizationLabel = activeOrganization?.name || resolvedOrganizations[0]?.name || 'Default scope';
   const canManageOrganizationBilling = hasAdminAccess || canManageActiveOrganizationGovernance;
@@ -110,10 +111,10 @@ export const Navbar: React.FC = () => {
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && canAccessNotifications) {
       dispatch(fetchNotifications());
     }
-  }, [dispatch, isAuthenticated]);
+  }, [canAccessNotifications, dispatch, isAuthenticated]);
 
   const applyReminderHealthPayload = (payload: VideoMeetingReminderHealth) => {
     const hasRetryIssues =
@@ -634,21 +635,23 @@ export const Navbar: React.FC = () => {
             ) : null}
             {renderRuntimePopover()}
             <ThemeToggle compact />
-            <Link
-              to="/notifications"
-              className={`relative rounded-lg p-2 ${
-                isRouteActive('/notifications')
-                  ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
-                  : 'text-slate-800 hover:text-indigo-700 hover:bg-indigo-50'
-              }`}
-            >
-              <Bell className="w-6 h-6" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </span>
-              )}
-            </Link>
+            {canAccessNotifications ? (
+              <Link
+                to="/notifications"
+                className={`relative rounded-lg p-2 ${
+                  isRouteActive('/notifications')
+                    ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
+                    : 'text-slate-800 hover:text-indigo-700 hover:bg-indigo-50'
+                }`}
+              >
+                <Bell className="w-6 h-6" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </Link>
+            ) : null}
 
             <div className="relative" ref={profileMenuRef}>
               <Button
@@ -824,22 +827,24 @@ export const Navbar: React.FC = () => {
                   {renderNavLabel(navItem)}
                 </Link>
               ))}
-              <Link
-                to="/notifications"
-                className={`flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
-                  isRouteActive('/notifications')
-                    ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
-                    : 'hover:bg-indigo-50 text-slate-800'
-                }`}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <span className="text-slate-800">Notifications</span>
-                {unreadCount > 0 && (
-                  <span className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full">
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </span>
-                )}
-              </Link>
+              {canAccessNotifications ? (
+                <Link
+                  to="/notifications"
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
+                    isRouteActive('/notifications')
+                      ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
+                      : 'hover:bg-indigo-50 text-slate-800'
+                  }`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <span className="text-slate-800">Notifications</span>
+                  {unreadCount > 0 && (
+                    <span className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </Link>
+              ) : null}
               {canViewReminderRuntime ? (
                 <button
                   type="button"

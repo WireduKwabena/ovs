@@ -309,12 +309,12 @@ describe("Navbar runtime + active tab behavior", () => {
       },
     });
 
-    await waitFor(() => {
-      expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
-    });
+    expect(screen.getAllByText(/candidate access/i).length).toBeGreaterThan(0);
 
+    expect(mocks.fetchNotifications).not.toHaveBeenCalled();
     expect(screen.queryByRole("link", { name: /campaigns/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /rubrics/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /notifications/i })).toBeNull();
   });
 
   it("shows campaigns and rubrics links for internal users", async () => {

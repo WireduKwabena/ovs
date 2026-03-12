@@ -685,14 +685,26 @@ const UserSettingsPage: React.FC = () => {
                   <p className="text-xs text-slate-700">
                     {billingData?.message || "No active subscription found for this workspace."}
                   </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => navigate("/subscribe?returnTo=/organization/onboarding")}
-                  >
-                    Add Subscription Plan
-                  </Button>
+                  {canManageOrganizationBilling ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() =>
+                        navigate(
+                          activeOrganizationId
+                            ? "/organization/dashboard"
+                            : "/organization/setup?next=/organization/dashboard",
+                        )
+                      }
+                    >
+                      Open Organization Billing
+                    </Button>
+                  ) : (
+                    <p className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
+                      Subscription management is restricted to organization admins.
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="mt-3 space-y-3">

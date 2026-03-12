@@ -55,7 +55,7 @@ describe("UserSettingsPage billing empty-state", () => {
     vi.clearAllMocks();
   });
 
-  it("shows add subscription action when subscription is missing", async () => {
+  it("shows read-only subscription guidance for non-org-admin users when subscription is missing", async () => {
     mocks.useAuth.mockReturnValue({
       userType: "internal",
       canManageActiveOrganizationGovernance: false,
@@ -92,8 +92,9 @@ describe("UserSettingsPage billing empty-state", () => {
     );
 
     expect(
-      await screen.findByRole("button", { name: /add subscription plan/i }),
+      await screen.findByText(/subscription management is restricted to organization admins/i),
     ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /open organization billing/i })).toBeNull();
   });
 
   it("shows onboarding workspace summary for authorized org admins", async () => {
@@ -156,6 +157,7 @@ describe("UserSettingsPage billing empty-state", () => {
       </MemoryRouter>,
     );
 
+    expect(await screen.findByRole("button", { name: /open organization billing/i })).toBeTruthy();
     expect(await screen.findByText(/organization governance workspace/i)).toBeTruthy();
     expect(await screen.findByText(/token preview/i)).toBeTruthy();
   });
