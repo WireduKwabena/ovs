@@ -60,6 +60,14 @@ type NavSection = { key: string; title: string; items: NavItem[] };
 type NavIcon = React.ComponentType<{ className?: string }>;
 
 const SIDEBAR_COLLAPSED_STORAGE_KEY = 'cavp.sidebar.collapsed.v1';
+const PLATFORM_ADMIN_TENANT_ROUTE_PREFIXES = [
+  '/organization',
+  '/government',
+  '/campaigns',
+  '/applications',
+  '/workspace',
+  '/rubrics',
+];
 
 const SECTION_ICON_BY_KEY: Record<string, NavIcon> = {
   candidate: UserCheck2,
@@ -68,9 +76,9 @@ const SECTION_ICON_BY_KEY: Record<string, NavIcon> = {
   workflow: Workflow,
   oversight: ShieldAlert,
   'admin-dashboard': LayoutDashboard,
-  'admin-governance': Building2,
-  'admin-workflow': Workflow,
-  'admin-oversight': ShieldAlert,
+  'admin-platform': Building2,
+  'admin-operations': ShieldAlert,
+  'admin-monitoring': Cpu,
 };
 
 const NAV_ITEM_ICON_BY_PATH: Record<string, NavIcon> = {
@@ -92,6 +100,7 @@ const NAV_ITEM_ICON_BY_PATH: Record<string, NavIcon> = {
   '/background-checks': ShieldAlert,
   '/audit-logs': ShieldCheck,
   '/admin/dashboard': LayoutDashboard,
+  '/admin/organizations': Building2,
   '/admin/users': Users2,
   '/admin/control-center': Shield,
   '/admin/analytics': LayoutDashboard,
@@ -187,6 +196,14 @@ export const Navbar: React.FC = () => {
 
   const hasAdminAccess =
     userType === 'admin' || hasRole('admin') || Boolean((user as User | null)?.is_superuser);
+  const isPlatformAdmin = hasAdminAccess;
+  const isPlatformAdminTenantMode =
+    isPlatformAdmin &&
+    Boolean(activeOrganizationId) &&
+    PLATFORM_ADMIN_TENANT_ROUTE_PREFIXES.some(
+      (prefix) =>
+        location.pathname === prefix || location.pathname.startsWith(`${prefix}/`),
+    );
   const canAccessAudit = hasAdminAccess || canViewAuditLogs || hasCapability('gams.audit.view');
   const canAccessRegistry = hasAdminAccess || canManageRegistry;
   const canAccessAppointments = hasAdminAccess || canAccessAppointmentsFromHook;
@@ -194,7 +211,10 @@ export const Navbar: React.FC = () => {
   const canAccessInternalRoutes = hasAdminAccess || canAccessInternalWorkflow;
   const isApplicantUser = userType === 'applicant';
   const canAccessNotifications = !isApplicantUser;
-  const canShowOrganizationContext = !isApplicantUser && resolvedOrganizations.length > 0;
+  const canShowOrganizationContext =
+    !isApplicantUser &&
+    (resolvedOrganizations.length > 0 || Boolean(activeOrganizationId)) &&
+    (!isPlatformAdmin || isPlatformAdminTenantMode);
   const activeOrganizationLabel =
     activeOrganization?.name || resolvedOrganizations[0]?.name || 'Default scope';
   const canManageOrganizationBilling = hasAdminAccess || canManageActiveOrganizationGovernance;
@@ -245,6 +265,16 @@ export const Navbar: React.FC = () => {
       toast.success(nextValue ? 'Active organization updated.' : 'Organization context reset to default.');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to switch active organization.');
+    }
+  };
+
+  const handleReturnToPlatform = async () => {
+    try {
+      await selectActiveOrganization(null);
+      toast.success('Returned to platform scope.');
+      navigate('/admin/dashboard');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to return to platform scope.');
     }
   };
 
@@ -454,49 +484,55 @@ export const Navbar: React.FC = () => {
       : []),
   ]);
 
+  const platformTenantWorkflowLinks: NavItem[] = dedupeNavItems([
+    ...(canAccessRegistry ? [{ to: '/government/positions', label: 'Offices' }] : []),
+    ...(canAccessCampaigns ? [{ to: '/campaigns', label: 'Appointment Exercises' }] : []),
+    ...(canAccessAppointments ? [{ to: '/government/appointments', label: 'Nominations' }] : []),
+    ...(canAccessApplications ? [{ to: '/applications', label: 'Vetting Dossiers' }] : []),
+  ]);
+
+  const platformTenantGovernanceLinks: NavItem[] = dedupeNavItems([
+    ...(activeOrganizationId ? [{ to: '/organization/members', label: 'Members' }] : []),
+    ...(activeOrganizationId ? [{ to: '/organization/committees', label: 'Committees' }] : []),
+  ]);
+
   const internalOversightLinks: NavItem[] = dedupeNavItems([
     ...(canAccessInternalRoutes ? [{ to: '/fraud-insights', label: 'Risk Signals' }] : []),
     ...(canAccessInternalRoutes ? [{ to: '/background-checks', label: 'Checks' }] : []),
     ...(canAccessAudit ? [{ to: '/audit-logs', label: 'Audit' }] : []),
   ]);
 
-  const adminGovernanceLinks: NavItem[] = dedupeNavItems([
-    ...(activeOrganizationId
-      ? [
-          { to: '/organization/dashboard', label: 'Organization Dashboard' },
-          { to: '/organization/members', label: 'Members' },
-          { to: '/organization/committees', label: 'Committees' },
-          { to: '/organization/onboarding', label: 'Onboarding' },
-        ]
-      : [{ to: '/organization/setup', label: 'Organization Setup' }]),
-    ...(canManageOrganizationBilling ? [{ to: '/subscribe', label: 'Subscription' }] : []),
+  const adminPlatformLinks: NavItem[] = dedupeNavItems([
+    { to: '/admin/organizations', label: 'Organizations' },
+    { to: '/admin/users', label: 'Organization Admins' },
   ]);
 
-  const adminWorkflowLinks: NavItem[] = dedupeNavItems([
-    { to: '/government/positions', label: 'Offices' },
-    { to: '/government/personnel', label: 'Nominees' },
-    { to: '/campaigns', label: 'Appointment Exercises' },
-    { to: '/government/appointments', label: 'Appointment Workflow' },
-    { to: '/applications', label: 'Vetting Dossiers' },
-    { to: '/video-calls', label: 'Video Calls' },
+  const adminOperationsLinks: NavItem[] = dedupeNavItems([
+    { to: '/video-calls', label: 'Runtime' },
     { to: '/audit-logs', label: 'Audit' },
+    { to: '/fraud-insights', label: 'Risk Signals' },
+    { to: '/background-checks', label: 'Checks' },
   ]);
 
-  const adminOversightLinks: NavItem[] = dedupeNavItems([
-    { to: '/admin/users', label: 'Users' },
-    { to: '/admin/control-center', label: 'Admin Control' },
+  const adminMonitoringLinks: NavItem[] = dedupeNavItems([
     { to: '/admin/analytics', label: 'Analytics' },
     { to: '/ml-monitoring', label: 'ML Ops' },
     { to: '/ai-monitor', label: 'AI Monitor' },
   ]);
 
   const navSections: NavSection[] = hasAdminAccess
-    ? dedupeNavSections([
-        { key: 'admin-dashboard', title: 'Dashboard', items: [{ to: '/admin/dashboard', label: 'Dashboard' }] },
-        { key: 'admin-governance', title: 'Organization Governance', items: adminGovernanceLinks },
-        { key: 'admin-workflow', title: 'Appointment Workflow', items: adminWorkflowLinks },
-        { key: 'admin-oversight', title: 'Platform Oversight', items: adminOversightLinks },
-      ])
+    ? isPlatformAdminTenantMode
+      ? dedupeNavSections([
+          { key: 'workspace', title: 'Dashboard', items: [{ to: '/organization/dashboard', label: 'Dashboard' }] },
+          { key: 'governance', title: 'Organization Governance', items: platformTenantGovernanceLinks },
+          { key: 'workflow', title: 'Appointment Workflow', items: platformTenantWorkflowLinks },
+        ])
+      : dedupeNavSections([
+          { key: 'admin-dashboard', title: 'Dashboard', items: [{ to: '/admin/dashboard', label: 'Dashboard' }] },
+          { key: 'admin-platform', title: 'Platform', items: adminPlatformLinks },
+          { key: 'admin-operations', title: 'Operations', items: adminOperationsLinks },
+          { key: 'admin-monitoring', title: 'Monitoring', items: adminMonitoringLinks },
+        ])
     : isApplicantUser
       ? [{ key: 'candidate', title: 'Candidate Portal', items: candidateLinks }]
       : dedupeNavSections([
@@ -511,7 +547,9 @@ export const Navbar: React.FC = () => {
         ]);
 
   const homePath = hasAdminAccess
-    ? '/admin/dashboard'
+    ? isPlatformAdminTenantMode
+      ? '/organization/dashboard'
+      : '/admin/dashboard'
     : isApplicantUser
       ? '/candidate/access'
       : internalHomePath;
@@ -652,10 +690,22 @@ export const Navbar: React.FC = () => {
                   {isSidebarCollapsed ? activeOrganizationLabel.slice(0, 10) : activeOrganizationLabel}
                 </p>
               )}
+              {isPlatformAdminTenantMode ? (
+                <button
+                  type="button"
+                  onClick={() => void handleReturnToPlatform()}
+                  disabled={switchingActiveOrganization}
+                  className={`mt-2 inline-flex items-center justify-center rounded-md border border-slate-300 px-2 py-1 text-[11px] font-semibold text-slate-800 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 ${
+                    isSidebarCollapsed ? 'w-full' : ''
+                  }`}
+                >
+                  Return to Platform
+                </button>
+              ) : null}
             </div>
           ) : null}
 
-          {hasAdminAccess ? (
+          {hasAdminAccess && !isPlatformAdminTenantMode ? (
             <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-700">Reminder Runtime</p>
@@ -887,6 +937,19 @@ export const Navbar: React.FC = () => {
                 ) : (
                   <p className="mt-2 text-sm text-slate-800">{activeOrganizationLabel}</p>
                 )}
+                {isPlatformAdminTenantMode ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await handleReturnToPlatform();
+                      setMobileMenuOpen(false);
+                    }}
+                    disabled={switchingActiveOrganization}
+                    className="mt-2 inline-flex w-full items-center justify-center rounded-md border border-slate-300 px-2 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Return to Platform
+                  </button>
+                ) : null}
               </div>
             ) : null}
 

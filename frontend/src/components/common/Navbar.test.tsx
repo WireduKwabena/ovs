@@ -230,17 +230,10 @@ describe("Navbar runtime + active tab behavior", () => {
       expect(mocks.getReminderHealth).toHaveBeenCalledTimes(1);
     });
 
-    const videoCallLinks = screen.queryAllByRole("link", { name: /video calls/i });
-    if (videoCallLinks.length > 0) {
-      const hasActiveDesktopLink = videoCallLinks.some((link) =>
-        link.className.includes("bg-indigo-100"),
-      );
-      expect(hasActiveDesktopLink).toBe(true);
-      return;
-    }
-
-    const moreButton = screen.getByRole("button", { name: /more/i });
-    expect(moreButton.className.includes("bg-indigo-100")).toBe(true);
+    const runtimeLinks = screen.queryAllByRole("link", { name: /^runtime$/i });
+    expect(runtimeLinks.length).toBeGreaterThan(0);
+    const hasActiveDesktopLink = runtimeLinks.some((link) => link.className.includes("bg-indigo-100"));
+    expect(hasActiveDesktopLink).toBe(true);
   });
 
   it("shows unavailable status when runtime health endpoint fails", async () => {
@@ -537,6 +530,157 @@ describe("Navbar runtime + active tab behavior", () => {
       fireEvent.click(moreButton);
     }
     expect(screen.queryByRole("link", { name: /audit/i })).toBeNull();
+  });
+
+  it("shows platform-admin console links and hides tenant context by default", async () => {
+    mocks.getReminderHealth.mockResolvedValue({
+      generated_at: "2026-03-04T12:00:00Z",
+      max_retries: 3,
+      soon_retry_pending: 0,
+      soon_retry_exhausted: 0,
+      start_now_retry_pending: 0,
+      start_now_retry_exhausted: 0,
+      time_up_retry_pending: 0,
+      time_up_retry_exhausted: 0,
+    });
+    authHookState.organizations = [
+      {
+        id: "org-1",
+        code: "ORG1",
+        name: "Public Service Commission",
+        organization_type: "agency",
+      },
+    ];
+    authHookState.activeOrganization = authHookState.organizations[0];
+    authHookState.activeOrganizationId = "org-1";
+    authHookState.canSwitchOrganization = true;
+
+    renderNavbar("/admin/dashboard", {
+      auth: {
+        userType: "admin",
+        user: {
+          user_type: "admin",
+          email: "admin@example.com",
+          full_name: "Platform Admin",
+          first_name: "Platform",
+          last_name: "Admin",
+        },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mocks.getReminderHealth).toHaveBeenCalledTimes(1);
+    });
+
+    expect(screen.queryByText(/active organization/i)).toBeNull();
+    expect(screen.queryByLabelText(/switch active organization/i)).toBeNull();
+
+    expect(screen.getAllByRole("link", { name: /^organizations$/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /^runtime$/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /risk signals/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /^checks$/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /analytics/i }).length).toBeGreaterThan(0);
+
+    expect(screen.queryByRole("link", { name: /offices/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /appointment exercises/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /nominees/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /members/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /committees/i })).toBeNull();
+  });
+
+  it("switches platform admin to tenant navigation after entering an organization context", async () => {
+    mocks.getReminderHealth.mockResolvedValue({
+      generated_at: "2026-03-04T12:00:00Z",
+      max_retries: 3,
+      soon_retry_pending: 0,
+      soon_retry_exhausted: 0,
+      start_now_retry_pending: 0,
+      start_now_retry_exhausted: 0,
+      time_up_retry_pending: 0,
+      time_up_retry_exhausted: 0,
+    });
+    authHookState.organizations = [
+      {
+        id: "org-1",
+        code: "ORG1",
+        name: "Public Service Commission",
+        organization_type: "agency",
+      },
+    ];
+    authHookState.activeOrganization = authHookState.organizations[0];
+    authHookState.activeOrganizationId = "org-1";
+    authHookState.canSwitchOrganization = true;
+    authHookState.canManageActiveOrganizationGovernance = true;
+    authHookState.canManageRegistry = true;
+    authHookState.canAccessCampaigns = true;
+    authHookState.canAccessAppointments = true;
+    authHookState.canAccessApplications = true;
+
+    renderNavbar("/organization/dashboard", {
+      auth: {
+        userType: "admin",
+        user: {
+          user_type: "admin",
+          email: "admin@example.com",
+          full_name: "Platform Admin",
+          first_name: "Platform",
+          last_name: "Admin",
+        },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mocks.getReminderHealth).toHaveBeenCalledTimes(1);
+    });
+
+    expect(screen.getByText(/active organization/i)).toBeTruthy();
+    expect(screen.getAllByRole("link", { name: /^dashboard$/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /offices/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /appointment exercises/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /nominations/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /vetting dossiers/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /committees/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /^members$/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: /return to platform/i }).length).toBeGreaterThan(0);
+
+    expect(screen.queryByRole("link", { name: /analytics/i })).toBeNull();
+  });
+
+  it("keeps organization context visible for organization-admin internal users", async () => {
+    authHookState.organizations = [
+      {
+        id: "org-1",
+        code: "ORG1",
+        name: "Registry Commission",
+        organization_type: "agency",
+      },
+    ];
+    authHookState.activeOrganization = authHookState.organizations[0];
+    authHookState.activeOrganizationId = "org-1";
+    authHookState.canSwitchOrganization = true;
+    authHookState.canManageActiveOrganizationGovernance = true;
+
+    renderNavbar("/organization/dashboard", {
+      auth: {
+        userType: "internal",
+        capabilities: ["gams.registry.manage"],
+        user: {
+          user_type: "internal",
+          email: "registry.admin@example.com",
+          full_name: "Registry Admin",
+          first_name: "Registry",
+          last_name: "Admin",
+        },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
+    });
+
+    expect(screen.getByText(/active organization/i)).toBeTruthy();
+    expect(screen.getByLabelText(/switch active organization/i)).toBeTruthy();
+    expect(screen.getAllByRole("link", { name: /^members$/i }).length).toBeGreaterThan(0);
   });
 
   it("shows organization switcher and dispatches active-organization selection", async () => {

@@ -67,6 +67,7 @@ const AppointmentsRegistryPage = React.lazy(() => import("./pages/AppointmentsRe
 const ErrorPage = React.lazy(() => import("./pages/ErrorPage"));
 const NotFoundPage = React.lazy(() => import("./pages/NotFoundPage"));
 const AdminDashboardPage = React.lazy(() => import("./pages/admin/AdminDashboardPage"));
+const AdminOrganizationsPage = React.lazy(() => import("./pages/admin/AdminOrganizationsPage"));
 const AdminAnalyticsPage = React.lazy(() => import("./pages/admin/AdminAnalyticsPage"));
 const AdminRegisterPage = React.lazy(() => import("./pages/admin/AdminRegisterPage"));
 const AdminCasesPage = React.lazy(() => import("./pages/admin/AdminCasesPage"));
@@ -564,6 +565,14 @@ const AppShell: React.FC = () => {
           element={
             <ProtectedRoute adminOnly>
               <AdminAnalyticsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/organizations"
+          element={
+            <ProtectedRoute adminOnly>
+              <AdminOrganizationsPage />
             </ProtectedRoute>
           }
         />

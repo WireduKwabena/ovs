@@ -28,14 +28,17 @@ const renderAdminDashboard = () =>
     <MemoryRouter initialEntries={["/admin/dashboard"]}>
       <Routes>
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/government/appointments" element={<div>Appointments Route</div>} />
-        <Route path="/government/positions" element={<div>Positions Route</div>} />
-        <Route path="/government/personnel" element={<div>Personnel Route</div>} />
+        <Route path="/admin/organizations" element={<div>Organizations Route</div>} />
+        <Route path="/admin/users" element={<div>Organization Admins Route</div>} />
+        <Route path="/admin/analytics" element={<div>Analytics Route</div>} />
+        <Route path="/video-calls" element={<div>Runtime Route</div>} />
+        <Route path="/audit-logs" element={<div>Audit Route</div>} />
+        <Route path="/fraud-insights" element={<div>Risk Signals Route</div>} />
       </Routes>
     </MemoryRouter>,
   );
 
-describe("AdminDashboard government quick actions", () => {
+describe("AdminDashboard platform quick actions", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
@@ -50,42 +53,45 @@ describe("AdminDashboard government quick actions", () => {
     recent_applications: [],
   });
 
-  it("navigates to appointment registry", async () => {
+  it("navigates to organizations setup", async () => {
     mocks.getDashboard.mockResolvedValue(buildDashboardPayload());
 
     renderAdminDashboard();
 
-    fireEvent.click(await screen.findByRole("button", { name: /appointment registry/i }));
-    expect(await screen.findByText("Appointments Route")).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: /organizations/i }));
+    expect(await screen.findByText("Organizations Route")).toBeTruthy();
   });
 
-  it("navigates to position registry", async () => {
+  it("navigates to organization-admin management", async () => {
     mocks.getDashboard.mockResolvedValue(buildDashboardPayload());
 
     renderAdminDashboard();
 
-    fireEvent.click(await screen.findByRole("button", { name: /position registry/i }));
-    expect(await screen.findByText("Positions Route")).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: /organization admins/i }));
+    expect(await screen.findByText("Organization Admins Route")).toBeTruthy();
   });
 
-  it("navigates to personnel registry", async () => {
+  it("navigates to runtime", async () => {
     mocks.getDashboard.mockResolvedValue(buildDashboardPayload());
 
     renderAdminDashboard();
 
-    fireEvent.click(await screen.findByRole("button", { name: /personnel registry/i }));
-    expect(await screen.findByText("Personnel Route")).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: /open runtime/i }));
+    expect(await screen.findByText("Runtime Route")).toBeTruthy();
   });
 
-  it("renders all government quick action buttons", async () => {
+  it("renders platform quick action buttons", async () => {
     mocks.getDashboard.mockResolvedValue({
       ...buildDashboardPayload(),
     });
 
     renderAdminDashboard();
 
-    expect(await screen.findByRole("button", { name: /appointment registry/i })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /position registry/i })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /personnel registry/i })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /organizations/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /organization admins/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /analytics/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /open runtime/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /open audit logs/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /risk signals/i })).toBeTruthy();
   });
 });

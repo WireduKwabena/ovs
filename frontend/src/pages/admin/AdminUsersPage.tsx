@@ -11,26 +11,23 @@ import type { AdminManagedUser, AdminUsersResponse } from "@/types";
 import { formatDate } from "@/utils/helper";
 import { applyQueryUpdates } from "@/utils/queryParams";
 
-type UserTypeFilter = "all" | "admin" | "internal" | "applicant";
 type ActiveFilter = "all" | "active" | "inactive";
 
 const PAGE_SIZE = 20;
-const USER_TYPE_LABELS: Record<Exclude<UserTypeFilter, "all">, string> = {
-  admin: "Admin",
-  internal: "Operations User",
-  applicant: "Applicant",
-};
+const ORGANIZATION_ADMIN_ROLE_KEYS = new Set([
+  "registry_admin",
+  "org_admin",
+  "organization_admin",
+  "system_admin",
+]);
 
 const parsePage = (value: string | null): number => {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
 };
 
-const parseUserTypeFilter = (value: string | null): UserTypeFilter => {
-  if (value === "admin" || value === "internal" || value === "applicant") {
-    return value;
-  }
-  return "all";
+const normalizeRole = (value: string): string => {
+  return value.trim().toLowerCase().replace(/[\s-]+/g, "_");
 };
 
 const parseActiveFilter = (value: string | null): ActiveFilter => {
@@ -43,18 +40,29 @@ const parseActiveFilter = (value: string | null): ActiveFilter => {
   return "all";
 };
 
-const formatUserTypeFilter = (value: UserTypeFilter): string => {
-  if (value === "all") {
-    return "All";
-  }
-  return USER_TYPE_LABELS[value];
+const toRoleLabel = (value: string): string => {
+  return value
+    .trim()
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const getOrganizationAdminRoles = (user: AdminManagedUser): string[] => {
+  const groupRoles = Array.isArray(user.group_roles) ? user.group_roles : [];
+  const scopedRoles = groupRoles.filter((role) =>
+    ORGANIZATION_ADMIN_ROLE_KEYS.has(normalizeRole(role)),
+  );
+  return scopedRoles;
+};
+
+const isOrganizationAdminUser = (user: AdminManagedUser): boolean => {
+  return getOrganizationAdminRoles(user).length > 0;
 };
 
 const AdminUsersPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const page = parsePage(searchParams.get("page"));
   const searchQuery = (searchParams.get("q") || "").trim();
-  const userTypeFilter = parseUserTypeFilter(searchParams.get("user_type"));
   const activeFilter = parseActiveFilter(searchParams.get("is_active"));
 
   const [searchInput, setSearchInput] = useState(searchQuery);
@@ -65,12 +73,15 @@ const AdminUsersPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const users = useMemo(() => payload?.results ?? [], [payload]);
+  const organizationAdminUsers = useMemo(
+    () => users.filter((user) => isOrganizationAdminUser(user)),
+    [users],
+  );
   const totalPages = payload?.total_pages ?? 1;
-  const totalCount = payload?.count ?? 0;
+  const totalCount = organizationAdminUsers.length;
   const isSearchFilterActive = searchQuery.length > 0;
-  const isUserTypeFilterActive = userTypeFilter !== "all";
   const isActiveFilterActive = activeFilter !== "all";
-  const hasUserFilters = isSearchFilterActive || isUserTypeFilterActive || isActiveFilterActive;
+  const hasUserFilters = isSearchFilterActive || isActiveFilterActive;
 
   const fetchUsers = async () => {
     try {
@@ -78,7 +89,6 @@ const AdminUsersPage: React.FC = () => {
       setError(null);
       const response = await adminService.getUsers({
         q: searchQuery || undefined,
-        user_type: userTypeFilter === "all" ? undefined : userTypeFilter,
         is_active:
           activeFilter === "all"
             ? undefined
@@ -112,7 +122,7 @@ const AdminUsersPage: React.FC = () => {
   useEffect(() => {
     void fetchUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, userTypeFilter, activeFilter, page]);
+  }, [searchQuery, activeFilter, page]);
 
   const applySearch = () => {
     updateQuery({ q: searchInput.trim() || null });
@@ -141,9 +151,9 @@ const AdminUsersPage: React.FC = () => {
         <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Admin Users</h1>
+              <h1 className="text-2xl font-semibold text-gray-900">Organization Administrators</h1>
               <p className="mt-1 text-sm text-slate-800">
-                Manage platform users, access states, and account security controls.
+                Manage organization-admin accounts, access states, and account security controls.
               </p>
             </div>
             <Button
@@ -160,7 +170,7 @@ const AdminUsersPage: React.FC = () => {
         </section>
 
         <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <div className="md:col-span-2">
               <label htmlFor="user-search" className="mb-1 block text-sm font-medium text-slate-800">
                 Search
@@ -188,28 +198,6 @@ const AdminUsersPage: React.FC = () => {
                   Search
                 </Button>
               </div>
-            </div>
-
-            <div>
-              <label htmlFor="filter-type" className="mb-1 block text-sm font-medium text-slate-800">
-                User Type
-              </label>
-              <Select
-                value={userTypeFilter}
-                onValueChange={(value) => {
-                  updateQuery({ user_type: value });
-                }}
-              >
-                <SelectTrigger id="filter-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="internal">Operations User</SelectItem>
-                  <SelectItem value="applicant">Applicant</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
 
             <div>
@@ -253,15 +241,6 @@ const AdminUsersPage: React.FC = () => {
                     Search: {searchQuery} x
                   </button>
                 ) : null}
-                {isUserTypeFilterActive ? (
-                  <button
-                    type="button"
-                    onClick={() => updateQuery({ user_type: null })}
-                    className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800 hover:bg-slate-200"
-                  >
-                    User Type: {formatUserTypeFilter(userTypeFilter)} x
-                  </button>
-                ) : null}
                 {isActiveFilterActive ? (
                   <button
                     type="button"
@@ -279,8 +258,8 @@ const AdminUsersPage: React.FC = () => {
                     setSearchInput("");
                     updateQuery({
                       q: null,
-                      user_type: null,
                       is_active: null,
+                      user_type: null,
                     });
                   }}
                 >
@@ -294,7 +273,7 @@ const AdminUsersPage: React.FC = () => {
         <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
           <div className="flex flex-col gap-1 border-b border-gray-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-800">
-              {loading ? "Loading users..." : `Total users: ${totalCount}`}
+              {loading ? "Loading users..." : `Organization admins (current page): ${totalCount}`}
             </p>
             <p className="text-sm text-slate-800">Page {page} of {totalPages}</p>
           </div>
@@ -304,10 +283,10 @@ const AdminUsersPage: React.FC = () => {
               <ShieldAlert className="mx-auto h-8 w-8 text-red-500" />
               <p className="mt-2 text-sm font-medium text-red-600">{error}</p>
             </div>
-          ) : users.length === 0 ? (
+          ) : organizationAdminUsers.length === 0 ? (
             <div className="p-10 text-center text-slate-800">
               <Users className="mx-auto h-10 w-10 text-slate-800" />
-              <p className="mt-3">No users found for this filter.</p>
+              <p className="mt-3">No organization administrators found for this filter.</p>
             </div>
           ) : (
             <>
@@ -319,7 +298,7 @@ const AdminUsersPage: React.FC = () => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="sticky left-0 z-20 min-w-[260px] bg-gray-50 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-800">User</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-800">Role</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-800">Governance Role</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-800">Status</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-800">2FA</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-800">Created</th>
@@ -327,8 +306,9 @@ const AdminUsersPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 bg-white">
-                  {users.map((user: AdminManagedUser) => {
+                  {organizationAdminUsers.map((user: AdminManagedUser) => {
                     const busy = actionLoadingUserId === user.id;
+                    const adminRoles = getOrganizationAdminRoles(user);
                     return (
                       <tr key={user.id} className="hover:bg-slate-100">
                         <td className="sticky left-0 z-10 min-w-[260px] bg-white px-6 py-4 text-sm">
@@ -336,26 +316,16 @@ const AdminUsersPage: React.FC = () => {
                           <div className="text-slate-800">{user.email}</div>
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-800">
-                          <Select
-                            value={user.user_type}
-                            onValueChange={(nextRole) => {
-                              void updateUser(
-                                user.id,
-                                { user_type: nextRole },
-                                "User role updated.",
-                              );
-                            }}
-                            disabled={busy}
-                          >
-                            <SelectTrigger className="w-40">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="internal">Operations User</SelectItem>
-                              <SelectItem value="applicant">Applicant</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div className="flex flex-wrap gap-1">
+                            {adminRoles.map((role) => (
+                              <span
+                                key={role}
+                                className="inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-900"
+                              >
+                                {toRoleLabel(role)}
+                              </span>
+                            ))}
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-sm">
                           <span

@@ -1,0 +1,718 @@
+.vetai-home,
+.vetai-home * {
+  box-sizing: border-box;
+}
+
+.vetai-home {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.6;
+  color: #1a1a1a;
+  overflow-x: hidden;
+  background: #ffffff;
+}
+
+.vetai-hero {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+  color: #ffffff;
+  padding: 0 20px;
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+.vetai-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%);
+  animation: vetai-pulse 8s ease-in-out infinite;
+}
+
+@keyframes vetai-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.vetai-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 25px 0;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  position: relative;
+  z-index: 10;
+}
+
+.vetai-logo {
+  font-size: 32px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  letter-spacing: -0.5px;
+}
+
+.vetai-logo-icon {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.vetai-nav-links {
+  display: flex;
+  gap: 40px;
+  align-items: center;
+}
+
+.vetai-nav-links a {
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.3s;
+  font-size: 15px;
+}
+
+.vetai-nav-links a:hover {
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+.vetai-btn {
+  padding: 14px 32px;
+  border-radius: 12px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-block;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.vetai-btn-primary {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  color: #ffffff;
+  box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+}
+
+.vetai-btn-primary:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 40px rgba(59, 130, 246, 0.4);
+}
+
+.vetai-btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  backdrop-filter: blur(10px);
+}
+
+.vetai-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.vetai-hero-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: center;
+  padding: 80px 0;
+  position: relative;
+  z-index: 5;
+}
+
+.vetai-hero-text h1 {
+  font-size: 64px;
+  margin-bottom: 24px;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -2px;
+}
+
+.vetai-gradient-text {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.vetai-hero-text p {
+  font-size: 20px;
+  margin-bottom: 40px;
+  opacity: 0.9;
+  line-height: 1.8;
+}
+
+.vetai-hero-buttons {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.vetai-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
+  margin-top: 60px;
+}
+
+.vetai-stat-item {
+  text-align: center;
+}
+
+.vetai-stat-number {
+  font-size: 48px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 8px;
+}
+
+.vetai-stat-label {
+  font-size: 14px;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.vetai-hero-visual {
+  position: relative;
+  height: 600px;
+}
+
+.vetai-floating-card {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  padding: 25px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: vetai-float 6s ease-in-out infinite;
+}
+
+@keyframes vetai-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-20px) rotate(2deg);
+  }
+}
+
+.vetai-card-1 {
+  top: 50px;
+  left: 50px;
+  animation-delay: 0s;
+}
+
+.vetai-card-2 {
+  top: 200px;
+  right: 80px;
+  animation-delay: 1s;
+}
+
+.vetai-card-3 {
+  bottom: 100px;
+  left: 100px;
+  animation-delay: 2s;
+}
+
+.vetai-card-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.vetai-card-title {
+  font-weight: 700;
+  margin-bottom: 8px;
+  font-size: 18px;
+}
+
+.vetai-card-subtitle {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.vetai-features {
+  padding: 120px 20px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.vetai-features-container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.vetai-section-header {
+  text-align: center;
+  margin-bottom: 80px;
+}
+
+.vetai-section-label {
+  color: #3b82f6;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.vetai-section-title {
+  font-size: 52px;
+  margin-bottom: 20px;
+  font-weight: 900;
+  color: #0f172a;
+  letter-spacing: -1px;
+}
+
+.vetai-section-subtitle {
+  font-size: 20px;
+  color: #64748b;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.vetai-features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 40px;
+}
+
+.vetai-feature-card {
+  background: #ffffff;
+  padding: 45px;
+  border-radius: 24px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid #f1f5f9;
+}
+
+.vetai-feature-card:hover {
+  transform: translateY(-12px);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12);
+  border-color: #e0e7ff;
+}
+
+.vetai-feature-icon {
+  width: 70px;
+  height: 70px;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  margin-bottom: 24px;
+  box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+}
+
+.vetai-feature-card h3 {
+  font-size: 24px;
+  margin-bottom: 16px;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.vetai-feature-card p {
+  color: #64748b;
+  line-height: 1.8;
+  font-size: 16px;
+}
+
+.vetai-process {
+  padding: 120px 20px;
+  background: #0f172a;
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+}
+
+.vetai-process::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+}
+
+.vetai-process-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.vetai-section-label-process {
+  color: #3b82f6;
+}
+
+.vetai-section-title-process {
+  color: #ffffff;
+}
+
+.vetai-section-subtitle-process {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.vetai-process-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 40px;
+  margin-top: 80px;
+}
+
+.vetai-process-step {
+  text-align: center;
+  position: relative;
+}
+
+.vetai-step-number {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: 800;
+  margin: 0 auto 24px;
+  box-shadow: 0 15px 40px rgba(59, 130, 246, 0.4);
+}
+
+.vetai-process-step h3 {
+  font-size: 22px;
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+.vetai-process-step p {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.vetai-benefits {
+  padding: 120px 20px;
+  background: #ffffff;
+}
+
+.vetai-benefits-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+}
+
+.vetai-benefits-visual {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  border-radius: 30px;
+  padding: 60px;
+  position: relative;
+  overflow: hidden;
+  min-height: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vetai-benefits-visual::before {
+  content: "🤖";
+  font-size: 200px;
+  opacity: 0.2;
+  position: absolute;
+}
+
+.vetai-benefits-visual-content {
+  text-align: center;
+  color: #ffffff;
+  z-index: 1;
+  position: relative;
+}
+
+.vetai-benefits-rocket {
+  font-size: 120px;
+  margin-bottom: 20px;
+}
+
+.vetai-benefits-visual-content h3 {
+  font-size: 32px;
+  font-weight: 800;
+  margin-bottom: 16px;
+}
+
+.vetai-benefits-visual-content p {
+  font-size: 18px;
+  opacity: 0.9;
+}
+
+.vetai-benefits-list {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.vetai-benefit-item {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.vetai-benefit-icon {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.vetai-benefit-content h3 {
+  font-size: 22px;
+  margin-bottom: 8px;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.vetai-benefit-content p {
+  color: #64748b;
+  line-height: 1.7;
+}
+
+.vetai-cta {
+  padding: 120px 20px;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #ffffff;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.vetai-cta::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+  animation: vetai-rotate 20s linear infinite;
+}
+
+@keyframes vetai-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.vetai-cta-content {
+  max-width: 900px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.vetai-cta h2 {
+  font-size: 52px;
+  margin-bottom: 24px;
+  font-weight: 900;
+  letter-spacing: -1px;
+}
+
+.vetai-cta p {
+  font-size: 22px;
+  margin-bottom: 50px;
+  opacity: 0.9;
+  line-height: 1.6;
+}
+
+.vetai-cta-buttons {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.vetai-trust-badges {
+  display: flex;
+  gap: 40px;
+  justify-content: center;
+  margin-top: 60px;
+  flex-wrap: wrap;
+}
+
+.vetai-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 15px;
+  opacity: 0.8;
+}
+
+.vetai-footer {
+  background: #020617;
+  color: #ffffff;
+  padding: 80px 20px 30px;
+}
+
+.vetai-footer-content {
+  max-width: 1400px;
+  margin: 0 auto 50px;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 60px;
+}
+
+.vetai-footer-brand {
+  max-width: 350px;
+}
+
+.vetai-footer-brand .vetai-logo {
+  margin-bottom: 20px;
+}
+
+.vetai-footer-brand p {
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.8;
+  margin-bottom: 30px;
+}
+
+.vetai-social-links {
+  display: flex;
+  gap: 15px;
+}
+
+.vetai-social-link {
+  width: 45px;
+  height: 45px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: #ffffff;
+  transition: all 0.3s;
+}
+
+.vetai-social-link:hover {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  transform: translateY(-3px);
+}
+
+.vetai-footer-section h4 {
+  margin-bottom: 24px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.vetai-footer-section a {
+  color: rgba(255, 255, 255, 0.6);
+  text-decoration: none;
+  display: block;
+  margin-bottom: 14px;
+  transition: all 0.3s;
+  font-size: 15px;
+}
+
+.vetai-footer-section a:hover {
+  color: #ffffff;
+  transform: translateX(5px);
+}
+
+.vetai-footer-bottom {
+  text-align: center;
+  padding-top: 30px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+@media (max-width: 1024px) {
+  .vetai-hero-content {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .vetai-hero-visual {
+    display: none;
+  }
+
+  .vetai-hero-buttons {
+    justify-content: center;
+  }
+
+  .vetai-process-steps {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .vetai-benefits-container {
+    grid-template-columns: 1fr;
+  }
+
+  .vetai-footer-content {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .vetai-hero-text h1 {
+    font-size: 42px;
+  }
+
+  .vetai-section-title {
+    font-size: 36px;
+  }
+
+  .vetai-cta h2 {
+    font-size: 36px;
+  }
+
+  .vetai-features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vetai-process-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .vetai-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .vetai-nav-links {
+    display: none;
+  }
+
+  .vetai-footer-content {
+    grid-template-columns: 1fr;
+  }
+}

@@ -2,15 +2,21 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  FileText, Users, CheckCircle, XCircle,
-  Clock, TrendingUp, AlertTriangle
+  Building2,
+  CheckCircle,
+  Clock,
+  FileText,
+  AlertTriangle,
+  ShieldCheck,
+  TrendingUp,
+  Users,
+  Users2,
+  XCircle,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { StatusBadge } from '@/components/common/StatusBadge';
 import { Loader } from '@/components/common/Loader';
 import { adminService } from '@/services/admin.service';
-import type { ApplicationStatus, DashboardStats } from '@/types';
-import { formatDate } from '@/utils/helper';
+import type { DashboardStats } from '@/types';
 import BillingHealthCard from '@/components/admin/BillingHealthCard';
 import ReminderHealthCard from '@/components/admin/ReminderHealthCard';
 
@@ -47,16 +53,6 @@ const StatCard: React.FC<StatCardProps> = ({ icon: Icon, title, value, color, su
     </div>
   </div>
 );
-
-interface RecentApplication {
-  id: string;
-  case_id: string;
-  applicant_name: string;
-  status: ApplicationStatus;
-  application_type: string;
-  created_at: string;
-  rubric_score?: number | null;
-}
 
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -125,9 +121,9 @@ export const AdminDashboard: React.FC = () => {
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm p-6">
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Platform Admin Dashboard</h1>
           <p className="text-slate-800 mt-2">
-            Overview of vetting applications and system performance
+            Platform-level oversight for organizations, organization admins, and runtime health.
           </p>
         </div>
 
@@ -139,8 +135,8 @@ export const AdminDashboard: React.FC = () => {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
-            icon={FileText}
-            title="Total Applications"
+            icon={Users2}
+            title="Total Reviews"
             value={stats.total_applications}
             color="text-blue-600"
           />
@@ -203,96 +199,30 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Recent Applications */}
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 p-6">
-            <h2 className="text-xl font-bold text-gray-900">Recent Applications</h2>
-            <button
-              onClick={() => navigate('/admin/cases')}
-              className="inline-flex w-full items-center justify-center rounded-md border border-indigo-300 bg-indigo-100 px-3 py-1.5 text-sm font-semibold text-indigo-900 hover:bg-indigo-200 sm:w-auto"
-            >
-              View All →
-            </button>
-          </div>
-
-          <div className="divide-y divide-gray-200">
-            {stats.recent_applications && stats.recent_applications.length > 0 ? (
-              stats.recent_applications.map((app: RecentApplication) => (
-                <div
-                  key={app.id}
-                  className="p-6 transition-colors hover:bg-slate-50"
-                >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold text-lg text-gray-900">{app.case_id}</h3>
-                        <StatusBadge status={app.status} />
-                      </div>
-                      <p className="text-sm text-slate-800">
-                        {app.applicant_name || 'Unknown'} • {' '}
-                        <span className="capitalize">{app.application_type.replace('_', ' ')}</span>
-                      </p>
-                      <p className="text-xs text-slate-800 mt-1">
-                        Submitted: {formatDate(app.created_at)}
-                      </p>
-                    </div>
-
-                    <div className="w-full text-left lg:ml-6 lg:w-auto lg:text-right">
-                      {typeof app.rubric_score === 'number' && (
-                        <div className="mb-3">
-                          <div className="text-sm text-slate-800">
-                            Rubric Score:{' '}
-                            <span className="font-semibold text-indigo-600">
-                              {app.rubric_score.toFixed(1)}%
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/admin/cases/${app.case_id}`)}
-                        className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 sm:w-auto"
-                      >
-                        Review Case
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="p-12 text-center">
-                <FileText className="w-16 h-16 text-slate-800 mx-auto mb-4" />
-                <p className="text-slate-800 text-lg">No recent applications</p>
-                <p className="text-slate-800 text-sm mt-1">New applications will appear here</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Quick Actions */}
+        {/* Platform Quick Actions */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           <button
-            onClick={() => navigate('/admin/cases?status=pending')}
-            className="group p-6 bg-linear-to-br from-amber-100 to-amber-200 rounded-lg border-2 border-amber-300 hover:border-amber-400 hover:shadow-md transition-all text-left"
+            onClick={() => navigate('/admin/organizations')}
+            className="group p-6 bg-linear-to-br from-cyan-100 to-cyan-200 rounded-lg border-2 border-cyan-300 hover:border-cyan-400 hover:shadow-md transition-all text-left"
           >
-            <AlertTriangle className="w-10 h-10 text-amber-900 mb-3 group-hover:scale-110 transition-transform" />
-            <h3 className="font-bold text-lg text-gray-900">Pending Cases</h3>
-            <p className="text-sm text-slate-800 mt-1">Review {stats.pending} waiting applications</p>
-            <div className="mt-4 flex items-center text-amber-900 font-semibold text-sm">
-              <span>Review Now</span>
+            <Building2 className="w-10 h-10 text-cyan-900 mb-3 group-hover:scale-110 transition-transform" />
+            <h3 className="font-bold text-lg text-gray-900">Organizations</h3>
+            <p className="text-sm text-slate-800 mt-1">Manage organization setup and platform-level access entry.</p>
+            <div className="mt-4 flex items-center text-cyan-900 font-semibold text-sm">
+              <span>Open Organizations</span>
               <span className="ml-2 group-hover:ml-3 transition-all">→</span>
             </div>
           </button>
 
           <button
-            onClick={() => navigate('/rubrics')}
-            className="group rounded-lg border border-border bg-card p-6 text-left transition-all hover:border-ring/40 hover:bg-accent/60 hover:shadow-md"
+            onClick={() => navigate('/admin/users')}
+            className="group p-6 bg-linear-to-br from-emerald-100 to-emerald-200 rounded-lg border-2 border-emerald-300 hover:border-emerald-400 hover:shadow-md transition-all text-left"
           >
-            <TrendingUp className="mb-3 h-10 w-10 text-primary transition-transform group-hover:scale-110" />
-            <h3 className="text-lg font-bold text-foreground">Manage Rubrics</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Configure evaluation criteria and rules</p>
-            <div className="mt-4 flex items-center text-sm font-semibold text-primary">
-              <span>Configure</span>
+            <Users2 className="w-10 h-10 text-emerald-900 mb-3 group-hover:scale-110 transition-transform" />
+            <h3 className="font-bold text-lg text-gray-900">Organization Admins</h3>
+            <p className="text-sm text-slate-800 mt-1">Manage organization administrator accounts and account state.</p>
+            <div className="mt-4 flex items-center text-emerald-900 font-semibold text-sm">
+              <span>Open Admin Accounts</span>
               <span className="ml-2 group-hover:ml-3 transition-all">→</span>
             </div>
           </button>
@@ -311,66 +241,40 @@ export const AdminDashboard: React.FC = () => {
           </button>
 
           <button
-            onClick={() => navigate('/admin/control-center')}
-            className="group p-6 bg-linear-to-br from-slate-100 to-slate-200 rounded-lg border-2 border-slate-500 hover:border-slate-700 hover:shadow-md transition-all text-left"
-          >
-            <Users className="w-10 h-10 text-slate-900 mb-3 group-hover:scale-110 transition-transform" />
-            <h3 className="font-bold text-lg text-gray-900">Admin Control</h3>
-            <p className="text-sm text-slate-900 mt-1">Open full Django admin module controls</p>
-            <div className="mt-4 flex items-center text-slate-900 font-semibold text-sm">
-              <span>Open Control Center</span>
-              <span className="ml-2 group-hover:ml-3 transition-all">→</span>
-            </div>
-          </button>
-
-          <button
-            onClick={() => navigate('/admin/users')}
-            className="group p-6 bg-linear-to-br from-emerald-100 to-emerald-200 rounded-lg border-2 border-emerald-300 hover:border-emerald-400 hover:shadow-md transition-all text-left"
-          >
-            <Users className="w-10 h-10 text-emerald-900 mb-3 group-hover:scale-110 transition-transform" />
-            <h3 className="font-bold text-lg text-gray-900">Manage Users</h3>
-            <p className="text-sm text-slate-800 mt-1">Update roles, activity status, and account security.</p>
-            <div className="mt-4 flex items-center text-emerald-900 font-semibold text-sm">
-              <span>Open Users</span>
-              <span className="ml-2 group-hover:ml-3 transition-all">→</span>
-            </div>
-          </button>
-
-          <button
-            onClick={() => navigate('/government/appointments')}
+            onClick={() => navigate('/video-calls')}
             className="group p-6 bg-linear-to-br from-indigo-100 to-indigo-200 rounded-lg border-2 border-indigo-300 hover:border-indigo-400 hover:shadow-md transition-all text-left"
           >
-            <CheckCircle className="w-10 h-10 text-indigo-900 mb-3 group-hover:scale-110 transition-transform" />
-            <h3 className="font-bold text-lg text-gray-900">Appointment Registry</h3>
-            <p className="text-sm text-slate-800 mt-1">Run nomination lifecycle, stage progression, and decisions.</p>
+            <ShieldCheck className="w-10 h-10 text-indigo-900 mb-3 group-hover:scale-110 transition-transform" />
+            <h3 className="font-bold text-lg text-gray-900">Runtime</h3>
+            <p className="text-sm text-slate-800 mt-1">Monitor platform reminder runtime and interview operations.</p>
             <div className="mt-4 flex items-center text-indigo-900 font-semibold text-sm">
-              <span>Open Registry</span>
+              <span>Open Runtime</span>
               <span className="ml-2 group-hover:ml-3 transition-all">→</span>
             </div>
           </button>
 
           <button
-            onClick={() => navigate('/government/positions')}
-            className="group p-6 bg-linear-to-br from-cyan-100 to-cyan-200 rounded-lg border-2 border-cyan-300 hover:border-cyan-400 hover:shadow-md transition-all text-left"
+            onClick={() => navigate('/audit-logs')}
+            className="group p-6 bg-linear-to-br from-slate-100 to-slate-200 rounded-lg border-2 border-slate-300 hover:border-slate-400 hover:shadow-md transition-all text-left"
           >
-            <FileText className="w-10 h-10 text-cyan-900 mb-3 group-hover:scale-110 transition-transform" />
-            <h3 className="font-bold text-lg text-gray-900">Position Registry</h3>
-            <p className="text-sm text-slate-800 mt-1">Manage positions, vacancies, and constitutional metadata.</p>
-            <div className="mt-4 flex items-center text-cyan-900 font-semibold text-sm">
-              <span>Open Positions</span>
+            <FileText className="w-10 h-10 text-slate-900 mb-3 group-hover:scale-110 transition-transform" />
+            <h3 className="font-bold text-lg text-gray-900">Audit</h3>
+            <p className="text-sm text-slate-800 mt-1">Review platform-level governance and security events.</p>
+            <div className="mt-4 flex items-center text-slate-900 font-semibold text-sm">
+              <span>Open Audit Logs</span>
               <span className="ml-2 group-hover:ml-3 transition-all">→</span>
             </div>
           </button>
 
           <button
-            onClick={() => navigate('/government/personnel')}
-            className="group p-6 bg-linear-to-br from-teal-100 to-teal-200 rounded-lg border-2 border-teal-300 hover:border-teal-400 hover:shadow-md transition-all text-left"
+            onClick={() => navigate('/fraud-insights')}
+            className="group p-6 bg-linear-to-br from-rose-100 to-rose-200 rounded-lg border-2 border-rose-300 hover:border-rose-400 hover:shadow-md transition-all text-left"
           >
-            <Users className="w-10 h-10 text-teal-900 mb-3 group-hover:scale-110 transition-transform" />
-            <h3 className="font-bold text-lg text-gray-900">Personnel Registry</h3>
-            <p className="text-sm text-slate-800 mt-1">Manage nominees and officeholders linked to appointments.</p>
-            <div className="mt-4 flex items-center text-teal-900 font-semibold text-sm">
-              <span>Open Personnel</span>
+            <XCircle className="w-10 h-10 text-rose-900 mb-3 group-hover:scale-110 transition-transform" />
+            <h3 className="font-bold text-lg text-gray-900">Risk Signals</h3>
+            <p className="text-sm text-slate-800 mt-1">Track fraud and verification signals across the platform.</p>
+            <div className="mt-4 flex items-center text-rose-900 font-semibold text-sm">
+              <span>Open Risk Signals</span>
               <span className="ml-2 group-hover:ml-3 transition-all">→</span>
             </div>
           </button>
