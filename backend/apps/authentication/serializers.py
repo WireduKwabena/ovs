@@ -299,6 +299,79 @@ class RegisterResponseSerializer(serializers.Serializer):
     message = serializers.CharField()
 
 
+class OrganizationAdminRegistrationSerializer(serializers.Serializer):
+    """
+    Public bootstrap registration for a brand-new organization administrator.
+
+    Existing member onboarding stays token-gated through ``/auth/register/``.
+    """
+
+    ORGANIZATION_TYPE_CHOICES = (
+        ("ministry", "Ministry"),
+        ("agency", "Agency"),
+        ("committee_secretariat", "Committee Secretariat"),
+        ("executive_office", "Executive Office"),
+        ("audit", "Audit Institution"),
+        ("other", "Other"),
+    )
+
+    email = serializers.EmailField(required=True)
+    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
+    password_confirm = serializers.CharField(write_only=True, required=True)
+    first_name = serializers.CharField(required=True, max_length=150)
+    last_name = serializers.CharField(required=True, max_length=150)
+    phone_number = serializers.CharField(required=False, allow_blank=True, max_length=20)
+    department = serializers.CharField(required=False, allow_blank=True, max_length=100)
+
+    organization_name = serializers.CharField(required=True, max_length=200)
+    organization_code = serializers.SlugField(required=False, allow_blank=True, max_length=80)
+    organization_type = serializers.ChoiceField(
+        required=False,
+        choices=ORGANIZATION_TYPE_CHOICES,
+        default="agency",
+    )
+
+    def validate_email(self, value):
+        normalized = str(value or "").strip().lower()
+        if User.objects.filter(email__iexact=normalized).exists():
+            raise serializers.ValidationError("A user with that email already exists.")
+        return normalized
+
+    def validate_organization_name(self, value):
+        normalized = str(value or "").strip()
+        if not normalized:
+            raise serializers.ValidationError("Organization name is required.")
+        return normalized
+
+    def validate(self, attrs):
+        if attrs.get("password") != attrs.get("password_confirm"):
+            raise serializers.ValidationError({"password": "Password fields didn't match."})
+        return attrs
+
+
+class OrganizationAdminRegistrationOrganizationSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    code = serializers.CharField()
+    name = serializers.CharField()
+    organization_type = serializers.CharField()
+
+
+class OrganizationAdminRegistrationMembershipSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    membership_role = serializers.CharField()
+    is_active = serializers.BooleanField()
+    is_default = serializers.BooleanField()
+    joined_at = serializers.DateTimeField(allow_null=True)
+
+
+class OrganizationAdminRegistrationResponseSerializer(serializers.Serializer):
+    message = serializers.CharField()
+    user_type = serializers.ChoiceField(choices=USER_TYPE_CHOICES)
+    user = UserSerializer()
+    organization = OrganizationAdminRegistrationOrganizationSerializer()
+    membership = OrganizationAdminRegistrationMembershipSerializer()
+
+
 class TwoFactorChallengeSerializer(serializers.Serializer):
     message = serializers.CharField()
     token = serializers.CharField()

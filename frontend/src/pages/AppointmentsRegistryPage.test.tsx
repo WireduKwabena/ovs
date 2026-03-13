@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 
 import AppointmentsRegistryPage from "./AppointmentsRegistryPage";
 
@@ -13,8 +14,13 @@ const authHookState = vi.hoisted(() => ({
   canFinalizeAppointment: false,
   canPublishAppointment: false,
   canViewAppointmentStageActions: false,
-  activeOrganization: { id: "org-1", code: "ORG1", name: "Org One", organization_type: "agency" },
-  activeOrganizationId: "org-1",
+  activeOrganization: {
+    id: "org-1",
+    code: "ORG1",
+    name: "Org One",
+    organization_type: "agency",
+  } as { id: string; code: string; name: string; organization_type: string } | null,
+  activeOrganizationId: "org-1" as string | null,
   hasCommitteeMembership: vi.fn(),
 }));
 
@@ -187,19 +193,32 @@ describe("AppointmentsRegistryPage org + committee visibility", () => {
     cleanup();
     vi.clearAllMocks();
     authHookState.hasCommitteeMembership.mockReturnValue(false);
+    authHookState.canManageRegistry = false;
+    authHookState.canManageRegistryInActiveOrganization = false;
+    authHookState.activeOrganization = {
+      id: "org-1",
+      code: "ORG1",
+      name: "Org One",
+      organization_type: "agency",
+    };
+    authHookState.activeOrganizationId = "org-1";
   });
 
   it("hides lifecycle transition controls for committee-bound records when actor lacks committee membership", async () => {
     configureBaseServiceResponses();
     authHookState.hasCommitteeMembership.mockReturnValue(false);
 
-    render(<AppointmentsRegistryPage />);
+    render(
+      <MemoryRouter>
+        <AppointmentsRegistryPage />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(serviceMocks.listAppointments).toHaveBeenCalledTimes(1);
     });
 
-    expect(await screen.findByText("Appointment Registry")).toBeTruthy();
+    expect(await screen.findByText("Office Appointment Workflow")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /apply transition/i })).toBeNull();
     expect(screen.getByText(/restricted to authorized stage actors/i)).toBeTruthy();
   });
@@ -208,13 +227,17 @@ describe("AppointmentsRegistryPage org + committee visibility", () => {
     configureBaseServiceResponses();
     authHookState.hasCommitteeMembership.mockReturnValue(true);
 
-    render(<AppointmentsRegistryPage />);
+    render(
+      <MemoryRouter>
+        <AppointmentsRegistryPage />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(serviceMocks.listAppointments).toHaveBeenCalledTimes(1);
     });
 
-    expect(await screen.findByText("Appointment Registry")).toBeTruthy();
+    expect(await screen.findByText("Office Appointment Workflow")).toBeTruthy();
     expect(screen.getByRole("button", { name: /apply transition/i })).toBeTruthy();
   });
 
@@ -224,14 +247,63 @@ describe("AppointmentsRegistryPage org + committee visibility", () => {
     authHookState.canManageRegistryInActiveOrganization = false;
     authHookState.hasCommitteeMembership.mockReturnValue(false);
 
-    render(<AppointmentsRegistryPage />);
+    render(
+      <MemoryRouter>
+        <AppointmentsRegistryPage />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(serviceMocks.listAppointments).toHaveBeenCalledTimes(1);
     });
 
     expect(screen.queryByText(/Initialize Approval Chain/i)).toBeNull();
-    expect(await screen.findByText(/Only registry operators can create nomination records./i)).toBeTruthy();
+    expect(screen.queryByText(/Create Nomination Record/i)).toBeNull();
+    expect(
+      await screen.findByText(/Nomination creation and approval-chain setup are restricted to registry administrators./i),
+    ).toBeTruthy();
+    expect(serviceMocks.listPositions).not.toHaveBeenCalled();
+    expect(serviceMocks.listPersonnel).not.toHaveBeenCalled();
+  });
+
+  it("does not query registry-only datasets when registry capability exists but active organization scope is missing", async () => {
+    configureBaseServiceResponses();
+    authHookState.canManageRegistry = true;
+    authHookState.canManageRegistryInActiveOrganization = false;
+    authHookState.activeOrganization = null;
+    authHookState.activeOrganizationId = null;
+
+    render(
+      <MemoryRouter>
+        <AppointmentsRegistryPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(serviceMocks.listAppointments).toHaveBeenCalledTimes(1);
+    });
+
+    expect(serviceMocks.listPositions).not.toHaveBeenCalled();
+    expect(serviceMocks.listPersonnel).not.toHaveBeenCalled();
+  });
+
+  it("renders committee-focused heading when opened in committee view mode", async () => {
+    configureBaseServiceResponses();
+    authHookState.canManageRegistry = false;
+    authHookState.canManageRegistryInActiveOrganization = false;
+
+    render(
+      <MemoryRouter initialEntries={["/government/appointments?view=committee"]}>
+        <AppointmentsRegistryPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(serviceMocks.listAppointments).toHaveBeenCalledTimes(1);
+    });
+
+    expect(await screen.findByText("Committee Review Queue")).toBeTruthy();
+    expect(screen.queryByText(/Create Nomination Record/i)).toBeNull();
   });
 });
 

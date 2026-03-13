@@ -113,7 +113,7 @@ export const HomePage: React.FC = () => {
 
   const handleGetStarted = () => {
     if (!isAuthenticated) {
-      navigate("/login");
+      navigate("/organization/get-started?next=%2Fsubscribe");
       return;
     }
 
@@ -132,7 +132,7 @@ export const HomePage: React.FC = () => {
       return;
     }
 
-    navigate("/dashboard");
+    navigate("/workspace");
   };
 
   return (
@@ -197,7 +197,8 @@ export const HomePage: React.FC = () => {
               </button>
             </div>
             <p className="mt-4 text-xs text-slate-700">
-              Candidate onboarding is invitation-based. Organization users start with org setup, then subscription and onboarding.
+              Candidate onboarding is invitation-based. New organizations can create an organization administrator account, then continue
+              with subscription and onboarding setup.
             </p>
           </div>
 

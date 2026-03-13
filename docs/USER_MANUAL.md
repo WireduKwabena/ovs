@@ -1,7 +1,7 @@
 # CAVP User Manual
 
-Version: 2.0  
-Last Updated: March 7, 2026
+Version: 2.1  
+Last Updated: March 12, 2026
 
 ## Start Here
 
@@ -13,9 +13,13 @@ If you want a practical, click-by-click guide, use:
 This manual is organized for day-to-day work by role:
 
 - Applicant tasks (invitation, document upload, interview, results)
-- Operations tasks (campaigns, rubrics, case review, checks, calls)
-- Government appointment tasks (positions, personnel, nomination, approval stages, publication)
+- Operations tasks (appointment exercises, rubrics, vetting dossier review, checks, calls)
+- Government appointment tasks (offices, nominee records, nomination files, approval route stages, publication)
 - Admin oversight tasks (users, audit, monitoring)
+
+Core lifecycle framing used across the UI:
+
+- `Office -> Appointment Exercise -> Nominee / Nomination File -> Vetting Dossier -> Review -> Approval -> Appointment -> Publication`
 
 ## What This Guide Emphasizes
 

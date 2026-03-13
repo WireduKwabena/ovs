@@ -1,6 +1,6 @@
 // src/pages/ApplicationDetailPage.tsx
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ArrowLeft,
   Upload,
@@ -68,13 +68,13 @@ export const ApplicationDetailPage: React.FC = () => {
           <div className="bg-white rounded-lg shadow-sm p-12 text-center">
             <div className="text-6xl mb-4">❌</div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Application not found
+              Vetting dossier not found
             </h3>
             <button
               onClick={() => navigate("/applications")}
               className="mt-4 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
             >
-              Back to Applications
+              Back to Vetting Dossiers
             </button>
           </div>
         </div>
@@ -85,7 +85,7 @@ export const ApplicationDetailPage: React.FC = () => {
   const applicationLabel =
     currentCase.position_applied ||
     currentCase.application_type?.replace("_", " ") ||
-    "Vetting Case";
+    "Vetting Dossier";
   const resolveDocumentName = (doc: (typeof currentCase.documents)[number]) =>
     doc.original_filename || doc.file_name || doc.document_type_display || "Document";
   const resolveDocumentStatus = (doc: (typeof currentCase.documents)[number]) =>
@@ -102,7 +102,7 @@ export const ApplicationDetailPage: React.FC = () => {
           className="mb-6 flex items-center gap-2 text-slate-700 hover:text-slate-900"
         >
           <ArrowLeft className="w-5 h-5" />
-          Back to Applications
+          Back to Vetting Dossiers
         </button>
 
         <div className="flex justify-between items-start mb-8">
@@ -111,6 +111,32 @@ export const ApplicationDetailPage: React.FC = () => {
               {currentCase.case_id}
             </h1>
             <p className="text-slate-700 capitalize">{applicationLabel}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              {currentCase.office_title || currentCase.position_applied ? (
+                <span className="inline-flex rounded bg-slate-100 px-2 py-1 font-semibold text-slate-700">
+                  Office: {currentCase.office_title || currentCase.position_applied}
+                </span>
+              ) : null}
+              {currentCase.appointment_exercise_name ? (
+                <span className="inline-flex rounded bg-cyan-100 px-2 py-1 font-semibold text-cyan-800">
+                  Exercise: {currentCase.appointment_exercise_name}
+                </span>
+              ) : null}
+              {currentCase.appointment_exercise_id ? (
+                <Link
+                  to={`/campaigns/${currentCase.appointment_exercise_id}`}
+                  className="inline-flex rounded bg-indigo-100 px-2 py-1 font-semibold text-indigo-800 hover:bg-indigo-200"
+                >
+                  Open Exercise Workspace
+                </Link>
+              ) : null}
+              <Link
+                to={`/government/appointments?dossier=${currentCase.id}`}
+                className="inline-flex rounded bg-cyan-100 px-2 py-1 font-semibold text-cyan-800 hover:bg-cyan-200"
+              >
+                Open Linked Nomination Files
+              </Link>
+            </div>
           </div>
           <StatusBadge status={currentCase.status} />
         </div>
@@ -118,11 +144,11 @@ export const ApplicationDetailPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Application Details */}
+            {/* Vetting Dossier Details */}
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h2 className="mb-4 inline-flex items-center gap-1.5 text-xl font-semibold">
-                Application Details
-                <HelpTooltip text="Overview of core case metadata used in vetting and review decisions." />
+                Vetting Dossier Details
+                <HelpTooltip text="Overview of core dossier metadata used in vetting and review decisions." />
               </h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -163,7 +189,7 @@ export const ApplicationDetailPage: React.FC = () => {
               <div className="flex justify-between items-center mb-4">
                 <h2 className="inline-flex items-center gap-1.5 text-xl font-semibold">
                   Documents
-                  <HelpTooltip text="Uploaded files, verification status, and AI confidence metrics for this case." />
+                  <HelpTooltip text="Uploaded files, verification status, and AI confidence metrics for this dossier." />
                 </h2>
                 <button
                   onClick={() => {
@@ -204,7 +230,7 @@ export const ApplicationDetailPage: React.FC = () => {
                     <FieldLabel
                       htmlFor="detail-upload-file"
                       label="Select file"
-                      help="Choose a PDF or image document to attach to this application."
+                      help="Choose a PDF or image document to attach to this vetting dossier."
                       className="mb-1 flex items-center gap-1.5"
                       textClassName="block text-sm text-slate-700"
                     />
@@ -354,7 +380,7 @@ export const ApplicationDetailPage: React.FC = () => {
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h3 className="mb-4 inline-flex items-center gap-1.5 font-semibold">
                 Status Timeline
-                <HelpTooltip text="Chronological progression of the application through submission, review, and outcome." />
+                <HelpTooltip text="Chronological progression of the vetting dossier through submission, review, and outcome." />
               </h3>
               <div className="space-y-4">
                 <div className="flex gap-3">
@@ -414,7 +440,7 @@ export const ApplicationDetailPage: React.FC = () => {
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h3 className="mb-4 inline-flex items-center gap-1.5 font-semibold">
                 Quick Actions
-                <HelpTooltip text="Operational shortcuts for this application. Some actions may depend on your role permissions." />
+                <HelpTooltip text="Operational shortcuts for this vetting dossier. Some actions may depend on your role permissions." />
               </h3>
               <div className="space-y-2">
                 <button className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 rounded-lg transition-colors">
@@ -424,7 +450,7 @@ export const ApplicationDetailPage: React.FC = () => {
                   Request Status Update
                 </button>
                 <button className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                  Cancel Application
+                  Cancel Dossier
                 </button>
               </div>
             </div>

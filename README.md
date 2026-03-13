@@ -58,6 +58,27 @@ Key design rule:
 
 ## Implemented Government Workflow
 
+### Office-Centered Journey
+
+The user-facing workflow is intentionally office-centric:
+
+- `Office -> Appointment Exercise -> Nominee / Nomination File -> Vetting Dossier -> Review -> Approval -> Appointment -> Publication`
+
+### Transitional Concept Mapping (Phase 1 UI Reframing)
+
+Phase 1 keeps backend schema and API contracts stable while using clearer UI language:
+
+| Internal model/contract | UI label (Phase 1) |
+| --- | --- |
+| `GovernmentPosition` | Government Office |
+| `VettingCampaign` | Appointment Exercise |
+| `ApprovalStageTemplate` | Appointment Route Template |
+| `AppointmentRecord` | Nomination / Appointment File |
+| `VettingCase` | Vetting Dossier |
+| `AppointmentPublication` | Gazette / Publication Record |
+
+These are label aliases only. API paths and payload keys remain backward-compatible in this phase.
+
 ### Appointment States
 
 `AppointmentRecord.status` values:

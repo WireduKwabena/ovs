@@ -30,7 +30,11 @@ class CampaignRubricVersionSerializer(serializers.ModelSerializer):
 class VettingCampaignSerializer(serializers.ModelSerializer):
     initiated_by_email = serializers.CharField(source="initiated_by.email", read_only=True)
     organization_name = serializers.CharField(source="organization.name", read_only=True)
+    appointment_exercise_name = serializers.CharField(source="name", read_only=True)
+    appointment_exercise_status = serializers.CharField(source="status", read_only=True)
     position_ids = serializers.PrimaryKeyRelatedField(source="positions", many=True, read_only=True)
+    office_ids = serializers.PrimaryKeyRelatedField(source="positions", many=True, read_only=True)
+    appointment_route_template_id = serializers.UUIDField(source="approval_template_id", read_only=True, allow_null=True)
     required_document_types = serializers.ListField(
         child=serializers.ChoiceField(choices=[choice[0] for choice in Document.DOCUMENT_TYPE_CHOICES]),
         required=False,
@@ -111,8 +115,10 @@ class VettingCampaignSerializer(serializers.ModelSerializer):
             "organization",
             "organization_name",
             "name",
+            "appointment_exercise_name",
             "description",
             "status",
+            "appointment_exercise_status",
             "starts_at",
             "ends_at",
             "settings_json",
@@ -120,7 +126,9 @@ class VettingCampaignSerializer(serializers.ModelSerializer):
             "jurisdiction",
             "positions",
             "position_ids",
+            "office_ids",
             "approval_template",
+            "appointment_route_template_id",
             "appointment_authority",
             "requires_parliamentary_confirmation",
             "gazette_reference",

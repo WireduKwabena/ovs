@@ -306,11 +306,17 @@ export type Priority = 'low' | 'medium' | 'high' | 'urgent';
 export interface VettingCase {
   id: string;
   case_id: string;
+  vetting_dossier_id?: string;
   applicant: User | string;
   applicant_email?: string;
   position_applied?: string;
+  office_title?: string;
+  appointment_exercise_id?: string;
+  appointment_exercise_name?: string;
   department?: string;
   status: ApplicationStatus;
+  vetting_dossier_status?: ApplicationStatus;
+  vetting_dossier_status_display?: string;
   application_type?: ApplicationType;
   priority: Priority;
   consistency_score?: number;
@@ -806,8 +812,10 @@ export interface VettingCampaign {
   organization?: string | null;
   organization_name?: string;
   name: string;
+  appointment_exercise_name?: string;
   description: string;
   status: CampaignStatus;
+  appointment_exercise_status?: CampaignStatus;
   starts_at: string | null;
   ends_at: string | null;
   settings_json: Record<string, unknown>;
@@ -815,7 +823,9 @@ export interface VettingCampaign {
   jurisdiction?: GovernmentBranch | "";
   positions?: string[];
   position_ids?: string[];
+  office_ids?: string[];
   approval_template?: string | null;
+  appointment_route_template_id?: string | null;
   appointment_authority?: string;
   requires_parliamentary_confirmation?: boolean;
   gazette_reference?: string;
@@ -1645,20 +1655,27 @@ export interface PublicTransparencyOfficeholder {
 
 export interface AppointmentRecord {
   id: string;
+  nomination_file_id?: string;
   organization?: string | null;
   organization_name?: string;
   committee?: string | null;
   committee_name?: string;
   position: string;
+  office_id?: string;
   position_title?: string;
+  office_name?: string;
   nominee: string;
   nominee_name?: string;
   appointment_exercise: string | null;
+  appointment_exercise_id?: string | null;
+  appointment_exercise_name?: string;
+  appointment_route_template_id?: string | null;
   nominated_by_user: string | null;
   nominated_by_display: string;
   nominated_by_org: string;
   nomination_date: string;
   vetting_case: string | null;
+  vetting_dossier_id?: string | null;
   vetting_decision?: {
     id: string;
     recommendation_status: string;
@@ -1669,6 +1686,7 @@ export interface AppointmentRecord {
     updated_at: string;
   } | null;
   status: AppointmentStatus;
+  nomination_file_status?: AppointmentStatus;
   committee_recommendation: string;
   final_decision_by_user: string | null;
   final_decision_by_display: string;

@@ -94,7 +94,7 @@ export const TwoFactorPage: React.FC = () => {
 
       toast.success("2FA verification successful.");
 
-      const defaultPath = response.user_type === "admin" ? "/admin/dashboard" : "/dashboard";
+      const defaultPath = response.user_type === "admin" ? "/admin/dashboard" : "/workspace";
       const redirectPath = requestedPath && requestedPath !== "/" ? requestedPath : defaultPath;
 
       if (response.backup_codes?.length) {
@@ -192,7 +192,7 @@ export const TwoFactorPage: React.FC = () => {
                 disabled={!backupCodesAcknowledged}
                 className="bg-cyan-700 text-white hover:bg-cyan-800 disabled:opacity-50"
                 onClick={() => {
-                  navigate(redirectAfterBackupCodes || "/dashboard", { replace: true });
+                  navigate(redirectAfterBackupCodes || "/workspace", { replace: true });
                 }}
               >
                 I saved them, continue

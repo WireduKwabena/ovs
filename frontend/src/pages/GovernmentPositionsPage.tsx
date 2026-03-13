@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Building2, Plus, RefreshCw, ShieldCheck } from "lucide-react";
 import { toast } from "react-toastify";
+import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,9 @@ const branchOptions: Array<{ value: BranchOption; label: string }> = [
 ];
 const SELECT_FIELD_CLASS =
   "h-10 w-full rounded-md border border-border bg-input px-3 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-60";
+
+const encodeOfficeTitleFilter = (title: string): string =>
+  encodeURIComponent(title.trim().toLowerCase());
 
 const GovernmentPositionsPage: React.FC = () => {
   const { activeOrganization, activeOrganizationId, isAdmin, canManageRegistry } = useAuth();
@@ -54,7 +58,7 @@ const GovernmentPositionsPage: React.FC = () => {
       try {
         await loadPositions();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to load government positions.");
+        toast.error(error instanceof Error ? error.message : "Failed to load government offices.");
       } finally {
         setLoading(false);
       }
@@ -66,7 +70,7 @@ const GovernmentPositionsPage: React.FC = () => {
     setRefreshing(true);
     try {
       await loadPositions();
-      toast.success("Government positions refreshed.");
+      toast.success("Government offices refreshed.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Refresh failed.");
     } finally {
@@ -77,7 +81,7 @@ const GovernmentPositionsPage: React.FC = () => {
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canManagePositionRegistry) {
-      toast.error("Registry authority with active organization context is required to register positions.");
+      toast.error("Registry authority with active organization context is required to register offices.");
       return;
     }
     if (!form.title.trim() || !form.institution.trim() || !form.appointment_authority.trim()) {
@@ -95,7 +99,7 @@ const GovernmentPositionsPage: React.FC = () => {
         constitutional_basis: form.constitutional_basis.trim(),
         required_qualifications: form.required_qualifications.trim(),
       });
-      toast.success("Government position created.");
+      toast.success("Government office created.");
       setForm((previous) => ({
         ...previous,
         title: "",
@@ -106,7 +110,7 @@ const GovernmentPositionsPage: React.FC = () => {
       }));
       await loadPositions();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to create position.");
+      toast.error(error instanceof Error ? error.message : "Failed to create office.");
     } finally {
       setCreating(false);
     }
@@ -136,9 +140,9 @@ const GovernmentPositionsPage: React.FC = () => {
       <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900">Government Positions</h1>
+            <h1 className="text-3xl font-black tracking-tight text-slate-900">Government Offices</h1>
             <p className="mt-1 text-sm text-slate-700">
-              Manage official positions that feed nomination, vetting, and appointment workflows.
+              Start the office-centered lifecycle here: define offices and vacancies before opening appointment exercises.
             </p>
             <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-700">
               Active organization scope: {activeOrganization?.name || "Default"}
@@ -153,32 +157,61 @@ const GovernmentPositionsPage: React.FC = () => {
 
       {!isAdmin && !activeOrganizationId ? (
         <section className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-          Select an active organization to view organization-scoped position records.
+          Select an active organization to view organization-scoped office records.
         </section>
       ) : null}
 
+      <section className="rounded-xl border border-cyan-200 bg-cyan-50 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-cyan-900">
+          Office-Centered Workflow
+        </p>
+        <p className="mt-2 text-sm text-cyan-900">
+          Start from office vacancy, then open an appointment exercise, add nomination files, and follow review through publication.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link
+            to="/campaigns"
+            className="inline-flex rounded-md border border-cyan-300 bg-white px-3 py-1.5 text-xs font-semibold text-cyan-900 hover:bg-cyan-100"
+          >
+            Open Appointment Exercises
+          </Link>
+          <Link
+            to="/government/appointments"
+            className="inline-flex rounded-md border border-cyan-300 bg-white px-3 py-1.5 text-xs font-semibold text-cyan-900 hover:bg-cyan-100"
+          >
+            Open Nomination Files
+          </Link>
+          <Link
+            to="/applications"
+            className="inline-flex rounded-md border border-cyan-300 bg-white px-3 py-1.5 text-xs font-semibold text-cyan-900 hover:bg-cyan-100"
+          >
+            Open Vetting Dossiers
+          </Link>
+        </div>
+      </section>
+
       <section className="grid gap-4 md:grid-cols-3">
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-700">Total Positions</p>
+          <p className="text-sm text-slate-700">Total Offices</p>
           <p className="mt-2 text-3xl font-black text-slate-900">{stats.total}</p>
         </article>
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-700">Vacant Positions</p>
+          <p className="text-sm text-slate-700">Vacant Offices</p>
           <p className="mt-2 text-3xl font-black text-indigo-700">{stats.vacant}</p>
         </article>
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-700">Public Positions</p>
+          <p className="text-sm text-slate-700">Public Offices</p>
           <p className="mt-2 text-3xl font-black text-emerald-700">{stats.publicCount}</p>
         </article>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-slate-900">Register Position</h2>
+        <h2 className="text-lg font-bold text-slate-900">Register Office</h2>
         {!canManagePositionRegistry ? (
           <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
             {!canManageRegistry
-              ? "Only registry operators can create or edit positions."
-              : "Select an active organization before creating position records."}
+              ? "Only registry operators can create or edit offices."
+              : "Select an active organization before creating office records."}
           </div>
         ) : null}
         <form onSubmit={handleCreate} className="mt-4 grid gap-3 md:grid-cols-2">
@@ -266,7 +299,7 @@ const GovernmentPositionsPage: React.FC = () => {
           <div className="md:col-span-2 flex justify-end">
             <Button type="submit" disabled={creating || !canManagePositionRegistry}>
               <Plus className="mr-2 h-4 w-4" />
-              {creating ? "Saving..." : "Create Position"}
+              {creating ? "Saving..." : "Create Office"}
             </Button>
           </div>
           </fieldset>
@@ -275,7 +308,7 @@ const GovernmentPositionsPage: React.FC = () => {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-bold text-slate-900">Position Registry</h2>
+          <h2 className="text-lg font-bold text-slate-900">Office Registry</h2>
           <Input
             className="w-full md:w-72"
             value={search}
@@ -285,10 +318,10 @@ const GovernmentPositionsPage: React.FC = () => {
         </div>
 
         {loading ? (
-          <p className="mt-4 text-sm text-slate-700">Loading positions...</p>
+          <p className="mt-4 text-sm text-slate-700">Loading offices...</p>
         ) : scopedRows.length === 0 ? (
           <div className="mt-4 rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-700">
-            No government positions found.
+            No government offices found.
           </div>
         ) : (
           <div className="mt-4 overflow-x-auto">
@@ -300,6 +333,7 @@ const GovernmentPositionsPage: React.FC = () => {
                   <th className="px-3 py-2">Branch</th>
                   <th className="px-3 py-2">Authority</th>
                   <th className="px-3 py-2">Flags</th>
+                  <th className="px-3 py-2">Next Step</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -339,6 +373,28 @@ const GovernmentPositionsPage: React.FC = () => {
                             Confirm
                           </span>
                         ) : null}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex flex-wrap gap-1.5">
+                        <Link
+                          to={`/campaigns?office=${position.id}`}
+                          className="inline-flex rounded bg-indigo-100 px-2 py-1 text-xs font-semibold text-indigo-800 hover:bg-indigo-200"
+                        >
+                          Exercises
+                        </Link>
+                        <Link
+                          to={`/government/appointments?office=${position.id}`}
+                          className="inline-flex rounded bg-cyan-100 px-2 py-1 text-xs font-semibold text-cyan-800 hover:bg-cyan-200"
+                        >
+                          Nominations
+                        </Link>
+                        <Link
+                          to={`/applications?office=${encodeOfficeTitleFilter(position.title)}`}
+                          className="inline-flex rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200"
+                        >
+                          Dossiers
+                        </Link>
                       </div>
                     </td>
                   </tr>

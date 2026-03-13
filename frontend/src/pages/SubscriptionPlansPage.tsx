@@ -287,6 +287,7 @@ export const SubscriptionPlansPage: React.FC = () => {
     Boolean(activeOrganizationId) &&
     canManageActiveOrganizationGovernance;
   const organizationSetupPath = "/organization/setup";
+  const organizationBootstrapPath = "/organization/get-started";
   const onboardingManagementPath = "/organization/onboarding";
   const returnToPath = isInternalBillingUser
     ? onboardingManagementPath
@@ -338,8 +339,8 @@ export const SubscriptionPlansPage: React.FC = () => {
     if (isProcessing) return;
     if (!canStartOrganizationCheckout) {
       if (!isAuthenticated) {
-        toast.error("Sign in with your organization account before starting subscription checkout.");
-        navigate("/login");
+        toast.error("Create your organization account first, then sign in to continue checkout.");
+        navigate(`${organizationBootstrapPath}?next=${encodeURIComponent("/subscribe")}`);
         return;
       }
       if (userType === "applicant") {
@@ -489,7 +490,7 @@ export const SubscriptionPlansPage: React.FC = () => {
           <section className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
             <p className="text-sm text-amber-900">
               {!isAuthenticated
-                ? "Sign in before checkout so the subscription can be attached to your organization."
+                ? "Create your organization account first, then sign in to start organization-scoped checkout."
                 : userType === "applicant"
                 ? "Applicant accounts cannot purchase or manage organization subscriptions."
                 : isMissingOrganizationContext
@@ -498,7 +499,18 @@ export const SubscriptionPlansPage: React.FC = () => {
                 ? "Organization subscription checkout is restricted to organization admins or platform admins."
                 : "Checkout is currently unavailable for this account context."}
             </p>
-            {isMissingOrganizationContext ? (
+            {!isAuthenticated ? (
+              <div className="mt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate(`${organizationBootstrapPath}?next=${encodeURIComponent("/subscribe")}`)}
+                >
+                  Start Organization Setup
+                </Button>
+              </div>
+            ) : null}
+            {isAuthenticated && isMissingOrganizationContext ? (
               <div className="mt-3">
                 <Button
                   type="button"

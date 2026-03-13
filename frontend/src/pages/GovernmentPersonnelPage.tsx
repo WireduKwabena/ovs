@@ -43,7 +43,7 @@ const GovernmentPersonnelPage: React.FC = () => {
       try {
         await loadPersonnel();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to load personnel records.");
+        toast.error(error instanceof Error ? error.message : "Failed to load nominee records.");
       } finally {
         setLoading(false);
       }
@@ -55,7 +55,7 @@ const GovernmentPersonnelPage: React.FC = () => {
     setRefreshing(true);
     try {
       await loadPersonnel();
-      toast.success("Personnel registry refreshed.");
+      toast.success("Nominee registry refreshed.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Refresh failed.");
     } finally {
@@ -66,7 +66,7 @@ const GovernmentPersonnelPage: React.FC = () => {
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canManagePersonnelRegistry) {
-      toast.error("Registry authority with active organization context is required to register personnel.");
+      toast.error("Registry authority with active organization context is required to register nominee records.");
       return;
     }
     if (!form.full_name.trim()) {
@@ -85,7 +85,7 @@ const GovernmentPersonnelPage: React.FC = () => {
         is_active_officeholder: form.is_active_officeholder,
         is_public: form.is_public,
       });
-      toast.success("Personnel record created.");
+      toast.success("Nominee record created.");
       setForm((previous) => ({
         ...previous,
         full_name: "",
@@ -96,7 +96,7 @@ const GovernmentPersonnelPage: React.FC = () => {
       }));
       await loadPersonnel();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to create personnel record.");
+      toast.error(error instanceof Error ? error.message : "Failed to create nominee record.");
     } finally {
       setCreating(false);
     }
@@ -126,9 +126,9 @@ const GovernmentPersonnelPage: React.FC = () => {
       <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900">Government Personnel</h1>
+            <h1 className="text-3xl font-black tracking-tight text-slate-900">Nominee and Officeholder Registry</h1>
             <p className="mt-1 text-sm text-slate-700">
-              Manage nominee and officeholder records used in appointment lifecycle workflows.
+              Maintain people records linked to offices, nomination files, and appointment outcomes.
             </p>
             <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-700">
               Active organization scope: {activeOrganization?.name || "Default"}
@@ -143,13 +143,13 @@ const GovernmentPersonnelPage: React.FC = () => {
 
       {!isAdmin && !activeOrganizationId ? (
         <section className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-          Select an active organization to view organization-scoped personnel records.
+          Select an active organization to view organization-scoped nominee and officeholder records.
         </section>
       ) : null}
 
       <section className="grid gap-4 md:grid-cols-3">
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-700">Total Personnel</p>
+          <p className="text-sm text-slate-700">Total People Records</p>
           <p className="mt-2 text-3xl font-black text-slate-900">{stats.total}</p>
         </article>
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -163,12 +163,12 @@ const GovernmentPersonnelPage: React.FC = () => {
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-slate-900">Register Personnel Record</h2>
+        <h2 className="text-lg font-bold text-slate-900">Register Nominee / Officeholder Record</h2>
         {!canManagePersonnelRegistry ? (
           <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
             {!canManageRegistry
-              ? "Only registry operators can create or edit personnel records."
-              : "Select an active organization before creating personnel records."}
+              ? "Only registry operators can create or edit nominee and officeholder records."
+              : "Select an active organization before creating nominee and officeholder records."}
           </div>
         ) : null}
         <form onSubmit={handleCreate} className="mt-4 grid gap-3 md:grid-cols-2">
@@ -242,7 +242,7 @@ const GovernmentPersonnelPage: React.FC = () => {
           <div className="md:col-span-2 flex justify-end">
             <Button type="submit" disabled={creating || !canManagePersonnelRegistry}>
               <Plus className="mr-2 h-4 w-4" />
-              {creating ? "Saving..." : "Create Personnel"}
+              {creating ? "Saving..." : "Create Record"}
             </Button>
           </div>
           </fieldset>
@@ -251,7 +251,7 @@ const GovernmentPersonnelPage: React.FC = () => {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-bold text-slate-900">Personnel Registry</h2>
+          <h2 className="text-lg font-bold text-slate-900">Nominee Registry</h2>
           <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
             <Input
               className="w-full md:w-72"
@@ -271,10 +271,10 @@ const GovernmentPersonnelPage: React.FC = () => {
         </div>
 
         {loading ? (
-          <p className="mt-4 text-sm text-slate-700">Loading personnel...</p>
+          <p className="mt-4 text-sm text-slate-700">Loading nominee records...</p>
         ) : scopedRows.length === 0 ? (
           <div className="mt-4 rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-700">
-            No personnel records found.
+            No nominee records found.
           </div>
         ) : (
           <div className="mt-4 overflow-x-auto">

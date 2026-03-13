@@ -306,15 +306,6 @@ export const Navbar: React.FC = () => {
 
   const displayName = getUserDisplayName(user, 'User');
 
-  const roleLabel = hasAdminAccess
-    ? "Admin"
-    : isApplicantUser
-      ? "Candidate Access"
-      : canManageActiveOrganizationGovernance
-        ? "Organization Admin"
-        : canAccessInternalRoutes
-          ? "Operations User"
-          : "User";
   const canManageTwoFactor = !isApplicantUser;
   const canViewReminderRuntime = hasAdminAccess;
   const reminderStatusMeta: Record<ReminderRuntimeStatus, { dotClass: string; label: string }> = {
@@ -461,63 +452,106 @@ export const Navbar: React.FC = () => {
     return Array.from(ordered.values());
   };
 
+  const internalHomePath = canManageActiveOrganizationGovernance
+    ? activeOrganizationId
+      ? "/organization/dashboard"
+      : "/organization/setup"
+    : "/workspace";
+
+  const getInternalLandingLabel = (path: string): string => {
+    switch (path) {
+      case "/organization/dashboard":
+        return "Dashboard";
+      case "/organization/setup":
+        return "Organization Setup";
+      case "/workspace":
+        return "Workspace";
+      case "/government/appointments":
+        return "Appointment Workflow";
+      case "/campaigns":
+        return "Appointment Exercises";
+      case "/applications":
+        return "Vetting Dossiers";
+      case "/video-calls":
+        return "Video Calls";
+      case "/government/positions":
+        return "Offices";
+      case "/audit-logs":
+        return "Audit";
+      case "/dashboard":
+        return "Workspace";
+      default:
+        return "Workspace";
+    }
+  };
+
+  const filterOverflowLinks = (primaryItems: NavItem[], overflowItems: NavItem[]): NavItem[] => {
+    const primaryRouteSet = new Set(primaryItems.map((item) => item.to));
+    return overflowItems.filter((item) => !primaryRouteSet.has(item.to));
+  };
+
   const candidateLinks: NavItem[] = [{ to: '/candidate/access', label: 'Candidate Access' }];
-  const internalPrimaryLinks: NavItem[] = [
-    { to: '/dashboard', label: 'Dashboard' },
-    ...(canAccessCampaigns ? [{ to: '/campaigns', label: 'Campaigns' }] : []),
-    ...(canAccessApplications ? [{ to: '/applications', label: 'Cases' }] : []),
+  const internalPrimaryLinks: NavItem[] = dedupeNavItems([
+    { to: internalHomePath, label: getInternalLandingLabel(internalHomePath) },
+    ...(canAccessRegistry ? [{ to: '/government/positions', label: 'Offices' }] : []),
+    ...(canAccessCampaigns ? [{ to: '/campaigns', label: 'Appointment Exercises' }] : []),
+    ...(canAccessAppointments ? [{ to: '/government/appointments', label: 'Appointment Workflow' }] : []),
+    ...(canAccessApplications ? [{ to: '/applications', label: 'Vetting Dossiers' }] : []),
     ...(canAccessRubrics ? [{ to: '/rubrics', label: 'Rubrics' }] : []),
     ...(canAccessVideoCalls ? [{ to: '/video-calls', label: 'Video Calls' }] : []),
-  ];
-  const internalOverflowLinks: NavItem[] = [
+  ]);
+  const internalOverflowLinks: NavItem[] = dedupeNavItems(filterOverflowLinks(internalPrimaryLinks, [
     ...(canManageActiveOrganizationGovernance && !activeOrganizationId
-      ? [{ to: '/organization/setup', label: 'Org Setup' }]
+      ? [{ to: '/organization/setup', label: 'Organization Setup' }]
       : []),
     ...(canManageActiveOrganizationGovernance && activeOrganizationId
       ? [
-          { to: '/organization/dashboard', label: 'Org Workspace' },
-          { to: '/organization/members', label: 'Org Members' },
+          { to: '/organization/dashboard', label: 'Dashboard' },
+          { to: '/organization/members', label: 'Members' },
           { to: '/organization/committees', label: 'Committees' },
           { to: '/organization/onboarding', label: 'Onboarding' },
           ...(canManageOrganizationBilling ? [{ to: '/subscribe', label: 'Subscription' }] : []),
         ]
       : []),
-    ...(canAccessAppointments ? [{ to: '/government/appointments', label: 'Appointments' }] : []),
-    ...(canAccessRegistry ? [{ to: '/government/positions', label: 'Positions' }] : []),
-    ...(canAccessRegistry ? [{ to: '/government/personnel', label: 'Personnel' }] : []),
-    ...(canAccessInternalRoutes ? [{ to: '/fraud-insights', label: 'Fraud' }] : []),
+    ...(canAccessAppointments ? [{ to: '/government/appointments', label: 'Appointment Workflow' }] : []),
+    ...(canAccessRegistry ? [{ to: '/government/positions', label: 'Offices' }] : []),
+    ...(canAccessRegistry ? [{ to: '/government/personnel', label: 'Nominees' }] : []),
+    ...(canAccessInternalRoutes ? [{ to: '/fraud-insights', label: 'Risk Signals' }] : []),
     ...(canAccessInternalRoutes ? [{ to: '/background-checks', label: 'Checks' }] : []),
     ...(canAccessAudit ? [{ to: '/audit-logs', label: 'Audit' }] : []),
-  ];
+  ]));
   const adminPrimaryLinks: NavItem[] = [
     { to: '/admin/dashboard', label: 'Dashboard' },
-    { to: '/admin/cases', label: 'Cases' },
+    { to: '/government/positions', label: 'Offices' },
+    { to: '/campaigns', label: 'Appointment Exercises' },
+    { to: '/government/appointments', label: 'Appointment Workflow' },
     { to: '/admin/users', label: 'Users' },
-    { to: '/rubrics', label: 'Rubrics' },
   ];
-  const adminOverflowLinks: NavItem[] = [
-    ...(!activeOrganizationId ? [{ to: '/organization/setup', label: 'Org Setup' }] : []),
+  const adminOverflowLinks: NavItem[] = dedupeNavItems(filterOverflowLinks(adminPrimaryLinks, [
+    ...(!activeOrganizationId ? [{ to: '/organization/setup', label: 'Organization Setup' }] : []),
     ...(activeOrganizationId
       ? [
-          { to: '/organization/dashboard', label: 'Org Workspace' },
-          { to: '/organization/members', label: 'Org Members' },
+          { to: '/organization/dashboard', label: 'Dashboard' },
+          { to: '/organization/members', label: 'Members' },
           { to: '/organization/committees', label: 'Committees' },
           { to: '/organization/onboarding', label: 'Onboarding' },
         ]
       : []),
     ...(canManageOrganizationBilling ? [{ to: '/subscribe', label: 'Subscription' }] : []),
-    { to: '/government/appointments', label: 'Appointments' },
-    { to: '/government/positions', label: 'Positions' },
-    { to: '/government/personnel', label: 'Personnel' },
+    { to: '/government/appointments', label: 'Appointment Workflow' },
+    { to: '/government/positions', label: 'Offices' },
+    { to: '/government/personnel', label: 'Nominees' },
+    { to: '/applications', label: 'Vetting Dossiers' },
+    { to: '/admin/cases', label: 'Vetting Dossiers' },
     { to: '/video-calls', label: 'Video Calls' },
     { to: '/admin/control-center', label: 'Admin Control' },
-    { to: '/fraud-insights', label: 'Fraud' },
+    { to: '/fraud-insights', label: 'Risk Signals' },
     { to: '/background-checks', label: 'Checks' },
     { to: '/audit-logs', label: 'Audit' },
     { to: '/ml-monitoring', label: 'ML Ops' },
     { to: '/ai-monitor', label: 'AI Monitor' },
     { to: '/admin/analytics', label: 'Analytics' },
-  ];
+  ]));
 
   const navLinks = hasAdminAccess
     ? dedupeNavItems([...adminPrimaryLinks, ...adminOverflowLinks])
@@ -542,7 +576,7 @@ export const Navbar: React.FC = () => {
 
   const profile_picture_url = (user as User)?.profile_picture_url || "";
 
-  const homePath = hasAdminAccess ? "/admin/dashboard" : isApplicantUser ? "/candidate/access" : "/dashboard";
+  const homePath = hasAdminAccess ? "/admin/dashboard" : isApplicantUser ? "/candidate/access" : internalHomePath;
 
   return (
     <nav className="bg-slate-50 border-b border-slate-200 shadow-sm sticky top-0 z-50">
@@ -607,8 +641,7 @@ export const Navbar: React.FC = () => {
               </div>
             )}
             {canShowOrganizationContext ? (
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-slate-700">Org</span>
+              <div className="flex items-center">
                 {canSwitchOrganization ? (
                   <select
                     className="h-9 rounded-md border border-slate-300 bg-white px-2 text-xs font-medium text-slate-800"
@@ -674,13 +707,6 @@ export const Navbar: React.FC = () => {
                     {initial}
                   </div>
                 )}
-                <div className="ml-2 text-left">
-                  <p className="text-sm font-medium text-indigo-600">
-                    {displayName}
-                  </p>
-                  <p className="text-xs text-slate-700">{roleLabel}</p>
-                </div>
-                <ChevronDown className="w-4 h-4 text-slate-700" />
               </Button>
               {profileMenuOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-20 border">
@@ -788,16 +814,14 @@ export const Navbar: React.FC = () => {
                 <p className="text-base font-medium text-gray-900">
                   {displayName}
                 </p>
-                <p className="text-sm text-slate-700">{roleLabel}</p>
               </div>
             </div>
             <div className="space-y-3">
               {canShowOrganizationContext ? (
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Organization Context</p>
                   {canSwitchOrganization ? (
                     <select
-                      className="mt-2 h-10 w-full rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
+                      className="h-10 w-full rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
                       value={activeOrganizationId || "__default__"}
                       onChange={(event) => {
                         void handleOrganizationSelection(event.target.value);
@@ -813,7 +837,7 @@ export const Navbar: React.FC = () => {
                       ))}
                     </select>
                   ) : (
-                    <p className="mt-2 text-sm text-slate-800">{activeOrganizationLabel}</p>
+                    <p className="text-sm text-slate-800">{activeOrganizationLabel}</p>
                   )}
                 </div>
               ) : null}

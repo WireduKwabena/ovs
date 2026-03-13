@@ -51,12 +51,27 @@ class RubricsApiTests(APITestCase):
             is_staff=True,
             is_superuser=True,
         )
+        self.vetting_officer = User.objects.create_user(
+            email="vetting_rubrics_test@example.com",
+            password="Pass1234!",
+            first_name="Vetting",
+            last_name="Officer",
+            user_type="internal",
+            is_staff=True,
+        )
         OrganizationMembership.objects.create(
             user=self.hr,
             organization=self.org,
-            membership_role="vetting_officer",
+            membership_role="registry_admin",
             is_active=True,
             is_default=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.vetting_officer,
+            organization=self.org,
+            membership_role="vetting_officer",
+            is_active=True,
+            is_default=False,
         )
         self.case = VettingCase.objects.create(
             organization=self.org,
@@ -657,6 +672,36 @@ class RubricsApiTests(APITestCase):
         )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json()["name"], "Admin Access Rubric")
+
+    def test_vetting_officer_cannot_create_rubric(self):
+        self.client.force_authenticate(self.vetting_officer)
+        response = self.client.post(
+            "/api/rubrics/vetting-rubrics/",
+            self._rubric_payload("Vetting Officer Forbidden Rubric"),
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(self.org.id),
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_vetting_officer_cannot_manage_existing_rubric(self):
+        rubric_id = self._create_rubric("Registry Managed Rubric")
+        self.client.force_authenticate(self.vetting_officer)
+
+        activate_response = self.client.post(
+            f"/api/rubrics/vetting-rubrics/{rubric_id}/activate/",
+            {},
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(self.org.id),
+        )
+        self.assertEqual(activate_response.status_code, 403)
+
+        update_response = self.client.patch(
+            f"/api/rubrics/vetting-rubrics/{rubric_id}/",
+            {"description": "Updated by vetting officer"},
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(self.org.id),
+        )
+        self.assertEqual(update_response.status_code, 403)
 
     def test_applicant_cannot_access_rubrics_api(self):
         self.client.force_authenticate(self.applicant)

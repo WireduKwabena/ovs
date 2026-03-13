@@ -13,9 +13,9 @@ describe("authRouting", () => {
       expect(getDashboardPathForUser("admin")).toBe("/admin/dashboard");
     });
 
-    it("returns standard dashboard for internal non-admin roles", () => {
-      expect(getDashboardPathForUser("internal")).toBe("/dashboard");
-      expect(getDashboardPathForUser(null)).toBe("/dashboard");
+    it("returns shared workspace for internal non-admin roles", () => {
+      expect(getDashboardPathForUser("internal")).toBe("/workspace");
+      expect(getDashboardPathForUser(null)).toBe("/workspace");
     });
 
     it("returns candidate access path for applicant users", () => {
@@ -106,7 +106,7 @@ describe("authRouting", () => {
           twoFactorRequired: false,
           twoFactorToken: null,
         }),
-      ).toBe("/dashboard");
+      ).toBe("/workspace");
 
       expect(
         resolveUnauthenticatedRouteRedirect({

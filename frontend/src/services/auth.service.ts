@@ -34,6 +34,19 @@ export interface RegisterData {
   organization?: string;
 }
 
+export interface OrganizationAdminBootstrapData {
+  email: string;
+  password: string;
+  password_confirm: string;
+  first_name: string;
+  last_name: string;
+  phone_number: string;
+  department?: string;
+  organization_name: string;
+  organization_code?: string;
+  organization_type?: string;
+}
+
 export interface TwoFactorVerifyPayload {
   token: string;
   otp?: string;
@@ -69,6 +82,20 @@ export interface OnboardingTokenValidationResponse {
   subscription_id?: string | null;
   remaining_uses?: number | null;
   expires_at?: string | null;
+}
+
+export interface OrganizationAdminBootstrapResponse {
+  message: string;
+  user_type: "applicant" | "internal" | "admin";
+  user: User | AdminUser;
+  organization: OrganizationSummary;
+  membership: {
+    id: string;
+    membership_role: string;
+    is_active: boolean;
+    is_default: boolean;
+    joined_at?: string | null;
+  };
 }
 
 const toApiError = (error: any, fallback: string): Error => {
@@ -120,6 +147,20 @@ export const authService = {
       return response.data;
     } catch (error: any) {
       throw toApiError(error, "Registration failed");
+    }
+  },
+
+  async registerOrganizationAdmin(
+    data: OrganizationAdminBootstrapData,
+  ): Promise<OrganizationAdminBootstrapResponse> {
+    try {
+      const response = await api.post<OrganizationAdminBootstrapResponse>(
+        "/auth/register/organization-admin/",
+        data,
+      );
+      return response.data;
+    } catch (error: any) {
+      throw toApiError(error, "Organization account setup failed");
     }
   },
 

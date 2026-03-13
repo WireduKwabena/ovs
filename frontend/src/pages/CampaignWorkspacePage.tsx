@@ -106,7 +106,7 @@ const CampaignWorkspacePage: React.FC = () => {
 
   const loadWorkspace = useCallback(async () => {
     if (!campaignId) {
-      setError('Campaign id is missing.');
+      setError('Appointment exercise id is missing.');
       return;
     }
 
@@ -146,7 +146,7 @@ const CampaignWorkspacePage: React.FC = () => {
         setSelectedRubricId('');
       }
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Failed to load campaign workspace.'));
+      setError(getErrorMessage(err, 'Failed to load appointment exercise workspace.'));
     } finally {
       setLoading(false);
     }
@@ -182,6 +182,18 @@ const CampaignWorkspacePage: React.FC = () => {
   const latestInvitations = useMemo(() => {
     return invitations.slice(0, 8);
   }, [invitations]);
+  const linkedOfficeIds = useMemo(() => {
+    if (!campaign) {
+      return [] as string[];
+    }
+    if (Array.isArray(campaign.office_ids) && campaign.office_ids.length > 0) {
+      return campaign.office_ids;
+    }
+    if (Array.isArray(campaign.position_ids) && campaign.position_ids.length > 0) {
+      return campaign.position_ids;
+    }
+    return Array.isArray(campaign.positions) ? campaign.positions : [];
+  }, [campaign]);
 
   const selectedRubric = useMemo(
     () => availableRubrics.find((rubric) => String(rubric.id) === selectedRubricId) ?? null,
@@ -208,7 +220,7 @@ const CampaignWorkspacePage: React.FC = () => {
   const handleImportCandidates = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!campaignId) {
-      setError('Campaign id is missing.');
+      setError('Appointment exercise id is missing.');
       return;
     }
 
@@ -230,7 +242,7 @@ const CampaignWorkspacePage: React.FC = () => {
     try {
       const parsed = JSON.parse(importPayload) as CandidateImportRow[];
       if (!Array.isArray(parsed) || parsed.length === 0) {
-        throw new Error('Candidate payload must be a non-empty JSON array.');
+        throw new Error('Intake payload must be a non-empty JSON array.');
       }
 
       const summary = await campaignService.importCandidates(campaignId, {
@@ -248,7 +260,7 @@ const CampaignWorkspacePage: React.FC = () => {
           setQuota((current) => (current ? { ...current, ...quotaImportError.quotaPatch } : current));
         }
       } else {
-        setError(getErrorMessage(err, 'Failed to import candidates.'));
+        setError(getErrorMessage(err, 'Failed to import nominee intake rows.'));
       }
     } finally {
       setImporting(false);
@@ -299,7 +311,7 @@ const CampaignWorkspacePage: React.FC = () => {
 
   const handleApplyRubricVersion = async () => {
     if (!campaignId) {
-      setError('Campaign id is missing.');
+      setError('Appointment exercise id is missing.');
       return;
     }
     if (!selectedRubric) {
@@ -341,7 +353,7 @@ const CampaignWorkspacePage: React.FC = () => {
         is_active: true,
       });
 
-      toast.success('Rubric version applied to campaign.');
+      toast.success('Rubric version applied to appointment exercise.');
       await loadWorkspace();
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'Failed to apply rubric version.'));
@@ -352,7 +364,7 @@ const CampaignWorkspacePage: React.FC = () => {
 
   const handleActivateRubricVersion = async (versionId: string) => {
     if (!campaignId) {
-      setError('Campaign id is missing.');
+      setError('Appointment exercise id is missing.');
       return;
     }
 
@@ -360,7 +372,7 @@ const CampaignWorkspacePage: React.FC = () => {
     setError(null);
     try {
       await campaignService.activateRubricVersion(campaignId, versionId);
-      toast.success('Campaign rubric version set active.');
+      toast.success('Appointment exercise rubric version set active.');
       await loadWorkspace();
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'Failed to activate rubric version.'));
@@ -373,7 +385,7 @@ const CampaignWorkspacePage: React.FC = () => {
     return (
       <main className="max-w-7xl mx-auto px-4 py-10">
         <div className="rounded-xl border border-slate-200 bg-white p-10 text-center text-slate-700">
-          Loading campaign workspace...
+          Loading appointment exercise workspace...
         </div>
       </main>
     );
@@ -383,7 +395,7 @@ const CampaignWorkspacePage: React.FC = () => {
     return (
       <main className="max-w-4xl mx-auto px-4 py-10">
         <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
-          {error || 'Campaign not found.'}
+          {error || 'Appointment exercise not found.'}
         </div>
       </main>
     );
@@ -396,9 +408,9 @@ const CampaignWorkspacePage: React.FC = () => {
           <div>
             <Link to="/campaigns" className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700">
               <ArrowLeft className="w-4 h-4" />
-              Back to campaigns
+              Back to appointment exercises
             </Link>
-            <h1 className="text-2xl font-semibold mt-2">{campaign.name}</h1>
+            <h1 className="text-2xl font-semibold mt-2">Appointment Exercise: {campaign.name}</h1>
             <p className="text-slate-700 mt-1">{campaign.description || 'No description provided.'}</p>
           </div>
           <button
@@ -416,6 +428,40 @@ const CampaignWorkspacePage: React.FC = () => {
         <div className="mt-4 text-sm text-slate-700">
           Status: <span className="font-medium text-slate-700">{campaign.status}</span> | Created on{' '}
           {formatDate(campaign.created_at)}
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-cyan-200 bg-cyan-50 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-cyan-900">Office-Centered Progress</p>
+        <p className="mt-2 text-sm text-cyan-900">
+          This appointment exercise is linked to {linkedOfficeIds.length} office
+          {linkedOfficeIds.length === 1 ? "" : "s"}. Continue from intake to nomination file review and publication.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link
+            to="/government/positions"
+            className="inline-flex rounded-md border border-cyan-300 bg-white px-3 py-1.5 text-xs font-semibold text-cyan-900 hover:bg-cyan-100"
+          >
+            1. Offices
+          </Link>
+          <Link
+            to={`/government/appointments?exercise=${campaign.id}`}
+            className="inline-flex rounded-md border border-cyan-300 bg-white px-3 py-1.5 text-xs font-semibold text-cyan-900 hover:bg-cyan-100"
+          >
+            3. Nomination Files
+          </Link>
+          <Link
+            to={`/applications?exercise=${campaign.id}`}
+            className="inline-flex rounded-md border border-cyan-300 bg-white px-3 py-1.5 text-xs font-semibold text-cyan-900 hover:bg-cyan-100"
+          >
+            4. Vetting Dossiers
+          </Link>
+          <Link
+            to={`/government/appointments?exercise=${campaign.id}&step=review`}
+            className="inline-flex rounded-md border border-cyan-300 bg-white px-3 py-1.5 text-xs font-semibold text-cyan-900 hover:bg-cyan-100"
+          >
+            5-8. Review to Publication
+          </Link>
         </div>
       </section>
 
@@ -453,11 +499,11 @@ const CampaignWorkspacePage: React.FC = () => {
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <h2 className="text-lg font-semibold mb-4 inline-flex items-center gap-1.5">
-            Campaign Rubric Assignment
-            <HelpTooltip text="Assign a source rubric to this campaign by creating a snapshot version. This protects historical scoring consistency." />
+            Exercise Rubric Assignment
+            <HelpTooltip text="Assign a source rubric to this appointment exercise by creating a snapshot version. This protects historical scoring consistency." />
           </h2>
           <p className="text-sm text-slate-700 mb-4">
-            Select an existing rubric and snapshot it into this campaign as a new rubric version.
+            Select an existing rubric and snapshot it into this appointment exercise as a new rubric version.
           </p>
           <div className="mb-4 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs text-indigo-900">
             Hover or focus the <Info className="mx-1 inline h-3.5 w-3.5 align-text-bottom" /> icons beside labels for guidance.
@@ -466,12 +512,12 @@ const CampaignWorkspacePage: React.FC = () => {
           <FieldLabel
             htmlFor="campaign-rubric-select"
             label="Source Rubric"
-            help="Pick the baseline rubric to copy into this campaign as a versioned snapshot."
+            help="Pick the baseline rubric to copy into this appointment exercise as a versioned snapshot."
             className="mb-1 flex items-center gap-1.5"
             textClassName="block text-sm font-medium text-slate-700"
           />
           <select
-            title='Source Rubric - Choose a rubric from the list. This will create a snapshot version in the campaign to preserve historical scoring consistency. Only the rubric settings are copied, not the criteria or their scores.'
+            title='Source Rubric - Choose a rubric from the list. This creates a snapshot version in the appointment exercise to preserve historical scoring consistency. Only rubric settings are copied, not criteria scores.'
             id="campaign-rubric-select"
             value={selectedRubricId}
             onChange={(event) => setSelectedRubricId(event.target.value)}
@@ -506,7 +552,7 @@ const CampaignWorkspacePage: React.FC = () => {
               type="button"
               onClick={() => void handleApplyRubricVersion()}
               disabled={applyingRubric || !selectedRubric}
-              title="Snapshot the selected rubric into this campaign and set it active"
+              title="Snapshot the selected rubric into this appointment exercise and set it active"
               className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
             >
               {applyingRubric ? 'Applying...' : 'Apply Rubric Version'}
@@ -527,7 +573,7 @@ const CampaignWorkspacePage: React.FC = () => {
             <HelpTooltip text="Each version stores scoring settings used at that time. Activate one version at a time for consistent evaluations." />
           </h2>
           {campaignRubricVersions.length === 0 ? (
-            <p className="text-sm text-slate-700">No campaign rubric versions yet.</p>
+            <p className="text-sm text-slate-700">No exercise rubric versions yet.</p>
           ) : (
             <div className="space-y-3 max-h-80 overflow-auto pr-1">
               {campaignRubricVersions.map((version) => (
@@ -590,13 +636,13 @@ const CampaignWorkspacePage: React.FC = () => {
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <h2 className="text-lg font-semibold inline-flex items-center gap-2 mb-4">
             <Upload className="w-5 h-5 text-indigo-600" />
-            Import Candidates
-            <HelpTooltip text="Bulk import candidates with JSON. You can optionally trigger invitation delivery immediately after import." />
+            Import Nominee Pool
+            <HelpTooltip text="Bulk import nominee intake rows with JSON. You can optionally trigger invitation delivery immediately after import." />
           </h2>
           {shouldShowQuota && (
             <div className="mb-4 rounded-lg border border-cyan-200 bg-cyan-50 p-3 text-sm text-cyan-900">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-semibold text-cyan-900">Monthly Candidate Quota</p>
+                <p className="font-semibold text-cyan-900">Monthly Vetting Intake Quota</p>
                 {quotaLoading ? (
                   <span className="text-xs text-cyan-800">Loading...</span>
                 ) : quota ? (
@@ -623,7 +669,7 @@ const CampaignWorkspacePage: React.FC = () => {
                     Window: {formatDate(quota.period_start)} - {formatDate(quota.period_end)}
                   </p>
                   <p>
-                    Payload estimate: <span className="font-semibold">{importProjection.count}</span> unique candidates
+                    Payload estimate: <span className="font-semibold">{importProjection.count}</span> unique nominee intake rows
                     {quota.limit !== null && (
                       <>
                         {' '}| Projected usage:{' '}
@@ -654,12 +700,12 @@ const CampaignWorkspacePage: React.FC = () => {
               <FieldLabel
                 htmlFor="campaign-import-payload"
                 label="Payload (JSON array)"
-                help="Provide an array of candidate objects (first_name, last_name, email, phone_number, preferred_channel)."
+                help="Provide an array of nominee intake objects (first_name, last_name, email, phone_number, preferred_channel)."
                 className="mb-1 flex items-center gap-1.5"
                 textClassName="block text-sm font-medium text-slate-700"
               />
               <textarea
-                title='Candidate Import Payload - Enter a JSON array of candidate objects. Each object should include first_name, last_name, email, phone_number, and preferred_channel fields.'
+                title='Intake payload - Enter a JSON array of nominee objects. Each object should include first_name, last_name, email, phone_number, and preferred_channel fields.'
                 id="campaign-import-payload"
                 rows={12}
                 value={importPayload}
@@ -682,14 +728,14 @@ const CampaignWorkspacePage: React.FC = () => {
               disabled={importing || Boolean(importProjection.parseError) || projectedQuotaExceeded}
               className="w-full rounded-lg bg-indigo-600 text-white py-2 px-4 font-medium hover:bg-indigo-700 disabled:opacity-60"
             >
-              {importing ? 'Importing...' : 'Import Candidates'}
+              {importing ? 'Importing...' : 'Import Intake Pool'}
             </button>
           </form>
 
           {importSummary && (
             <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
               <p>
-                Imported: {importSummary.created_candidates} new candidates, {importSummary.created_enrollments}{' '}
+                Imported: {importSummary.created_candidates} new nominee intake profiles, {importSummary.created_enrollments}{' '}
                 enrollments, {importSummary.created_invitations} invitations.
               </p>
               {importSummary.errors.length > 0 && (
@@ -720,7 +766,7 @@ const CampaignWorkspacePage: React.FC = () => {
                   className="flex flex-col items-start gap-3 rounded-lg border border-slate-200 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
-                    <p className="font-medium text-slate-800">{enrollment.candidate_email || `Candidate #${enrollment.candidate}`}</p>
+                    <p className="font-medium text-slate-800">{enrollment.candidate_email || `Profile #${enrollment.candidate}`}</p>
                     <p className="text-xs text-slate-700">
                       Invited: {enrollment.invited_at ? formatDateTime(enrollment.invited_at) : 'N/A'}
                     </p>
@@ -752,7 +798,7 @@ const CampaignWorkspacePage: React.FC = () => {
           Latest Invitations
         </h2>
         {latestInvitations.length === 0 ? (
-          <p className="text-slate-700 text-sm">No invitations found for this campaign.</p>
+          <p className="text-slate-700 text-sm">No invitations found for this appointment exercise.</p>
         ) : (
           <>
             <div className="space-y-3 md:hidden">
@@ -853,10 +899,10 @@ const CampaignWorkspacePage: React.FC = () => {
       <section className="rounded-xl border border-slate-200 bg-white p-5">
         <h2 className="text-lg font-semibold inline-flex items-center gap-2 mb-3">
           <Activity className="w-5 h-5 text-indigo-600" />
-          Candidate Entry Point
+          Nominee Access Entry Point
         </h2>
         <p className="text-sm text-slate-700">
-          Candidates should use the access URL received through email/SMS. Legacy invitation links are still accepted
+          Nominees should use the access URL received through email/SMS. Legacy invitation links are still accepted
           at <code className="bg-slate-200 px-1 py-0.5 rounded text-xs text-slate-900">/invite/&lt;token&gt;</code>.
         </p>
       </section>

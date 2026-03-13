@@ -24,6 +24,7 @@ import { canManageOrganizationGovernance } from '@/utils/organizationGovernance'
 import {
   APPOINTMENT_ROUTE_CAPABILITIES,
   APPOINTMENT_WORKFLOW_ROLES,
+  CAMPAIGN_MANAGE_CAPABILITIES,
   FINAL_DECISION_ROLES,
   GOVERNMENT_WORKFLOW_CAPABILITIES,
   PUBLICATION_ROLES,
@@ -135,12 +136,13 @@ export const useAuth = () => {
     hasGovernmentCapability ||
     hasAnyRoleValue(resolvedRoles, APPOINTMENT_WORKFLOW_ROLES);
   const canAccessApplications = canAccessInternalWorkflow || canViewAuditLogs;
-  const canAccessCampaigns = canAccessInternalWorkflow;
+  const canAccessCampaigns =
+    isAdmin ||
+    hasAnyCapabilityValue(resolvedCapabilities, CAMPAIGN_MANAGE_CAPABILITIES);
   const canAccessVideoCalls = canAccessInternalWorkflow;
   const canManageRubrics =
     isAdmin ||
-    hasAnyCapabilityValue(resolvedCapabilities, RUBRIC_MANAGE_CAPABILITIES) ||
-    hasAnyRoleValue(resolvedRoles, STAGE_ACTOR_ROLES);
+    hasAnyCapabilityValue(resolvedCapabilities, RUBRIC_MANAGE_CAPABILITIES);
   const canManageRegistryInActiveOrganization =
     canManageRegistry && (isAdmin || Boolean(activeOrganizationId));
   const canSwitchOrganization = isAuthenticated && userType !== "applicant" && hasMultipleOrganizations;

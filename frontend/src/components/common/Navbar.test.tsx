@@ -295,7 +295,7 @@ describe("Navbar runtime + active tab behavior", () => {
     expect(screen.queryByRole("button", { name: /runtime/i })).toBeNull();
   });
 
-  it("hides campaigns and rubrics links for applicants", async () => {
+  it("hides appointment-exercise and rubrics links for applicants", async () => {
     renderNavbar("/dashboard", {
       auth: {
         userType: "applicant",
@@ -312,12 +312,40 @@ describe("Navbar runtime + active tab behavior", () => {
     expect(screen.getAllByText(/candidate access/i).length).toBeGreaterThan(0);
 
     expect(mocks.fetchNotifications).not.toHaveBeenCalled();
-    expect(screen.queryByRole("link", { name: /campaigns/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /appointment exercises/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /rubrics/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /notifications/i })).toBeNull();
   });
 
-  it("shows campaigns and rubrics links for internal users", async () => {
+  it("routes committee actors to shared workspace and hides campaign/rubric links without registry authority", async () => {
+    renderNavbar("/dashboard", {
+      auth: {
+        userType: "internal",
+        roles: ["committee_member"],
+        user: {
+          user_type: "internal",
+          email: "committee@example.com",
+          full_name: "Committee Member",
+          first_name: "Committee",
+          last_name: "Member",
+        },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
+    });
+
+    const dashboardLinks = screen
+      .getAllByRole("link", { name: /^workspace$/i })
+      .filter((link) => link.getAttribute("href") === "/workspace");
+    expect(dashboardLinks.length).toBeGreaterThan(0);
+    expect(screen.queryByRole("link", { name: /committee workspace/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /appointment exercises/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /rubrics/i })).toBeNull();
+  });
+
+  it("shows appointment-exercise and rubrics links for internal users", async () => {
     authHookState.canAccessCampaigns = true;
     authHookState.canManageRubrics = true;
 
@@ -338,7 +366,7 @@ describe("Navbar runtime + active tab behavior", () => {
       expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
     });
 
-    expect(screen.getAllByRole("link", { name: /campaigns/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /appointment exercises/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /rubrics/i }).length).toBeGreaterThan(0);
   });
 
@@ -361,9 +389,9 @@ describe("Navbar runtime + active tab behavior", () => {
       expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
     });
 
-    expect(screen.queryByRole("link", { name: /appointments/i })).toBeNull();
-    expect(screen.queryByRole("link", { name: /positions/i })).toBeNull();
-    expect(screen.queryByRole("link", { name: /personnel/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /appointment workflow/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /offices/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /nominees/i })).toBeNull();
   });
 
   it("shows government workflow links when internal has registry capability", async () => {
@@ -388,12 +416,12 @@ describe("Navbar runtime + active tab behavior", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: /more/i }));
-    expect(screen.getAllByRole("link", { name: /appointments/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("link", { name: /positions/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("link", { name: /personnel/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /appointment workflow/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /offices/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /nominees/i }).length).toBeGreaterThan(0);
   });
 
-  it("shows org-admin workspace links for users with governance access", async () => {
+  it("shows organization admin workspace links for users with governance access", async () => {
     authHookState.canManageActiveOrganizationGovernance = true;
     authHookState.activeOrganizationId = "org-1";
     authHookState.canAccessAppointments = true;
@@ -422,15 +450,18 @@ describe("Navbar runtime + active tab behavior", () => {
       expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
     });
 
+    const organizationDashboardLinks = screen
+      .getAllByRole("link", { name: /^dashboard$/i })
+      .filter((link) => link.getAttribute("href") === "/organization/dashboard");
+    expect(organizationDashboardLinks.length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: /more/i }));
-    expect(screen.getAllByRole("link", { name: /org workspace/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("link", { name: /org members/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /^members$/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /committees/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /onboarding/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /subscription/i }).length).toBeGreaterThan(0);
   });
 
-  it("hides org-admin workspace links when governance access is unavailable", async () => {
+  it("hides organization admin workspace links when governance access is unavailable", async () => {
     authHookState.canManageActiveOrganizationGovernance = false;
     authHookState.activeOrganizationId = "org-1";
     authHookState.canAccessAppointments = true;
@@ -455,8 +486,11 @@ describe("Navbar runtime + active tab behavior", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: /more/i }));
-    expect(screen.queryByRole("link", { name: /org workspace/i })).toBeNull();
-    expect(screen.queryByRole("link", { name: /org members/i })).toBeNull();
+    const organizationDashboardLinks = screen
+      .queryAllByRole("link", { name: /^dashboard$/i })
+      .filter((link) => link.getAttribute("href") === "/organization/dashboard");
+    expect(organizationDashboardLinks.length).toBe(0);
+    expect(screen.queryByRole("link", { name: /^members$/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /subscription/i })).toBeNull();
   });
 
@@ -480,7 +514,10 @@ describe("Navbar runtime + active tab behavior", () => {
       expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /more/i }));
+    const moreButton = screen.queryByRole("button", { name: /more/i });
+    if (moreButton) {
+      fireEvent.click(moreButton);
+    }
     expect(screen.getAllByRole("link", { name: /audit/i }).length).toBeGreaterThan(0);
   });
 
@@ -504,7 +541,10 @@ describe("Navbar runtime + active tab behavior", () => {
       expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /more/i }));
+    const moreButton = screen.queryByRole("button", { name: /more/i });
+    if (moreButton) {
+      fireEvent.click(moreButton);
+    }
     expect(screen.queryByRole("link", { name: /audit/i })).toBeNull();
   });
 

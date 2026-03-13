@@ -81,6 +81,87 @@ class EmailAuthEndpointTests(APITestCase):
         )
         return organization, subscription, token_record, raw_token
 
+    def test_org_admin_bootstrap_registration_creates_internal_user_and_org_membership(self):
+        response = self.client.post(
+            "/api/auth/register/organization-admin/",
+            {
+                "email": "bootstrap.admin@example.com",
+                "password": self.password,
+                "password_confirm": self.password,
+                "first_name": "Bootstrap",
+                "last_name": "Admin",
+                "phone_number": "+12345678901",
+                "department": "Registry",
+                "organization_name": "Bootstrap Secretariat",
+                "organization_code": "bootstrap-secretariat",
+                "organization_type": "agency",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        payload = response.json()
+        self.assertEqual(payload["user_type"], "internal")
+        self.assertEqual(payload["organization"]["name"], "Bootstrap Secretariat")
+
+        created_user = User.objects.get(email="bootstrap.admin@example.com")
+        self.assertEqual(created_user.user_type, "internal")
+        self.assertEqual(created_user.organization, "Bootstrap Secretariat")
+        self.assertTrue(
+            OrganizationMembership.objects.filter(
+                user=created_user,
+                organization__name="Bootstrap Secretariat",
+                membership_role="registry_admin",
+                is_active=True,
+                is_default=True,
+            ).exists()
+        )
+
+    def test_org_admin_bootstrap_registration_rejects_duplicate_email(self):
+        response = self.client.post(
+            "/api/auth/register/organization-admin/",
+            {
+                "email": self.user.email,
+                "password": self.password,
+                "password_confirm": self.password,
+                "first_name": "Duplicate",
+                "last_name": "Email",
+                "phone_number": "+12345678901",
+                "organization_name": "Duplicate Org",
+                "organization_type": "agency",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("email", response.data)
+
+    def test_org_admin_bootstrap_registration_rejects_existing_organization_name(self):
+        Organization.objects.create(
+            code="existing-org",
+            name="Existing Org Name",
+            organization_type="agency",
+            is_active=True,
+        )
+
+        response = self.client.post(
+            "/api/auth/register/organization-admin/",
+            {
+                "email": "new.bootstrap@example.com",
+                "password": self.password,
+                "password_confirm": self.password,
+                "first_name": "New",
+                "last_name": "Bootstrap",
+                "phone_number": "+12345678901",
+                "organization_name": "Existing Org Name",
+                "organization_type": "agency",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("organization_name", response.data)
+
     @override_settings(AUTH_PUBLIC_REGISTRATION_ENABLED=True)
     def test_register_requires_onboarding_token_even_when_public_registration_flag_enabled(self):
         response = self.client.post(

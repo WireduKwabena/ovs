@@ -6,9 +6,13 @@ import { Provider } from "react-redux";
 
 import App from "./App";
 
-vi.mock("./store/authSlice", () => ({
-  fetchProfile: vi.fn(() => ({ type: "auth/fetchProfile/pending" })),
-}));
+vi.mock("./store/authSlice", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./store/authSlice")>();
+  return {
+    ...actual,
+    fetchProfile: vi.fn(() => ({ type: "auth/fetchProfile/pending" })),
+  };
+});
 
 vi.mock("./components/common/Navbar", () => ({
   Navbar: () => <div>Mock Navbar</div>,
@@ -26,7 +30,7 @@ vi.mock("./pages/GovernmentPersonnelPage", () => ({
   default: () => <div>Mock Government Personnel Page</div>,
 }));
 
-vi.mock("./pages/OrganizationDashboardPage", () => ({
+vi.mock("./pages/organization/OrganizationAdminDashboardPage", () => ({
   default: () => <div>Mock Organization Dashboard Page</div>,
 }));
 

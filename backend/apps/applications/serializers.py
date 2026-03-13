@@ -161,6 +161,12 @@ class VettingCaseSerializer(serializers.ModelSerializer):
     assigned_to_email = serializers.EmailField(source="assigned_to.email", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     priority_display = serializers.CharField(source="get_priority_display", read_only=True)
+    vetting_dossier_id = serializers.CharField(source="case_id", read_only=True)
+    vetting_dossier_status = serializers.CharField(source="status", read_only=True)
+    vetting_dossier_status_display = serializers.CharField(source="get_status_display", read_only=True)
+    appointment_exercise_id = serializers.UUIDField(source="candidate_enrollment.campaign_id", read_only=True, allow_null=True)
+    appointment_exercise_name = serializers.CharField(source="candidate_enrollment.campaign.name", read_only=True, allow_null=True)
+    office_title = serializers.CharField(source="position_applied", read_only=True)
     documents = DocumentSerializer(many=True, read_only=True)
     applicant = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(user_type="applicant"),
@@ -179,19 +185,25 @@ class VettingCaseSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "case_id",
+            "vetting_dossier_id",
             "organization",
             "organization_name",
             "applicant",
             "applicant_email",
             "candidate_enrollment",
             "candidate_email",
+            "appointment_exercise_id",
+            "appointment_exercise_name",
             "assigned_to",
             "assigned_to_email",
             "position_applied",
+            "office_title",
             "department",
             "job_description",
             "status",
             "status_display",
+            "vetting_dossier_status",
+            "vetting_dossier_status_display",
             "priority",
             "priority_display",
             "overall_score",
@@ -222,11 +234,17 @@ class VettingCaseSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "case_id",
+            "vetting_dossier_id",
             "organization_name",
             "applicant_email",
             "candidate_email",
+            "appointment_exercise_id",
+            "appointment_exercise_name",
             "assigned_to_email",
+            "office_title",
             "status_display",
+            "vetting_dossier_status",
+            "vetting_dossier_status_display",
             "priority_display",
             "overall_score",
             "document_authenticity_score",

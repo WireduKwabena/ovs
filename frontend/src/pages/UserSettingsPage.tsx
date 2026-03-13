@@ -6,8 +6,6 @@ import {
   Loader2,
   RefreshCw,
   ShieldCheck,
-  Trash2,
-  UsersRound,
   UserCog,
 } from "lucide-react";
 import { useDispatch } from "react-redux";
@@ -20,10 +18,7 @@ import { fetchProfile, updateUserProfile } from "@/store/authSlice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { OrganizationOnboardingTokenStateResponse } from "@/types";
 import { getUserDisplayName } from "@/utils/userDisplay";
-
-type PaymentMethodChoice = "card" | "bank_transfer" | "mobile_money";
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
   if (!error) return fallback;
@@ -87,10 +82,6 @@ const UserSettingsPage: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [billingData, setBillingData] = useState<BillingSubscriptionManageResponse | null>(null);
   const [billingLoading, setBillingLoading] = useState(false);
-  const [billingActionLoading, setBillingActionLoading] = useState(false);
-  const [sandboxPaymentMethod, setSandboxPaymentMethod] = useState<PaymentMethodChoice>("card");
-  const [onboardingState, setOnboardingState] = useState<OrganizationOnboardingTokenStateResponse | null>(null);
-  const [onboardingLoading, setOnboardingLoading] = useState(false);
 
   const resolvedOrganizations = Array.isArray(organizations) ? organizations : [];
   const organizationFieldLocked = resolvedOrganizations.length > 0;
@@ -118,10 +109,6 @@ const UserSettingsPage: React.FC = () => {
   }, [user]);
 
   const managedSubscription = billingData?.subscription ?? null;
-  const activeOnboardingToken = onboardingState?.token ?? null;
-  const isStripeManaged = managedSubscription?.provider === "stripe";
-  const isSandboxManaged = managedSubscription?.provider === "sandbox";
-  const isPaystackManaged = managedSubscription?.provider === "paystack";
 
   const fetchBillingManagement = useCallback(async () => {
     if (!canViewBilling) {
@@ -132,10 +119,6 @@ const UserSettingsPage: React.FC = () => {
     try {
       const response = await billingService.getSubscriptionManagement();
       setBillingData(response);
-      const method = response.subscription?.payment_method?.type;
-      if (method === "card" || method === "bank_transfer" || method === "mobile_money") {
-        setSandboxPaymentMethod(method);
-      }
     } catch (error) {
       toast.error(getErrorMessage(error, "Failed to load billing details."));
       setBillingData(null);
@@ -143,24 +126,6 @@ const UserSettingsPage: React.FC = () => {
       setBillingLoading(false);
     }
   }, [canViewBilling]);
-
-  const fetchOnboardingState = useCallback(async () => {
-    if (!canManageOrganizationBilling || !activeOrganizationId) {
-      setOnboardingState(null);
-      return;
-    }
-
-    setOnboardingLoading(true);
-    try {
-      const response = await billingService.getOnboardingTokenState();
-      setOnboardingState(response);
-    } catch (error) {
-      setOnboardingState(null);
-      toast.error(getErrorMessage(error, "Failed to load organization onboarding status."));
-    } finally {
-      setOnboardingLoading(false);
-    }
-  }, [activeOrganizationId, canManageOrganizationBilling]);
 
   useEffect(() => {
     setEmail(user?.email || "");
@@ -195,94 +160,17 @@ const UserSettingsPage: React.FC = () => {
     void fetchBillingManagement();
   }, [activeOrganizationId, fetchBillingManagement, user?.email]);
 
-  useEffect(() => {
-    void fetchOnboardingState();
-  }, [fetchOnboardingState]);
-
   const handleRefreshProfile = async () => {
     setRefreshing(true);
     try {
       await dispatch(fetchProfile()).unwrap();
       await fetchBillingManagement();
-      await fetchOnboardingState();
       toast.success("Profile refreshed.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to refresh profile.";
       toast.error(message);
     } finally {
       setRefreshing(false);
-    }
-  };
-
-  const handleUpdatePaymentOption = async () => {
-    if (!managedSubscription) return;
-
-    if (managedSubscription.provider === "stripe") {
-      setBillingActionLoading(true);
-      try {
-        const response = await billingService.createPaymentMethodUpdateSession();
-        if (!response.url) {
-          throw new Error("Billing portal URL was not returned.");
-        }
-        window.location.assign(response.url);
-      } catch (error) {
-        toast.error(getErrorMessage(error, "Unable to open payment update session."));
-      } finally {
-        setBillingActionLoading(false);
-      }
-      return;
-    }
-
-    if (managedSubscription.provider !== "sandbox") {
-      toast.info("Direct payment option update is currently available only for sandbox subscriptions.");
-      return;
-    }
-
-    setBillingActionLoading(true);
-    try {
-      const response = await billingService.updatePaymentMethod(sandboxPaymentMethod);
-      setBillingData(response);
-      toast.success("Payment option updated.");
-    } catch (error) {
-      toast.error(getErrorMessage(error, "Unable to update payment option."));
-    } finally {
-      setBillingActionLoading(false);
-    }
-  };
-
-  const handleRemovePaymentOption = async () => {
-    if (!managedSubscription) return;
-    const confirmed = window.confirm(
-      "This schedules unsubscription at the end of your active billing period. Continue?",
-    );
-    if (!confirmed) return;
-
-    setBillingActionLoading(true);
-    try {
-      const response = await billingService.scheduleSubscriptionCancellation();
-      setBillingData(response);
-      toast.success(response.message || "Cancellation scheduled for end of period.");
-    } catch (error) {
-      toast.error(getErrorMessage(error, "Unable to schedule cancellation."));
-    } finally {
-      setBillingActionLoading(false);
-    }
-  };
-
-  const handleRetryPayment = async () => {
-    setBillingActionLoading(true);
-    try {
-      const response = await billingService.retrySubscription();
-      if (response.checkout_url) {
-        window.location.assign(response.checkout_url);
-        return;
-      }
-      toast.success(response.message || "Payment retry started.");
-      await fetchBillingManagement();
-    } catch (error) {
-      toast.error(getErrorMessage(error, "Unable to retry payment."));
-    } finally {
-      setBillingActionLoading(false);
     }
   };
 
@@ -737,180 +625,48 @@ const UserSettingsPage: React.FC = () => {
                     ) : null}
                   </div>
 
-                  {isSandboxManaged ? (
-                    <div className="space-y-2">
-                      <Label
-                        htmlFor="settings-payment-method"
-                        className="text-[11px] font-semibold uppercase tracking-wide text-slate-700"
-                      >
-                        Change Payment Option
-                      </Label>
-                      <select
-                        id="settings-payment-method"
-                        value={sandboxPaymentMethod}
-                        onChange={(event) => setSandboxPaymentMethod(event.target.value as PaymentMethodChoice)}
-                        disabled={billingActionLoading}
-                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-cyan-400"
-                      >
-                        <option value="card">Card</option>
-                        <option value="bank_transfer">Bank transfer</option>
-                        <option value="mobile_money">Mobile money</option>
-                      </select>
-                    </div>
-                  ) : null}
-
-                  {isPaystackManaged ? (
-                    <p className="text-[11px] text-slate-700">
-                      Paystack payment method updates are handled during checkout retry flow.
-                    </p>
-                  ) : null}
-
-                  <div className="flex flex-wrap gap-2">
+                  <p className="text-[11px] text-slate-700">
+                    Organization billing and onboarding administration is handled in the organization dashboard.
+                  </p>
+                  {canManageOrganizationBilling ? (
                     <Button
                       type="button"
                       variant="outline"
-                      disabled={
-                        billingActionLoading ||
-                        !managedSubscription.can_update_payment_method ||
-                        !canManageOrganizationBilling
+                      className="w-full"
+                      onClick={() =>
+                        navigate(
+                          activeOrganizationId
+                            ? "/organization/dashboard"
+                            : "/organization/setup?next=/organization/dashboard",
+                        )
                       }
-                      onClick={() => void handleUpdatePaymentOption()}
                     >
-                      {billingActionLoading
-                        ? "Please wait..."
-                        : isStripeManaged
-                        ? "Update Payment Method"
-                        : isSandboxManaged
-                        ? "Save Payment Option"
-                        : "Update Payment Option"}
+                      Open Organization Administration
                     </Button>
-
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      disabled={
-                        billingActionLoading ||
-                        !managedSubscription.can_delete_payment_method ||
-                        !canManageOrganizationBilling
-                      }
-                      onClick={() => void handleRemovePaymentOption()}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Unsubscribe
-                    </Button>
-
-                    {managedSubscription.retry_available ? (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        disabled={billingActionLoading}
-                        onClick={() => void handleRetryPayment()}
-                      >
-                        Retry Payment
-                      </Button>
-                    ) : null}
-                  </div>
-
-                  <p className="text-[11px] text-slate-700">
-                    Unsubscribing does not terminate access immediately. Service remains active through the current billing period.
-                  </p>
-                  {!canManageOrganizationBilling ? (
+                  ) : (
                     <p className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
-                      Organization billing changes are limited to organization admins.
+                      Organization administration remains restricted to organization admins.
                     </p>
-                  ) : null}
+                  )}
                 </div>
               )}
             </div>
           ) : null}
 
           {canManageOrganizationBilling ? (
-            <div
-              id="organization-onboarding-invite"
-              className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold text-slate-900">Organization Governance Workspace</h3>
-                <UsersRound className="h-4 w-4 text-cyan-700" />
-              </div>
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <h3 className="text-sm font-semibold text-slate-900">Organization Administration</h3>
               <p className="mt-2 text-[11px] text-slate-700">
-                Organization billing, onboarding, and governance administration is managed in dedicated organization pages.
+                Governance, committee management, onboarding links, and billing actions are managed in dedicated organization pages.
               </p>
-
-              {!activeOrganizationId ? (
-                <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  Select an active organization in the navbar before opening organization governance workspace.
-                </div>
-              ) : onboardingLoading ? (
-                <p className="mt-3 text-xs text-slate-700">Loading onboarding status...</p>
-              ) : (
-                <div className="mt-3 space-y-3">
-                  <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-800">
-                    <p>
-                      <span className="font-semibold">Organization:</span>{" "}
-                      {onboardingState?.organization_name || activeOrganization?.name || "N/A"}
-                    </p>
-                    <p className="mt-1">
-                      <span className="font-semibold">Subscription active:</span>{" "}
-                      {onboardingState?.subscription_active ? "Yes" : "No"}
-                    </p>
-                    <p className="mt-1">
-                      <span className="font-semibold">Active invite link:</span>{" "}
-                      {onboardingState?.has_active_token ? "Yes" : "No"}
-                    </p>
-                    {activeOnboardingToken ? (
-                      <>
-                        <p className="mt-1">
-                          <span className="font-semibold">Token preview:</span>{" "}
-                          {activeOnboardingToken.token_preview || "N/A"}
-                        </p>
-                        <p className="mt-1">
-                          <span className="font-semibold">Usage:</span>{" "}
-                          {activeOnboardingToken.uses}
-                          {activeOnboardingToken.max_uses != null ? ` / ${activeOnboardingToken.max_uses}` : ""}
-                          {activeOnboardingToken.remaining_uses != null
-                            ? ` (remaining ${activeOnboardingToken.remaining_uses})`
-                            : ""}
-                        </p>
-                        <p className="mt-1">
-                          <span className="font-semibold">Expires:</span>{" "}
-                          {formatDateTimeLabel(activeOnboardingToken.expires_at)}
-                        </p>
-                      </>
-                    ) : null}
-                    {typeof onboardingState?.organization_seat_remaining === "number" ? (
-                      <p className="mt-1">
-                        <span className="font-semibold">Remaining seats:</span>{" "}
-                        {onboardingState.organization_seat_remaining}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => navigate("/organization/dashboard")}
-                    >
-                      Open Organization Dashboard
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => navigate("/organization/onboarding")}
-                    >
-                      Open Organization Onboarding Workspace
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={onboardingLoading}
-                      onClick={() => void fetchOnboardingState()}
-                    >
-                      Refresh Invite State
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={() => navigate("/organization/dashboard")}>
+                  Open Organization Dashboard
+                </Button>
+                <Button type="button" variant="outline" onClick={() => navigate("/organization/onboarding")}>
+                  Open Organization Onboarding
+                </Button>
+              </div>
             </div>
           ) : null}
         </aside>

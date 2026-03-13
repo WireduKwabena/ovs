@@ -16,6 +16,7 @@ import { fetchProfile } from "./store/authSlice";
 import { type AppDispatch, type RootState } from "./app/store";
 import {
   APPOINTMENT_ROUTE_CAPABILITIES,
+  CAMPAIGN_MANAGE_CAPABILITIES,
   INTERNAL_WORKFLOW_ROUTE_CAPABILITIES,
   LEGACY_CAPABILITY_STALE_FALLBACK_USER_TYPES,
   REGISTRY_ROUTE_CAPABILITIES,
@@ -28,8 +29,11 @@ const Navbar = React.lazy(() =>
 const HomePage = React.lazy(() => import("./pages/HomePage"));
 const PublicGazettePage = React.lazy(() => import("./pages/PublicGazettePage"));
 const SubscriptionPlansPage = React.lazy(() => import("./pages/SubscriptionPlansPage"));
+const OrganizationAdminSignupPage = React.lazy(() => import("./pages/OrganizationAdminSignupPage"));
 const OrganizationSetupPage = React.lazy(() => import("./pages/OrganizationSetupPage"));
-const OrganizationDashboardPage = React.lazy(() => import("./pages/OrganizationDashboardPage"));
+const OrganizationDashboardPage = React.lazy(() =>
+  import("./pages/organization/OrganizationAdminDashboardPage"),
+);
 const OrganizationMembersPage = React.lazy(() => import("./pages/OrganizationMembersPage"));
 const OrganizationCommitteesPage = React.lazy(() => import("./pages/OrganizationCommitteesPage"));
 const CommitteeDetailPage = React.lazy(() => import("./pages/CommitteeDetailPage"));
@@ -44,6 +48,7 @@ const BillingCheckoutResultPage = React.lazy(() => import("./pages/BillingChecko
 const CandidateAccessPage = React.lazy(() => import("./pages/CandidateAccessPage"));
 const InvitationAcceptPage = React.lazy(() => import("./pages/InvitationAcceptPage"));
 const DashboardPage = React.lazy(() => import("./pages/DashboardPage"));
+const OperationsDashboardPage = React.lazy(() => import("./pages/OperationsDashboardPage"));
 const ChangePasswordPage = React.lazy(() => import("./pages/ChangePasswordPage"));
 const UserSettingsPage = React.lazy(() => import("./pages/UserSettingsPage"));
 const SecurityPage = React.lazy(() => import("./pages/SecurityPage"));
@@ -97,6 +102,7 @@ const HIDE_NAVBAR_PREFIXES = [
   "/",
   "/gazette",
   "/subscribe",
+  "/organization/get-started",
   "/login",
   "/register",
   "/candidate",
@@ -117,7 +123,7 @@ const HeyGenInterrogationPage: React.FC = () => {
   const { applicationId } = useParams<{ applicationId: string }>();
 
   if (!applicationId) {
-    return <Navigate to="/dashboard" />;
+    return <Navigate to="/workspace" />;
   }
 
   return <HeyGenInterrogation applicationId={applicationId} />;
@@ -159,6 +165,14 @@ const AppShell: React.FC = () => {
           <Route path="/gazette" element={<PublicGazettePage />} />
           <Route path="/subscribe" element={<SubscriptionPlansPage />} />
           <Route
+            path="/organization/get-started"
+            element={
+              <UnauthenticatedRoute>
+                <OrganizationAdminSignupPage />
+              </UnauthenticatedRoute>
+            }
+          />
+          <Route
             path="/organization/dashboard"
             element={
               <ProtectedRoute
@@ -167,6 +181,18 @@ const AppShell: React.FC = () => {
                 requireActiveOrganization
               >
                 <OrganizationDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/organization/committee-dashboard"
+            element={
+              <ProtectedRoute
+                disallowUserTypes={["applicant"]}
+                requiredRoles={["committee_member", "committee_chair"]}
+                requireActiveOrganization
+              >
+                <Navigate to="/workspace?view=committee" replace />
               </ProtectedRoute>
             }
           />
@@ -288,6 +314,14 @@ const AppShell: React.FC = () => {
             element={
               <ProtectedRoute disallowUserTypes={["applicant"]}>
                 <HeyGenInterrogationPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/workspace"
+            element={
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
+                <OperationsDashboardPage />
               </ProtectedRoute>
             }
           />
@@ -419,7 +453,7 @@ const AppShell: React.FC = () => {
             element={
               <ProtectedRoute
                 disallowUserTypes={["applicant"]}
-                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+                requiredCapabilities={[...CAMPAIGN_MANAGE_CAPABILITIES]}
                 legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
               >
                 <CampaignsPage />
@@ -431,7 +465,7 @@ const AppShell: React.FC = () => {
             element={
               <ProtectedRoute
                 disallowUserTypes={["applicant"]}
-                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+                requiredCapabilities={[...CAMPAIGN_MANAGE_CAPABILITIES]}
                 legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
               >
                 <CampaignWorkspacePage />

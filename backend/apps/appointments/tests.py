@@ -2216,4 +2216,72 @@ class AppointmentOrganizationScopeTests(APITestCase):
         self.assertEqual(allowed.status_code, 200)
 
 
+class AppointmentAliasContractTests(APITestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_user(
+            email="appointments_alias_admin@example.com",
+            password="Pass1234!",
+            first_name="Appointments",
+            last_name="AliasAdmin",
+            user_type="admin",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.position = GovernmentPosition.objects.create(
+            title="Cabinet Office - Infrastructure",
+            branch="executive",
+            institution="Cabinet Office",
+            appointment_authority="President",
+            is_vacant=True,
+            is_public=True,
+        )
+        self.nominee = PersonnelRecord.objects.create(
+            full_name="Nominee Alias Record",
+            is_public=True,
+        )
+        self.exercise = VettingCampaign.objects.create(
+            name="Infrastructure Appointment Exercise",
+            status="active",
+            initiated_by=self.admin_user,
+        )
+        self.record = AppointmentRecord.objects.create(
+            position=self.position,
+            nominee=self.nominee,
+            appointment_exercise=self.exercise,
+            nominated_by_user=self.admin_user,
+            nominated_by_display="Cabinet Secretary",
+            nomination_date=date.today(),
+            status="nominated",
+            is_public=False,
+        )
+        self.client.force_authenticate(self.admin_user)
+
+    def _items(self, payload):
+        if isinstance(payload, list):
+            return payload
+        return payload.get("results", [])
+
+    def test_government_nominations_alias_endpoint_exposes_additive_fields(self):
+        response = self.client.get("/api/government/nominations/")
+        self.assertEqual(response.status_code, 200)
+        items = self._items(response.json())
+        target = next((item for item in items if item["id"] == str(self.record.id)), None)
+        self.assertIsNotNone(target)
+        self.assertEqual(target["nomination_file_id"], str(self.record.id))
+        self.assertEqual(target["nomination_file_status"], self.record.status)
+        self.assertEqual(target["office_id"], str(self.position.id))
+        self.assertEqual(target["office_name"], self.position.title)
+        self.assertEqual(target["appointment_exercise_id"], str(self.exercise.id))
+        self.assertEqual(target["appointment_exercise_name"], self.exercise.name)
+        self.assertIn("vetting_dossier_id", target)
+        self.assertIn("appointment_route_template_id", target)
+
+    def test_government_offices_alias_endpoint_reuses_positions_permissions(self):
+        response = self.client.get("/api/government/offices/")
+        self.assertEqual(response.status_code, 200)
+        items = self._items(response.json())
+        ids = {item["id"] for item in items}
+        self.assertIn(str(self.position.id), ids)
+
+
 

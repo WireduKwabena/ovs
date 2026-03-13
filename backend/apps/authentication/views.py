@@ -9,8 +9,9 @@ from django.core import signing
 from django.core.cache import cache
 from django.core.mail import send_mail
 from django.core.signing import BadSignature, SignatureExpired, Signer
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
+from django.utils.text import slugify
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied
@@ -35,6 +36,8 @@ from apps.authentication.serializers import (
     PasswordResetRequestSerializer,
     ProfileResponseSerializer,
     ProfileUpdateSerializer,
+    OrganizationAdminRegistrationResponseSerializer,
+    OrganizationAdminRegistrationSerializer,
     RegisterResponseSerializer,
     TwoFactorChallengeSerializer,
     TwoFactorBackupCodesRegenerateSerializer,
@@ -255,6 +258,121 @@ def _build_two_factor_challenge(user: User):
         payload["provisioning_uri"] = user.get_totp_uri()
 
     return Response(payload, status=status.HTTP_200_OK)
+
+
+def _resolve_public_bootstrap_organization_code(*, preferred_code: str, organization_name: str) -> str:
+    base_code = slugify(preferred_code or organization_name).strip("-")
+    if not base_code:
+        base_code = f"organization-{secrets.token_hex(4)}"
+    base_code = base_code[:80]
+    candidate = base_code
+    suffix = 2
+
+    while Organization.objects.filter(code=candidate).exists():
+        suffix_text = f"-{suffix}"
+        candidate = f"{base_code[: max(1, 80 - len(suffix_text))]}{suffix_text}"
+        suffix += 1
+    return candidate
+
+
+class OrganizationAdminRegisterView(generics.CreateAPIView):
+    """
+    Public bootstrap for a brand-new organization plus initial org-admin account.
+
+    Member onboarding remains invite-token gated via /api/auth/register/.
+    """
+
+    queryset = User.objects.none()
+    permission_classes = [AllowAny]
+    serializer_class = OrganizationAdminRegistrationSerializer
+
+    @extend_schema(
+        request=OrganizationAdminRegistrationSerializer,
+        responses={201: OrganizationAdminRegistrationResponseSerializer, 400: ErrorResponseSerializer},
+    )
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        validated = serializer.validated_data
+        organization_name = str(validated.get("organization_name", "")).strip()
+        preferred_code = str(validated.get("organization_code", "")).strip()
+
+        if Organization.objects.filter(name__iexact=organization_name).exists():
+            return Response(
+                {"organization_name": ["An organization with this name already exists."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if preferred_code and Organization.objects.filter(code__iexact=preferred_code).exists():
+            return Response(
+                {"organization_code": ["This organization code is already in use."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        organization_code = _resolve_public_bootstrap_organization_code(
+            preferred_code=preferred_code,
+            organization_name=organization_name,
+        )
+
+        try:
+            with transaction.atomic():
+                user = User.objects.create_user(
+                    email=validated["email"],
+                    password=validated["password"],
+                    first_name=str(validated.get("first_name", "")).strip(),
+                    last_name=str(validated.get("last_name", "")).strip(),
+                    phone_number=str(validated.get("phone_number", "")).strip(),
+                    department=str(validated.get("department", "")).strip(),
+                    user_type="internal",
+                )
+                organization = Organization.objects.create(
+                    name=organization_name,
+                    code=organization_code,
+                    organization_type=str(validated.get("organization_type", "agency") or "agency"),
+                    is_active=True,
+                )
+                membership = OrganizationMembership.objects.create(
+                    user=user,
+                    organization=organization,
+                    membership_role="registry_admin",
+                    title=str(validated.get("department", "")).strip()[:120],
+                    is_active=True,
+                    is_default=True,
+                    joined_at=timezone.now(),
+                )
+
+                if str(user.organization or "").strip().lower() != organization_name.lower():
+                    user.organization = organization_name
+                    user.save(update_fields=["organization", "updated_at"])
+        except IntegrityError:
+            return Response(
+                {"error": "Organization bootstrap failed due to a conflicting record. Retry with different values."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        payload = {
+            "message": "Organization admin account created. Sign in to continue setup.",
+            "user_type": user.user_type,
+            "user": UserSerializer(user, context={"request": request}).data,
+            "organization": {
+                "id": organization.id,
+                "code": organization.code,
+                "name": organization.name,
+                "organization_type": organization.organization_type,
+            },
+            "membership": {
+                "id": membership.id,
+                "membership_role": membership.membership_role,
+                "is_active": membership.is_active,
+                "is_default": membership.is_default,
+                "joined_at": membership.joined_at,
+            },
+        }
+        return Response(
+            OrganizationAdminRegistrationResponseSerializer(payload).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 class RegisterView(generics.CreateAPIView):
     """

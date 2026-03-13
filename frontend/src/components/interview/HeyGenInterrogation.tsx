@@ -66,7 +66,7 @@ const normalizeStatus = (status?: string): InterrogationFlagStatus => {
 
 export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
   applicationId,
-  completionRedirectPath = '/dashboard',
+  completionRedirectPath = '/workspace',
 }) => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();

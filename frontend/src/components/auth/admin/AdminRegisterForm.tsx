@@ -33,7 +33,7 @@ const AdminRegisterForm: React.FC = () => {
             Back to Admin Dashboard
           </Link>
           <Link
-            to="/dashboard"
+            to="/workspace"
             className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100"
           >
             Return to Workspace

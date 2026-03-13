@@ -56,8 +56,8 @@ const OrganizationSetupPage: React.FC = () => {
             Applicant accounts cannot provision organizations or manage organization billing.
           </p>
           <div className="mt-6 flex justify-center">
-            <Button type="button" onClick={() => navigate("/dashboard")}>
-              Back to Dashboard
+            <Button type="button" onClick={() => navigate("/candidate/access")}>
+              Back to Candidate Access
             </Button>
           </div>
         </section>
@@ -181,7 +181,7 @@ const OrganizationSetupPage: React.FC = () => {
               "Create Organization and Continue"
             )}
           </Button>
-          <Button type="button" variant="outline" onClick={() => navigate("/dashboard")} disabled={submitting}>
+          <Button type="button" variant="outline" onClick={() => navigate("/workspace")} disabled={submitting}>
             Cancel
           </Button>
         </div>

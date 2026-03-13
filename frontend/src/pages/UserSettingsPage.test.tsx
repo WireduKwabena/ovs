@@ -97,7 +97,7 @@ describe("UserSettingsPage billing empty-state", () => {
     expect(screen.queryByRole("button", { name: /open organization billing/i })).toBeNull();
   });
 
-  it("shows onboarding workspace summary for authorized org admins", async () => {
+  it("shows organization administration links for authorized org admins", async () => {
     mocks.useAuth.mockReturnValue({
       userType: "internal",
       canManageActiveOrganizationGovernance: true,
@@ -126,31 +126,6 @@ describe("UserSettingsPage billing empty-state", () => {
       message: "No subscription record found for this workspace.",
       subscription: null,
     });
-    mocks.getOnboardingTokenState.mockResolvedValue({
-      status: "ok",
-      organization_id: "org-1",
-      organization_name: "Org One",
-      subscription_id: "sub-1",
-      subscription_active: true,
-      has_active_token: true,
-      token: {
-        id: "tok-1",
-        subscription_id: "sub-1",
-        token_preview: "h_123",
-        is_active: true,
-        expires_at: null,
-        max_uses: 5,
-        uses: 1,
-        remaining_uses: 4,
-        allowed_email_domain: "",
-        last_used_at: null,
-        revoked_at: null,
-        revoked_reason: "",
-        created_at: "2026-01-01T00:00:00Z",
-        updated_at: "2026-01-01T00:00:00Z",
-      },
-    });
-
     render(
       <MemoryRouter>
         <UserSettingsPage />
@@ -158,8 +133,8 @@ describe("UserSettingsPage billing empty-state", () => {
     );
 
     expect(await screen.findByRole("button", { name: /open organization billing/i })).toBeTruthy();
-    expect(await screen.findByText(/organization governance workspace/i)).toBeTruthy();
-    expect(await screen.findByText(/token preview/i)).toBeTruthy();
+    expect(await screen.findByText(/organization administration/i)).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /open organization dashboard/i })).toBeTruthy();
   });
 });
 

@@ -133,7 +133,7 @@ describe('CampaignWorkspacePage import guard', () => {
 
     renderPage();
 
-    const importButton = await screen.findByRole('button', { name: /^import candidates$/i });
+    const importButton = await screen.findByRole('button', { name: /^import intake pool$/i });
     expect((importButton as HTMLButtonElement).disabled).toBe(false);
 
     const payloadTextarea = screen.getByLabelText(/payload \(json array\)/i);
@@ -150,7 +150,7 @@ describe('CampaignWorkspacePage import guard', () => {
 
     renderPage();
 
-    const importButton = await screen.findByRole('button', { name: /^import candidates$/i });
+    const importButton = await screen.findByRole('button', { name: /^import intake pool$/i });
     expect((importButton as HTMLButtonElement).disabled).toBe(true);
 
     await waitFor(() => {
@@ -173,7 +173,7 @@ describe('CampaignWorkspacePage import guard', () => {
 
     renderPage();
 
-    const importButton = await screen.findByRole('button', { name: /^import candidates$/i });
+    const importButton = await screen.findByRole('button', { name: /^import intake pool$/i });
     expect((importButton as HTMLButtonElement).disabled).toBe(false);
 
     fireEvent.click(importButton);
@@ -215,7 +215,7 @@ describe('CampaignWorkspacePage import guard', () => {
 
     expect(await screen.findByText(/0\/10 used/i)).toBeTruthy();
 
-    const importButton = await screen.findByRole('button', { name: /^import candidates$/i });
+    const importButton = await screen.findByRole('button', { name: /^import intake pool$/i });
     fireEvent.click(importButton);
 
     await waitFor(() => {
@@ -247,7 +247,7 @@ describe('CampaignWorkspacePage import guard', () => {
 
     renderPage();
 
-    const importButton = await screen.findByRole('button', { name: /^import candidates$/i });
+    const importButton = await screen.findByRole('button', { name: /^import intake pool$/i });
     expect((importButton as HTMLButtonElement).disabled).toBe(false);
 
     fireEvent.click(importButton);

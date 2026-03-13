@@ -1,8 +1,8 @@
 # CAVP End-User Manual (Task Guide)
 
-Version: 2.0  
+Version: 2.1  
 Audience: Candidates (invitation-based), Operations Users, Government Appointment Actors, and Admins  
-Last Updated: March 7, 2026
+Last Updated: March 12, 2026
 
 ---
 
@@ -107,9 +107,13 @@ This is not an API or developer manual.
 
 Access is role-based.
 
-- Candidate-access users cannot access internal admin, campaign management, or government registry pages.
+- Candidate-access users cannot access internal admin, appointment-exercise management, or government registry pages.
 - Operations users and admins can access vetting + government workflow pages.
 - Some actions (for example final appointment decision and publication) require appointing-authority/admin rights.
+
+UI lifecycle framing used across government pages:
+
+- `Office -> Appointment Exercise -> Nominee / Nomination File -> Vetting Dossier -> Review -> Approval -> Appointment -> Publication`
 
 ---
 
@@ -128,13 +132,13 @@ Primary pages:
 Primary pages:
 
 - `/dashboard`
-- `/campaigns`
-- `/applications` (Cases)
+- `/campaigns` (Appointment Exercises)
+- `/applications` (Vetting Dossiers)
 - `/rubrics`
 - `/video-calls`
 - `/government/appointments`
-- `/government/positions`
-- `/government/personnel`
+- `/government/positions` (Government Offices)
+- `/government/personnel` (Nominee/Officeholder Registry)
 - `/fraud-insights`
 - `/background-checks`
 - `/notifications`
@@ -149,8 +153,8 @@ Primary pages:
 - `/admin/control-center`
 - `/admin/analytics`
 - `/government/appointments`
-- `/government/positions`
-- `/government/personnel`
+- `/government/positions` (Government Offices)
+- `/government/personnel` (Nominee/Officeholder Registry)
 - `/rubrics`
 - `/audit-logs`
 - `/ml-monitoring`
@@ -227,19 +231,19 @@ Expected transition:
 1. First-time entry: open `/candidate/access?token=...` from the access URL.
 2. Return visits: open `/candidate/access` while your candidate session is still active.
 3. Token is consumed and candidate session is created.
-4. Review campaign context and required document types.
+4. Review appointment exercise context and required document types.
 
 Expected transition:
 
 - session is active,
 - enrollment typically moves from `registered` to `in_progress` automatically,
-- your vetting case context is visible.
+- your vetting dossier context is visible.
 
 Note: `registered` can be brief because access consumption usually advances directly into `in_progress`.
 
 ### 5.4 Upload Required Documents
 
-1. In candidate access, pick your case.
+1. In candidate access, pick your dossier.
 2. Select document type.
 3. Upload file.
 4. Wait for verification state updates.
@@ -288,23 +292,23 @@ Result visibility rule:
 
 ## 6) Operations Task Guide (Vetting Operations)
 
-### 6.1 Create and Run a Campaign
+### 6.1 Create and Run an Appointment Exercise
 
 1. Open `/campaigns`.
-2. Create campaign.
-3. Open the campaign workspace (`/campaigns/:campaignId`).
+2. Create an appointment exercise.
+3. Open the exercise workspace (`/campaigns/:campaignId`).
 4. Confirm dashboard metrics load correctly.
 
-### 6.2 Import Candidates and Send Invitations
+### 6.2 Import Nominee Intake and Send Invitations
 
-1. In campaign workspace, use candidate import.
-2. Submit candidate JSON rows.
+1. In exercise workspace, use intake import.
+2. Submit nominee intake JSON rows.
 3. Enable invitation sending if required.
 4. Review import summary for successful vs failed rows.
 
 Expected result:
 
-- candidate enrollments are created,
+- nominee intake enrollments are created,
 - invitations are visible and can be resent.
 
 ### 6.3 Configure Rubrics
@@ -313,25 +317,25 @@ Expected result:
 2. Create or duplicate rubric.
 3. Add/edit criteria and weights.
 4. Activate rubric.
-5. In campaign workspace, apply rubric version to campaign.
+5. In exercise workspace, apply rubric version to the appointment exercise.
 
 Important:
 
 - rubric scoring is decision support,
 - human reviewers still make final decisions.
 
-### 6.4 Review Cases
+### 6.4 Review Vetting Dossiers
 
 1. Open `/applications`.
 2. Filter by status/scope.
-3. Open a case and inspect evidence.
+3. Open a dossier and inspect evidence.
 4. Review document verification, interview context, and flags.
 5. Record decision rationale in your workflow actions.
 
 ### 6.5 Run Background Checks
 
 1. Open `/background-checks`.
-2. Select case and check type.
+2. Select dossier and check type.
 3. Submit check (consent evidence required).
 4. Refresh check status/events as needed.
 
@@ -346,7 +350,7 @@ Important:
 
 ## 7) Government Appointment Task Guide (GAMS)
 
-### 7.1 Register Positions
+### 7.1 Register Offices
 
 1. Open `/government/positions`.
 2. Fill required fields:
@@ -361,10 +365,10 @@ Optional flags:
 - vacant status,
 - confirmation required.
 
-### 7.2 Register Personnel
+### 7.2 Register Nominee / Officeholder Records
 
 1. Open `/government/personnel`.
-2. Create personnel record.
+2. Create nominee/officeholder record.
 3. Include contact and profile details.
 4. Save.
 
@@ -373,13 +377,13 @@ Optional flags:
 - active officeholder,
 - public profile.
 
-### 7.3 Create a Nomination (Appointment Record)
+### 7.3 Open a Nomination / Appointment File
 
 1. Open `/government/appointments`.
-2. In `Create Appointment`, select:
-   - position
+2. In `Open Nomination File`, select:
+   - office
    - nominee
-   - optional campaign (appointment exercise)
+   - optional appointment exercise
 3. Enter nomination details.
 4. Save.
 
@@ -390,7 +394,7 @@ Expected result:
 
 ### 7.4 Configure Approval Chain
 
-1. In `/government/appointments`, create `Approval Stage Template` if not already present.
+1. In `/government/appointments`, create an `Appointment Route Template` if not already present.
 2. Add stages with:
    - order
    - required role
@@ -434,10 +438,10 @@ Expected result:
 
 The platform uses two decision-support layers:
 
-1. Rubric scoring layer (case scoring, trace, explanation).
+1. Rubric scoring layer (vetting dossier scoring, trace, explanation).
 2. Vetting Decision Recommendation layer (advisory recommendation + blocking/warning context).
 
-For linked appointment cases, governance stages use recommendation context:
+For linked appointment dossiers, governance stages use recommendation context:
 
 - entering `committee_review`, `confirmation_pending`, or `appointed` requires valid recommendation context,
 - if blocking issues exist, users must provide rationale (`reason_note`) or process an authorized override before advancing,
@@ -511,7 +515,7 @@ Action:
 
 ## 11) Best Practices For Smooth Daily Use
 
-1. Keep campaign and appointment records complete before advancing stages.
+1. Keep appointment exercise and nomination records complete before advancing stages.
 2. Use clear reason notes for any non-routine stage action.
 3. Review warnings and blocking issues before final decisions.
 4. Keep notifications triaged daily.
@@ -542,8 +546,8 @@ Action:
 
 ### Vetting Operations
 
-- `/campaigns`
-- `/applications`
+- `/campaigns` (Appointment Exercises)
+- `/applications` (Vetting Dossiers)
 - `/rubrics`
 - `/video-calls`
 - `/fraud-insights`
@@ -551,8 +555,8 @@ Action:
 
 ### Government Operations (GAMS)
 
-- `/government/positions`
-- `/government/personnel`
+- `/government/positions` (Government Offices)
+- `/government/personnel` (Nominee/Officeholder Registry)
 - `/government/appointments`
 
 ### Admin Surfaces

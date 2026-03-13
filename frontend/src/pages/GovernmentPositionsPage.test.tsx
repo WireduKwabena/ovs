@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 
 import GovernmentPositionsPage from "./GovernmentPositionsPage";
 
@@ -28,6 +29,13 @@ vi.mock("@/services/government.service", () => ({
 }));
 
 describe("GovernmentPositionsPage authz visibility", () => {
+  const renderPage = () =>
+    render(
+      <MemoryRouter>
+        <GovernmentPositionsPage />
+      </MemoryRouter>,
+    );
+
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
@@ -40,14 +48,14 @@ describe("GovernmentPositionsPage authz visibility", () => {
   it("shows read-only warning and disables create for non-registry users", async () => {
     serviceMocks.listPositions.mockResolvedValue([]);
 
-    render(<GovernmentPositionsPage />);
+    renderPage();
 
     await waitFor(() => {
       expect(serviceMocks.listPositions).toHaveBeenCalledTimes(1);
     });
 
-    expect(await screen.findByText(/Only registry operators can create or edit positions./i)).toBeTruthy();
-    expect((screen.getByRole("button", { name: /create position/i }) as HTMLButtonElement).disabled).toBe(true);
+    expect(await screen.findByText(/Only registry operators can create or edit offices./i)).toBeTruthy();
+    expect((screen.getByRole("button", { name: /create office/i }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("enables create controls for registry operators with active organization", async () => {
@@ -61,13 +69,13 @@ describe("GovernmentPositionsPage authz visibility", () => {
     };
     serviceMocks.listPositions.mockResolvedValue([]);
 
-    render(<GovernmentPositionsPage />);
+    renderPage();
 
     await waitFor(() => {
       expect(serviceMocks.listPositions).toHaveBeenCalledTimes(1);
     });
 
-    expect(screen.queryByText(/Only registry operators can create or edit positions./i)).toBeNull();
-    expect((screen.getByRole("button", { name: /create position/i }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.queryByText(/Only registry operators can create or edit offices./i)).toBeNull();
+    expect((screen.getByRole("button", { name: /create office/i }) as HTMLButtonElement).disabled).toBe(false);
   });
 });

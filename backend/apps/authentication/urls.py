@@ -12,6 +12,7 @@ app_name = 'authentication'
 urlpatterns = [
     # Registration & Login
     path('register/', views.RegisterView.as_view(), name='register'),
+    path('register/organization-admin/', views.OrganizationAdminRegisterView.as_view(), name='register_organization_admin'),
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
     path('admin/login/', views.admin_login_view, name='admin_login'),

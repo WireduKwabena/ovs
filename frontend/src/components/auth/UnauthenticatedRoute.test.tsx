@@ -48,7 +48,7 @@ const renderWithState = (
     <Provider store={store}>
       <MemoryRouter initialEntries={[route]}>
         <Routes>
-          <Route path="/dashboard" element={<div>Dashboard page</div>} />
+          <Route path="/workspace" element={<div>Workspace page</div>} />
           <Route path="/admin/dashboard" element={<div>Admin dashboard page</div>} />
 
           <Route
@@ -129,7 +129,7 @@ describe("UnauthenticatedRoute integration", () => {
     expect(screen.getByText("Two-factor challenge page")).toBeTruthy();
   });
 
-  it("redirects authenticated hr users to dashboard", () => {
+  it("redirects authenticated internal users to shared workspace", () => {
     renderWithState(
       createPublicState({
         isAuthenticated: true,
@@ -137,7 +137,7 @@ describe("UnauthenticatedRoute integration", () => {
       }),
       "/forgot-password",
     );
-    expect(screen.getByText("Dashboard page")).toBeTruthy();
+    expect(screen.getByText("Workspace page")).toBeTruthy();
   });
 
   it("redirects authenticated admins to admin dashboard", () => {

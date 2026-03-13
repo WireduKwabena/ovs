@@ -434,4 +434,53 @@ class CampaignOrganizationScopeTests(APITestCase):
         )
         self.assertEqual(response.status_code, 403)
 
+    def test_non_registry_member_cannot_update_same_org_campaign(self):
+        self.client.force_authenticate(self.internal_a)
+        response = self.client.patch(
+            f"/api/campaigns/{self.same_org_foreign_owner_campaign.id}/",
+            {"description": "Updated by non-registry actor"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_non_registry_member_cannot_delete_same_org_campaign(self):
+        self.client.force_authenticate(self.internal_a)
+        response = self.client.delete(f"/api/campaigns/{self.same_org_foreign_owner_campaign.id}/")
+        self.assertEqual(response.status_code, 403)
+
+
+class CampaignAliasContractTests(APITestCase):
+    def setUp(self):
+        self.internal_user = User.objects.create_user(
+            email="campaign_alias_internal@example.com",
+            password="Pass1234!",
+            first_name="Campaign",
+            last_name="Alias",
+            user_type="internal",
+        )
+        registry_admin_group, _ = Group.objects.get_or_create(name="registry_admin")
+        self.internal_user.groups.add(registry_admin_group)
+        self.campaign = VettingCampaign.objects.create(
+            name="Cabinet Office Exercise",
+            status="active",
+            initiated_by=self.internal_user,
+        )
+        self.client.force_authenticate(self.internal_user)
+
+    def _items(self, payload):
+        if isinstance(payload, list):
+            return payload
+        return payload.get("results", [])
+
+    def test_government_exercises_alias_endpoint_exposes_additive_fields(self):
+        response = self.client.get("/api/government/exercises/")
+        self.assertEqual(response.status_code, 200)
+        items = self._items(response.json())
+        target = next((item for item in items if item["id"] == str(self.campaign.id)), None)
+        self.assertIsNotNone(target)
+        self.assertEqual(target["appointment_exercise_name"], self.campaign.name)
+        self.assertEqual(target["appointment_exercise_status"], self.campaign.status)
+        self.assertIn("office_ids", target)
+        self.assertIn("appointment_route_template_id", target)
+
 

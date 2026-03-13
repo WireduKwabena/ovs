@@ -7,7 +7,7 @@ export const getDashboardPathForUser = (userType: AuthUserType): string => {
   if (userType === "applicant") {
     return "/candidate/access";
   }
-  return "/dashboard";
+  return "/workspace";
 };
 
 export const hasActiveTwoFactorChallenge = (

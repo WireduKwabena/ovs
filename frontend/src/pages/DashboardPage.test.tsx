@@ -11,18 +11,6 @@ vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => mockUseAuth(),
 }));
 
-vi.mock("@/hooks/useApplications", () => ({
-  useApplications: () => ({
-    applications: [],
-    loading: false,
-    refetch: vi.fn(),
-  }),
-}));
-
-vi.mock("@/pages/OperationsDashboardPage", () => ({
-  default: () => <div>Operations Dashboard Page</div>,
-}));
-
 describe("DashboardPage role routing", () => {
   afterEach(() => {
     cleanup();
@@ -44,29 +32,9 @@ describe("DashboardPage role routing", () => {
     expect(await screen.findByText("Admin Dashboard Page")).toBeTruthy();
   });
 
-  it("renders operations dashboard when internal workflow access is available", async () => {
+  it("redirects org-admin users with active organization to organization dashboard", async () => {
     mockUseAuth.mockReturnValue({
       userType: "internal",
-      canAccessInternalWorkflow: true,
-      canManageActiveOrganizationGovernance: false,
-      activeOrganizationId: null,
-    });
-
-    render(
-      <MemoryRouter initialEntries={["/dashboard"]}>
-        <Routes>
-          <Route path="/dashboard" element={<DashboardPage />} />
-        </Routes>
-      </MemoryRouter>,
-    );
-
-    expect(await screen.findByText("Operations Dashboard Page")).toBeTruthy();
-  });
-
-  it("redirects org-admin internal users to organization workspace dashboard", async () => {
-    mockUseAuth.mockReturnValue({
-      userType: "internal",
-      canAccessInternalWorkflow: true,
       canManageActiveOrganizationGovernance: true,
       activeOrganizationId: "org-1",
     });
@@ -75,18 +43,41 @@ describe("DashboardPage role routing", () => {
       <MemoryRouter initialEntries={["/dashboard"]}>
         <Routes>
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/organization/dashboard" element={<div>Organization Workspace Dashboard</div>} />
+          <Route path="/organization/dashboard" element={<div>Organization Dashboard</div>} />
         </Routes>
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText("Organization Workspace Dashboard")).toBeTruthy();
+    expect(await screen.findByText("Organization Dashboard")).toBeTruthy();
   });
 
-  it("routes committee/vetting actors to appointments workflow when available", async () => {
+  it("redirects org-admin users without active organization to setup", async () => {
     mockUseAuth.mockReturnValue({
       userType: "internal",
-      canAccessInternalWorkflow: true,
+      canManageActiveOrganizationGovernance: true,
+      activeOrganizationId: null,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Routes>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/organization/setup" element={<div>Organization Setup</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Organization Setup")).toBeTruthy();
+  });
+
+  it("routes committee actors to shared workspace", async () => {
+    mockUseAuth.mockReturnValue({
+      userType: "internal",
+      canAccessInternalWorkflow: false,
+      canAccessApplications: false,
+      canAccessCampaigns: false,
+      canAccessVideoCalls: false,
+      hasAnyRole: vi.fn((roles: string[]) => roles.includes("committee_member")),
       canManageActiveOrganizationGovernance: false,
       activeOrganizationId: "org-1",
       canAccessAppointments: true,
@@ -98,12 +89,39 @@ describe("DashboardPage role routing", () => {
       <MemoryRouter initialEntries={["/dashboard"]}>
         <Routes>
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/government/appointments" element={<div>Appointments Registry Page</div>} />
+          <Route path="/workspace" element={<div>Workspace</div>} />
         </Routes>
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText("Appointments Registry Page")).toBeTruthy();
+    expect(await screen.findByText("Workspace")).toBeTruthy();
+  });
+
+  it("routes internal workflow users to shared workspace", async () => {
+    mockUseAuth.mockReturnValue({
+      userType: "internal",
+      canAccessInternalWorkflow: true,
+      canAccessApplications: false,
+      canAccessCampaigns: false,
+      canAccessVideoCalls: false,
+      hasAnyRole: vi.fn().mockReturnValue(false),
+      canManageActiveOrganizationGovernance: false,
+      activeOrganizationId: "org-1",
+      canAccessAppointments: false,
+      canManageRegistry: false,
+      canViewAuditLogs: false,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Routes>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/workspace" element={<div>Workspace</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Workspace")).toBeTruthy();
   });
 
   it("redirects applicant users to candidate access", async () => {
@@ -121,5 +139,4 @@ describe("DashboardPage role routing", () => {
     expect(await screen.findByText("Candidate Access Page")).toBeTruthy();
   });
 });
-
 

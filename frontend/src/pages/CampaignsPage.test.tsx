@@ -36,7 +36,7 @@ describe('CampaignsPage list filters', () => {
 
   it('hydrates list filters from URL and clears all active filters', async () => {
     mocks.useAuth.mockReturnValue({
-      isInternalOrAdmin: true,
+      canManageRegistry: true,
       userType: 'internal',
     });
     mocks.billingService.getQuota.mockResolvedValue({
@@ -111,7 +111,7 @@ describe('CampaignsPage list filters', () => {
     expect(screen.queryByText(/Archive Intake/i)).toBeNull();
     expect(screen.queryByText(/Executive Vetting/i)).toBeNull();
 
-    fireEvent.click(await screen.findByRole('button', { name: /clear campaign filters/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /clear exercise filters/i }));
 
     await waitFor(() => {
       expect(screen.queryByText(/active filters/i)).toBeNull();

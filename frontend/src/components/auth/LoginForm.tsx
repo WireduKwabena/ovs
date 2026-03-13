@@ -17,6 +17,14 @@ import { Label } from "@/components/ui/label";
 import { getApiErrorMessage } from "@/utils/apiError";
 import { getDashboardPathForUser } from "@/utils/authRouting";
 
+const normalizeLoginNextPath = (value: string | null | undefined): string | null => {
+  if (!value) return null;
+  if (!value.startsWith("/") || value.startsWith("//")) return null;
+  if (value.startsWith("/login")) return null;
+  if (value.startsWith("/register")) return null;
+  return value;
+};
+
 export const LoginForm: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -61,10 +69,14 @@ export const LoginForm: React.FC = () => {
 
       toast.success("Login successful");
 
-      const requestedPath =
+      const requestedPathFromState =
         (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
+      const requestedPathFromQuery = new URLSearchParams(location.search).get("next");
       const defaultPath = getDashboardPathForUser(response.user_type ?? null);
-      const redirectPath = requestedPath && requestedPath !== "/" ? requestedPath : defaultPath;
+      const redirectPath =
+        normalizeLoginNextPath(requestedPathFromState) ||
+        normalizeLoginNextPath(requestedPathFromQuery) ||
+        defaultPath;
 
       navigate(redirectPath, { replace: true });
     } catch (error: unknown) {
@@ -202,9 +214,9 @@ export const LoginForm: React.FC = () => {
             </form>
 
             <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-700">
-              Need a new organization account? Review plans and subscription setup first.
-              <Link to="/subscribe" className="ml-1 font-semibold text-cyan-700 hover:underline">
-                View plans
+              Need a new organization account?
+              <Link to="/organization/get-started" className="ml-1 font-semibold text-cyan-700 hover:underline">
+                Start organization setup
               </Link>
             </div>
           </div>

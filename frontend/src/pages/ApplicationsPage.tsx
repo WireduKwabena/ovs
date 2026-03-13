@@ -1,5 +1,5 @@
 // src/pages/ApplicationsPage.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { Search, Filter, Info } from "lucide-react";
 import { useApplications } from "@/hooks/useApplications";
@@ -24,7 +24,6 @@ export const ApplicationsPage: React.FC = () => {
   const { isAdmin } = useAuth();
 
   const isAdminView = location.pathname.startsWith("/admin");
-  const isCaseManagerView = true;
   const isValidStatusParam = (
     value: string | null,
   ): value is
@@ -49,12 +48,21 @@ export const ApplicationsPage: React.FC = () => {
   const isValidScopeParam = (value: string | null): value is "all" | "assigned" =>
     value === "all" || value === "assigned";
 
-  const [searchTerm, setSearchTerm] = useState("");
+  const querySearch = (searchParams.get("q") || "").trim();
+  const queryExercise = (searchParams.get("exercise") || "").trim();
+  const queryOffice = (searchParams.get("office") || "").trim();
+  const [searchTerm, setSearchTerm] = useState(querySearch);
   const statusFromQuery = searchParams.get("status");
   const statusFilter = isValidStatusParam(statusFromQuery) ? statusFromQuery : "all";
   const scopeFromQuery = searchParams.get("scope");
   const canChooseScope = !isAdminView && !isAdmin;
   const scopeFilter = canChooseScope && isValidScopeParam(scopeFromQuery) ? scopeFromQuery : "assigned";
+
+  useEffect(() => {
+    if (querySearch !== searchTerm) {
+      setSearchTerm(querySearch);
+    }
+  }, [querySearch, searchTerm]);
 
   useEffect(() => {
     if (isAdmin || isAdminView) {
@@ -84,6 +92,14 @@ export const ApplicationsPage: React.FC = () => {
     setSearchParams(nextParams, { replace: true });
   };
 
+  const clearWorkflowContext = () => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("q");
+    nextParams.delete("exercise");
+    nextParams.delete("office");
+    setSearchParams(nextParams, { replace: true });
+  };
+
   const detailPathPrefix = isAdminView ? "/admin/cases" : "/applications";
   const resolveApplicantDisplay = (app: (typeof applications)[number]) => {
     if (app.applicant && typeof app.applicant === "object") {
@@ -92,16 +108,30 @@ export const ApplicationsPage: React.FC = () => {
     return app.applicant_email || String(app.applicant || "");
   };
   const resolveCaseLabel = (app: (typeof applications)[number]) =>
-    app.position_applied || app.application_type || "vetting";
+    app.office_title || app.position_applied || app.application_type || "vetting dossier";
+  const workflowContextLabel = useMemo(() => {
+    const labels: string[] = [];
+    if (queryOffice) {
+      labels.push(`Office: ${queryOffice}`);
+    }
+    if (queryExercise) {
+      labels.push("Appointment exercise context active");
+    }
+    return labels;
+  }, [queryExercise, queryOffice]);
 
   const filteredApplications = applications.filter((app) => {
     const applicantDisplay = resolveApplicantDisplay(app).toLowerCase();
+    const officeDisplay = String(app.office_title || app.position_applied || "").toLowerCase();
     const matchesSearch =
       app.case_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       applicantDisplay.includes(searchTerm.toLowerCase()) ||
-      (app.applicant_email || "").toLowerCase().includes(searchTerm.toLowerCase());
+      (app.applicant_email || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      officeDisplay.includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || app.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesExercise = !queryExercise || app.appointment_exercise_id === queryExercise;
+    const matchesOffice = !queryOffice || officeDisplay.includes(queryOffice.toLowerCase());
+    return matchesSearch && matchesStatus && matchesExercise && matchesOffice;
   });
 
   return (
@@ -111,15 +141,66 @@ export const ApplicationsPage: React.FC = () => {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
-              {isCaseManagerView ? "Vetting Cases" : "Applications"}
+              Vetting Dossiers
             </h1>
             <p className="mt-1 text-slate-700">
-              {isCaseManagerView
-                ? "Review and manage submitted vetting cases"
-                : "Review and manage submitted applications"}
+              Review and manage submitted vetting dossiers for nomination files.
             </p>
           </div>
         </div>
+
+        <section className="mb-6 rounded-xl border border-cyan-200 bg-cyan-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-cyan-900">
+            Office-Centered Sequence
+          </p>
+          <p className="mt-2 text-sm text-cyan-900">
+            Office -&gt; Appointment Exercise -&gt; Nominee / Nomination File -&gt; Vetting Dossier -&gt; Review -&gt; Approval -&gt; Appointment -&gt; Publication
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link
+              to="/government/positions"
+              className="inline-flex rounded-md border border-cyan-300 bg-white px-3 py-1.5 text-xs font-semibold text-cyan-900 hover:bg-cyan-100"
+            >
+              Offices
+            </Link>
+            <Link
+              to="/campaigns"
+              className="inline-flex rounded-md border border-cyan-300 bg-white px-3 py-1.5 text-xs font-semibold text-cyan-900 hover:bg-cyan-100"
+            >
+              Appointment Exercises
+            </Link>
+            <Link
+              to="/government/appointments"
+              className="inline-flex rounded-md border border-cyan-300 bg-white px-3 py-1.5 text-xs font-semibold text-cyan-900 hover:bg-cyan-100"
+            >
+              Nomination Files
+            </Link>
+          </div>
+          {workflowContextLabel.length > 0 || querySearch ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {workflowContextLabel.map((label) => (
+                <span
+                  key={label}
+                  className="inline-flex rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-cyan-900"
+                >
+                  {label}
+                </span>
+              ))}
+              {querySearch ? (
+                <span className="inline-flex rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-cyan-900">
+                  Search: {querySearch}
+                </span>
+              ) : null}
+              <button
+                type="button"
+                onClick={clearWorkflowContext}
+                className="inline-flex rounded-md border border-cyan-300 bg-white px-2.5 py-1 text-xs font-semibold text-cyan-900 hover:bg-cyan-100"
+              >
+                Clear Context
+              </button>
+            </div>
+          ) : null}
+        </section>
 
         {/* Filters */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
@@ -131,7 +212,7 @@ export const ApplicationsPage: React.FC = () => {
               <FieldLabel
                 htmlFor="applications-search"
                 label="Search"
-                help="Find applications by case ID or applicant name."
+                help="Find dossiers by case ID, nominee name, or office."
                 className="mb-2 flex items-center gap-1.5"
                 textClassName="block text-sm font-medium text-slate-800"
               />
@@ -140,7 +221,7 @@ export const ApplicationsPage: React.FC = () => {
                 <Input
                   id="applications-search"
                   type="text"
-                  placeholder="Search by case ID or name..."
+                  placeholder="Search by dossier ID, nominee, or office..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full rounded-lg border border-slate-700 py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -151,7 +232,7 @@ export const ApplicationsPage: React.FC = () => {
             <div>
               <FieldLabel
                 label="Status"
-                help="Filter the list by current application state."
+                help="Filter the list by current dossier state."
                 className="mb-2 flex items-center gap-1.5"
                 textClassName="block text-sm font-medium text-slate-800"
               />
@@ -181,7 +262,7 @@ export const ApplicationsPage: React.FC = () => {
               <div>
                 <FieldLabel
                   label="Scope"
-                  help="Choose whether to show assigned cases only or every case available to your role."
+                  help="Choose whether to show assigned dossiers only or every dossier available to your role."
                   className="mb-2 flex items-center gap-1.5"
                   textClassName="block text-sm font-medium text-slate-800"
                 />
@@ -189,11 +270,11 @@ export const ApplicationsPage: React.FC = () => {
                   <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-700 w-5 h-5 z-10" />
                   <Select value={scopeFilter} onValueChange={handleScopeChange}>
                     <SelectTrigger className="w-full rounded-lg border border-slate-700 py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                      <SelectValue placeholder="Case scope" />
+                      <SelectValue placeholder="Dossier scope" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="assigned">Assigned to me</SelectItem>
-                      <SelectItem value="all">All cases</SelectItem>
+                      <SelectItem value="all">All dossiers</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -202,7 +283,7 @@ export const ApplicationsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Applications List */}
+        {/* Dossier List */}
         {loading ? (
           <div className="flex justify-center items-center py-20">
             <Loader size="lg" />
@@ -211,12 +292,12 @@ export const ApplicationsPage: React.FC = () => {
           <div className="bg-white rounded-lg shadow-sm p-12 text-center">
             <div className="text-6xl mb-4">📋</div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              No applications found
+              No dossiers found
             </h3>
             <p className="mb-6 text-slate-700">
               {searchTerm || statusFilter !== "all"
                 ? "Try adjusting your filters"
-                : "No cases match the current scope."}
+                : "No dossiers match the current scope."}
             </p>
           </div>
         ) : (

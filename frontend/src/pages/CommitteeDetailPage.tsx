@@ -240,8 +240,8 @@ const CommitteeDetailPage: React.FC = () => {
             Committee workspace is restricted to organization admins and platform admins.
           </p>
           <div className="mt-6">
-            <Button type="button" onClick={() => navigate("/dashboard")}>
-              Back to Dashboard
+            <Button type="button" onClick={() => navigate("/workspace")}>
+              Back to Workspace
             </Button>
           </div>
         </section>

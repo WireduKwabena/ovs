@@ -59,6 +59,18 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
     serializer_class = VettingCampaignSerializer
     permission_classes = [IsInternalWorkflowOperator]
 
+    def _require_registry_manage(self, *, organization_id=None, detail: str):
+        user = self.request.user
+        if is_platform_admin_user(user):
+            return
+        if can_manage_registry(
+            user,
+            organization_id=organization_id,
+            allow_membershipless_fallback=False,
+        ):
+            return
+        raise PermissionDenied(detail)
+
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return VettingCampaign.objects.none()
@@ -107,6 +119,10 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         instance = serializer.instance
         user = self.request.user
+        self._require_registry_manage(
+            organization_id=instance.organization_id,
+            detail="You do not have permission to update campaigns.",
+        )
         if not is_platform_admin_user(user) and not can_access_organization_id(
             user,
             instance.organization_id,
@@ -133,6 +149,10 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         user = self.request.user
+        self._require_registry_manage(
+            organization_id=instance.organization_id,
+            detail="You do not have permission to delete campaigns.",
+        )
         if not is_platform_admin_user(user) and not can_access_organization_id(
             user,
             instance.organization_id,
@@ -149,6 +169,11 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
             serializer = CampaignRubricVersionSerializer(versions, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
+        self._require_registry_manage(
+            organization_id=campaign.organization_id,
+            detail="You do not have permission to manage campaign rubric versions.",
+        )
+
         next_version = (campaign.rubric_versions.aggregate(max_v=Max("version"))["max_v"] or 0) + 1
 
         serializer = CampaignRubricVersionSerializer(data=request.data)
@@ -160,6 +185,10 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="rubrics/versions/activate")
     def activate_rubric_version(self, request, pk=None):
         campaign = self.get_object()
+        self._require_registry_manage(
+            organization_id=campaign.organization_id,
+            detail="You do not have permission to activate campaign rubric versions.",
+        )
         version_id = request.data.get("version_id")
         if not version_id:
             return Response({"error": "version_id is required"}, status=status.HTTP_400_BAD_REQUEST)
@@ -195,6 +224,10 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="candidates/import")
     def import_candidates(self, request, pk=None):
         campaign = self.get_object()
+        self._require_registry_manage(
+            organization_id=campaign.organization_id,
+            detail="You do not have permission to import candidates for this campaign.",
+        )
         candidates_data = request.data.get("candidates", [])
         send_invites = bool(request.data.get("send_invites", False))
 

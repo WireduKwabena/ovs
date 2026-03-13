@@ -10,10 +10,11 @@ export const APPOINTMENT_ROUTE_CAPABILITIES = [...GOVERNMENT_WORKFLOW_CAPABILITI
 
 export const REGISTRY_ROUTE_CAPABILITIES = ["gams.registry.manage"] as const;
 
+// Campaign lifecycle management follows registry authority, not generic stage actors.
+export const CAMPAIGN_MANAGE_CAPABILITIES = ["gams.registry.manage"] as const;
+
 export const RUBRIC_MANAGE_CAPABILITIES = [
   "gams.registry.manage",
-  "gams.appointment.stage",
-  "gams.appointment.decide",
 ] as const;
 
 export const INTERNAL_WORKFLOW_ROUTE_CAPABILITIES = [

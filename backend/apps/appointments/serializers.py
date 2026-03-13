@@ -86,28 +86,48 @@ class AppointmentRecordSerializer(serializers.ModelSerializer):
     committee_name = serializers.CharField(source="committee.name", read_only=True)
     position_title = serializers.CharField(source="position.title", read_only=True)
     nominee_name = serializers.CharField(source="nominee.full_name", read_only=True)
+    nomination_file_id = serializers.UUIDField(source="id", read_only=True)
+    nomination_file_status = serializers.CharField(source="status", read_only=True)
+    office_id = serializers.UUIDField(source="position_id", read_only=True)
+    office_name = serializers.CharField(source="position.title", read_only=True)
+    appointment_exercise_id = serializers.UUIDField(read_only=True, allow_null=True)
+    appointment_exercise_name = serializers.CharField(source="appointment_exercise.name", read_only=True, allow_null=True)
+    vetting_dossier_id = serializers.UUIDField(source="vetting_case_id", read_only=True, allow_null=True)
+    appointment_route_template_id = serializers.UUIDField(
+        source="appointment_exercise.approval_template_id",
+        read_only=True,
+        allow_null=True,
+    )
     vetting_decision = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = AppointmentRecord
         fields = [
             "id",
+            "nomination_file_id",
             "organization",
             "organization_name",
             "committee",
             "committee_name",
             "position",
             "position_title",
+            "office_id",
+            "office_name",
             "nominee",
             "nominee_name",
             "appointment_exercise",
+            "appointment_exercise_id",
+            "appointment_exercise_name",
+            "appointment_route_template_id",
             "nominated_by_user",
             "nominated_by_display",
             "nominated_by_org",
             "nomination_date",
             "vetting_case",
+            "vetting_dossier_id",
             "vetting_decision",
             "status",
+            "nomination_file_status",
             "committee_recommendation",
             "final_decision_by_user",
             "final_decision_by_display",
@@ -317,4 +337,3 @@ class AppointmentPublicationSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = fields
-

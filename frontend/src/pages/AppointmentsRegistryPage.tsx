@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Clock3, Plus, RefreshCw, ShieldAlert, Stamp, Workflow } from "lucide-react";
 import { toast } from "react-toastify";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -126,7 +127,18 @@ const AppointmentsRegistryPage: React.FC = () => {
     activeOrganization,
     activeOrganizationId,
     hasCommitteeMembership,
+    hasAnyRole,
   } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const isCommitteeActor =
+    typeof hasAnyRole === "function" && hasAnyRole(["committee_member", "committee_chair"]);
+  const committeeFocusedView =
+    searchParams.get("view") === "committee" ||
+    (isCommitteeActor && !canManageRegistryInActiveOrganization);
+  const officeContextFilter = String(searchParams.get("office") || "").trim();
+  const exerciseContextFilter = String(searchParams.get("exercise") || "").trim();
+  const dossierContextFilter = String(searchParams.get("dossier") || "").trim();
 
   const [rows, setRows] = useState<AppointmentRecord[]>([]);
   const [positions, setPositions] = useState<GovernmentPosition[]>([]);
@@ -209,12 +221,19 @@ const AppointmentsRegistryPage: React.FC = () => {
   }, []);
 
   const loadAll = useCallback(async () => {
+    const positionsPromise = canManageRegistryInActiveOrganization
+      ? governmentService.listPositions()
+      : Promise.resolve<GovernmentPosition[]>([]);
+    const personnelPromise = canManageRegistryInActiveOrganization
+      ? governmentService.listPersonnel()
+      : Promise.resolve<PersonnelRecord[]>([]);
+
     const [appointments, positionRows, personnelRows, campaignRows, templateRows, stageRows] = await Promise.all([
       governmentService.listAppointments({
         status: statusFilter === "all" ? undefined : statusFilter,
       }),
-      governmentService.listPositions(),
-      governmentService.listPersonnel(),
+      positionsPromise,
+      personnelPromise,
       governmentService.listCampaignsForAppointments(),
       governmentService.listApprovalStageTemplates(),
       governmentService.listApprovalStages(),
@@ -226,7 +245,7 @@ const AppointmentsRegistryPage: React.FC = () => {
     setStageTemplates(templateRows);
     setStages(stageRows);
     void loadPublicationState(appointments);
-  }, [activeOrganizationId, loadPublicationState, statusFilter]);
+  }, [canManageRegistryInActiveOrganization, loadPublicationState, statusFilter]);
 
   useEffect(() => {
     const run = async () => {
@@ -301,6 +320,30 @@ const AppointmentsRegistryPage: React.FC = () => {
       setForm((previous) => ({ ...previous, appointment_exercise: "" }));
     }
   }, [form.appointment_exercise, scopedCampaigns]);
+
+  useEffect(() => {
+    if (!officeContextFilter) {
+      return;
+    }
+    if (scopedPositions.some((row) => row.id === officeContextFilter)) {
+      setForm((previous) =>
+        previous.position === officeContextFilter ? previous : { ...previous, position: officeContextFilter },
+      );
+    }
+  }, [officeContextFilter, scopedPositions]);
+
+  useEffect(() => {
+    if (!exerciseContextFilter) {
+      return;
+    }
+    if (scopedCampaigns.some((row) => row.id === exerciseContextFilter)) {
+      setForm((previous) =>
+        previous.appointment_exercise === exerciseContextFilter
+          ? previous
+          : { ...previous, appointment_exercise: exerciseContextFilter },
+      );
+    }
+  }, [exerciseContextFilter, scopedCampaigns]);
 
   useEffect(() => {
     setOpenActionsFor(null);
@@ -393,6 +436,30 @@ const AppointmentsRegistryPage: React.FC = () => {
     return rows.filter((row) => isWithinActiveOrganization(row.organization));
   }, [isWithinActiveOrganization, rows]);
 
+  const workflowScopedRows = useMemo(() => {
+    return scopedRows.filter((row) => {
+      if (officeContextFilter) {
+        const officeId = String(row.office_id || row.position || "").trim();
+        if (officeId !== officeContextFilter) {
+          return false;
+        }
+      }
+      if (exerciseContextFilter) {
+        const exerciseId = String(row.appointment_exercise_id || row.appointment_exercise || "").trim();
+        if (exerciseId !== exerciseContextFilter) {
+          return false;
+        }
+      }
+      if (dossierContextFilter) {
+        const dossierId = String(row.vetting_dossier_id || row.vetting_case || "").trim();
+        if (dossierId !== dossierContextFilter) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [dossierContextFilter, exerciseContextFilter, officeContextFilter, scopedRows]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
@@ -416,7 +483,7 @@ const AppointmentsRegistryPage: React.FC = () => {
       return;
     }
     if (!form.position || !form.nominee || !form.nominated_by_display.trim()) {
-      toast.error("Position, nominee, and nominated by display are required.");
+      toast.error("Office, nominee, and nominated by display are required.");
       return;
     }
 
@@ -739,25 +806,40 @@ const AppointmentsRegistryPage: React.FC = () => {
   );
 
   const stats = useMemo(() => {
-    const total = scopedRows.length;
-    const active = scopedRows.filter((row) =>
+    const total = workflowScopedRows.length;
+    const active = workflowScopedRows.filter((row) =>
       ["nominated", "under_vetting", "committee_review", "confirmation_pending"].includes(row.status),
     ).length;
-    const appointed = scopedRows.filter((row) => row.status === "appointed" || row.status === "serving").length;
-    const published = scopedRows.filter(
+    const appointed = workflowScopedRows.filter((row) => row.status === "appointed" || row.status === "serving").length;
+    const published = workflowScopedRows.filter(
       (row) => publicationsByAppointment[row.id]?.status === "published",
     ).length;
     return { total, active, appointed, published };
-  }, [publicationsByAppointment, scopedRows]);
+  }, [publicationsByAppointment, workflowScopedRows]);
+
+  const hasWorkflowContext =
+    Boolean(officeContextFilter) || Boolean(exerciseContextFilter) || Boolean(dossierContextFilter);
+
+  const clearWorkflowContext = () => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("office");
+    nextParams.delete("exercise");
+    nextParams.delete("dossier");
+    setSearchParams(nextParams, { replace: true });
+  };
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 space-y-6">
       <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900">Appointment Registry</h1>
+            <h1 className="text-3xl font-black tracking-tight text-slate-900">
+              {committeeFocusedView ? "Committee Review Queue" : "Office Appointment Workflow"}
+            </h1>
             <p className="mt-1 text-sm text-slate-700">
-              Govern nomination, approval-chain transitions, and publication lifecycle.
+              {committeeFocusedView
+                ? "Review committee-bound stages and apply authorized stage actions."
+                : "Manage the office-centered lifecycle from nomination through publication."}
             </p>
             <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-700">
               Active organization scope: {activeOrganization?.name || "Default"}
@@ -770,9 +852,56 @@ const AppointmentsRegistryPage: React.FC = () => {
         </div>
       </header>
 
+      <section className="rounded-xl border border-cyan-200 bg-cyan-50 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-cyan-900">
+          Appointment Workflow Timeline
+        </p>
+        <p className="mt-2 text-sm text-cyan-900">
+          Office -&gt; Appointment Exercise -&gt; Nominee / Nomination File -&gt; Vetting Dossier -&gt; Review -&gt; Approval -&gt; Appointment -&gt; Publication
+        </p>
+      </section>
+
+      {hasWorkflowContext ? (
+        <section className="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-900">Active Context</p>
+            {officeContextFilter ? (
+              <span className="inline-flex rounded-full bg-white px-2 py-1 text-xs font-semibold text-indigo-900">
+                Office filter active
+              </span>
+            ) : null}
+            {exerciseContextFilter ? (
+              <span className="inline-flex rounded-full bg-white px-2 py-1 text-xs font-semibold text-indigo-900">
+                Appointment exercise filter active
+              </span>
+            ) : null}
+            {dossierContextFilter ? (
+              <span className="inline-flex rounded-full bg-white px-2 py-1 text-xs font-semibold text-indigo-900">
+                Vetting dossier filter active
+              </span>
+            ) : null}
+            <button
+              type="button"
+              onClick={clearWorkflowContext}
+              className="ml-auto inline-flex rounded-md border border-indigo-300 bg-white px-2.5 py-1 text-xs font-semibold text-indigo-900 hover:bg-indigo-100"
+            >
+              Clear Context
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       {!isAdmin && !activeOrganizationId ? (
         <section className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
           Select an active organization to view and act on organization-scoped appointment records.
+        </section>
+      ) : null}
+      {!canManageRegistryInActiveOrganization ? (
+        <section className="rounded-xl border border-cyan-300 bg-cyan-50 p-4 text-sm text-cyan-900">
+          Nomination creation and approval-chain setup are restricted to registry administrators.
+          {isCommitteeActor
+            ? " Committee actors can review and act on assigned stages in this view."
+            : ""}
         </section>
       ) : null}
 
@@ -799,15 +928,15 @@ const AppointmentsRegistryPage: React.FC = () => {
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <Workflow className="h-5 w-5 text-indigo-700" />
-            <h2 className="text-lg font-bold text-slate-900">Initialize Approval Chain</h2>
+            <h2 className="text-lg font-bold text-slate-900">Configure Appointment Route Template</h2>
           </div>
           <p className="mb-4 text-sm text-slate-700">
-            Define approval-stage templates and stage roles used by campaign-linked appointment workflows.
+            Define route templates and stage roles used by appointment exercises for each office type.
           </p>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <form onSubmit={handleCreateTemplate} className="rounded-lg border border-slate-200 p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Create Stage Template</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Create Route Template</h3>
               <div className="mt-3 space-y-3">
                 <div>
                   <label htmlFor="template-name" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Template Name</label>
@@ -837,14 +966,14 @@ const AppointmentsRegistryPage: React.FC = () => {
                 </div>
                 <div className="flex justify-end">
                   <Button type="submit" disabled={templateCreating}>
-                    {templateCreating ? "Saving..." : "Create Template"}
+                    {templateCreating ? "Saving..." : "Create Route Template"}
                   </Button>
                 </div>
               </div>
             </form>
 
             <form onSubmit={handleCreateStage} className="rounded-lg border border-slate-200 p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Create Stage</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Create Route Stage</h3>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <div className="sm:col-span-2">
                   <label htmlFor="stage-template" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Template</label>
@@ -932,7 +1061,7 @@ const AppointmentsRegistryPage: React.FC = () => {
                 </label>
                 <div className="flex justify-end sm:col-span-2">
                   <Button type="submit" disabled={stageCreating}>
-                    {stageCreating ? "Saving..." : "Create Stage"}
+                    {stageCreating ? "Saving..." : "Create Route Stage"}
                   </Button>
                 </div>
               </div>
@@ -941,8 +1070,9 @@ const AppointmentsRegistryPage: React.FC = () => {
         </section>
       ) : null}
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-slate-900">Create Nomination Record</h2>
+      {canManageRegistryInActiveOrganization ? (
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-bold text-slate-900">Open Nomination File</h2>
         {!canCreateAppointment ? (
           <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
             {!canManageRegistry
@@ -950,13 +1080,13 @@ const AppointmentsRegistryPage: React.FC = () => {
               : !activeOrganizationId && !isAdmin
               ? "Select an active organization before creating nomination records."
               : !hasPositionOptions || !hasNomineeOptions
-              ? "Create at least one position and one personnel profile before starting a nomination."
+              ? "Create at least one office and one nominee profile before opening a nomination file."
               : "You do not have permission to create nomination records."}
           </div>
         ) : null}
         <form onSubmit={handleCreate} className="mt-4 grid gap-3 md:grid-cols-2">
           <div>
-            <label htmlFor="position" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Position</label>
+            <label htmlFor="position" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Office</label>
             <select
               className={SELECT_FIELD_CLASS}
               id="position"
@@ -964,7 +1094,7 @@ const AppointmentsRegistryPage: React.FC = () => {
               disabled={!hasPositionOptions}
               onChange={(event) => setForm((p) => ({ ...p, position: event.target.value }))}
             >
-              <option value="">{hasPositionOptions ? "Select position" : "No positions available"}</option>
+              <option value="">{hasPositionOptions ? "Select office" : "No offices available"}</option>
               {scopedPositions.map((position) => (
                 <option key={position.id} value={position.id}>
                   {position.title} - {position.institution}
@@ -990,7 +1120,7 @@ const AppointmentsRegistryPage: React.FC = () => {
             </select>
           </div>
           <div>
-            <label htmlFor="appointment-exercise" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Appointment Exercise (Campaign)</label>
+            <label htmlFor="appointment-exercise" className="mb-1 block text-xs font-semibold uppercase text-slate-700">Appointment Exercise</label>
             <select
               className={SELECT_FIELD_CLASS}
               id="appointment-exercise"
@@ -1043,15 +1173,16 @@ const AppointmentsRegistryPage: React.FC = () => {
           <div className="md:col-span-2 flex justify-end">
             <Button type="submit" disabled={creating || !canCreateAppointment}>
               <Plus className="mr-2 h-4 w-4" />
-              {creating ? "Saving..." : canCreateAppointment ? "Create Nomination" : "Add Prerequisites First"}
+              {creating ? "Saving..." : canCreateAppointment ? "Open Nomination File" : "Add Prerequisites First"}
             </Button>
           </div>
         </form>
-      </section>
+        </section>
+      ) : null}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-bold text-slate-900">Appointment Records</h2>
+          <h2 className="text-lg font-bold text-slate-900">Nomination and Appointment Files</h2>
           <select
             title="Filter by status"
             className={SELECT_FIELD_COMPACT_CLASS}
@@ -1069,14 +1200,17 @@ const AppointmentsRegistryPage: React.FC = () => {
 
         {loading ? (
           <p className="mt-4 text-sm text-slate-700">Loading appointment records...</p>
-        ) : scopedRows.length === 0 ? (
+        ) : workflowScopedRows.length === 0 ? (
           <div className="mt-4 rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-700">
-            No appointment records found in the active organization scope. Create a nomination above or run
-            `python manage.py setup_demo` to preload a full demo workflow.
+            {canManageRegistryInActiveOrganization
+              ? hasWorkflowContext
+                ? "No nomination files match the current office/exercise/dossier context."
+                : "No appointment records found in the active organization scope. Create a nomination above or run `python manage.py setup_demo` to preload a full demo workflow."
+              : "No committee-review appointment records were found in the active organization scope."}
           </div>
         ) : (
           <div className="mt-4 space-y-4">
-            {scopedRows.map((row) => {
+            {workflowScopedRows.map((row) => {
               const requestedStatusTarget = rowActionStatus[row.id] || row.status;
               const canFinalizeForRow =
                 canFinalizeAppointment && isWithinActiveOrganization(row.organization);
@@ -1107,9 +1241,9 @@ const AppointmentsRegistryPage: React.FC = () => {
                 ? [...(stagesByTemplate[template.id] || [])].sort((left, right) => left.order - right.order)
                 : [];
               const approvalChainStatus = !campaign
-                ? "No campaign linked"
+                ? "No appointment exercise linked"
                 : !template
-                  ? "Campaign missing approval template"
+                  ? "Exercise missing route template"
                   : templateStages.length === 0
                     ? "Template has no stages"
                     : `${templateStages.length} stage${templateStages.length > 1 ? "s" : ""} configured`;
@@ -1139,12 +1273,12 @@ const AppointmentsRegistryPage: React.FC = () => {
                         {row.vetting_case ? (
                           <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-1 font-semibold text-emerald-800">
                             <CheckCircle2 className="h-3 w-3" />
-                            Linked case
+                            Linked vetting dossier
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-1 font-semibold text-amber-800">
                             <ShieldAlert className="h-3 w-3" />
-                            Missing case
+                            Missing vetting dossier
                           </span>
                         )}
                         {row.is_public ? (
@@ -1163,16 +1297,42 @@ const AppointmentsRegistryPage: React.FC = () => {
                         </span>
                       </div>
                       <p className="mt-2 text-xs text-slate-700">
-                        Campaign: {campaign ? campaign.name : "Not linked"}{" "}
+                        Appointment exercise: {campaign ? campaign.name : "Not linked"}{" "}
                         {campaign?.exercise_type ? `(${campaign.exercise_type})` : ""}
                       </p>
                       <p className="text-xs text-slate-700">
-                        Approval template: {template ? template.name : "Not configured"}
+                        Route template: {template ? template.name : "Not configured"}
                         {templateStages.length > 0
                           ? ` | Stages: ${templateStages.map((item) => `${item.order}. ${item.name}`).join(", ")}`
                           : ""}
                       </p>
                       <p className="text-xs text-slate-700">Approval chain status: {approvalChainStatus}</p>
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                        {row.appointment_exercise ? (
+                          <Link
+                            to={`/campaigns/${row.appointment_exercise}`}
+                            className="inline-flex rounded bg-indigo-100 px-2 py-1 font-semibold text-indigo-800 hover:bg-indigo-200"
+                          >
+                            Open Exercise
+                          </Link>
+                        ) : null}
+                        {row.appointment_exercise ? (
+                          <Link
+                            to={`/applications?exercise=${row.appointment_exercise}`}
+                            className="inline-flex rounded bg-cyan-100 px-2 py-1 font-semibold text-cyan-800 hover:bg-cyan-200"
+                          >
+                            Exercise Dossiers
+                          </Link>
+                        ) : null}
+                        {row.vetting_case ? (
+                          <Link
+                            to={`/applications/${row.vetting_case}`}
+                            className="inline-flex rounded bg-slate-100 px-2 py-1 font-semibold text-slate-700 hover:bg-slate-200"
+                          >
+                            Open Dossier
+                          </Link>
+                        ) : null}
+                      </div>
                     </div>
                     {canEnsureLinkage ? (
                       <Button
@@ -1182,7 +1342,7 @@ const AppointmentsRegistryPage: React.FC = () => {
                         disabled={isRowBusy}
                       >
                         <Clock3 className="mr-2 h-4 w-4" />
-                        {isLinkageLoading ? "Linking..." : "Ensure Linkage"}
+                        {isLinkageLoading ? "Linking..." : "Ensure Dossier Linkage"}
                       </Button>
                     ) : (
                       <span className="text-xs text-slate-700">
@@ -1329,9 +1489,9 @@ const AppointmentsRegistryPage: React.FC = () => {
                   </div>
 
                   <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
-                    <div className="mb-3 flex items-center gap-2">
+                  <div className="mb-3 flex items-center gap-2">
                       <Stamp className="h-4 w-4 text-cyan-700" />
-                      <p className="text-sm font-semibold text-slate-900">Publication and Gazette</p>
+                      <p className="text-sm font-semibold text-slate-900">Publication / Gazette Record</p>
                     </div>
                     <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-slate-700">
                       <span className="rounded bg-slate-100 px-2 py-1 font-semibold text-slate-700">
@@ -1407,7 +1567,7 @@ const AppointmentsRegistryPage: React.FC = () => {
                               ? "Publishing..."
                               : publicationStatus === "published"
                                 ? "Update Publication"
-                                : "Publish Appointment"}
+                                : "Publish to Gazette"}
                           </Button>
                         </div>
                       </div>
