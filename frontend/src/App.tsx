@@ -144,496 +144,503 @@ const AppShell: React.FC = () => {
   const userType = useSelector((state: RootState) => state.auth.userType);
   const location = useLocation();
   const hideNavbar = shouldHideNavbar(location.pathname);
+  const shouldShowSidebar = isAuthenticated && userType !== "applicant" && !hideNavbar;
+
+  const routes = (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <Loader className="h-8 w-8 animate-spin" />
+        </div>
+      }
+    >
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/gazette" element={<PublicGazettePage />} />
+        <Route path="/subscribe" element={<SubscriptionPlansPage />} />
+        <Route
+          path="/organization/get-started"
+          element={
+            <UnauthenticatedRoute>
+              <OrganizationAdminSignupPage />
+            </UnauthenticatedRoute>
+          }
+        />
+        <Route
+          path="/organization/dashboard"
+          element={
+            <ProtectedRoute
+              disallowUserTypes={["applicant"]}
+              requireOrganizationGovernance
+              requireActiveOrganization
+            >
+              <OrganizationDashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organization/committee-dashboard"
+          element={
+            <ProtectedRoute
+              disallowUserTypes={["applicant"]}
+              requiredRoles={["committee_member", "committee_chair"]}
+              requireActiveOrganization
+            >
+              <Navigate to="/workspace?view=committee" replace />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organization/members"
+          element={
+            <ProtectedRoute
+              disallowUserTypes={["applicant"]}
+              requireOrganizationGovernance
+              requireActiveOrganization
+            >
+              <OrganizationMembersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organization/committees"
+          element={
+            <ProtectedRoute
+              disallowUserTypes={["applicant"]}
+              requireOrganizationGovernance
+              requireActiveOrganization
+            >
+              <OrganizationCommitteesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organization/committees/:committeeId"
+          element={
+            <ProtectedRoute
+              disallowUserTypes={["applicant"]}
+              requireOrganizationGovernance
+              requireActiveOrganization
+            >
+              <CommitteeDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organization/setup"
+          element={
+            <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <OrganizationSetupPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organization/onboarding"
+          element={
+            <ProtectedRoute
+              disallowUserTypes={["applicant"]}
+              requireOrganizationGovernance
+              requireActiveOrganization
+            >
+              <OrganizationOnboardingPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <UnauthenticatedRoute>
+              <LoginPage />
+            </UnauthenticatedRoute>
+          }
+        />
+        <Route
+          path="/login/2fa"
+          element={
+            <UnauthenticatedRoute allowTwoFactorChallenge>
+              <TwoFactorPage />
+            </UnauthenticatedRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <UnauthenticatedRoute>
+              <RegisterPage />
+            </UnauthenticatedRoute>
+          }
+        />
+
+        <Route
+          path="/forgot-password"
+          element={
+            <UnauthenticatedRoute>
+              <ForgotPasswordPage />
+            </UnauthenticatedRoute>
+          }
+        />
+        <Route
+          path="/forgot-password/email-sent"
+          element={
+            <UnauthenticatedRoute>
+              <EmailSentPage />
+            </UnauthenticatedRoute>
+          }
+        />
+        <Route
+          path="/reset-password/:token"
+          element={
+            <UnauthenticatedRoute>
+              <ResetPasswordPage />
+            </UnauthenticatedRoute>
+          }
+        />
+
+        <Route path="/billing/success" element={<BillingCheckoutResultPage />} />
+        <Route path="/billing/cancel" element={<BillingCheckoutResultPage />} />
+
+        <Route path="/candidate/access" element={<CandidateAccessPage />} />
+        <Route path="/candidate/interview/:applicationId" element={<CandidateInterrogationPage />} />
+        <Route path="/invite/:token" element={<InvitationAcceptPage />} />
+
+        <Route
+          path="/interview/interrogation/:applicationId"
+          element={
+            <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <HeyGenInterrogationPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/workspace"
+          element={
+            <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <OperationsDashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/change-password"
+          element={
+            <ProtectedRoute>
+              <ChangePasswordPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <UserSettingsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/security"
+          element={
+            <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <SecurityPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/fraud-insights"
+          element={
+            <ProtectedRoute
+              disallowUserTypes={["applicant"]}
+              requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+              legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+            >
+              <FraudInsightsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/background-checks"
+          element={
+            <ProtectedRoute
+              disallowUserTypes={["applicant"]}
+              requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+              legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+            >
+              <BackgroundChecksPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/audit-logs"
+          element={
+            <ProtectedRoute
+              requiredCapabilities={["gams.audit.view"]}
+              legacyUserTypeFallback={["admin"]}
+            >
+              <AuditLogsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/ml-monitoring"
+          element={
+            <ProtectedRoute adminOnly>
+              <MlMonitoringPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/ai-monitor"
+          element={
+            <ProtectedRoute adminOnly>
+              <AiMonitorPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/applications"
+          element={
+            <ProtectedRoute
+              disallowUserTypes={["applicant"]}
+              requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+              legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+            >
+              <ApplicationsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/applications/:caseId"
+          element={
+            <ProtectedRoute
+              disallowUserTypes={["applicant"]}
+              requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+              legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+            >
+              <ApplicationDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <NotificationsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/notifications/:notificationId"
+          element={
+            <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <NotificationDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/campaigns"
+          element={
+            <ProtectedRoute
+              disallowUserTypes={["applicant"]}
+              requiredCapabilities={[...CAMPAIGN_MANAGE_CAPABILITIES]}
+              legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+            >
+              <CampaignsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/campaigns/:campaignId"
+          element={
+            <ProtectedRoute
+              disallowUserTypes={["applicant"]}
+              requiredCapabilities={[...CAMPAIGN_MANAGE_CAPABILITIES]}
+              legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+            >
+              <CampaignWorkspacePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/video-calls"
+          element={
+            <ProtectedRoute
+              disallowUserTypes={["applicant"]}
+              requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+              legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+            >
+              <VideoCallsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/government/positions"
+          element={
+            <ProtectedRoute
+              disallowUserTypes={["applicant"]}
+              requiredCapabilities={[...REGISTRY_ROUTE_CAPABILITIES]}
+              legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+            >
+              <GovernmentPositionsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/government/personnel"
+          element={
+            <ProtectedRoute
+              disallowUserTypes={["applicant"]}
+              requiredCapabilities={[...REGISTRY_ROUTE_CAPABILITIES]}
+              legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+            >
+              <GovernmentPersonnelPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/government/appointments"
+          element={
+            <ProtectedRoute
+              disallowUserTypes={["applicant"]}
+              requiredCapabilities={[...APPOINTMENT_ROUTE_CAPABILITIES]}
+              legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+            >
+              <AppointmentsRegistryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/rubrics"
+          element={
+            <ProtectedRoute
+              disallowUserTypes={["applicant"]}
+              requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
+              legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+            >
+              <RubricsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/rubrics/new"
+          element={
+            <ProtectedRoute
+              disallowUserTypes={["applicant"]}
+              requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
+              legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+            >
+              <RubricBuilderPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/rubrics/:rubricId/edit"
+          element={
+            <ProtectedRoute
+              disallowUserTypes={["applicant"]}
+              requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
+              legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
+            >
+              <RubricBuilderPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/dashboard"
+          element={
+            <ProtectedRoute adminOnly>
+              <AdminDashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/analytics"
+          element={
+            <ProtectedRoute adminOnly>
+              <AdminAnalyticsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/register"
+          element={
+            <ProtectedRoute adminOnly>
+              <AdminRegisterPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/control-center"
+          element={
+            <ProtectedRoute adminOnly>
+              <AdminControlCenterPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute adminOnly>
+              <AdminUsersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/rubrics"
+          element={
+            <ProtectedRoute adminOnly>
+              <RubricsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/applications"
+          element={
+            <ProtectedRoute adminOnly>
+              <AdminCasesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/cases"
+          element={
+            <ProtectedRoute adminOnly>
+              <AdminCasesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/cases/:caseId"
+          element={
+            <ProtectedRoute adminOnly>
+              <AdminCaseReview />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route path="/error" element={<ErrorPage />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </Suspense>
+  );
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {isAuthenticated && userType !== "applicant" && !hideNavbar ? (
-        <Suspense fallback={<div className="h-16 border-b border-slate-200 bg-slate-50" />}>
-          <Navbar />
-        </Suspense>
+      {shouldShowSidebar ? (
+        <div className="min-h-screen lg:flex">
+          <Suspense fallback={<div className="hidden lg:block lg:h-screen lg:w-72 border-r border-slate-200 bg-slate-50" />}>
+            <Navbar />
+          </Suspense>
+          <div className="min-w-0 flex-1">{routes}</div>
+        </div>
       ) : null}
-
-      <Suspense
-        fallback={
-          <div className="flex min-h-[40vh] items-center justify-center">
-            <Loader className="h-8 w-8 animate-spin" />
-          </div>
-        }
-      >
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/gazette" element={<PublicGazettePage />} />
-          <Route path="/subscribe" element={<SubscriptionPlansPage />} />
-          <Route
-            path="/organization/get-started"
-            element={
-              <UnauthenticatedRoute>
-                <OrganizationAdminSignupPage />
-              </UnauthenticatedRoute>
-            }
-          />
-          <Route
-            path="/organization/dashboard"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requireOrganizationGovernance
-                requireActiveOrganization
-              >
-                <OrganizationDashboardPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/organization/committee-dashboard"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requiredRoles={["committee_member", "committee_chair"]}
-                requireActiveOrganization
-              >
-                <Navigate to="/workspace?view=committee" replace />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/organization/members"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requireOrganizationGovernance
-                requireActiveOrganization
-              >
-                <OrganizationMembersPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/organization/committees"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requireOrganizationGovernance
-                requireActiveOrganization
-              >
-                <OrganizationCommitteesPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/organization/committees/:committeeId"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requireOrganizationGovernance
-                requireActiveOrganization
-              >
-                <CommitteeDetailPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/organization/setup"
-            element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
-                <OrganizationSetupPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/organization/onboarding"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requireOrganizationGovernance
-                requireActiveOrganization
-              >
-                <OrganizationOnboardingPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/login"
-            element={
-              <UnauthenticatedRoute>
-                <LoginPage />
-              </UnauthenticatedRoute>
-            }
-          />
-          <Route
-            path="/login/2fa"
-            element={
-              <UnauthenticatedRoute allowTwoFactorChallenge>
-                <TwoFactorPage />
-              </UnauthenticatedRoute>
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              <UnauthenticatedRoute>
-                <RegisterPage />
-              </UnauthenticatedRoute>
-            }
-          />
-
-          <Route
-            path="/forgot-password"
-            element={
-              <UnauthenticatedRoute>
-                <ForgotPasswordPage />
-              </UnauthenticatedRoute>
-            }
-          />
-          <Route
-            path="/forgot-password/email-sent"
-            element={
-              <UnauthenticatedRoute>
-                <EmailSentPage />
-              </UnauthenticatedRoute>
-            }
-          />
-          <Route
-            path="/reset-password/:token"
-            element={
-              <UnauthenticatedRoute>
-                <ResetPasswordPage />
-              </UnauthenticatedRoute>
-            }
-          />
-
-          <Route path="/billing/success" element={<BillingCheckoutResultPage />} />
-          <Route path="/billing/cancel" element={<BillingCheckoutResultPage />} />
-
-          <Route path="/candidate/access" element={<CandidateAccessPage />} />
-          <Route path="/candidate/interview/:applicationId" element={<CandidateInterrogationPage />} />
-          <Route path="/invite/:token" element={<InvitationAcceptPage />} />
-
-          <Route
-            path="/interview/interrogation/:applicationId"
-            element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
-                <HeyGenInterrogationPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/workspace"
-            element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
-                <OperationsDashboardPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <DashboardPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/change-password"
-            element={
-              <ProtectedRoute>
-                <ChangePasswordPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <ProtectedRoute>
-                <UserSettingsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/security"
-            element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
-                <SecurityPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/fraud-insights"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
-              >
-                <FraudInsightsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/background-checks"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
-              >
-                <BackgroundChecksPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/audit-logs"
-            element={
-              <ProtectedRoute
-                requiredCapabilities={["gams.audit.view"]}
-                legacyUserTypeFallback={["admin"]}
-              >
-                <AuditLogsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/ml-monitoring"
-            element={
-              <ProtectedRoute adminOnly>
-                <MlMonitoringPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/ai-monitor"
-            element={
-              <ProtectedRoute adminOnly>
-                <AiMonitorPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/applications"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
-              >
-                <ApplicationsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/applications/:caseId"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
-              >
-                <ApplicationDetailPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/notifications"
-            element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
-                <NotificationsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/notifications/:notificationId"
-            element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
-                <NotificationDetailPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/campaigns"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requiredCapabilities={[...CAMPAIGN_MANAGE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
-              >
-                <CampaignsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/campaigns/:campaignId"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requiredCapabilities={[...CAMPAIGN_MANAGE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
-              >
-                <CampaignWorkspacePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/video-calls"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
-              >
-                <VideoCallsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/government/positions"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requiredCapabilities={[...REGISTRY_ROUTE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
-              >
-                <GovernmentPositionsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/government/personnel"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requiredCapabilities={[...REGISTRY_ROUTE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
-              >
-                <GovernmentPersonnelPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/government/appointments"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requiredCapabilities={[...APPOINTMENT_ROUTE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
-              >
-                <AppointmentsRegistryPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/rubrics"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
-              >
-                <RubricsPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/rubrics/new"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
-              >
-                <RubricBuilderPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/rubrics/:rubricId/edit"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
-              >
-                <RubricBuilderPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/dashboard"
-            element={
-              <ProtectedRoute adminOnly>
-                <AdminDashboardPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/analytics"
-            element={
-              <ProtectedRoute adminOnly>
-                <AdminAnalyticsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/register"
-            element={
-              <ProtectedRoute adminOnly>
-                <AdminRegisterPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/control-center"
-            element={
-              <ProtectedRoute adminOnly>
-                <AdminControlCenterPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/users"
-            element={
-              <ProtectedRoute adminOnly>
-                <AdminUsersPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/rubrics"
-            element={
-              <ProtectedRoute adminOnly>
-                <RubricsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/applications"
-            element={
-              <ProtectedRoute adminOnly>
-                <AdminCasesPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/cases"
-            element={
-              <ProtectedRoute adminOnly>
-                <AdminCasesPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/cases/:caseId"
-            element={
-              <ProtectedRoute adminOnly>
-                <AdminCaseReview />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route path="/error" element={<ErrorPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-      </Suspense>
+      {!shouldShowSidebar ? routes : null}
     </div>
   );
 };

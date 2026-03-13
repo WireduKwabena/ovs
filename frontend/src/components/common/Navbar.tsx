@@ -1,7 +1,31 @@
-// src/components/common/Navbar.tsx (Fixed - Type-Safe User Display)
-import React, { useState, useRef, useEffect } from 'react';
+// src/components/common/Navbar.tsx (Sidebar-first navigation)
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, LogOut, Menu, X, ChevronDown, KeyRound, Settings2, Shield, ShieldCheck, RefreshCw } from 'lucide-react';
+import {
+  Bell,
+  LogOut,
+  Menu,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  KeyRound,
+  Settings2,
+  Shield,
+  ShieldCheck,
+  RefreshCw,
+  LayoutDashboard,
+  Building2,
+  Workflow,
+  Users2,
+  FolderKanban,
+  FileText,
+  Video,
+  ShieldAlert,
+  CreditCard,
+  Cpu,
+  Bot,
+  UserCheck2,
+} from 'lucide-react';
 import { Button } from '../ui/button';
 import type { AppDispatch, RootState } from '@/app/store';
 import { useDispatch, useSelector } from 'react-redux';
@@ -14,33 +38,103 @@ import { videoCallService } from '@/services/videoCall.service';
 import { ThemeToggle } from './ThemeToggle';
 import { toast } from 'react-toastify';
 
-// ✅ CRITICAL: Define selectors OUTSIDE the component
 const selectAuthState = (state: RootState) => state.auth;
 const selectNotificationsState = (state: RootState) => state.notifications;
 
-// ✅ Create memoized selectors
-const selectUserData = createSelector(
-  [selectAuthState],
-  (auth) => ({
-    user: auth.user,
-    isAuthenticated: auth.isAuthenticated,
-    userType: auth.userType,
-    roles: auth.roles ?? [],
-    capabilities: auth.capabilities ?? [],
-  })
-);
+const selectUserData = createSelector([selectAuthState], (auth) => ({
+  user: auth.user,
+  isAuthenticated: auth.isAuthenticated,
+  userType: auth.userType,
+  roles: auth.roles ?? [],
+  capabilities: auth.capabilities ?? [],
+}));
 
 const selectUnreadCount = createSelector(
   [selectNotificationsState],
-  (notifications) => notifications.unreadCount || 0
+  (notifications) => notifications.unreadCount || 0,
 );
 
 type ReminderRuntimeStatus = 'unknown' | 'healthy' | 'attention' | 'unavailable';
 type NavItem = { to: string; label: string };
+type NavSection = { key: string; title: string; items: NavItem[] };
+type NavIcon = React.ComponentType<{ className?: string }>;
+
+const SIDEBAR_COLLAPSED_STORAGE_KEY = 'cavp.sidebar.collapsed.v1';
+
+const SECTION_ICON_BY_KEY: Record<string, NavIcon> = {
+  candidate: UserCheck2,
+  workspace: LayoutDashboard,
+  governance: Building2,
+  workflow: Workflow,
+  oversight: ShieldAlert,
+  'admin-dashboard': LayoutDashboard,
+  'admin-governance': Building2,
+  'admin-workflow': Workflow,
+  'admin-oversight': ShieldAlert,
+};
+
+const NAV_ITEM_ICON_BY_PATH: Record<string, NavIcon> = {
+  '/workspace': LayoutDashboard,
+  '/organization/setup': Building2,
+  '/organization/dashboard': LayoutDashboard,
+  '/organization/members': Users2,
+  '/organization/committees': Workflow,
+  '/organization/onboarding': KeyRound,
+  '/subscribe': CreditCard,
+  '/government/positions': Building2,
+  '/government/personnel': UserCheck2,
+  '/campaigns': FolderKanban,
+  '/government/appointments': Workflow,
+  '/applications': FileText,
+  '/rubrics': FileText,
+  '/video-calls': Video,
+  '/fraud-insights': ShieldAlert,
+  '/background-checks': ShieldAlert,
+  '/audit-logs': ShieldCheck,
+  '/admin/dashboard': LayoutDashboard,
+  '/admin/users': Users2,
+  '/admin/control-center': Shield,
+  '/admin/analytics': LayoutDashboard,
+  '/ml-monitoring': Cpu,
+  '/ai-monitor': Bot,
+  '/candidate/access': UserCheck2,
+  '/notifications': Bell,
+  '/security': ShieldCheck,
+  '/settings': Settings2,
+  '/change-password': KeyRound,
+};
+
+const dedupeNavItems = (items: NavItem[]): NavItem[] => {
+  const ordered = new Map<string, NavItem>();
+  items.forEach((item) => {
+    if (!ordered.has(item.to)) {
+      ordered.set(item.to, item);
+    }
+  });
+  return Array.from(ordered.values());
+};
+
+const dedupeNavSections = (sections: NavSection[]): NavSection[] => {
+  const seenPaths = new Set<string>();
+  return sections
+    .map((section) => {
+      const uniqueItems = section.items.filter((item) => {
+        if (seenPaths.has(item.to)) {
+          return false;
+        }
+        seenPaths.add(item.to);
+        return true;
+      });
+      return { ...section, items: uniqueItems };
+    })
+    .filter((section) => section.items.length > 0);
+};
 
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const dispatch = useDispatch<AppDispatch>();
+
   const {
     logout,
     organizations,
@@ -59,27 +153,31 @@ export const Navbar: React.FC = () => {
     canAccessInternalWorkflow,
     canManageRubrics,
   } = useAuth();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [mobileMenuMounted, setMobileMenuMounted] = useState(false);
-  const [adminMoreMenuOpen, setAdminMoreMenuOpen] = useState(false);
-  const [runtimePopoverOpen, setRuntimePopoverOpen] = useState(false);
-  const dispatch = useDispatch<AppDispatch>();
 
-  
-  // ✅ Line 14 should be around here - use memoized selectors
   const { user, isAuthenticated, userType, roles, capabilities } = useSelector(selectUserData);
   const unreadCount = useSelector(selectUnreadCount);
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileMenuMounted, setMobileMenuMounted] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    try {
+      return window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileDrawerRef = useRef<HTMLDivElement>(null);
+
   const [reminderRuntimeStatus, setReminderRuntimeStatus] = useState<ReminderRuntimeStatus>('unknown');
   const [reminderRuntimeSnapshot, setReminderRuntimeSnapshot] = useState<VideoMeetingReminderHealth | null>(null);
   const [reminderRuntimeCheckedAt, setReminderRuntimeCheckedAt] = useState<string | null>(null);
   const [reminderRuntimeError, setReminderRuntimeError] = useState<string | null>(null);
   const [reminderRuntimeRefreshing, setReminderRuntimeRefreshing] = useState(false);
-  const profileMenuRef = useRef<HTMLDivElement>(null);
-  const adminMoreMenuRef = useRef<HTMLDivElement>(null);
-  const runtimePopoverRef = useRef<HTMLDivElement>(null);
-  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
-  const mobileDrawerRef = useRef<HTMLDivElement>(null);
+
   const resolvedRoles = Array.isArray(roles) ? roles : [];
   const resolvedCapabilities = Array.isArray(capabilities) ? capabilities : [];
   const resolvedOrganizations = Array.isArray(organizations) ? organizations : [];
@@ -88,33 +186,25 @@ export const Navbar: React.FC = () => {
   const hasCapability = (capability: string): boolean => resolvedCapabilities.includes(capability);
 
   const hasAdminAccess =
-    userType === "admin" || hasRole("admin") || Boolean((user as User | null)?.is_superuser);
-  const canAccessAudit = hasAdminAccess || canViewAuditLogs || hasCapability("gams.audit.view");
+    userType === 'admin' || hasRole('admin') || Boolean((user as User | null)?.is_superuser);
+  const canAccessAudit = hasAdminAccess || canViewAuditLogs || hasCapability('gams.audit.view');
   const canAccessRegistry = hasAdminAccess || canManageRegistry;
   const canAccessAppointments = hasAdminAccess || canAccessAppointmentsFromHook;
   const canAccessRubrics = hasAdminAccess || canManageRubrics;
   const canAccessInternalRoutes = hasAdminAccess || canAccessInternalWorkflow;
-  const isApplicantUser = userType === "applicant";
+  const isApplicantUser = userType === 'applicant';
   const canAccessNotifications = !isApplicantUser;
   const canShowOrganizationContext = !isApplicantUser && resolvedOrganizations.length > 0;
-  const activeOrganizationLabel = activeOrganization?.name || resolvedOrganizations[0]?.name || 'Default scope';
+  const activeOrganizationLabel =
+    activeOrganization?.name || resolvedOrganizations[0]?.name || 'Default scope';
   const canManageOrganizationBilling = hasAdminAccess || canManageActiveOrganizationGovernance;
 
-  const handleOrganizationSelection = async (rawValue: string) => {
-    const nextValue = rawValue === "__default__" ? null : rawValue;
-    try {
-      await selectActiveOrganization(nextValue);
-      toast.success(nextValue ? "Active organization updated." : "Organization context reset to default.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to switch active organization.");
-    }
+  const runtimeStatusMeta: Record<ReminderRuntimeStatus, { label: string; dotClass: string }> = {
+    unknown: { label: 'Unknown', dotClass: 'bg-slate-500' },
+    healthy: { label: 'Healthy', dotClass: 'bg-emerald-500' },
+    attention: { label: 'Attention', dotClass: 'bg-amber-500' },
+    unavailable: { label: 'Unavailable', dotClass: 'bg-rose-500' },
   };
-
-  useEffect(() => {
-    if (isAuthenticated && canAccessNotifications) {
-      dispatch(fetchNotifications());
-    }
-  }, [canAccessNotifications, dispatch, isAuthenticated]);
 
   const applyReminderHealthPayload = (payload: VideoMeetingReminderHealth) => {
     const hasRetryIssues =
@@ -148,8 +238,24 @@ export const Navbar: React.FC = () => {
     }
   };
 
+  const handleOrganizationSelection = async (rawValue: string) => {
+    const nextValue = rawValue === '__default__' ? null : rawValue;
+    try {
+      await selectActiveOrganization(nextValue);
+      toast.success(nextValue ? 'Active organization updated.' : 'Organization context reset to default.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to switch active organization.');
+    }
+  };
+
   useEffect(() => {
-    if (!isAuthenticated || userType !== 'admin') {
+    if (isAuthenticated && canAccessNotifications) {
+      dispatch(fetchNotifications());
+    }
+  }, [canAccessNotifications, dispatch, isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !hasAdminAccess) {
       return;
     }
 
@@ -181,23 +287,7 @@ export const Navbar: React.FC = () => {
       mounted = false;
       window.clearInterval(interval);
     };
-  }, [isAuthenticated, userType]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
-        setProfileMenuOpen(false);
-      }
-      if (adminMoreMenuRef.current && !adminMoreMenuRef.current.contains(event.target as Node)) {
-        setAdminMoreMenuOpen(false);
-      }
-      if (runtimePopoverRef.current && !runtimePopoverRef.current.contains(event.target as Node)) {
-        setRuntimePopoverOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [hasAdminAccess, isAuthenticated]);
 
   useEffect(() => {
     if (!mobileMenuOpen) {
@@ -212,9 +302,8 @@ export const Navbar: React.FC = () => {
       if (!drawer) {
         return [];
       }
-
       const nodes = drawer.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
       );
       return Array.from(nodes).filter((node) => node.getAttribute('aria-hidden') !== 'true');
     };
@@ -285,222 +374,72 @@ export const Navbar: React.FC = () => {
   }, [mobileMenuOpen]);
 
   useEffect(() => {
-    // If open, we don't need a timeout
     if (mobileMenuOpen || !mobileMenuMounted) {
       return;
     }
-
     const timeout = window.setTimeout(() => {
       setMobileMenuMounted(false);
     }, 240);
-
     return () => window.clearTimeout(timeout);
   }, [mobileMenuOpen, mobileMenuMounted]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, isSidebarCollapsed ? '1' : '0');
+    } catch {
+      // no-op when storage is unavailable
+    }
+  }, [isSidebarCollapsed]);
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  if (!isAuthenticated) return null;
-
   const displayName = getUserDisplayName(user, 'User');
-
+  const initial = getUserInitial(user, '?');
+  const profilePictureUrl = (user as User)?.profile_picture_url || '';
   const canManageTwoFactor = !isApplicantUser;
-  const canViewReminderRuntime = hasAdminAccess;
-  const reminderStatusMeta: Record<ReminderRuntimeStatus, { dotClass: string; label: string }> = {
-    unknown: { dotClass: 'bg-slate-500', label: 'Unknown' },
-    healthy: { dotClass: 'bg-emerald-500', label: 'Healthy' },
-    attention: { dotClass: 'bg-amber-500', label: 'Attention needed' },
-    unavailable: { dotClass: 'bg-rose-500', label: 'Unavailable' },
-  };
-  const runtimeMeta = reminderStatusMeta[reminderRuntimeStatus];
-  const runtimeLastChecked = reminderRuntimeCheckedAt
-    ? new Date(reminderRuntimeCheckedAt).toLocaleTimeString()
-    : 'Not checked yet';
-
-  const isRouteActive = (to: string): boolean => {
-    if (location.pathname === to) {
-      return true;
-    }
-    return location.pathname.startsWith(`${to}/`);
-  };
-
-  const desktopNavClass = (to: string): string =>
-    [
-      'text-sm font-semibold px-2 py-1 rounded transition-colors',
-      isRouteActive(to)
-        ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
-        : 'text-slate-800 hover:text-indigo-700 hover:bg-indigo-50',
-    ].join(' ');
-
-  const overflowNavClass = (to: string): string =>
-    [
-      'block px-4 py-2 text-sm font-medium transition-colors',
-      isRouteActive(to)
-        ? 'bg-indigo-100 text-indigo-900'
-        : 'text-slate-800 hover:bg-indigo-50 hover:text-indigo-700',
-    ].join(' ');
-
-  const mobileNavClass = (to: string): string =>
-    [
-      'flex items-center px-3 py-2 rounded-lg transition-colors',
-      isRouteActive(to)
-        ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
-        : 'text-slate-800 hover:bg-indigo-50',
-    ].join(' ');
-
-  const renderNavLabel = (navItem: { to: string; label: string }) => {
-    if (!canViewReminderRuntime || navItem.to !== '/video-calls') {
-      return navItem.label;
-    }
-
-    return (
-      <span className="inline-flex items-center gap-1.5">
-        <span>{navItem.label}</span>
-        <span
-          className={`inline-block h-2 w-2 rounded-full ${runtimeMeta.dotClass}`}
-          title={`Reminder runtime: ${runtimeMeta.label}`}
-          aria-label={`Reminder runtime ${runtimeMeta.label}`}
-        />
-      </span>
-    );
-  };
-
-  const renderRuntimePopover = () => {
-    if (!canViewReminderRuntime) {
-      return null;
-    }
-
-    return (
-      <div className="relative" ref={runtimePopoverRef}>
-        <Button
-          type="button"
-          onClick={() => setRuntimePopoverOpen((previous) => !previous)}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-50"
-          aria-expanded={runtimePopoverOpen ? 'true' : 'false'}
-          aria-haspopup="dialog"
-        >
-          <span className={`h-2.5 w-2.5 rounded-full ${runtimeMeta.dotClass}`} />
-          Runtime
-        </Button>
-        {runtimePopoverOpen && (
-          <div className="absolute right-0 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-900">Reminder Runtime</p>
-              <span className="text-[11px] font-semibold text-slate-700">{runtimeMeta.label}</span>
-            </div>
-            <p className="mt-1 text-[11px] text-slate-700">Last checked: {runtimeLastChecked}</p>
-
-            {reminderRuntimeSnapshot ? (
-              <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-slate-800">
-                <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
-                  <p className="font-semibold text-slate-700">Soon Pending</p>
-                  <p className="text-sm font-bold text-slate-900">{reminderRuntimeSnapshot.soon_retry_pending}</p>
-                </div>
-                <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
-                  <p className="font-semibold text-slate-700">Soon Exhausted</p>
-                  <p className="text-sm font-bold text-slate-900">{reminderRuntimeSnapshot.soon_retry_exhausted}</p>
-                </div>
-                <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
-                  <p className="font-semibold text-slate-700">Start Pending</p>
-                  <p className="text-sm font-bold text-slate-900">{reminderRuntimeSnapshot.start_now_retry_pending}</p>
-                </div>
-                <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
-                  <p className="font-semibold text-slate-700">Start Exhausted</p>
-                  <p className="text-sm font-bold text-slate-900">{reminderRuntimeSnapshot.start_now_retry_exhausted}</p>
-                </div>
-                <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
-                  <p className="font-semibold text-slate-700">Time-up Pending</p>
-                  <p className="text-sm font-bold text-slate-900">{reminderRuntimeSnapshot.time_up_retry_pending}</p>
-                </div>
-                <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
-                  <p className="font-semibold text-slate-700">Time-up Exhausted</p>
-                  <p className="text-sm font-bold text-slate-900">{reminderRuntimeSnapshot.time_up_retry_exhausted}</p>
-                </div>
-              </div>
-            ) : (
-              <p className="mt-3 text-xs text-slate-700">No runtime snapshot available yet.</p>
-            )}
-
-            {reminderRuntimeError ? (
-              <p className="mt-2 text-xs text-rose-700">{reminderRuntimeError}</p>
-            ) : null}
-
-            <button
-              type="button"
-              onClick={() => void refreshReminderRuntime()}
-              disabled={reminderRuntimeRefreshing}
-              className="mt-3 inline-flex items-center gap-2 rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${reminderRuntimeRefreshing ? 'animate-spin' : ''}`} />
-              {reminderRuntimeRefreshing ? 'Refreshing...' : 'Refresh'}
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const dedupeNavItems = (items: NavItem[]): NavItem[] => {
-    const ordered = new Map<string, NavItem>();
-    items.forEach((item) => {
-      if (!ordered.has(item.to)) {
-        ordered.set(item.to, item);
-      }
-    });
-    return Array.from(ordered.values());
-  };
 
   const internalHomePath = canManageActiveOrganizationGovernance
     ? activeOrganizationId
-      ? "/organization/dashboard"
-      : "/organization/setup"
-    : "/workspace";
+      ? '/organization/dashboard'
+      : '/organization/setup'
+    : '/workspace';
 
   const getInternalLandingLabel = (path: string): string => {
     switch (path) {
-      case "/organization/dashboard":
-        return "Dashboard";
-      case "/organization/setup":
-        return "Organization Setup";
-      case "/workspace":
-        return "Workspace";
-      case "/government/appointments":
-        return "Appointment Workflow";
-      case "/campaigns":
-        return "Appointment Exercises";
-      case "/applications":
-        return "Vetting Dossiers";
-      case "/video-calls":
-        return "Video Calls";
-      case "/government/positions":
-        return "Offices";
-      case "/audit-logs":
-        return "Audit";
-      case "/dashboard":
-        return "Workspace";
+      case '/organization/dashboard':
+        return 'Dashboard';
+      case '/organization/setup':
+        return 'Organization Setup';
+      case '/workspace':
+        return 'Workspace';
       default:
-        return "Workspace";
+        return 'Workspace';
     }
   };
 
-  const filterOverflowLinks = (primaryItems: NavItem[], overflowItems: NavItem[]): NavItem[] => {
-    const primaryRouteSet = new Set(primaryItems.map((item) => item.to));
-    return overflowItems.filter((item) => !primaryRouteSet.has(item.to));
-  };
-
   const candidateLinks: NavItem[] = [{ to: '/candidate/access', label: 'Candidate Access' }];
-  const internalPrimaryLinks: NavItem[] = dedupeNavItems([
-    { to: internalHomePath, label: getInternalLandingLabel(internalHomePath) },
+
+  const internalWorkflowLinks: NavItem[] = dedupeNavItems([
     ...(canAccessRegistry ? [{ to: '/government/positions', label: 'Offices' }] : []),
+    ...(canAccessRegistry ? [{ to: '/government/personnel', label: 'Nominees' }] : []),
     ...(canAccessCampaigns ? [{ to: '/campaigns', label: 'Appointment Exercises' }] : []),
     ...(canAccessAppointments ? [{ to: '/government/appointments', label: 'Appointment Workflow' }] : []),
     ...(canAccessApplications ? [{ to: '/applications', label: 'Vetting Dossiers' }] : []),
     ...(canAccessRubrics ? [{ to: '/rubrics', label: 'Rubrics' }] : []),
     ...(canAccessVideoCalls ? [{ to: '/video-calls', label: 'Video Calls' }] : []),
   ]);
-  const internalOverflowLinks: NavItem[] = dedupeNavItems(filterOverflowLinks(internalPrimaryLinks, [
+
+  const internalGovernanceLinks: NavItem[] = dedupeNavItems([
     ...(canManageActiveOrganizationGovernance && !activeOrganizationId
       ? [{ to: '/organization/setup', label: 'Organization Setup' }]
       : []),
@@ -513,139 +452,425 @@ export const Navbar: React.FC = () => {
           ...(canManageOrganizationBilling ? [{ to: '/subscribe', label: 'Subscription' }] : []),
         ]
       : []),
-    ...(canAccessAppointments ? [{ to: '/government/appointments', label: 'Appointment Workflow' }] : []),
-    ...(canAccessRegistry ? [{ to: '/government/positions', label: 'Offices' }] : []),
-    ...(canAccessRegistry ? [{ to: '/government/personnel', label: 'Nominees' }] : []),
+  ]);
+
+  const internalOversightLinks: NavItem[] = dedupeNavItems([
     ...(canAccessInternalRoutes ? [{ to: '/fraud-insights', label: 'Risk Signals' }] : []),
     ...(canAccessInternalRoutes ? [{ to: '/background-checks', label: 'Checks' }] : []),
     ...(canAccessAudit ? [{ to: '/audit-logs', label: 'Audit' }] : []),
-  ]));
-  const adminPrimaryLinks: NavItem[] = [
-    { to: '/admin/dashboard', label: 'Dashboard' },
-    { to: '/government/positions', label: 'Offices' },
-    { to: '/campaigns', label: 'Appointment Exercises' },
-    { to: '/government/appointments', label: 'Appointment Workflow' },
-    { to: '/admin/users', label: 'Users' },
-  ];
-  const adminOverflowLinks: NavItem[] = dedupeNavItems(filterOverflowLinks(adminPrimaryLinks, [
-    ...(!activeOrganizationId ? [{ to: '/organization/setup', label: 'Organization Setup' }] : []),
+  ]);
+
+  const adminGovernanceLinks: NavItem[] = dedupeNavItems([
     ...(activeOrganizationId
       ? [
-          { to: '/organization/dashboard', label: 'Dashboard' },
+          { to: '/organization/dashboard', label: 'Organization Dashboard' },
           { to: '/organization/members', label: 'Members' },
           { to: '/organization/committees', label: 'Committees' },
           { to: '/organization/onboarding', label: 'Onboarding' },
         ]
-      : []),
+      : [{ to: '/organization/setup', label: 'Organization Setup' }]),
     ...(canManageOrganizationBilling ? [{ to: '/subscribe', label: 'Subscription' }] : []),
-    { to: '/government/appointments', label: 'Appointment Workflow' },
+  ]);
+
+  const adminWorkflowLinks: NavItem[] = dedupeNavItems([
     { to: '/government/positions', label: 'Offices' },
     { to: '/government/personnel', label: 'Nominees' },
+    { to: '/campaigns', label: 'Appointment Exercises' },
+    { to: '/government/appointments', label: 'Appointment Workflow' },
     { to: '/applications', label: 'Vetting Dossiers' },
-    { to: '/admin/cases', label: 'Vetting Dossiers' },
     { to: '/video-calls', label: 'Video Calls' },
-    { to: '/admin/control-center', label: 'Admin Control' },
-    { to: '/fraud-insights', label: 'Risk Signals' },
-    { to: '/background-checks', label: 'Checks' },
     { to: '/audit-logs', label: 'Audit' },
+  ]);
+
+  const adminOversightLinks: NavItem[] = dedupeNavItems([
+    { to: '/admin/users', label: 'Users' },
+    { to: '/admin/control-center', label: 'Admin Control' },
+    { to: '/admin/analytics', label: 'Analytics' },
     { to: '/ml-monitoring', label: 'ML Ops' },
     { to: '/ai-monitor', label: 'AI Monitor' },
-    { to: '/admin/analytics', label: 'Analytics' },
-  ]));
+  ]);
 
-  const navLinks = hasAdminAccess
-    ? dedupeNavItems([...adminPrimaryLinks, ...adminOverflowLinks])
+  const navSections: NavSection[] = hasAdminAccess
+    ? dedupeNavSections([
+        { key: 'admin-dashboard', title: 'Dashboard', items: [{ to: '/admin/dashboard', label: 'Dashboard' }] },
+        { key: 'admin-governance', title: 'Organization Governance', items: adminGovernanceLinks },
+        { key: 'admin-workflow', title: 'Appointment Workflow', items: adminWorkflowLinks },
+        { key: 'admin-oversight', title: 'Platform Oversight', items: adminOversightLinks },
+      ])
     : isApplicantUser
-      ? candidateLinks
-      : dedupeNavItems([...internalPrimaryLinks, ...internalOverflowLinks]);
+      ? [{ key: 'candidate', title: 'Candidate Portal', items: candidateLinks }]
+      : dedupeNavSections([
+          {
+            key: 'workspace',
+            title: 'Workspace',
+            items: [{ to: internalHomePath, label: getInternalLandingLabel(internalHomePath) }],
+          },
+          { key: 'governance', title: 'Organization Governance', items: internalGovernanceLinks },
+          { key: 'workflow', title: 'Appointment Workflow', items: internalWorkflowLinks },
+          { key: 'oversight', title: 'Oversight', items: internalOversightLinks },
+        ]);
 
-  const desktopPrimaryLinks = hasAdminAccess
-    ? dedupeNavItems(adminPrimaryLinks)
+  const homePath = hasAdminAccess
+    ? '/admin/dashboard'
     : isApplicantUser
-      ? candidateLinks
-      : dedupeNavItems(internalPrimaryLinks);
+      ? '/candidate/access'
+      : internalHomePath;
 
-  const desktopOverflowLinks = hasAdminAccess
-    ? dedupeNavItems(adminOverflowLinks)
-    : isApplicantUser
-      ? []
-      : dedupeNavItems(internalOverflowLinks);
-  const hasActiveOverflowLink = desktopOverflowLinks.some((item) => isRouteActive(item.to));
-  
-  const initial = getUserInitial(user, '?');
+  const getNavItemIcon = (path: string): NavIcon => {
+    return NAV_ITEM_ICON_BY_PATH[path] || LayoutDashboard;
+  };
 
-  const profile_picture_url = (user as User)?.profile_picture_url || "";
+  const isRouteActive = (to: string): boolean => {
+    if (location.pathname === to) {
+      return true;
+    }
+    return location.pathname.startsWith(`${to}/`);
+  };
 
-  const homePath = hasAdminAccess ? "/admin/dashboard" : isApplicantUser ? "/candidate/access" : internalHomePath;
+  const desktopNavClass = (to: string): string =>
+    [
+      'group flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-semibold transition-colors',
+      isRouteActive(to)
+        ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
+        : 'text-slate-800 hover:bg-indigo-50 hover:text-indigo-700',
+    ].join(' ');
+
+  const mobileNavClass = (to: string): string =>
+    [
+      'flex items-center rounded-lg px-3 py-2 text-sm font-semibold transition-colors',
+      isRouteActive(to)
+        ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
+        : 'text-slate-800 hover:bg-indigo-50 hover:text-indigo-700',
+    ].join(' ');
+
+  const runtimeMeta = runtimeStatusMeta[reminderRuntimeStatus];
+  const runtimeLastChecked = reminderRuntimeCheckedAt
+    ? new Date(reminderRuntimeCheckedAt).toLocaleTimeString()
+    : 'Not checked yet';
 
   return (
-    <nav className="bg-slate-50 border-b border-slate-200 shadow-sm sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex items-center">
-            <Link to={homePath} className="flex items-center">
-              <div className="flex items-center">
-              <Shield className="h-7 w-7 text-indigo-600 sm:h-8 sm:w-8" />
-              <span className="ml-2 text-lg leading-none font-bold text-gray-900 sm:text-xl xl:text-2xl">
-                <span className="sm:hidden">CAVP</span>
-                <span className="hidden sm:inline">CAVP</span>
-              </span>
-            </div>
+    <>
+      <header className="sticky top-0 z-50 border-b border-slate-200 bg-slate-50 lg:hidden">
+        <div className="mx-auto flex h-16 items-center justify-between px-4">
+          <Link to={homePath} className="inline-flex items-center gap-2">
+            <Shield className="h-7 w-7 text-indigo-600" />
+            <span className="text-lg font-bold text-slate-900">CAVP</span>
+          </Link>
+          <div className="flex items-center gap-2">
+            {canAccessNotifications ? (
+              <Link
+                to="/notifications"
+                className={`relative rounded-lg p-2 ${
+                  isRouteActive('/notifications')
+                    ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
+                    : 'text-slate-800 hover:bg-indigo-50'
+                }`}
+              >
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 ? (
+                  <span className="absolute -right-1 -top-1 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                ) : null}
+              </Link>
+            ) : null}
+            <ThemeToggle compact />
+            <Button
+              type="button"
+              variant="ghost"
+              ref={mobileMenuButtonRef}
+              onClick={() => {
+                if (!mobileMenuOpen) {
+                  setMobileMenuMounted(true);
+                }
+                setMobileMenuOpen((previous) => !previous);
+              }}
+              aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              aria-expanded={mobileMenuOpen ? 'true' : 'false'}
+              aria-controls="mobile-sidebar-drawer"
+              className="p-2 text-slate-800 hover:bg-indigo-50"
+            >
+              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <aside
+        className={`hidden h-screen shrink-0 border-r border-slate-200 bg-slate-50 transition-[width] duration-200 lg:flex lg:flex-col ${
+          isSidebarCollapsed ? 'w-20' : 'w-72'
+        }`}
+      >
+        <div className="flex h-full flex-col px-4 py-4">
+          <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} gap-2`}>
+            <Link
+              to={homePath}
+              className={`inline-flex items-center rounded-lg px-1 py-1 ${isSidebarCollapsed ? 'justify-center' : 'gap-2'}`}
+              title={isSidebarCollapsed ? 'Dashboard' : undefined}
+            >
+              <Shield className="h-8 w-8 text-indigo-600" />
+              {!isSidebarCollapsed ? <span className="text-xl font-bold text-slate-900">CAVP</span> : null}
             </Link>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setIsSidebarCollapsed((previous) => !previous)}
+              className="hidden h-8 w-8 p-0 text-slate-800 hover:bg-indigo-50 lg:inline-flex"
+              aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {isSidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            </Button>
           </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden xl:flex items-center space-x-2">
-            {desktopPrimaryLinks.map((navItem) => (
-              <Link
-                key={navItem.to}
-                to={navItem.to}
-                className={desktopNavClass(navItem.to)}
-              >
-                {renderNavLabel(navItem)}
-              </Link>
-            ))}
-            {desktopOverflowLinks.length > 0 && (
-              <div className="relative" ref={adminMoreMenuRef}>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setAdminMoreMenuOpen(!adminMoreMenuOpen);
-                    setProfileMenuOpen(false);
-                    setRuntimePopoverOpen(false);
-                  }}
-                  className={`inline-flex items-center gap-1 px-2 py-1 text-sm font-semibold rounded ${
-                    hasActiveOverflowLink
-                      ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
-                      : 'text-slate-800 hover:text-indigo-700 hover:bg-indigo-50'
+          {canShowOrganizationContext ? (
+            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
+              {!isSidebarCollapsed ? (
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-700">Active Organization</p>
+              ) : null}
+              {canSwitchOrganization ? (
+                <select
+                  className={`h-9 rounded-md border border-slate-300 bg-white px-2 text-xs font-medium text-slate-800 ${
+                    isSidebarCollapsed ? 'mt-0 w-full' : 'mt-2 w-full'
                   }`}
+                  value={activeOrganizationId || '__default__'}
+                  onChange={(event) => {
+                    void handleOrganizationSelection(event.target.value);
+                  }}
+                  disabled={switchingActiveOrganization}
+                  aria-label="Switch active organization"
                 >
-                  More
-                  <ChevronDown className="w-4 h-4 text-slate-700" />
-                </Button>
-                {adminMoreMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20 border">
-                    {desktopOverflowLinks.map((navItem) => (
-                      <Link
-                        key={navItem.to}
-                        to={navItem.to}
-                        className={overflowNavClass(navItem.to)}
-                        onClick={() => setAdminMoreMenuOpen(false)}
-                      >
-                        {renderNavLabel(navItem)}
-                      </Link>
-                    ))}
+                  <option value="__default__">Default scope</option>
+                  {resolvedOrganizations.map((org) => (
+                    <option key={org.id} value={org.id}>
+                      {isSidebarCollapsed ? org.code || org.name : org.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className={`${isSidebarCollapsed ? 'text-center text-xs' : 'mt-2 text-sm'} font-medium text-slate-900`}>
+                  {isSidebarCollapsed ? activeOrganizationLabel.slice(0, 10) : activeOrganizationLabel}
+                </p>
+              )}
+            </div>
+          ) : null}
+
+          {hasAdminAccess ? (
+            <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-700">Reminder Runtime</p>
+                <span className={`inline-block h-2.5 w-2.5 rounded-full ${runtimeMeta.dotClass}`} />
+              </div>
+              <p className="mt-1 text-xs font-semibold text-slate-900">{runtimeMeta.label}</p>
+              <p className="mt-1 text-[11px] text-slate-700">Last checked: {runtimeLastChecked}</p>
+              {reminderRuntimeSnapshot ? (
+                <p className="mt-1 text-[11px] text-slate-700">
+                  Pending retries: {reminderRuntimeSnapshot.soon_retry_pending + reminderRuntimeSnapshot.start_now_retry_pending + reminderRuntimeSnapshot.time_up_retry_pending}
+                </p>
+              ) : null}
+              {reminderRuntimeError ? <p className="mt-1 text-[11px] text-rose-700">{reminderRuntimeError}</p> : null}
+              <button
+                type="button"
+                onClick={() => void refreshReminderRuntime()}
+                disabled={reminderRuntimeRefreshing}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-slate-300 px-2 py-1 text-[11px] font-semibold text-slate-800 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${reminderRuntimeRefreshing ? 'animate-spin' : ''}`} />
+                {reminderRuntimeRefreshing ? 'Refreshing...' : 'Refresh'}
+              </button>
+            </div>
+          ) : null}
+
+          <nav className="mt-4 flex-1 space-y-4 overflow-y-auto pr-1">
+            {navSections.map((section) => (
+              <section key={section.key}>
+                <div
+                  className={`mb-1 px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-700 ${
+                    isSidebarCollapsed ? 'flex justify-center' : 'flex items-center gap-1.5'
+                  }`}
+                  title={isSidebarCollapsed ? section.title : undefined}
+                >
+                  {React.createElement(SECTION_ICON_BY_KEY[section.key] || LayoutDashboard, {
+                    className: 'h-3.5 w-3.5',
+                  })}
+                  {!isSidebarCollapsed ? <span>{section.title}</span> : null}
+                </div>
+                <div className="space-y-1">
+                  {section.items.map((navItem) => (
+                    <Link
+                      key={navItem.to}
+                      to={navItem.to}
+                      className={desktopNavClass(navItem.to)}
+                      aria-label={navItem.label}
+                      title={isSidebarCollapsed ? navItem.label : undefined}
+                    >
+                      <span className={`inline-flex items-center ${isSidebarCollapsed ? 'justify-center' : 'gap-2'}`}>
+                        {React.createElement(getNavItemIcon(navItem.to), { className: 'h-4 w-4 shrink-0' })}
+                        {!isSidebarCollapsed ? <span>{navItem.label}</span> : null}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </nav>
+
+          <div className="mt-4 space-y-2 border-t border-slate-200 pt-4">
+            {canAccessNotifications ? (
+              <Link
+                to="/notifications"
+                className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                  isRouteActive('/notifications')
+                    ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
+                    : 'text-slate-800 hover:bg-indigo-50 hover:text-indigo-700'
+                }`}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Bell className="h-4 w-4" />
+                  {!isSidebarCollapsed ? 'Notifications' : null}
+                </span>
+                {unreadCount > 0 ? (
+                  <span className="rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                ) : null}
+              </Link>
+            ) : null}
+
+            {canManageTwoFactor ? (
+              <Link
+                to="/security"
+                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                  isRouteActive('/security')
+                    ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
+                    : 'text-slate-800 hover:bg-indigo-50 hover:text-indigo-700'
+                }`}
+                aria-label="Security"
+                title={isSidebarCollapsed ? 'Security' : undefined}
+              >
+                <ShieldCheck className="h-4 w-4" />
+                {!isSidebarCollapsed ? 'Security' : null}
+              </Link>
+            ) : null}
+
+            <Link
+              to="/settings"
+              className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                isRouteActive('/settings')
+                  ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
+                  : 'text-slate-800 hover:bg-indigo-50 hover:text-indigo-700'
+              }`}
+              aria-label="Profile & Settings"
+              title={isSidebarCollapsed ? 'Profile & Settings' : undefined}
+            >
+              <Settings2 className="h-4 w-4" />
+              {!isSidebarCollapsed ? 'Profile & Settings' : null}
+            </Link>
+
+            <Link
+              to="/change-password"
+              className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                isRouteActive('/change-password')
+                  ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
+                  : 'text-slate-800 hover:bg-indigo-50 hover:text-indigo-700'
+              }`}
+              aria-label="Change Password"
+              title={isSidebarCollapsed ? 'Change Password' : undefined}
+            >
+              <KeyRound className="h-4 w-4" />
+              {!isSidebarCollapsed ? 'Change Password' : null}
+            </Link>
+
+            <div className="rounded-lg border border-slate-200 bg-white p-2">
+              <ThemeToggle className="w-full justify-center" />
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-white p-3">
+              <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'gap-3'}`}>
+                {profilePictureUrl ? (
+                  <img src={profilePictureUrl} alt={displayName || 'user'} className="h-9 w-9 rounded-full" />
+                ) : (
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 font-semibold text-white">
+                    {initial}
                   </div>
                 )}
+                {!isSidebarCollapsed ? (
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-900">{displayName}</p>
+                    <p className="truncate text-xs text-slate-700">{(user as User | null)?.email || ''}</p>
+                  </div>
+                ) : null}
               </div>
-            )}
+              <Button
+                type="button"
+                onClick={handleLogout}
+                variant="ghost"
+                className={`mt-3 flex w-full items-center px-2 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 ${
+                  isSidebarCollapsed ? 'justify-center' : 'justify-start gap-2'
+                }`}
+                aria-label="Logout"
+                title={isSidebarCollapsed ? 'Logout' : undefined}
+              >
+                <LogOut className="h-4 w-4" />
+                {!isSidebarCollapsed ? 'Logout' : null}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {mobileMenuMounted ? (
+        <div
+          className={`fixed inset-0 z-50 lg:hidden transition-opacity duration-200 ${
+            mobileMenuOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+          }`}
+        >
+          <button
+            type="button"
+            aria-label="Close navigation menu"
+            className={`absolute inset-0 bg-slate-900/30 transition-opacity duration-200 ${
+              mobileMenuOpen ? 'opacity-100' : 'opacity-0'
+            }`}
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <div
+            id="mobile-sidebar-drawer"
+            ref={mobileDrawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
+            tabIndex={-1}
+            className={`absolute left-0 top-0 h-full w-full max-w-sm overflow-y-auto border-r border-slate-200 bg-white px-4 py-4 shadow-2xl transition-transform duration-300 ease-out ${
+              mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <Link
+                to={homePath}
+                className="inline-flex items-center gap-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <Shield className="h-7 w-7 text-indigo-600" />
+                <span className="text-lg font-bold text-slate-900">CAVP</span>
+              </Link>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-2 text-slate-800 hover:bg-indigo-50"
+                aria-label="Close navigation menu"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
             {canShowOrganizationContext ? (
-              <div className="flex items-center">
+              <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-700">Active Organization</p>
                 {canSwitchOrganization ? (
                   <select
-                    className="h-9 rounded-md border border-slate-300 bg-white px-2 text-xs font-medium text-slate-800"
-                    value={activeOrganizationId || "__default__"}
+                    className="mt-2 h-10 w-full rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
+                    value={activeOrganizationId || '__default__'}
                     onChange={(event) => {
                       void handleOrganizationSelection(event.target.value);
                     }}
@@ -660,309 +885,104 @@ export const Navbar: React.FC = () => {
                     ))}
                   </select>
                 ) : (
-                  <span className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-white px-2 text-xs font-medium text-slate-800">
-                    {activeOrganizationLabel}
-                  </span>
+                  <p className="mt-2 text-sm text-slate-800">{activeOrganizationLabel}</p>
                 )}
               </div>
             ) : null}
-            {renderRuntimePopover()}
-            <ThemeToggle compact />
-            {canAccessNotifications ? (
-              <Link
-                to="/notifications"
-                className={`relative rounded-lg p-2 ${
-                  isRouteActive('/notifications')
-                    ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
-                    : 'text-slate-800 hover:text-indigo-700 hover:bg-indigo-50'
-                }`}
-              >
-                <Bell className="w-6 h-6" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </span>
-                )}
-              </Link>
-            ) : null}
 
-            <div className="relative" ref={profileMenuRef}>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setProfileMenuOpen(!profileMenuOpen);
-                  setAdminMoreMenuOpen(false);
-                  setRuntimePopoverOpen(false);
-                }}
-                aria-expanded={profileMenuOpen ? "true" : "false"}
-                aria-haspopup="true"
-                aria-label="Toggle profile menu"
-                className="flex items-center space-x-2 ml-4 p-2 text-slate-800 rounded-lg hover:bg-indigo-50"
-              >
-                {profile_picture_url ? (
-                  <img src={profile_picture_url} alt={displayName || 'user'} className="w-8 h-8 rounded-full" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-semibold">
-                    {initial}
+            <nav className="space-y-4">
+              {navSections.map((section) => (
+                <section key={section.key}>
+                  <p className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-700">
+                    {section.title}
+                  </p>
+                  <div className="space-y-1">
+                    {section.items.map((navItem) => (
+                      <Link
+                        key={navItem.to}
+                        to={navItem.to}
+                        className={mobileNavClass(navItem.to)}
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        {navItem.label}
+                      </Link>
+                    ))}
                   </div>
-                )}
-              </Button>
-              {profileMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-20 border">
-                  <Link
-                    to="/settings"
-                    className="flex items-center w-full px-4 py-2 text-sm font-medium text-slate-800 hover:bg-indigo-50"
-                    onClick={() => setProfileMenuOpen(false)}
-                  >
-                    <Settings2 className="w-4 h-4 mr-2" />
-                    Profile & Settings
-                  </Link>
-                  {canManageTwoFactor && (
-                    <Link
-                      to="/security"
-                      className="flex items-center w-full px-4 py-2 text-sm font-medium text-slate-800 hover:bg-indigo-50"
-                      onClick={() => setProfileMenuOpen(false)}
-                    >
-                      <ShieldCheck className="w-4 h-4 mr-2" />
-                      Security
-                    </Link>
-                  )}
-                  <Link
-                    to="/change-password"
-                    className="flex items-center w-full px-4 py-2 text-sm font-medium text-slate-800 hover:bg-indigo-50"
-                    onClick={() => setProfileMenuOpen(false)}
-                  >
-                    <KeyRound className="w-4 h-4 mr-2" />
-                    Change Password
-                  </Link>
-                  <Button
-                    type="button"
-                    onClick={handleLogout}
-                    className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 justify-start"
-                    variant="ghost"
-                  >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Logout
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Mobile menu button */}
-          <div className="xl:hidden flex items-center">
-            <Button
-              type="button"
-              variant="ghost"
-              ref={mobileMenuButtonRef}
-              onClick={() => {
-                setProfileMenuOpen(false);
-                setAdminMoreMenuOpen(false);
-                setRuntimePopoverOpen(false);
-                if (!mobileMenuOpen) {
-                  setMobileMenuMounted(true);
-                }
-                setMobileMenuOpen((previous) => !previous);
-              }}
-              aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
-              aria-expanded={mobileMenuOpen ? "true" : "false"}
-              aria-controls="mobile-nav-drawer"
-              className="p-2 rounded-md text-slate-800 hover:text-indigo-700 hover:bg-indigo-50"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile Navigation */}
-      {mobileMenuMounted && (
-        <div
-          className={`fixed inset-x-0 top-16 bottom-0 z-40 xl:hidden transition-opacity duration-200 ${
-            mobileMenuOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
-          }`}
-        >
-          <button
-            type="button"
-            aria-label="Close navigation menu"
-            className={`absolute inset-0 bg-slate-900/30 transition-opacity duration-200 ${
-              mobileMenuOpen ? 'opacity-100' : 'opacity-0'
-            }`}
-            onClick={() => setMobileMenuOpen(false)}
-          />
-          <div
-            id="mobile-nav-drawer"
-            ref={mobileDrawerRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Navigation menu"
-            tabIndex={-1}
-            className={`absolute right-0 top-0 h-full w-full max-w-sm overflow-y-auto border-l border-gray-200 bg-white px-4 py-4 shadow-2xl transition-transform duration-300 ease-out ${
-              mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
-            }`}
-          >
-            <div className="flex items-center space-x-3 mb-4">
-              {profile_picture_url ? (
-                <img src={profile_picture_url} alt={displayName || 'user'} className="w-10 h-10 rounded-full" />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-semibold text-lg">
-                  {initial}
-                </div>
-              )}
-              <div>
-                <p className="text-base font-medium text-gray-900">
-                  {displayName}
-                </p>
-              </div>
-            </div>
-            <div className="space-y-3">
-              {canShowOrganizationContext ? (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                  {canSwitchOrganization ? (
-                    <select
-                      className="h-10 w-full rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
-                      value={activeOrganizationId || "__default__"}
-                      onChange={(event) => {
-                        void handleOrganizationSelection(event.target.value);
-                      }}
-                      disabled={switchingActiveOrganization}
-                      aria-label="Switch active organization"
-                    >
-                      <option value="__default__">Default scope</option>
-                      {resolvedOrganizations.map((org) => (
-                        <option key={org.id} value={org.id}>
-                          {org.name}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <p className="text-sm text-slate-800">{activeOrganizationLabel}</p>
-                  )}
-                </div>
-              ) : null}
-              {navLinks.map((navItem) => (
-                <Link
-                  key={navItem.to}
-                  to={navItem.to}
-                  className={mobileNavClass(navItem.to)}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {renderNavLabel(navItem)}
-                </Link>
+                </section>
               ))}
+            </nav>
+
+            <div className="mt-4 space-y-2 border-t border-slate-200 pt-4">
               {canAccessNotifications ? (
                 <Link
                   to="/notifications"
-                  className={`flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
+                  className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
                     isRouteActive('/notifications')
                       ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
-                      : 'hover:bg-indigo-50 text-slate-800'
+                      : 'text-slate-800 hover:bg-indigo-50 hover:text-indigo-700'
                   }`}
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  <span className="text-slate-800">Notifications</span>
-                  {unreadCount > 0 && (
-                    <span className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                  <span className="inline-flex items-center gap-2">
+                    <Bell className="h-4 w-4" />
+                    Notifications
+                  </span>
+                  {unreadCount > 0 ? (
+                    <span className="rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
                       {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
-                  )}
+                  ) : null}
                 </Link>
               ) : null}
-              {canViewReminderRuntime ? (
-                <button
-                  type="button"
-                  onClick={() => setRuntimePopoverOpen((previous) => !previous)}
-                  className="flex w-full items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-left"
-                >
-                  <span className="inline-flex items-center gap-2 text-slate-800">
-                    <span className={`h-2.5 w-2.5 rounded-full ${runtimeMeta.dotClass}`} />
-                    Reminder Runtime
-                  </span>
-                  <span className="text-xs font-semibold text-slate-700">{runtimeMeta.label}</span>
-                </button>
-              ) : null}
-              {canViewReminderRuntime && runtimePopoverOpen ? (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800">
-                  <p className="font-semibold text-slate-900">Last checked: {runtimeLastChecked}</p>
-                  {reminderRuntimeSnapshot ? (
-                    <ul className="mt-2 space-y-1">
-                      <li>Soon: {reminderRuntimeSnapshot.soon_retry_pending} pending / {reminderRuntimeSnapshot.soon_retry_exhausted} exhausted</li>
-                      <li>Start: {reminderRuntimeSnapshot.start_now_retry_pending} pending / {reminderRuntimeSnapshot.start_now_retry_exhausted} exhausted</li>
-                      <li>Time-up: {reminderRuntimeSnapshot.time_up_retry_pending} pending / {reminderRuntimeSnapshot.time_up_retry_exhausted} exhausted</li>
-                    </ul>
-                  ) : (
-                    <p className="mt-2">No runtime snapshot available yet.</p>
-                  )}
-                  {reminderRuntimeError ? <p className="mt-2 text-rose-700">{reminderRuntimeError}</p> : null}
-                  <button
-                    type="button"
-                    onClick={() => void refreshReminderRuntime()}
-                    disabled={reminderRuntimeRefreshing}
-                    className="mt-3 inline-flex items-center gap-2 rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-800 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <RefreshCw className={`h-3.5 w-3.5 ${reminderRuntimeRefreshing ? 'animate-spin' : ''}`} />
-                    {reminderRuntimeRefreshing ? 'Refreshing...' : 'Refresh'}
-                  </button>
-                </div>
-              ) : null}
-              <div>
-                <ThemeToggle className="w-full justify-center" />
-              </div>
-              {canManageTwoFactor && (
+
+              {canManageTwoFactor ? (
                 <Link
                   to="/security"
-                  className={`flex items-center px-3 py-2 rounded-lg transition-colors ${
-                    isRouteActive('/security')
-                      ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
-                      : 'hover:bg-indigo-50'
-                  }`}
+                  className={mobileNavClass('/security')}
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  <ShieldCheck className="w-5 h-5 mr-2 text-slate-700" />
-                  <span className="text-slate-800">Security</span>
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  Security
                 </Link>
-              )}
+              ) : null}
+
               <Link
                 to="/settings"
-                className={`flex items-center px-3 py-2 rounded-lg transition-colors ${
-                  isRouteActive('/settings')
-                    ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
-                    : 'hover:bg-indigo-50'
-                }`}
+                className={mobileNavClass('/settings')}
                 onClick={() => setMobileMenuOpen(false)}
               >
-                <Settings2 className="w-5 h-5 mr-2 text-slate-700" />
-                <span className="text-slate-800">Profile & Settings</span>
+                <Settings2 className="mr-2 h-4 w-4" />
+                Profile & Settings
               </Link>
+
               <Link
                 to="/change-password"
-                className={`flex items-center px-3 py-2 rounded-lg transition-colors ${
-                  isRouteActive('/change-password')
-                    ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
-                    : 'hover:bg-indigo-50'
-                }`}
+                className={mobileNavClass('/change-password')}
                 onClick={() => setMobileMenuOpen(false)}
               >
-                <KeyRound className="w-5 h-5 mr-2 text-slate-700" />
-                <span className="text-slate-800">Change Password</span>
+                <KeyRound className="mr-2 h-4 w-4" />
+                Change Password
               </Link>
+
+              <div className="pt-2">
+                <ThemeToggle className="w-full justify-center" />
+              </div>
+
               <button
                 type="button"
                 onClick={() => {
                   handleLogout();
                   setMobileMenuOpen(false);
                 }}
-                className="w-full flex items-center px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg"
+                className="flex w-full items-center rounded-lg px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
               >
-                <LogOut className="w-5 h-5 mr-2" />
-                <span>Logout</span>
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
               </button>
             </div>
           </div>
         </div>
-      )}
-    </nav>
+      ) : null}
+    </>
   );
 };
-

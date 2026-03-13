@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { configureStore } from "@reduxjs/toolkit";
 import { Provider } from "react-redux";
 import { MemoryRouter } from "react-router-dom";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import { Navbar } from "./Navbar";
 
@@ -166,7 +166,7 @@ describe("Navbar runtime + active tab behavior", () => {
     authHookState.canManageRubrics = false;
   });
 
-  it("opens runtime popover and shows latest reminder counts", async () => {
+  it("shows admin reminder runtime summary with latest health payload", async () => {
     mocks.getReminderHealth.mockResolvedValue({
       generated_at: "2026-03-04T12:00:00Z",
       max_retries: 3,
@@ -195,13 +195,9 @@ describe("Navbar runtime + active tab behavior", () => {
       expect(mocks.getReminderHealth).toHaveBeenCalledTimes(1);
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /runtime/i }));
-
     expect(await screen.findByText("Reminder Runtime")).toBeTruthy();
-    const soonPendingCard = screen.getByText("Soon Pending").closest("div");
-    expect(soonPendingCard).toBeTruthy();
-    expect(within(soonPendingCard as HTMLElement).getByText("2")).toBeTruthy();
-    expect(screen.getByText("Soon Exhausted")).toBeTruthy();
+    expect(screen.getByText(/attention/i)).toBeTruthy();
+    expect(screen.getByText(/pending retries: 2/i)).toBeTruthy();
     expect(screen.getByText("Last checked:", { exact: false })).toBeTruthy();
   });
 
@@ -247,7 +243,7 @@ describe("Navbar runtime + active tab behavior", () => {
     expect(moreButton.className.includes("bg-indigo-100")).toBe(true);
   });
 
-  it("shows unavailable status in runtime popover when health endpoint fails", async () => {
+  it("shows unavailable status when runtime health endpoint fails", async () => {
     mocks.getReminderHealth.mockRejectedValue(new Error("Runtime unavailable"));
 
     renderNavbar("/dashboard", {
@@ -266,8 +262,6 @@ describe("Navbar runtime + active tab behavior", () => {
     await waitFor(() => {
       expect(mocks.getReminderHealth).toHaveBeenCalledTimes(1);
     });
-
-    fireEvent.click(screen.getByRole("button", { name: /runtime/i }));
 
     expect(await screen.findByText("Reminder Runtime")).toBeTruthy();
     expect(screen.getByText("Unavailable")).toBeTruthy();
@@ -415,7 +409,6 @@ describe("Navbar runtime + active tab behavior", () => {
       expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /more/i }));
     expect(screen.getAllByRole("link", { name: /appointment workflow/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /offices/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /nominees/i }).length).toBeGreaterThan(0);
@@ -454,7 +447,6 @@ describe("Navbar runtime + active tab behavior", () => {
       .getAllByRole("link", { name: /^dashboard$/i })
       .filter((link) => link.getAttribute("href") === "/organization/dashboard");
     expect(organizationDashboardLinks.length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole("button", { name: /more/i }));
     expect(screen.getAllByRole("link", { name: /^members$/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /committees/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /onboarding/i }).length).toBeGreaterThan(0);
@@ -485,7 +477,6 @@ describe("Navbar runtime + active tab behavior", () => {
       expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /more/i }));
     const organizationDashboardLinks = screen
       .queryAllByRole("link", { name: /^dashboard$/i })
       .filter((link) => link.getAttribute("href") === "/organization/dashboard");
