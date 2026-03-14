@@ -591,42 +591,18 @@ class AppointmentIntegrityConstraintTests(TestCase):
 
 class AppointmentPublicApiTests(APITestCase):
     def setUp(self):
+        self.organization = Organization.objects.create(
+            code="appointments-public-org",
+            name="Appointments Public Org",
+            organization_type="agency",
+            is_active=True,
+        )
         self.admin_user = User.objects.create_user(
             email="appointments_admin2@example.com",
             password="Pass1234!",
             first_name="Appoint",
             last_name="Admin",
             user_type="admin",
-        )
-        self.client.force_authenticate(self.admin_user)
-        candidate = Candidate.objects.create(
-            first_name="Nominee",
-            last_name="Two",
-            email="nominee_two@example.com",
-        )
-        nominee = PersonnelRecord.objects.create(full_name="Nominee Two", linked_candidate=candidate, is_public=True)
-        position = GovernmentPosition.objects.create(
-            title="Minister of Education",
-            branch="executive",
-            institution="Ministry of Education",
-            appointment_authority="President",
-            is_vacant=True,
-            is_public=True,
-        )
-        campaign = VettingCampaign.objects.create(
-            name="Ministerial Appointments 2027",
-            initiated_by=self.admin_user,
-            status="active",
-        )
-        self.record = AppointmentRecord.objects.create(
-            position=position,
-            nominee=nominee,
-            appointment_exercise=campaign,
-            nominated_by_user=self.admin_user,
-            nominated_by_display="H.E. President",
-            nomination_date=date.today(),
-            status="nominated",
-            is_public=True,
         )
         self.vetting_user = User.objects.create_user(
             email="vetting.user@example.com",
@@ -687,7 +663,68 @@ class AppointmentPublicApiTests(APITestCase):
         self.committee_chair_user.groups.add(self.committee_chair_group)
         self.authority_user.groups.add(self.authority_group)
         self.publication_user.groups.add(self.publication_group)
+
+        OrganizationMembership.objects.create(
+            user=self.vetting_user,
+            organization=self.organization,
+            membership_role="vetting_officer",
+            is_active=True,
+            is_default=True,
+        )
+        for user in (
+            self.ordinary_internal_user,
+            self.committee_user,
+            self.committee_chair_user,
+            self.authority_user,
+            self.publication_user,
+        ):
+            OrganizationMembership.objects.create(
+                user=user,
+                organization=self.organization,
+                membership_role="",
+                is_active=True,
+                is_default=False,
+            )
+
+        candidate = Candidate.objects.create(
+            first_name="Nominee",
+            last_name="Two",
+            email="nominee_two@example.com",
+        )
+        nominee = PersonnelRecord.objects.create(
+            organization=self.organization,
+            full_name="Nominee Two",
+            linked_candidate=candidate,
+            is_public=True,
+        )
+        position = GovernmentPosition.objects.create(
+            organization=self.organization,
+            title="Minister of Education",
+            branch="executive",
+            institution="Ministry of Education",
+            appointment_authority="President",
+            is_vacant=True,
+            is_public=True,
+        )
+        campaign = VettingCampaign.objects.create(
+            organization=self.organization,
+            name="Ministerial Appointments 2027",
+            initiated_by=self.vetting_user,
+            status="active",
+        )
+        self.record = AppointmentRecord.objects.create(
+            organization=self.organization,
+            position=position,
+            nominee=nominee,
+            appointment_exercise=campaign,
+            nominated_by_user=self.vetting_user,
+            nominated_by_display="H.E. President",
+            nomination_date=date.today(),
+            status="nominated",
+            is_public=True,
+        )
         self._nominee_seq = 0
+        self.client.force_authenticate(self.vetting_user)
 
     def _build_nominee(self):
         self._nominee_seq += 1
@@ -847,9 +884,8 @@ class AppointmentPublicApiTests(APITestCase):
         self.assertGreaterEqual(len(self._extract_results(internal_allowed)), 1)
 
         self.client.force_authenticate(self.admin_user)
-        admin_allowed = self.client.get("/api/appointments/records/")
-        self.assertEqual(admin_allowed.status_code, 200)
-        self.assertGreaterEqual(len(self._extract_results(admin_allowed)), 1)
+        denied_admin = self.client.get("/api/appointments/records/")
+        self.assertEqual(denied_admin.status_code, 403)
 
     def test_create_record_allows_internal_and_admin_but_blocks_applicant(self):
         first_nominee = self._build_nominee()
@@ -887,7 +923,7 @@ class AppointmentPublicApiTests(APITestCase):
         )
 
         self.client.force_authenticate(self.admin_user)
-        admin_allowed = self.client.post(
+        admin_denied = self.client.post(
             "/api/appointments/records/",
             {
                 **payload,
@@ -895,12 +931,7 @@ class AppointmentPublicApiTests(APITestCase):
             },
             format="json",
         )
-        self.assertEqual(admin_allowed.status_code, 201)
-        self._assert_audit_row_exists(
-            action="create",
-            entity_id=admin_allowed.json()["id"],
-            expected_event=APPOINTMENT_RECORD_CREATED_EVENT,
-        )
+        self.assertEqual(admin_denied.status_code, 403)
 
     def test_update_record_allows_internal_and_admin_but_blocks_applicant(self):
         detail_url = f"/api/appointments/records/{self.record.id}/"
@@ -916,19 +947,19 @@ class AppointmentPublicApiTests(APITestCase):
             format="json",
         )
         self.assertEqual(internal_allowed.status_code, 200)
-
-        self.client.force_authenticate(self.admin_user)
-        admin_allowed = self.client.patch(
-            detail_url,
-            {"committee_recommendation": "Update by Admin"},
-            format="json",
-        )
-        self.assertEqual(admin_allowed.status_code, 200)
         self._assert_audit_row_exists(
             action="update",
             entity_id=str(self.record.id),
             expected_event=APPOINTMENT_RECORD_UPDATED_EVENT,
         )
+
+        self.client.force_authenticate(self.admin_user)
+        admin_denied = self.client.patch(
+            detail_url,
+            {"committee_recommendation": "Update by Admin"},
+            format="json",
+        )
+        self.assertEqual(admin_denied.status_code, 403)
 
     def test_delete_record_allows_internal_and_admin_but_blocks_applicant(self):
         blocked_nominee = self._build_nominee()
@@ -981,14 +1012,9 @@ class AppointmentPublicApiTests(APITestCase):
         )
 
         self.client.force_authenticate(self.admin_user)
-        admin_allowed = self.client.delete(f"/api/appointments/records/{admin_record.id}/")
-        self.assertEqual(admin_allowed.status_code, 204)
-        self.assertFalse(AppointmentRecord.objects.filter(id=admin_record.id).exists())
-        self._assert_audit_row_exists(
-            action="delete",
-            entity_id=str(admin_record.id),
-            expected_event=APPOINTMENT_RECORD_DELETED_EVENT,
-        )
+        admin_denied = self.client.delete(f"/api/appointments/records/{admin_record.id}/")
+        self.assertEqual(admin_denied.status_code, 403)
+        self.assertTrue(AppointmentRecord.objects.filter(id=admin_record.id).exists())
 
     def test_appoint_endpoint_requires_appointing_authority_or_admin(self):
         self.record.status = "committee_review"
@@ -1236,6 +1262,14 @@ class AppointmentPublicApiTests(APITestCase):
 
     def test_ensure_vetting_linkage_action_logs_event(self):
         self.client.force_authenticate(self.admin_user)
+        denied = self.client.post(
+            f"/api/appointments/records/{self.record.id}/ensure-vetting-linkage/",
+            {},
+            format="json",
+        )
+        self.assertEqual(denied.status_code, 403)
+
+        self.client.force_authenticate(self.vetting_user)
         response = self.client.post(
             f"/api/appointments/records/{self.record.id}/ensure-vetting-linkage/",
             {},
@@ -1420,6 +1454,10 @@ class AppointmentPublicApiTests(APITestCase):
         self.assertEqual(publish_response.status_code, 200)
 
         self.client.force_authenticate(self.admin_user)
+        denied_admin = self.client.get(f"/api/appointments/records/{self.record.id}/publication/")
+        self.assertEqual(denied_admin.status_code, 403)
+
+        self.client.force_authenticate(self.vetting_user)
         detail_response = self.client.get(f"/api/appointments/records/{self.record.id}/publication/")
         self.assertEqual(detail_response.status_code, 200)
         payload = detail_response.json()
@@ -1433,7 +1471,7 @@ class AppointmentPublicApiTests(APITestCase):
         self.assertEqual(denied.status_code, 403)
 
     def test_public_gazette_feed_redacts_internal_fields(self):
-        publish_response = self._publish_record(actor=self.admin_user)
+        publish_response = self._publish_record()
         self.assertEqual(publish_response.status_code, 200)
 
         self.client.force_authenticate(user=None)
@@ -1511,7 +1549,7 @@ class AppointmentPublicApiTests(APITestCase):
         self.assertSetEqual(legacy_ids, modern_ids)
 
     def test_public_transparency_appointments_list_and_detail_require_published_state(self):
-        publish_response = self._publish_record(actor=self.admin_user)
+        publish_response = self._publish_record()
         self.assertEqual(publish_response.status_code, 200)
 
         unpublished_nominee = self._build_nominee()
@@ -1573,7 +1611,7 @@ class AppointmentPublicApiTests(APITestCase):
         self.assertEqual(detail_response.status_code, 404)
 
     def test_public_transparency_summary_positions_and_officeholders(self):
-        publish_response = self._publish_record(actor=self.admin_user)
+        publish_response = self._publish_record()
         self.assertEqual(publish_response.status_code, 200)
 
         officeholder = PersonnelRecord.objects.create(
@@ -2208,26 +2246,40 @@ class AppointmentOrganizationScopeTests(APITestCase):
         self.assertIn(denied.status_code, {403, 404})
 
         self.client.force_authenticate(self.admin_user)
-        allowed = self.client.patch(
+        denied_admin = self.client.patch(
             f"/api/appointments/records/{self.appointment_org_b.id}/",
             {"nominated_by_display": "Admin Cross Org Edit"},
             format="json",
         )
-        self.assertEqual(allowed.status_code, 200)
+        self.assertEqual(denied_admin.status_code, 403)
 
 
 class AppointmentAliasContractTests(APITestCase):
     def setUp(self):
-        self.admin_user = User.objects.create_user(
-            email="appointments_alias_admin@example.com",
+        self.organization = Organization.objects.create(
+            code="appointments-alias-org",
+            name="Appointments Alias Org",
+            organization_type="agency",
+            is_active=True,
+        )
+        self.registry_user = User.objects.create_user(
+            email="appointments_alias_registry@example.com",
             password="Pass1234!",
             first_name="Appointments",
-            last_name="AliasAdmin",
-            user_type="admin",
-            is_staff=True,
-            is_superuser=True,
+            last_name="RegistryAdmin",
+            user_type="internal",
+        )
+        registry_group, _ = Group.objects.get_or_create(name="registry_admin")
+        self.registry_user.groups.add(registry_group)
+        OrganizationMembership.objects.create(
+            user=self.registry_user,
+            organization=self.organization,
+            membership_role="registry_admin",
+            is_active=True,
+            is_default=True,
         )
         self.position = GovernmentPosition.objects.create(
+            organization=self.organization,
             title="Cabinet Office - Infrastructure",
             branch="executive",
             institution="Cabinet Office",
@@ -2236,25 +2288,28 @@ class AppointmentAliasContractTests(APITestCase):
             is_public=True,
         )
         self.nominee = PersonnelRecord.objects.create(
+            organization=self.organization,
             full_name="Nominee Alias Record",
             is_public=True,
         )
         self.exercise = VettingCampaign.objects.create(
+            organization=self.organization,
             name="Infrastructure Appointment Exercise",
             status="active",
-            initiated_by=self.admin_user,
+            initiated_by=self.registry_user,
         )
         self.record = AppointmentRecord.objects.create(
+            organization=self.organization,
             position=self.position,
             nominee=self.nominee,
             appointment_exercise=self.exercise,
-            nominated_by_user=self.admin_user,
+            nominated_by_user=self.registry_user,
             nominated_by_display="Cabinet Secretary",
             nomination_date=date.today(),
             status="nominated",
             is_public=False,
         )
-        self.client.force_authenticate(self.admin_user)
+        self.client.force_authenticate(self.registry_user)
 
     def _items(self, payload):
         if isinstance(payload, list):

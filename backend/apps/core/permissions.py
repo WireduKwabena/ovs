@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import AllowAny, BasePermission
 
 from .authz import (
     get_user_organization_ids,
@@ -73,6 +73,14 @@ class BlockPlatformAdminOrgWorkflowMixin:
 
     def initial(self, request, *args, **kwargs):
         if is_platform_admin_user(getattr(request, "user", None)):
+            # Allow public endpoints (e.g., transparency feeds) to remain accessible even
+            # when a platform admin is authenticated and the client attaches auth headers.
+            try:
+                if any(isinstance(permission, AllowAny) for permission in self.get_permissions()):  # type: ignore[attr-defined]
+                    return super().initial(request, *args, **kwargs)
+            except Exception:
+                # Fail closed for non-public endpoints if permission introspection breaks.
+                pass
             raise PermissionDenied(self.platform_admin_forbidden_message)
         return super().initial(request, *args, **kwargs)
 

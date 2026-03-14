@@ -5,6 +5,7 @@ from rest_framework.response import Response
 
 from apps.candidates.models import Candidate
 from apps.core.permissions import (
+    BlockPlatformAdminOrgWorkflowMixin,
     IsRegistryOperatorOrAdmin,
     get_request_active_organization_id,
     scope_internal_queryset_to_tenant,
@@ -31,7 +32,7 @@ from .models import PersonnelRecord
 from .serializers import PersonnelRecordSerializer, PublicPersonnelRecordSerializer
 
 
-class PersonnelRecordViewSet(viewsets.ModelViewSet):
+class PersonnelRecordViewSet(BlockPlatformAdminOrgWorkflowMixin, viewsets.ModelViewSet):
     queryset = PersonnelRecord.objects.select_related("organization", "linked_candidate").all()
     serializer_class = PersonnelRecordSerializer
     permission_classes = [IsRegistryOperatorOrAdmin]

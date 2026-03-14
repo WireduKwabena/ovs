@@ -96,7 +96,16 @@ class PersonnelApiTests(APITestCase):
         )
         self.assertIn(response.status_code, {401, 403})
 
+        # Platform admins are restricted to subscription + org status oversight only.
         self.client.force_authenticate(self.admin_user)
+        denied = self.client.post(
+            f"/api/personnel/{self.record.id}/link-candidate/",
+            {"candidate_id": str(self.candidate.id)},
+            format="json",
+        )
+        self.assertEqual(denied.status_code, 403)
+
+        self.client.force_authenticate(self.internal_user)
         success = self.client.post(
             f"/api/personnel/{self.record.id}/link-candidate/",
             {"candidate_id": str(self.candidate.id)},
@@ -125,9 +134,8 @@ class PersonnelApiTests(APITestCase):
         self.assertGreaterEqual(len(self._extract_results(internal_allowed)), 1)
 
         self.client.force_authenticate(self.admin_user)
-        admin_allowed = self.client.get("/api/personnel/")
-        self.assertEqual(admin_allowed.status_code, 200)
-        self.assertGreaterEqual(len(self._extract_results(admin_allowed)), 1)
+        denied_admin = self.client.get("/api/personnel/")
+        self.assertEqual(denied_admin.status_code, 403)
 
     def test_personnel_create_allows_internal_and_admin_but_blocks_applicant(self):
         create_org = Organization.objects.create(code="personnel-create-org", name="Personnel Create Org")
@@ -162,17 +170,12 @@ class PersonnelApiTests(APITestCase):
         )
 
         self.client.force_authenticate(self.admin_user)
-        admin_allowed = self.client.post(
+        admin_denied = self.client.post(
             "/api/personnel/",
             {**payload, "full_name": "New Public Officer Admin"},
             format="json",
         )
-        self.assertEqual(admin_allowed.status_code, 201)
-        self._assert_audit_row_exists(
-            action="create",
-            entity_id=admin_allowed.json()["id"],
-            expected_event=PERSONNEL_RECORD_CREATED_EVENT,
-        )
+        self.assertEqual(admin_denied.status_code, 403)
 
     def test_personnel_update_allows_internal_and_admin_but_blocks_applicant(self):
         detail_url = f"/api/personnel/{self.record.id}/"
@@ -184,15 +187,15 @@ class PersonnelApiTests(APITestCase):
         self.client.force_authenticate(self.internal_user)
         internal_allowed = self.client.patch(detail_url, {"full_name": "Personnel Updated By Internal Reviewer"}, format="json")
         self.assertEqual(internal_allowed.status_code, 200)
-
-        self.client.force_authenticate(self.admin_user)
-        admin_allowed = self.client.patch(detail_url, {"full_name": "Personnel Updated By Admin"}, format="json")
-        self.assertEqual(admin_allowed.status_code, 200)
         self._assert_audit_row_exists(
             action="update",
             entity_id=str(self.record.id),
             expected_event=PERSONNEL_RECORD_UPDATED_EVENT,
         )
+
+        self.client.force_authenticate(self.admin_user)
+        admin_denied = self.client.patch(detail_url, {"full_name": "Personnel Updated By Admin"}, format="json")
+        self.assertEqual(admin_denied.status_code, 403)
 
     def test_personnel_delete_allows_internal_and_admin_but_blocks_applicant(self):
         blocked_record = PersonnelRecord.objects.create(
@@ -227,14 +230,9 @@ class PersonnelApiTests(APITestCase):
         )
 
         self.client.force_authenticate(self.admin_user)
-        admin_allowed = self.client.delete(f"/api/personnel/{admin_record.id}/")
-        self.assertEqual(admin_allowed.status_code, 204)
-        self.assertFalse(PersonnelRecord.objects.filter(id=admin_record.id).exists())
-        self._assert_audit_row_exists(
-            action="delete",
-            entity_id=str(admin_record.id),
-            expected_event=PERSONNEL_RECORD_DELETED_EVENT,
-        )
+        admin_denied = self.client.delete(f"/api/personnel/{admin_record.id}/")
+        self.assertEqual(admin_denied.status_code, 403)
+        self.assertTrue(PersonnelRecord.objects.filter(id=admin_record.id).exists())
 
     def test_appointment_history_hides_non_public_records_for_non_internal_users(self):
         position = GovernmentPosition.objects.create(
@@ -366,8 +364,8 @@ class PersonnelOrganizationScopeTests(APITestCase):
         self.assertIn(denied.status_code, {403, 404})
 
         self.client.force_authenticate(self.admin_user)
-        allowed = self.client.delete(f"/api/personnel/{self.record_org_b.id}/")
-        self.assertEqual(allowed.status_code, 204)
+        denied_admin = self.client.delete(f"/api/personnel/{self.record_org_b.id}/")
+        self.assertEqual(denied_admin.status_code, 403)
 
     def test_membershipless_internal_without_registry_role_is_denied_registry_list(self):
         membershipless_internal = User.objects.create_user(

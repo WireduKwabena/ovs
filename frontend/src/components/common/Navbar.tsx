@@ -549,14 +549,14 @@ export const Navbar: React.FC = () => {
     pushUnique(desktopPrimaryLinks, { to: workspaceVideoCallsPath, label: 'Video Calls' });
   }
 
-  if (!isApplicantUser && canAccessAppointments) {
+  if (!hasAdminAccess && !isApplicantUser && canAccessAppointments) {
     pushUnique(desktopOverflowLinks, {
       to: workspaceAppointmentsPath,
       label: 'Appointment Workflow',
     });
   }
 
-  if (!isApplicantUser && canAccessRegistry) {
+  if (!hasAdminAccess && !isApplicantUser && canAccessRegistry) {
     pushUnique(desktopOverflowLinks, { to: workspacePositionsPath, label: 'Offices' });
     pushUnique(desktopOverflowLinks, { to: workspacePersonnelPath, label: 'Nominees' });
   }

@@ -19,6 +19,7 @@ except Exception:  # pragma: no cover - audit app may be optional in some setups
         return False
 
 from apps.core.permissions import (
+    BlockPlatformAdminOrgWorkflowMixin,
     IsGovernmentWorkflowOperator,
     can_access_organization_id,
     get_request_active_organization_id,
@@ -74,7 +75,7 @@ def _apply_legacy_public_endpoint_headers(response: Response, *, successor_path:
     return response
 
 
-class ApprovalStageTemplateViewSet(viewsets.ModelViewSet):
+class ApprovalStageTemplateViewSet(BlockPlatformAdminOrgWorkflowMixin, viewsets.ModelViewSet):
     queryset = ApprovalStageTemplate.objects.select_related("organization").prefetch_related("stages").all()
     serializer_class = ApprovalStageTemplateSerializer
     permission_classes = [IsGovernmentWorkflowOperator]
@@ -109,7 +110,7 @@ class ApprovalStageTemplateViewSet(viewsets.ModelViewSet):
         serializer.save(created_by=self.request.user)
 
 
-class ApprovalStageViewSet(viewsets.ModelViewSet):
+class ApprovalStageViewSet(BlockPlatformAdminOrgWorkflowMixin, viewsets.ModelViewSet):
     queryset = ApprovalStage.objects.select_related("template", "template__organization", "committee").all()
     serializer_class = ApprovalStageSerializer
     permission_classes = [IsGovernmentWorkflowOperator]
@@ -171,7 +172,7 @@ class ApprovalStageViewSet(viewsets.ModelViewSet):
         serializer.save()
 
 
-class AppointmentRecordViewSet(viewsets.ModelViewSet):
+class AppointmentRecordViewSet(BlockPlatformAdminOrgWorkflowMixin, viewsets.ModelViewSet):
     queryset = AppointmentRecord.objects.select_related(
         "organization",
         "committee",

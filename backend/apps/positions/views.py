@@ -4,6 +4,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from apps.core.permissions import (
+    BlockPlatformAdminOrgWorkflowMixin,
     IsRegistryOperatorOrAdmin,
     get_request_active_organization_id,
     scope_internal_queryset_to_tenant,
@@ -29,7 +30,7 @@ from .models import GovernmentPosition
 from .serializers import GovernmentPositionSerializer, PublicGovernmentPositionSerializer
 
 
-class GovernmentPositionViewSet(viewsets.ModelViewSet):
+class GovernmentPositionViewSet(BlockPlatformAdminOrgWorkflowMixin, viewsets.ModelViewSet):
     queryset = GovernmentPosition.objects.select_related("organization", "current_holder", "rubric").all()
     serializer_class = GovernmentPositionSerializer
     permission_classes = [IsRegistryOperatorOrAdmin]
