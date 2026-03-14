@@ -188,7 +188,7 @@ const OrganizationCommitteesPage: React.FC = () => {
 
   if (!canManage) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-10">
+      <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-10 sm:px-6 lg:px-6 xl:px-8">
         <section className="w-full max-w-xl rounded-2xl border border-amber-200 bg-white p-8 shadow-sm text-center">
           <h1 className="text-2xl font-black text-slate-900">Organization Admin Access Required</h1>
           <p className="mt-3 text-sm text-slate-700">
@@ -206,7 +206,7 @@ const OrganizationCommitteesPage: React.FC = () => {
 
   if (!activeOrganizationId) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-10">
+      <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-10 sm:px-6 lg:px-6 xl:px-8">
         <section className="w-full max-w-xl rounded-2xl border border-amber-200 bg-white p-8 shadow-sm text-center">
           <h1 className="text-2xl font-black text-slate-900">Active Organization Required</h1>
           <p className="mt-3 text-sm text-slate-700">
@@ -226,7 +226,7 @@ const OrganizationCommitteesPage: React.FC = () => {
   }
 
   return (
-    <main className="mx-auto max-w-7xl space-y-6 px-4 py-8">
+    <main className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-6 xl:px-8">
       <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>

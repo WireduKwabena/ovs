@@ -92,7 +92,7 @@ export const AdminDashboard: React.FC = () => {
 
   if (error) {
     return (
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-6 xl:px-8">
         <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-lg">
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-6 h-6 text-red-600" />
@@ -122,7 +122,7 @@ export const AdminDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-6 xl:px-8">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>

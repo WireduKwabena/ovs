@@ -305,5 +305,32 @@ describe("AppointmentsRegistryPage org + committee visibility", () => {
     expect(await screen.findByText("Committee Review Queue")).toBeTruthy();
     expect(screen.queryByText(/Create Nomination Record/i)).toBeNull();
   });
+
+  it("uses the updated laptop-friendly stats and template grid classes", async () => {
+    configureBaseServiceResponses();
+    authHookState.canManageRegistry = true;
+    authHookState.canManageRegistryInActiveOrganization = true;
+
+    render(
+      <MemoryRouter>
+        <AppointmentsRegistryPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(serviceMocks.listAppointments).toHaveBeenCalledTimes(1);
+    });
+
+    const statsSection = screen.getByText("Total Records").closest("section");
+    expect(statsSection).toBeTruthy();
+    expect(statsSection?.className).toContain("sm:grid-cols-2");
+    expect(statsSection?.className).toContain("xl:grid-cols-4");
+
+    const templateHeading = screen.getAllByText("Create Route Template")[0];
+    const templateForm = templateHeading.closest("form");
+    const templateGrid = templateForm?.parentElement;
+    expect(templateGrid).toBeTruthy();
+    expect(templateGrid?.className).toContain("xl:grid-cols-2");
+  });
 });
 

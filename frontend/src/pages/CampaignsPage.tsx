@@ -236,7 +236,7 @@ const CampaignsPage: React.FC = () => {
 
   if (!canManageCampaigns) {
     return (
-      <main className="max-w-4xl mx-auto px-4 py-10">
+      <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-6 xl:px-8">
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-amber-800">
           Your account does not have appointment-exercise management access.
         </div>
@@ -245,7 +245,7 @@ const CampaignsPage: React.FC = () => {
   }
 
   return (
-    <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+    <main className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-6 xl:px-8">
       <section className="rounded-2xl bg-slate-900 text-white p-6">
         <div className="flex flex-wrap gap-4 items-center justify-between">
           <div>

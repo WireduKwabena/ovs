@@ -251,6 +251,24 @@ describe("Navbar runtime + active tab behavior", () => {
     expect(moreButton.className.includes("bg-indigo-100")).toBe(true);
   });
 
+  it("renders fixed desktop sidebar and mobile top bar with the expected breakpoint classes", () => {
+    const { container } = renderNavbar("/dashboard");
+
+    const desktopSidebar = container.querySelector("aside");
+    const mobileTopBar = container.querySelector("nav");
+
+    expect(desktopSidebar).toBeTruthy();
+    expect(desktopSidebar?.className).toContain("hidden");
+    expect(desktopSidebar?.className).toContain("w-64");
+    expect(desktopSidebar?.className).toContain("lg:flex");
+    expect(desktopSidebar?.className).toContain("xl:w-72");
+
+    expect(mobileTopBar).toBeTruthy();
+    expect(mobileTopBar?.className).toContain("lg:hidden");
+    expect(mobileTopBar?.className).toContain("sticky");
+    expect(mobileTopBar?.className).toContain("top-0");
+  });
+
   it("shows unavailable status in runtime popover when health endpoint fails", async () => {
     mocks.getReminderHealth.mockRejectedValue(new Error("Runtime unavailable"));
 

@@ -122,7 +122,7 @@ const GovernmentPersonnelPage: React.FC = () => {
   }, [scopedRows]);
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8 space-y-6">
+    <main className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-6 xl:px-8">
       <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>

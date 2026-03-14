@@ -1215,7 +1215,7 @@ const OperationsDashboardPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-10">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-6 xl:px-8">
         <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-700">
           Loading internal workspace...
         </div>
@@ -1224,7 +1224,7 @@ const OperationsDashboardPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+    <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-6 xl:px-8">
       <section className="rounded-2xl bg-linear-to-br from-slate-900 via-slate-800 to-teal-900 text-white p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -1238,7 +1238,7 @@ const OperationsDashboardPage: React.FC = () => {
               </p>
             ) : null}
           </div>
-          <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:flex-nowrap">
+          <div className="flex w-full flex-wrap items-center gap-2 xl:w-auto xl:flex-nowrap">
             <button
               type="button"
               onClick={() => void loadDashboard()}
@@ -1579,7 +1579,7 @@ const OperationsDashboardPage: React.FC = () => {
             </button>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           <div>
             <label htmlFor="operations-search-campaign" className="block text-sm font-medium text-slate-700 mb-1">
               Search

@@ -383,7 +383,7 @@ const CampaignWorkspacePage: React.FC = () => {
 
   if (loading) {
     return (
-      <main className="max-w-7xl mx-auto px-4 py-10">
+      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-6 xl:px-8">
         <div className="rounded-xl border border-slate-200 bg-white p-10 text-center text-slate-700">
           Loading appointment exercise workspace...
         </div>
@@ -393,7 +393,7 @@ const CampaignWorkspacePage: React.FC = () => {
 
   if (!campaign) {
     return (
-      <main className="max-w-4xl mx-auto px-4 py-10">
+      <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-6 xl:px-8">
         <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
           {error || 'Appointment exercise not found.'}
         </div>
@@ -402,7 +402,7 @@ const CampaignWorkspacePage: React.FC = () => {
   }
 
   return (
-    <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+    <main className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-6 xl:px-8">
       <section className="rounded-2xl bg-white border border-slate-200 p-6">
         <div className="flex flex-wrap gap-3 items-center justify-between">
           <div>

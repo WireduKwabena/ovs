@@ -157,7 +157,7 @@ const AppShell: React.FC = () => {
         </Suspense>
       ) : null}
 
-      <main className={showAppNavigation ? "xl:pl-72" : ""}>
+      <main className={showAppNavigation ? "lg:pl-64 xl:pl-72" : ""}>
         <Suspense
           fallback={
             <div className="flex min-h-[40vh] items-center justify-center">

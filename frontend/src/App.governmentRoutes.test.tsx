@@ -15,7 +15,11 @@ vi.mock("./store/authSlice", async (importOriginal) => {
 });
 
 vi.mock("./components/common/Navbar", () => ({
-  Navbar: () => <div>Mock Navbar</div>,
+  Navbar: () => <div data-testid="mock-navbar">Mock Navbar</div>,
+}));
+
+vi.mock("./pages/HomePage", () => ({
+  default: () => <div>Mock Home Page</div>,
 }));
 
 vi.mock("./pages/AppointmentsRegistryPage", () => ({
@@ -222,6 +226,28 @@ describe("App government route access", () => {
       organizationMemberships: [],
     });
     expect(await screen.findByText("Mock Organization Dashboard Page")).toBeTruthy();
+  });
+
+  it("shows app navigation and content offset on internal dashboard routes", async () => {
+    renderAppAt("/dashboard", "internal", ["gams.campaign.manage"]);
+
+    expect(await screen.findByText("Mock Dashboard Page")).toBeTruthy();
+    expect(screen.getByTestId("mock-navbar")).toBeTruthy();
+
+    const main = screen.getByRole("main");
+    expect(main.className).toContain("lg:pl-64");
+    expect(main.className).toContain("xl:pl-72");
+  });
+
+  it("hides app navigation and shell offset on the homepage", async () => {
+    renderAppAt("/", "internal", ["gams.campaign.manage"]);
+
+    expect(await screen.findByText("Mock Home Page")).toBeTruthy();
+    expect(screen.queryByTestId("mock-navbar")).toBeNull();
+
+    const main = screen.getByRole("main");
+    expect(main.className).not.toContain("lg:pl-64");
+    expect(main.className).not.toContain("xl:pl-72");
   });
 });
 

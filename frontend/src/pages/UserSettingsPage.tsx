@@ -229,7 +229,7 @@ const UserSettingsPage: React.FC = () => {
 
   if (!user) {
     return (
-      <div className="mx-auto flex min-h-[55vh] max-w-5xl items-center justify-center px-4">
+      <div className="mx-auto flex min-h-[55vh] max-w-5xl items-center justify-center px-4 sm:px-6 lg:px-6 xl:px-8">
         <div className="inline-flex items-center gap-2 text-sm text-slate-700">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading account settings...
@@ -239,7 +239,7 @@ const UserSettingsPage: React.FC = () => {
   }
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8">
+    <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-6 xl:px-8">
       <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-cyan-800">
           <UserCog className="h-4 w-4" />

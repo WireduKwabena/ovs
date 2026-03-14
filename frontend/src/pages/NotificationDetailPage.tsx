@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 
 import { Loader } from "@/components/common/Loader";
 import { notificationService } from "@/services/notification.service";
+import type { NotificationType } from "@/types";
 import { copyTextToClipboard } from "@/utils/helper";
 import { buildNotificationTraceHref } from "@/utils/notificationTrace";
 import {
@@ -59,6 +60,11 @@ const linkifyMessage = (message: string): React.ReactNode[] => {
     );
   });
 };
+
+const isTraceChannel = (
+  notificationType: NotificationType,
+): notificationType is "in_app" | "email" | "sms" =>
+  notificationType === "in_app" || notificationType === "email" || notificationType === "sms";
 
 export const NotificationDetailPage: React.FC = () => {
   const { notificationId } = useParams<{ notificationId: string }>();
@@ -117,19 +123,20 @@ export const NotificationDetailPage: React.FC = () => {
   const subsystem =
     typeof data?.metadata?.subsystem === "string" ? data.metadata.subsystem : "";
   const traceKey = data?.idempotency_key ?? "";
+  const traceChannel = data && isTraceChannel(data.notification_type) ? data.notification_type : "all";
   const traceViewHref = React.useMemo(() => {
     if (!data || (!eventType && !traceKey)) {
       return "";
     }
 
     return buildNotificationTraceHref({
-      channel: data.notification_type,
+      channel: traceChannel,
       eventType,
       idempotencyKey: traceKey,
       subsystem,
       view: data.is_archived ? "archived" : "all",
     });
-  }, [data, eventType, subsystem, traceKey]);
+  }, [data, eventType, subsystem, traceChannel, traceKey]);
 
   const handleDelete = async () => {
     if (!notificationId || isArchiving) {

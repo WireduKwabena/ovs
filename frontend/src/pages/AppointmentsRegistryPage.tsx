@@ -829,7 +829,7 @@ const AppointmentsRegistryPage: React.FC = () => {
   };
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8 space-y-6">
+    <main className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-6 xl:px-8">
       <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -905,7 +905,7 @@ const AppointmentsRegistryPage: React.FC = () => {
         </section>
       ) : null}
 
-      <section className="grid gap-4 md:grid-cols-4">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-700">Total Records</p>
           <p className="mt-2 text-3xl font-black text-slate-900">{stats.total}</p>
@@ -934,7 +934,7 @@ const AppointmentsRegistryPage: React.FC = () => {
             Define route templates and stage roles used by appointment exercises for each office type.
           </p>
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 xl:grid-cols-2">
             <form onSubmit={handleCreateTemplate} className="rounded-lg border border-slate-200 p-4">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Create Route Template</h3>
               <div className="mt-3 space-y-3">
