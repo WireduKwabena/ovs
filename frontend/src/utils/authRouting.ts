@@ -1,13 +1,15 @@
+import { getCandidatePath, getPlatformAdminPath } from "./appPaths";
+
 export type AuthUserType = "applicant" | "internal" | "admin" | null | undefined;
 
 export const getDashboardPathForUser = (userType: AuthUserType): string => {
   if (userType === "admin") {
-    return "/admin/dashboard";
+    return getPlatformAdminPath("dashboard");
   }
   if (userType === "applicant") {
-    return "/candidate/access";
+    return getCandidatePath("home");
   }
-  return "/workspace";
+  return "/dashboard";
 };
 
 export const hasActiveTwoFactorChallenge = (

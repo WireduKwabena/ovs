@@ -23,8 +23,7 @@ const rootReducer = combineReducers({
   rubrics: rubricReducer,
   error: errorReducer,
   interview: interviewReducer,
-  // [applicationsApi.reducerPath]: applicationsApi.reducer,  // Future: Add RTK Query
-});
+  });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
 

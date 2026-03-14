@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from datetime import timezone as dt_timezone
 from uuid import uuid4
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Prefetch, Q
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from django.utils.text import slugify
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action
@@ -13,6 +15,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.authentication.models import User
+from apps.billing.models import BillingSubscription
+from apps.billing.services import is_subscription_active
 from apps.core.authz import get_user_organization_by_id
 from apps.core.permissions import get_request_active_organization_id, get_request_tenant_context, is_platform_admin_user
 from apps.core.policies.registry_policy import can_manage_registry_governance
@@ -32,6 +36,9 @@ from .serializers import (
     OrganizationMembershipUpdateSerializer,
     OrganizationBootstrapResponseSerializer,
     OrganizationBootstrapSerializer,
+    PlatformOrganizationOversightListResponseSerializer,
+    PlatformOrganizationOversightSerializer,
+    PlatformOrganizationStatusUpdateSerializer,
     OrganizationSummaryResponseSerializer,
 )
 
@@ -53,9 +60,9 @@ class GovernanceScopeMixin:
     """
     Shared governance org-scope resolver.
 
-    - Non-platform actors are constrained to active organization context and must
-      satisfy registry governance capability for that org.
-    - Platform admins can recover across orgs (with optional explicit org filter).
+    Governance workspace management is organization-admin-only.
+    Platform admins are intentionally excluded from these endpoints and use
+    dedicated platform oversight views instead.
     """
 
     permission_classes = [permissions.IsAuthenticated]
@@ -116,18 +123,101 @@ class GovernanceScopeMixin:
             raise ValidationError("Provide organization_id or select an active organization.")
         return None
 
+    def _deny_platform_admin_governance_access(self) -> None:
+        if self._is_platform_admin():
+            raise PermissionDenied(
+                "Platform administrators do not manage organization governance resources."
+            )
+
     def _resolve_actor_organization(
         self,
         *,
         require: bool = True,
         allow_admin_payload: bool = False,
     ) -> Organization | None:
-        if self._is_platform_admin():
-            return self._resolve_admin_target_organization(
-                allow_payload=allow_admin_payload,
-                require=require,
-            )
+        self._deny_platform_admin_governance_access()
         return self._resolve_non_admin_active_organization()
+
+
+def _parse_iso_datetime_value(raw_value):
+    normalized = str(raw_value or "").strip()
+    if not normalized:
+        return None
+    parsed = parse_datetime(normalized)
+    if parsed is None:
+        return None
+    if timezone.is_naive(parsed):
+        return timezone.make_aware(parsed, timezone=dt_timezone.utc)
+    return parsed
+
+
+def _platform_oversight_queryset():
+    subscription_queryset = BillingSubscription.objects.order_by("-updated_at", "-created_at")
+    return (
+        Organization.objects.all()
+        .annotate(
+            active_member_count=Count(
+                "memberships",
+                filter=Q(memberships__is_active=True),
+                distinct=True,
+            )
+        )
+        .prefetch_related(
+            Prefetch(
+                "billing_subscriptions",
+                queryset=subscription_queryset,
+                to_attr="_platform_billing_subscriptions",
+            )
+        )
+        .order_by("name")
+    )
+
+
+def _build_platform_subscription_summary(organization: Organization):
+    subscriptions = list(getattr(organization, "_platform_billing_subscriptions", []) or [])
+    chosen_subscription = None
+    source = ""
+    for subscription in subscriptions:
+        if is_subscription_active(subscription):
+            chosen_subscription = subscription
+            source = "active"
+            break
+
+    if chosen_subscription is None and subscriptions:
+        chosen_subscription = subscriptions[0]
+        source = "latest"
+
+    if chosen_subscription is None:
+        return None
+
+    metadata = dict(getattr(chosen_subscription, "metadata", {}) or {})
+    return {
+        "id": chosen_subscription.id,
+        "source": source,
+        "provider": str(chosen_subscription.provider or ""),
+        "status": str(chosen_subscription.status or ""),
+        "payment_status": str(chosen_subscription.payment_status or ""),
+        "plan_id": str(chosen_subscription.plan_id or ""),
+        "plan_name": str(chosen_subscription.plan_name or ""),
+        "billing_cycle": str(chosen_subscription.billing_cycle or ""),
+        "payment_method": str(chosen_subscription.payment_method or ""),
+        "amount_usd": chosen_subscription.amount_usd,
+        "current_period_end": _parse_iso_datetime_value(metadata.get("current_period_end")),
+        "cancel_at_period_end": bool(metadata.get("cancel_at_period_end")),
+        "updated_at": chosen_subscription.updated_at,
+    }
+
+
+def _build_platform_organization_oversight_record(organization: Organization) -> dict:
+    return {
+        "id": organization.id,
+        "code": str(organization.code or ""),
+        "name": str(organization.name or ""),
+        "organization_type": str(organization.organization_type or ""),
+        "is_active": bool(organization.is_active),
+        "active_member_count": int(getattr(organization, "active_member_count", 0) or 0),
+        "subscription": _build_platform_subscription_summary(organization),
+    }
 
 
 def _resolve_bootstrap_organization_code(*, preferred_code: str, organization_name: str) -> str:
@@ -162,6 +252,10 @@ class OrganizationBootstrapAPIView(APIView):
     @transaction.atomic
     def post(self, request):
         user = request.user
+        if is_platform_admin_user(user):
+            raise PermissionDenied(
+                "Platform administrators do not bootstrap organizations from this workflow."
+            )
         if str(getattr(user, "user_type", "") or "").strip() == "applicant" and not is_platform_admin_user(user):
             raise PermissionDenied("Applicant accounts cannot bootstrap organizations.")
 
@@ -290,6 +384,66 @@ class OrganizationSummaryAPIView(GovernanceScopeMixin, APIView):
         return Response(OrganizationSummaryResponseSerializer(payload).data, status=status.HTTP_200_OK)
 
 
+class PlatformOrganizationOversightAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if not is_platform_admin_user(request.user):
+            raise PermissionDenied(
+                "Only platform administrators can access organization subscription oversight."
+            )
+
+        queryset = _platform_oversight_queryset()
+        search = str(request.query_params.get("search", "") or "").strip()
+        if search:
+            queryset = queryset.filter(Q(name__icontains=search) | Q(code__icontains=search))
+
+        raw_is_active = request.query_params.get("is_active")
+        if raw_is_active is not None:
+            queryset = queryset.filter(is_active=_parse_bool_param(raw_is_active))
+
+        results = [
+            _build_platform_organization_oversight_record(organization)
+            for organization in queryset
+        ]
+        payload = {
+            "count": len(results),
+            "results": results,
+        }
+        return Response(
+            PlatformOrganizationOversightListResponseSerializer(payload).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class PlatformOrganizationStatusAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = PlatformOrganizationStatusUpdateSerializer
+
+    def patch(self, request, organization_id):
+        if not is_platform_admin_user(request.user):
+            raise PermissionDenied(
+                "Only platform administrators can update organization platform status."
+            )
+
+        organization = Organization.objects.filter(id=organization_id).first()
+        if organization is None:
+            raise NotFound("Organization was not found.")
+
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        organization.is_active = bool(serializer.validated_data["is_active"])
+        organization.save(update_fields=["is_active", "updated_at"])
+
+        refreshed = _platform_oversight_queryset().filter(id=organization.id).first()
+        payload = _build_platform_organization_oversight_record(refreshed or organization)
+        return Response(
+            PlatformOrganizationOversightSerializer(payload).data,
+            status=status.HTTP_200_OK,
+        )
+
+
 class OrganizationMembershipViewSet(
     GovernanceScopeMixin,
     mixins.ListModelMixin,
@@ -309,6 +463,7 @@ class OrganizationMembershipViewSet(
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        self._deny_platform_admin_governance_access()
         search = str(self.request.query_params.get("search", "") or "").strip()
         membership_role = str(self.request.query_params.get("membership_role", "") or "").strip()
         if search:
@@ -328,12 +483,6 @@ class OrganizationMembershipViewSet(
         raw_is_default = self.request.query_params.get("is_default")
         if raw_is_default is not None:
             queryset = queryset.filter(is_default=_parse_bool_param(raw_is_default))
-
-        if self._is_platform_admin():
-            scoped_org = self._resolve_admin_target_organization(require=False)
-            if scoped_org is not None:
-                queryset = queryset.filter(organization_id=scoped_org.id)
-            return queryset.order_by("-is_default", "organization__name", "created_at")
 
         scoped_org = self._resolve_non_admin_active_organization()
         return queryset.filter(organization_id=scoped_org.id).order_by("-is_default", "created_at")
@@ -418,6 +567,7 @@ class CommitteeViewSet(
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        self._deny_platform_admin_governance_access()
         search = str(self.request.query_params.get("search", "") or "").strip()
         committee_type = str(self.request.query_params.get("committee_type", "") or "").strip()
         if search:
@@ -428,31 +578,20 @@ class CommitteeViewSet(
         if raw_is_active is not None:
             queryset = queryset.filter(is_active=_parse_bool_param(raw_is_active))
 
-        if self._is_platform_admin():
-            scoped_org = self._resolve_admin_target_organization(require=False)
-            if scoped_org is not None:
-                queryset = queryset.filter(organization_id=scoped_org.id)
-            return queryset.order_by("organization__name", "name")
-
         scoped_org = self._resolve_non_admin_active_organization()
         return queryset.filter(organization_id=scoped_org.id).order_by("name")
 
     @transaction.atomic
     def create(self, request, *args, **kwargs):
+        self._deny_platform_admin_governance_access()
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = request.user
 
-        if self._is_platform_admin():
-            requested_org = serializer.validated_data.get("organization")
-            organization = requested_org or self._resolve_admin_target_organization(require=True)
-            if organization is None:  # pragma: no cover - guarded by require=True
-                raise ValidationError("Organization context is required.")
-        else:
-            organization = self._resolve_non_admin_active_organization()
-            requested_org = serializer.validated_data.get("organization")
-            if requested_org is not None and requested_org.id != organization.id:
-                raise PermissionDenied("You cannot create committees for another organization.")
+        organization = self._resolve_non_admin_active_organization()
+        requested_org = serializer.validated_data.get("organization")
+        if requested_org is not None and requested_org.id != organization.id:
+            raise PermissionDenied("You cannot create committees for another organization.")
 
         code = str(serializer.validated_data.get("code", "") or "").strip()
         name = str(serializer.validated_data.get("name", "") or "").strip()
@@ -612,6 +751,7 @@ class CommitteeMembershipViewSet(
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        self._deny_platform_admin_governance_access()
         committee_id = str(self.request.query_params.get("committee", "") or "").strip()
         if committee_id:
             queryset = queryset.filter(committee_id=committee_id)
@@ -624,12 +764,6 @@ class CommitteeMembershipViewSet(
         if raw_is_active is not None:
             queryset = queryset.filter(is_active=_parse_bool_param(raw_is_active))
 
-        if self._is_platform_admin():
-            scoped_org = self._resolve_admin_target_organization(require=False)
-            if scoped_org is not None:
-                queryset = queryset.filter(committee__organization_id=scoped_org.id)
-            return queryset.order_by("committee__name", "committee_role", "created_at")
-
         scoped_org = self._resolve_non_admin_active_organization()
         return queryset.filter(committee__organization_id=scoped_org.id).order_by(
             "committee__name",
@@ -639,17 +773,15 @@ class CommitteeMembershipViewSet(
 
     @transaction.atomic
     def create(self, request, *args, **kwargs):
+        self._deny_platform_admin_governance_access()
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
         committee: Committee = validated["committee"]
 
-        if self._is_platform_admin():
-            scoped_org = None
-        else:
-            scoped_org = self._resolve_non_admin_active_organization()
-            if str(committee.organization_id) != str(scoped_org.id):
-                raise PermissionDenied("You cannot manage committee memberships outside your active organization.")
+        scoped_org = self._resolve_non_admin_active_organization()
+        if str(committee.organization_id) != str(scoped_org.id):
+            raise PermissionDenied("You cannot manage committee memberships outside your active organization.")
 
         user = validated["user"]
         organization_membership = validated.get("organization_membership")

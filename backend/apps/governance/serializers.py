@@ -395,6 +395,41 @@ class OrganizationSummaryResponseSerializer(serializers.Serializer):
     active_organization_source = serializers.CharField()
 
 
+class PlatformOrganizationSubscriptionSummarySerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    source = serializers.ChoiceField(choices=("active", "latest"))
+    provider = serializers.CharField()
+    status = serializers.CharField()
+    payment_status = serializers.CharField(allow_blank=True)
+    plan_id = serializers.CharField()
+    plan_name = serializers.CharField()
+    billing_cycle = serializers.CharField()
+    payment_method = serializers.CharField(allow_blank=True)
+    amount_usd = serializers.DecimalField(max_digits=10, decimal_places=2)
+    current_period_end = serializers.DateTimeField(allow_null=True)
+    cancel_at_period_end = serializers.BooleanField()
+    updated_at = serializers.DateTimeField()
+
+
+class PlatformOrganizationOversightSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    code = serializers.CharField()
+    name = serializers.CharField()
+    organization_type = serializers.CharField()
+    is_active = serializers.BooleanField()
+    active_member_count = serializers.IntegerField(min_value=0)
+    subscription = PlatformOrganizationSubscriptionSummarySerializer(allow_null=True)
+
+
+class PlatformOrganizationOversightListResponseSerializer(serializers.Serializer):
+    count = serializers.IntegerField(min_value=0)
+    results = PlatformOrganizationOversightSerializer(many=True)
+
+
+class PlatformOrganizationStatusUpdateSerializer(serializers.Serializer):
+    is_active = serializers.BooleanField()
+
+
 class GovernanceMemberOptionSerializer(serializers.Serializer):
     organization_membership_id = serializers.UUIDField()
     user_id = serializers.UUIDField()

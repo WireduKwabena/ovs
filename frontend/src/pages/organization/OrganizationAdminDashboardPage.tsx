@@ -106,7 +106,7 @@ const OrganizationDashboardPage: React.FC = () => {
         <section className="w-full max-w-xl rounded-2xl border border-amber-200 bg-white p-8 shadow-sm text-center">
           <h1 className="text-2xl font-black text-slate-900">Organization Admin Access Required</h1>
           <p className="mt-3 text-sm text-slate-700">
-            Organization governance workspace is available to organization admins and platform admins.
+            Organization governance workspace is available to organization admins.
           </p>
           <div className="mt-6">
             <Button type="button" onClick={() => navigate("/workspace")}>

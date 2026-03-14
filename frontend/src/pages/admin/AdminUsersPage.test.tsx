@@ -8,7 +8,9 @@ import AdminUsersPage from "./AdminUsersPage";
 const mocks = vi.hoisted(() => ({
   adminService: {
     getUsers: vi.fn(),
+    getOrgUsers: vi.fn(),
     updateUser: vi.fn(),
+    updateOrgUser: vi.fn(),
   },
 }));
 
@@ -92,6 +94,53 @@ describe("AdminUsersPage filters", () => {
     await waitFor(() => {
       expect(screen.queryByText(/active filters/i)).toBeNull();
     });
+  }, 10000);
+
+  it("renders org-scoped users without the platform role editor", async () => {
+    mocks.adminService.getOrgUsers.mockResolvedValue({
+      results: [
+        {
+          id: "user-2",
+          email: "member@example.com",
+          first_name: "Member",
+          last_name: "User",
+          full_name: "Member User",
+          user_type: "internal",
+          is_active: true,
+          is_staff: false,
+          is_superuser: false,
+          is_two_factor_enabled: false,
+          last_login: null,
+          created_at: "2026-03-01T10:00:00Z",
+          updated_at: "2026-03-01T10:00:00Z",
+        },
+      ],
+      count: 1,
+      page: 1,
+      page_size: 20,
+      total_pages: 1,
+      ordering: "-created_at",
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/admin/org/org-1/users"]}>
+        <AdminUsersPage scope="org" organizationId="org-1" />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(mocks.adminService.getOrgUsers).toHaveBeenCalledWith(
+        "org-1",
+        expect.objectContaining({
+          q: undefined,
+          user_type: undefined,
+          is_active: undefined,
+        }),
+      );
+    });
+
+    expect(screen.getByText(/role changes are managed from platform administration/i)).toBeTruthy();
+    expect(screen.queryByRole("option", { name: /admin/i })).toBeNull();
   });
 });
 

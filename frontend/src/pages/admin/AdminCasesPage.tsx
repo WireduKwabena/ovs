@@ -98,7 +98,21 @@ const scoreLabel = (value?: number | null): string => {
   return `${value.toFixed(1)}%`;
 };
 
-const AdminCasesPage: React.FC = () => {
+export interface AdminCasesPageProps {
+  scope?: 'platform' | 'org';
+  organizationId?: string | null;
+  title?: string;
+  description?: string;
+  reviewPathBase?: string;
+}
+
+const AdminCasesPage: React.FC<AdminCasesPageProps> = ({
+  scope = 'platform',
+  organizationId = null,
+  title = 'Admin Case Queue',
+  description = 'Review vetting cases with server-side filters and pagination.',
+  reviewPathBase = '/admin/cases',
+}) => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const page = parsePage(searchParams.get('page'));
@@ -142,11 +156,24 @@ const AdminCasesPage: React.FC = () => {
 
   useEffect(() => {
     const fetchCases = async () => {
+      if (scope === 'org' && !organizationId) {
+        setResponse(null);
+        setError('Active organization context is required to load organization cases.');
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
 
-        const data = await adminService.getCases({
+        const fetchCasesForScope =
+          scope === 'org' && organizationId
+            ? (params: Parameters<typeof adminService.getOrgCases>[1]) =>
+                adminService.getOrgCases(organizationId, params)
+            : adminService.getCases;
+
+        const data = await fetchCasesForScope({
           page,
           page_size: Number(pageSize),
           status: statusFilter === 'all' ? undefined : statusFilter,
@@ -164,7 +191,18 @@ const AdminCasesPage: React.FC = () => {
     };
 
     fetchCases();
-  }, [page, pageSize, statusFilter, priorityFilter, typeFilter, sorting.field, sorting.direction, reloadCounter]);
+  }, [
+    organizationId,
+    page,
+    pageSize,
+    priorityFilter,
+    reloadCounter,
+    scope,
+    sorting.direction,
+    sorting.field,
+    statusFilter,
+    typeFilter,
+  ]);
 
   const totalCount = response?.count || 0;
   const totalPages = response?.total_pages || 1;
@@ -217,7 +255,11 @@ const AdminCasesPage: React.FC = () => {
     setBulkActionSummary(null);
 
     const results = await Promise.allSettled(
-      selectedCaseIds.map((caseIdentifier) => adminService.updateCaseStatus(caseIdentifier, nextStatus)),
+      selectedCaseIds.map((caseIdentifier) =>
+        scope === 'org' && organizationId
+          ? adminService.updateOrgCaseStatus(organizationId, caseIdentifier, nextStatus)
+          : adminService.updateCaseStatus(caseIdentifier, nextStatus),
+      ),
     );
 
     const successCount = results.filter((result) => result.status === 'fulfilled').length;
@@ -241,8 +283,8 @@ const AdminCasesPage: React.FC = () => {
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-6 xl:px-8">
         <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Admin Case Queue</h1>
-            <p className="mt-1 text-slate-800">Review vetting cases with server-side filters and pagination.</p>
+            <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
+            <p className="mt-1 text-slate-800">{description}</p>
           </div>
           <Button
             type="button"
@@ -565,7 +607,7 @@ const AdminCasesPage: React.FC = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800">{formatDate(item.created_at)}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
                           <Button asChild size="sm">
-                            <Link to={`/admin/cases/${item.case_id}`}>Review</Link>
+                            <Link to={`${reviewPathBase}/${item.case_id}`}>Review</Link>
                           </Button>
                         </td>
                       </tr>

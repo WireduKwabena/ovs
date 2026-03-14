@@ -9,6 +9,8 @@ import type {
   GovernanceOrganizationMember,
   GovernanceOrganizationBootstrapPayload,
   GovernanceOrganizationBootstrapResponse,
+  GovernancePlatformOrganizationOversight,
+  GovernancePlatformOrganizationOversightListResponse,
   GovernanceOrganizationSummaryResponse,
   PaginatedResponse,
 } from "@/types";
@@ -35,6 +37,28 @@ const bootstrapOrganization = async (
 const getOrganizationSummary = async (): Promise<GovernanceOrganizationSummaryResponse> => {
   const response = await api.get<GovernanceOrganizationSummaryResponse>(
     "/governance/organization/summary/",
+  );
+  return response.data;
+};
+
+const listPlatformOrganizations = async (params?: {
+  search?: string;
+  is_active?: boolean;
+}): Promise<GovernancePlatformOrganizationOversightListResponse> => {
+  const response = await api.get<GovernancePlatformOrganizationOversightListResponse>(
+    "/governance/platform/organizations/",
+    { params },
+  );
+  return response.data;
+};
+
+const updatePlatformOrganizationStatus = async (
+  organizationId: string,
+  payload: { is_active: boolean },
+): Promise<GovernancePlatformOrganizationOversight> => {
+  const response = await api.patch<GovernancePlatformOrganizationOversight>(
+    `/governance/platform/organizations/${organizationId}/`,
+    payload,
   );
   return response.data;
 };
@@ -205,6 +229,8 @@ const getGovernanceChoices = async (): Promise<GovernanceChoicesResponse> => {
 export const governanceService = {
   bootstrapOrganization,
   getOrganizationSummary,
+  listPlatformOrganizations,
+  updatePlatformOrganizationStatus,
   listOrganizationMembers,
   updateOrganizationMember,
   listCommittees,

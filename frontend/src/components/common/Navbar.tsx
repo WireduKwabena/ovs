@@ -2,9 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  BarChart3,
   Bell,
-  Bot,
   Briefcase,
   Building2,
   ChevronDown,
@@ -25,7 +23,6 @@ import {
   Shield,
   ShieldAlert,
   ShieldCheck,
-  SlidersHorizontal,
   UserRound,
   Users,
   Video,
@@ -40,6 +37,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { videoCallService } from '@/services/videoCall.service';
 import { fetchNotifications } from '@/store/notificationSlice';
 import type { User, VideoMeetingReminderHealth } from '@/types';
+import {
+  getCandidatePath,
+  getOrgAdminPath,
+  getOrganizationSetupPath,
+  getPlatformAdminPath,
+  getWorkspacePath,
+} from '@/utils/appPaths';
 import { buildReminderNotificationTraceHref } from '@/utils/notificationTrace';
 import { getUserDisplayName, getUserInitial } from '@/utils/userDisplay';
 
@@ -67,30 +71,20 @@ type NavItem = { to: string; label: string };
 type NavIcon = React.ComponentType<{ className?: string }>;
 
 const navIconMap: Record<string, NavIcon> = {
-  '/workspace': LayoutDashboard,
-  '/admin/dashboard': LayoutDashboard,
-  '/candidate/access': LayoutDashboard,
-  '/organization/dashboard': LayoutDashboard,
-  '/applications': FolderOpen,
-  '/campaigns': Briefcase,
-  '/rubrics': ClipboardCheck,
-  '/video-calls': Video,
-  '/admin/cases': FolderOpen,
-  '/admin/users': Users,
-  '/admin/analytics': BarChart3,
-  '/admin/control-center': SlidersHorizontal,
-  '/ai-monitor': Bot,
-  '/ml-monitoring': Cpu,
-  '/government/appointments': Scale,
-  '/government/positions': Building2,
-  '/government/personnel': UserRound,
-  '/organization/members': Users,
-  '/organization/committees': Users,
-  '/organization/onboarding': ClipboardCheck,
+  [getWorkspacePath('home')]: LayoutDashboard,
+  [getPlatformAdminPath('dashboard')]: LayoutDashboard,
+  [getCandidatePath('home')]: LayoutDashboard,
+  [getWorkspacePath('applications')]: FolderOpen,
+  [getWorkspacePath('campaigns')]: Briefcase,
+  [getWorkspacePath('rubrics')]: ClipboardCheck,
+  [getWorkspacePath('video-calls')]: Video,
+  [getWorkspacePath('government/appointments')]: Scale,
+  [getWorkspacePath('government/positions')]: Building2,
+  [getWorkspacePath('government/personnel')]: UserRound,
   '/settings': CreditCard,
-  '/fraud-insights': ShieldAlert,
-  '/background-checks': Search,
-  '/audit-logs': FileSearch,
+  [getWorkspacePath('fraud-insights')]: ShieldAlert,
+  [getWorkspacePath('background-checks')]: Search,
+  [getWorkspacePath('audit-logs')]: FileSearch,
 };
 
 export const Navbar: React.FC = () => {
@@ -144,15 +138,16 @@ export const Navbar: React.FC = () => {
   const hasAdminAccess =
     userType === 'admin' || hasRole('admin') || Boolean((user as User | null)?.is_superuser);
   const canAccessAudit = hasAdminAccess || canViewAuditLogs || hasCapability('gams.audit.view');
-  const canAccessRegistry = hasAdminAccess || canManageRegistry;
-  const canAccessAppointments = hasAdminAccess || canAccessAppointmentsFromHook;
-  const canAccessRubrics = hasAdminAccess || canManageRubrics;
-  const canAccessInternalRoutes = hasAdminAccess || canAccessInternalWorkflow;
+  const canAccessRegistry = canManageRegistry;
+  const canAccessAppointments = canAccessAppointmentsFromHook;
+  const canAccessRubrics = canManageRubrics;
+  const canAccessInternalRoutes = canAccessInternalWorkflow;
   const isApplicantUser = userType === 'applicant';
   const canAccessNotifications = !isApplicantUser;
-  const canShowOrganizationContext = !isApplicantUser && resolvedOrganizations.length > 0;
+  const canShowOrganizationContext = !hasAdminAccess && !isApplicantUser && resolvedOrganizations.length > 0;
   const activeOrganizationLabel = activeOrganization?.name || resolvedOrganizations[0]?.name || 'Default scope';
-  const canManageOrganizationBilling = hasAdminAccess || canManageActiveOrganizationGovernance;
+  const canManageOrganizationBilling = canManageActiveOrganizationGovernance;
+  const canViewReminderRuntime = false;
 
   const handleOrganizationSelection = async (rawValue: string) => {
     const nextValue = rawValue === '__default__' ? null : rawValue;
@@ -204,7 +199,7 @@ export const Navbar: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!isAuthenticated || userType !== 'admin') {
+    if (!isAuthenticated || !canViewReminderRuntime) {
       return;
     }
 
@@ -235,7 +230,7 @@ export const Navbar: React.FC = () => {
       mounted = false;
       window.clearInterval(interval);
     };
-  }, [isAuthenticated, userType]);
+  }, [canViewReminderRuntime, isAuthenticated]);
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (adminMoreMenuRef.current && !adminMoreMenuRef.current.contains(event.target as Node)) {
@@ -367,7 +362,6 @@ export const Navbar: React.FC = () => {
         ? 'Organization Governance'
         : 'Internal Operations';
   const canManageTwoFactor = !isApplicantUser;
-  const canViewReminderRuntime = hasAdminAccess;
 
   const reminderStatusMeta: Record<ReminderRuntimeStatus, { dotClass: string; label: string }> = {
     unknown: { dotClass: 'bg-slate-500', label: 'Unknown' },
@@ -380,54 +374,155 @@ export const Navbar: React.FC = () => {
   const runtimeLastChecked = reminderRuntimeCheckedAt
     ? new Date(reminderRuntimeCheckedAt).toLocaleTimeString()
     : 'Not checked yet';
-  const getNavIcon = (navItem: NavItem): NavIcon => navIconMap[navItem.to] ?? FileText;
+  const workspaceHomePath = getWorkspacePath('home');
+  const candidateHomePath = getCandidatePath('home');
+  const platformDashboardPath = getPlatformAdminPath('dashboard');
+  const workspaceApplicationsPath = getWorkspacePath('applications');
+  const workspaceNotificationsPath = getWorkspacePath('notifications');
+  const workspaceCampaignsPath = getWorkspacePath('campaigns');
+  const workspaceRubricsPath = getWorkspacePath('rubrics');
+  const workspaceVideoCallsPath = getWorkspacePath('video-calls');
+  const workspaceAppointmentsPath = getWorkspacePath('government/appointments');
+  const workspacePositionsPath = getWorkspacePath('government/positions');
+  const workspacePersonnelPath = getWorkspacePath('government/personnel');
+  const workspaceFraudInsightsPath = getWorkspacePath('fraud-insights');
+  const workspaceBackgroundChecksPath = getWorkspacePath('background-checks');
+  const workspaceAuditLogsPath = getWorkspacePath('audit-logs');
+  const organizationDashboardPath =
+    canManageActiveOrganizationGovernance && activeOrganizationId
+      ? getOrgAdminPath(activeOrganizationId, 'dashboard')
+      : getOrganizationSetupPath('/dashboard');
+  const organizationMembersPath = activeOrganizationId
+    ? getOrgAdminPath(activeOrganizationId, 'members')
+    : getOrganizationSetupPath('/dashboard');
+  const organizationCommitteesPath = activeOrganizationId
+    ? getOrgAdminPath(activeOrganizationId, 'committees')
+    : getOrganizationSetupPath('/dashboard');
+  const organizationOnboardingPath = activeOrganizationId
+    ? getOrgAdminPath(activeOrganizationId, 'onboarding')
+    : getOrganizationSetupPath('/dashboard');
+  const organizationCasesPath = activeOrganizationId
+    ? getOrgAdminPath(activeOrganizationId, 'cases')
+    : getOrganizationSetupPath('/dashboard');
+  const organizationUsersPath = activeOrganizationId
+    ? getOrgAdminPath(activeOrganizationId, 'users')
+    : getOrganizationSetupPath('/dashboard');
+  const routeAliasesByTarget: Record<string, string[]> = {
+    [workspaceHomePath]: ['/workspace'],
+    [candidateHomePath]: ['/candidate/access'],
+    [platformDashboardPath]: [
+      '/admin/dashboard',
+      '/admin/analytics',
+      '/admin/control-center',
+      '/admin/platform/analytics',
+      '/admin/platform/control-center',
+      '/admin/platform/ai-monitor',
+      '/admin/platform/ml-monitoring',
+      '/admin/platform/register',
+      '/ai-monitor',
+      '/ml-monitoring',
+    ],
+    [workspaceApplicationsPath]: ['/applications'],
+    [workspaceNotificationsPath]: ['/notifications'],
+    [workspaceCampaignsPath]: ['/campaigns'],
+    [workspaceRubricsPath]: ['/rubrics'],
+    [workspaceVideoCallsPath]: ['/video-calls'],
+    [workspaceAppointmentsPath]: ['/government/appointments'],
+    [workspacePositionsPath]: ['/government/positions'],
+    [workspacePersonnelPath]: ['/government/personnel'],
+    [workspaceFraudInsightsPath]: ['/fraud-insights'],
+    [workspaceBackgroundChecksPath]: ['/background-checks'],
+    [workspaceAuditLogsPath]: ['/audit-logs'],
+    [organizationDashboardPath]: ['/organization/dashboard'],
+    [organizationCasesPath]: ['/admin/cases', '/admin/applications', '/organization/cases'],
+    [organizationUsersPath]: ['/admin/users', '/organization/users'],
+    [organizationMembersPath]: ['/organization/members'],
+    [organizationCommitteesPath]: ['/organization/committees'],
+    [organizationOnboardingPath]: ['/organization/onboarding'],
+  };
+  const getNavIcon = (navItem: NavItem): NavIcon => {
+    if (navIconMap[navItem.to]) {
+      return navIconMap[navItem.to];
+    }
+    if (navItem.to.includes('/admin/org/')) {
+      if (navItem.to.includes('/dashboard')) return LayoutDashboard;
+      if (navItem.to.includes('/cases')) return FolderOpen;
+      if (navItem.to.includes('/users') || navItem.to.includes('/members')) return Users;
+      if (navItem.to.includes('/committees')) return Users;
+      if (navItem.to.includes('/onboarding')) return ClipboardCheck;
+    }
+    return FileText;
+  };
 
   const isRouteActive = (to: string): boolean => {
-    if (location.pathname === to) {
-      return true;
-    }
-    return location.pathname.startsWith(`${to}/`);
+    const targets = [to, ...(routeAliasesByTarget[to] ?? [])];
+    return targets.some(
+      (targetPath) =>
+        location.pathname === targetPath || location.pathname.startsWith(`${targetPath}/`),
+    );
   };
+
+  const sidebarSurfaceClass =
+    'rounded-[1.75rem] border border-border/70 bg-card/70 p-4 shadow-sm backdrop-blur-xl';
+  const sidebarInsetSurfaceClass = 'rounded-[1.35rem] bg-muted/40 p-1.5';
+  const sidebarSectionClass = 'mt-6 border-t border-border/70 pt-5';
+  const sidebarSectionLabelClass =
+    'text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground';
+  const sidebarLinkBaseClass =
+    'group flex w-full items-center justify-between rounded-[1rem] px-3 py-2.5 text-sm font-medium transition-all duration-200';
+  const sidebarIconClass = (active: boolean): string =>
+    [
+      'inline-flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200',
+      active
+        ? 'bg-primary/12 text-primary shadow-sm'
+        : 'bg-muted/70 text-muted-foreground group-hover:bg-background group-hover:text-foreground',
+    ].join(' ');
+  const renderSectionHeader = (label: string) => (
+    <div className="mb-2 flex items-center gap-3 px-2">
+      <p className={sidebarSectionLabelClass}>{label}</p>
+      <span className="h-px flex-1 bg-border/70" />
+    </div>
+  );
 
   const desktopNavClass = (to: string): string =>
     [
-      'flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors',
+      sidebarLinkBaseClass,
       isRouteActive(to)
-        ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300 shadow-sm'
-        : 'text-slate-800 hover:bg-indigo-50 hover:text-indigo-700',
+        ? 'bg-primary/10 text-primary ring-1 ring-primary/15 shadow-sm'
+        : 'text-foreground hover:bg-accent/80 hover:text-accent-foreground',
     ].join(' ');
 
   const overflowNavClass = (to: string): string =>
     [
-      'flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+      sidebarLinkBaseClass,
       isRouteActive(to)
-        ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
-        : 'text-slate-800 hover:bg-indigo-50 hover:text-indigo-700',
+        ? 'bg-primary/10 text-primary ring-1 ring-primary/15'
+        : 'text-foreground hover:bg-accent/80 hover:text-accent-foreground',
     ].join(' ');
 
   const mobileNavClass = (to: string): string =>
     [
-      'flex items-center rounded-lg px-3 py-2 transition-colors',
+      'flex items-center rounded-[1rem] px-3 py-2.5 text-sm font-medium transition-all duration-200',
       isRouteActive(to)
-        ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
-        : 'text-slate-800 hover:bg-indigo-50',
+        ? 'bg-primary/10 text-primary ring-1 ring-primary/15'
+        : 'text-foreground hover:bg-accent/80 hover:text-accent-foreground',
     ].join(' ');
 
   const desktopUtilityLinkClass = (to: string): string =>
     [
-      'flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors',
+      sidebarLinkBaseClass,
       isRouteActive(to)
-        ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300 shadow-sm'
-        : 'border border-slate-200 bg-white text-slate-800 hover:bg-indigo-50 hover:text-indigo-700',
+        ? 'bg-primary/10 text-primary ring-1 ring-primary/15 shadow-sm'
+        : 'text-foreground hover:bg-accent/80 hover:text-accent-foreground',
     ].join(' ');
 
   const homeItem: NavItem = isApplicantUser
-    ? { to: '/candidate/access', label: 'Candidate Access' }
+    ? { to: candidateHomePath, label: 'Candidate Access' }
     : hasAdminAccess
-      ? { to: '/admin/dashboard', label: 'Admin Dashboard' }
-      : canManageActiveOrganizationGovernance && activeOrganizationId
-        ? { to: '/organization/dashboard', label: 'Dashboard' }
-        : { to: '/workspace', label: 'Workspace' };
+      ? { to: platformDashboardPath, label: 'Platform Dashboard' }
+      : canManageActiveOrganizationGovernance
+        ? { to: organizationDashboardPath, label: 'Organization Dashboard' }
+        : { to: workspaceHomePath, label: 'Workspace' };
 
   const desktopPrimaryLinks: NavItem[] = [homeItem];
   const desktopOverflowLinks: NavItem[] = [];
@@ -438,61 +533,55 @@ export const Navbar: React.FC = () => {
     }
   };
 
-  if (!isApplicantUser && canAccessApplications) {
-    pushUnique(desktopPrimaryLinks, { to: '/applications', label: 'Applications' });
+  if (!hasAdminAccess && !isApplicantUser && canAccessApplications) {
+    pushUnique(desktopPrimaryLinks, { to: workspaceApplicationsPath, label: 'Applications' });
   }
 
-  if (!isApplicantUser && canAccessCampaigns) {
-    pushUnique(desktopPrimaryLinks, { to: '/campaigns', label: 'Appointment Exercises' });
+  if (!hasAdminAccess && !isApplicantUser && canAccessCampaigns) {
+    pushUnique(desktopPrimaryLinks, { to: workspaceCampaignsPath, label: 'Appointment Exercises' });
   }
 
-  if (!isApplicantUser && canAccessRubrics) {
-    pushUnique(desktopPrimaryLinks, { to: '/rubrics', label: 'Rubrics' });
+  if (!hasAdminAccess && !isApplicantUser && canAccessRubrics) {
+    pushUnique(desktopPrimaryLinks, { to: workspaceRubricsPath, label: 'Rubrics' });
   }
 
-  if (!isApplicantUser && (hasAdminAccess || canAccessVideoCalls)) {
-    pushUnique(desktopPrimaryLinks, { to: '/video-calls', label: 'Video Calls' });
-  }
-  if (hasAdminAccess) {
-    pushUnique(desktopOverflowLinks, { to: '/admin/cases', label: 'Cases' });
-    pushUnique(desktopOverflowLinks, { to: '/admin/users', label: 'Users' });
-    pushUnique(desktopOverflowLinks, { to: '/admin/analytics', label: 'Analytics' });
-    pushUnique(desktopOverflowLinks, { to: '/admin/control-center', label: 'Control Center' });
-    pushUnique(desktopOverflowLinks, { to: '/ai-monitor', label: 'AI Monitor' });
-    pushUnique(desktopOverflowLinks, { to: '/ml-monitoring', label: 'ML Monitoring' });
+  if (!hasAdminAccess && !isApplicantUser && canAccessVideoCalls) {
+    pushUnique(desktopPrimaryLinks, { to: workspaceVideoCallsPath, label: 'Video Calls' });
   }
 
   if (!isApplicantUser && canAccessAppointments) {
     pushUnique(desktopOverflowLinks, {
-      to: '/government/appointments',
+      to: workspaceAppointmentsPath,
       label: 'Appointment Workflow',
     });
   }
 
   if (!isApplicantUser && canAccessRegistry) {
-    pushUnique(desktopOverflowLinks, { to: '/government/positions', label: 'Offices' });
-    pushUnique(desktopOverflowLinks, { to: '/government/personnel', label: 'Nominees' });
+    pushUnique(desktopOverflowLinks, { to: workspacePositionsPath, label: 'Offices' });
+    pushUnique(desktopOverflowLinks, { to: workspacePersonnelPath, label: 'Nominees' });
   }
 
-  if (!isApplicantUser && canManageActiveOrganizationGovernance && activeOrganizationId) {
-    pushUnique(desktopOverflowLinks, { to: '/organization/members', label: 'Members' });
-    pushUnique(desktopOverflowLinks, { to: '/organization/committees', label: 'Committees' });
-    pushUnique(desktopOverflowLinks, { to: '/organization/onboarding', label: 'Onboarding' });
+  if (!hasAdminAccess && !isApplicantUser && canManageActiveOrganizationGovernance && activeOrganizationId) {
+    pushUnique(desktopOverflowLinks, { to: organizationCasesPath, label: 'Cases' });
+    pushUnique(desktopOverflowLinks, { to: organizationUsersPath, label: 'Users' });
+    pushUnique(desktopOverflowLinks, { to: organizationMembersPath, label: 'Members' });
+    pushUnique(desktopOverflowLinks, { to: organizationCommitteesPath, label: 'Committees' });
+    pushUnique(desktopOverflowLinks, { to: organizationOnboardingPath, label: 'Onboarding' });
     if (canManageOrganizationBilling) {
       pushUnique(desktopOverflowLinks, { to: '/settings', label: 'Subscription' });
     }
   }
 
   if (!isApplicantUser && canAccessInternalRoutes && !hasAdminAccess) {
-    pushUnique(desktopOverflowLinks, { to: '/fraud-insights', label: 'Fraud Insights' });
+    pushUnique(desktopOverflowLinks, { to: workspaceFraudInsightsPath, label: 'Fraud Insights' });
     pushUnique(desktopOverflowLinks, {
-      to: '/background-checks',
+      to: workspaceBackgroundChecksPath,
       label: 'Background Checks',
     });
   }
 
   if (!isApplicantUser && canAccessAudit) {
-    pushUnique(desktopOverflowLinks, { to: '/audit-logs', label: 'Audit' });
+    pushUnique(desktopOverflowLinks, { to: workspaceAuditLogsPath, label: 'Audit' });
   }
 
   const navLinks: NavItem[] = [...desktopPrimaryLinks];
@@ -500,43 +589,48 @@ export const Navbar: React.FC = () => {
   const hasActiveOverflowLink = desktopOverflowLinks.some((navItem) => isRouteActive(navItem.to));
 
   const renderRuntimePanel = (onNavigate?: () => void) => (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-800 shadow-xl">
+    <div className="rounded-[1.5rem] border border-border/70 bg-card/92 p-4 text-sm text-card-foreground shadow-[0_24px_60px_rgba(15,23,42,0.18)] backdrop-blur-xl">
       <div className="flex items-center justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-900">Reminder Runtime</h3>
-          <p className="text-xs text-slate-600">Status: {runtimeMeta.label}</p>
+        <div className="flex items-center gap-3">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Cpu className="h-4 w-4" />
+          </span>
+          <div>
+          <h3 className="text-sm font-semibold text-card-foreground">Reminder Runtime</h3>
+          <p className="text-xs text-muted-foreground">Status: {runtimeMeta.label}</p>
+          </div>
         </div>
         <span className={`h-2.5 w-2.5 rounded-full ${runtimeMeta.dotClass}`} />
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Soon Pending</p>
-          <p className="mt-2 text-2xl font-bold text-slate-900">{reminderRuntimeSnapshot?.soon_retry_pending ?? 0}</p>
+        <div className="rounded-xl border border-border/70 bg-muted/70 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Soon Pending</p>
+          <p className="mt-2 text-2xl font-bold text-card-foreground">{reminderRuntimeSnapshot?.soon_retry_pending ?? 0}</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Soon Exhausted</p>
-          <p className="mt-2 text-2xl font-bold text-slate-900">{reminderRuntimeSnapshot?.soon_retry_exhausted ?? 0}</p>
+        <div className="rounded-xl border border-border/70 bg-muted/70 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Soon Exhausted</p>
+          <p className="mt-2 text-2xl font-bold text-card-foreground">{reminderRuntimeSnapshot?.soon_retry_exhausted ?? 0}</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Start Pending</p>
-          <p className="mt-2 text-2xl font-bold text-slate-900">{reminderRuntimeSnapshot?.start_now_retry_pending ?? 0}</p>
+        <div className="rounded-xl border border-border/70 bg-muted/70 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Start Pending</p>
+          <p className="mt-2 text-2xl font-bold text-card-foreground">{reminderRuntimeSnapshot?.start_now_retry_pending ?? 0}</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Time Up Exhausted</p>
-          <p className="mt-2 text-2xl font-bold text-slate-900">{reminderRuntimeSnapshot?.time_up_retry_exhausted ?? 0}</p>
+        <div className="rounded-xl border border-border/70 bg-muted/70 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Time Up Exhausted</p>
+          <p className="mt-2 text-2xl font-bold text-card-foreground">{reminderRuntimeSnapshot?.time_up_retry_exhausted ?? 0}</p>
         </div>
       </div>
 
-      <p className="mt-4 text-xs text-slate-600">Last checked: {runtimeLastChecked}</p>
-      {reminderRuntimeError ? <p className="mt-2 text-xs text-rose-700">{reminderRuntimeError}</p> : null}
+      <p className="mt-4 text-xs text-muted-foreground">Last checked: {runtimeLastChecked}</p>
+      {reminderRuntimeError ? <p className="mt-2 text-xs text-destructive">{reminderRuntimeError}</p> : null}
 
       <div className="mt-4 flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => void refreshReminderRuntime()}
           disabled={reminderRuntimeRefreshing}
-          className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${reminderRuntimeRefreshing ? 'animate-spin' : ''}`} />
           {reminderRuntimeRefreshing ? 'Refreshing...' : 'Refresh'}
@@ -547,7 +641,7 @@ export const Navbar: React.FC = () => {
             setRuntimePopoverOpen(false);
             onNavigate?.();
           }}
-          className="inline-flex items-center justify-center rounded-md border border-indigo-300 bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-800 hover:bg-indigo-100"
+          className="inline-flex items-center justify-center rounded-md border border-primary/25 bg-primary/10 px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-primary/15"
         >
           Open reminder traces
         </Link>
@@ -561,18 +655,24 @@ export const Navbar: React.FC = () => {
     }
 
     return (
-      <div className="relative flex-1" ref={runtimePopoverRef}>
+      <div className="relative" ref={runtimePopoverRef}>
         <Button
           type="button"
           variant="ghost"
           onClick={() => setRuntimePopoverOpen((previous) => !previous)}
-          className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-sm font-semibold text-slate-800 hover:bg-indigo-50 hover:text-indigo-700"
+          className={[
+            sidebarLinkBaseClass,
+            'h-auto border-0 bg-transparent px-3 py-2.5 text-left shadow-none',
+            runtimePopoverOpen
+              ? 'bg-primary/10 text-primary ring-1 ring-primary/15'
+              : 'text-foreground hover:bg-accent/80 hover:text-accent-foreground',
+          ].join(' ')}
         >
           <span className="inline-flex items-center gap-2">
             <span className={`h-2.5 w-2.5 rounded-full ${runtimeMeta.dotClass}`} />
-            Runtime
+            Reminder Runtime
           </span>
-          <span className="text-xs text-slate-600">{runtimeMeta.label}</span>
+          <span className="text-xs text-muted-foreground">{runtimeMeta.label}</span>
         </Button>
         {runtimePopoverOpen ? (
           <div className="absolute left-0 top-[calc(100%+0.5rem)] z-50 w-[22rem] max-w-[calc(100vw-2rem)]">
@@ -585,202 +685,242 @@ export const Navbar: React.FC = () => {
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-slate-200 bg-slate-50/95 backdrop-blur lg:flex xl:w-72">
-        <div className="flex h-full min-h-0 w-full flex-col">
-          <div className="border-b border-slate-200 px-4 py-4 xl:px-5 xl:py-5">
+      <aside
+        data-testid="desktop-sidebar"
+        className="app-sidebar-scroll fixed inset-y-0 left-0 z-40 hidden w-64 overflow-y-auto overscroll-y-contain border-r border-border/70 bg-background/95 shadow-[18px_0_48px_rgba(15,23,42,0.08)] backdrop-blur-xl [scrollbar-gutter:stable] lg:flex xl:w-72"
+      >
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-44 bg-linear-to-b from-primary/12 via-primary/6 to-transparent"
+        />
+        <div className="relative flex min-h-full w-full flex-col px-3 py-4 lg:px-3.5 xl:px-4">
+          <div className="px-2 pb-5">
             <Link to={homeItem.to} className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-sm">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-linear-to-br from-cyan-500 via-blue-500 to-indigo-500 text-white shadow-[0_14px_32px_rgba(59,130,246,0.25)]">
                 <Shield className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-indigo-700">Workspace</p>
-                <p className="text-xl font-bold tracking-tight text-slate-900">CAVP</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">Workspace</p>
+                <p className="text-xl font-bold tracking-tight text-foreground">CAVP</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">Government appointments and vetting</p>
               </div>
             </Link>
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="flex-1 overflow-y-auto overscroll-y-contain px-3 py-4 [scrollbar-gutter:stable] xl:px-4">
-              <div className="space-y-4">
-                <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    {profilePictureUrl ? (
-                      <img src={profilePictureUrl} alt={displayName || 'user'} className="h-11 w-11 rounded-2xl object-cover" />
-                    ) : (
-                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-600 text-sm font-semibold text-white">
-                        {initial}
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-slate-900">{displayName}</p>
-                      <p className="truncate text-xs text-slate-600">{(user as User | null)?.email || 'Signed in'}</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-indigo-800">
-                      {roleSummary}
-                    </span>
-                    {canShowOrganizationContext ? (
-                      <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-700">
-                        Scoped Access
-                      </span>
-                    ) : null}
-                  </div>
-                  {canShowOrganizationContext ? (
-                    <div className="mt-4">
-                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                        Active Organization
-                      </p>
-                      {canSwitchOrganization ? (
-                        <select
-                          className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900"
-                          value={activeOrganizationId || '__default__'}
-                          onChange={(event) => {
-                            void handleOrganizationSelection(event.target.value);
-                          }}
-                          disabled={switchingActiveOrganization}
-                          aria-label="Switch active organization"
-                        >
-                          <option value="__default__">Default scope</option>
-                          {resolvedOrganizations.map((org) => (
-                            <option key={org.id} value={org.id}>
-                              {org.name}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800">
-                          {activeOrganizationLabel}
-                        </div>
-                      )}
-                    </div>
-                  ) : null}
-                </section>
-
-                <section className="space-y-2">
-                  <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Navigation</p>
-                  {desktopPrimaryLinks.map((navItem) => {
-                    const NavIcon = getNavIcon(navItem);
-                    return (
-                      <Link key={navItem.to} to={navItem.to} className={desktopNavClass(navItem.to)}>
-                        <span className="inline-flex min-w-0 items-center gap-3">
-                          <NavIcon className="h-4 w-4 shrink-0" />
-                          <span className="truncate">{navItem.label}</span>
-                        </span>
-                      </Link>
-                    );
-                  })}
-
-                  {desktopOverflowLinks.length > 0 ? (
-                    <div className="rounded-2xl border border-slate-200 bg-white p-2" ref={adminMoreMenuRef}>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => {
-                          setAdminMoreMenuOpen((previous) => !previous);
-                          setRuntimePopoverOpen(false);
-                        }}
-                        className={[
-                          'flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold',
-                          hasActiveOverflowLink
-                            ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
-                            : 'text-slate-800 hover:bg-indigo-50 hover:text-indigo-700',
-                        ].join(' ')}
-                      >
-                        <span>More</span>
-                        <ChevronDown className={`h-4 w-4 text-slate-700 transition-transform ${adminMoreMenuOpen ? 'rotate-180' : ''}`} />
-                      </Button>
-                      {adminMoreMenuOpen ? (
-                        <div className="mt-2 space-y-1">
-                          {desktopOverflowLinks.map((navItem) => {
-                            const NavIcon = getNavIcon(navItem);
-                            return (
-                              <Link
-                                key={navItem.to}
-                                to={navItem.to}
-                                className={overflowNavClass(navItem.to)}
-                                onClick={() => setAdminMoreMenuOpen(false)}
-                              >
-                                <span className="inline-flex min-w-0 items-center gap-3">
-                                  <NavIcon className="h-4 w-4 shrink-0" />
-                                  <span className="truncate">{navItem.label}</span>
-                                </span>
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </section>
-
-                <section className="space-y-2">
-                  <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Utilities</p>
-                  {canAccessNotifications ? (
-                    <Link to="/notifications" className={desktopUtilityLinkClass('/notifications')}>
-                      <span className="inline-flex items-center gap-2">
-                        <Bell className="h-4 w-4" />
-                        Notifications
-                      </span>
-                      {unreadCount > 0 ? (
-                        <span className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
-                          {unreadCount > 99 ? '99+' : unreadCount}
-                        </span>
-                      ) : null}
-                    </Link>
-                  ) : null}
-
-                  <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2">
-                    <ThemeToggle className="flex-1 justify-center" />
-                    {renderRuntimePopover()}
-                  </div>
-                </section>
+          <section className={sidebarSurfaceClass}>
+            <div className="flex items-center gap-3">
+              {profilePictureUrl ? (
+                <img src={profilePictureUrl} alt={displayName || 'user'} className="h-11 w-11 rounded-2xl object-cover" />
+              ) : (
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-linear-to-br from-cyan-500 via-blue-500 to-indigo-500 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(59,130,246,0.2)]">
+                  {initial}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-foreground">{displayName}</p>
+                <p className="truncate text-xs text-muted-foreground">{(user as User | null)?.email || 'Signed in'}</p>
               </div>
             </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
+                {roleSummary}
+              </span>
+              {canShowOrganizationContext ? (
+                <span className="inline-flex items-center rounded-full border border-border/70 bg-muted/70 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                  Scoped Access
+                </span>
+              ) : null}
+            </div>
+            {canShowOrganizationContext ? (
+              <div className="mt-4">
+                <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Active Organization
+                </p>
+                {canSwitchOrganization ? (
+                  <select
+                    className="h-10 w-full rounded-2xl border border-border/70 bg-background px-3 text-sm text-foreground shadow-xs"
+                    value={activeOrganizationId || '__default__'}
+                    onChange={(event) => {
+                      void handleOrganizationSelection(event.target.value);
+                    }}
+                    disabled={switchingActiveOrganization}
+                    aria-label="Switch active organization"
+                  >
+                    <option value="__default__">Default scope</option>
+                    {resolvedOrganizations.map((org) => (
+                      <option key={org.id} value={org.id}>
+                        {org.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="rounded-2xl bg-muted/70 px-3 py-2 text-sm font-medium text-foreground">
+                    {activeOrganizationLabel}
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </section>
 
-            <div className="border-t border-slate-200 bg-white/90 p-3 xl:p-4">
-              <div className="space-y-2">
-                <Link to="/settings" className={desktopUtilityLinkClass('/settings')}>
-                  <span className="inline-flex items-center gap-2">
-                    <Settings2 className="h-4 w-4" />
-                    Profile & Settings
-                  </span>
-                </Link>
-                {canManageTwoFactor ? (
-                  <Link to="/security" className={desktopUtilityLinkClass('/security')}>
-                    <span className="inline-flex items-center gap-2">
-                      <ShieldCheck className="h-4 w-4" />
-                      Security
+          <section className={sidebarSectionClass}>
+            {renderSectionHeader('Navigation')}
+            <div className="space-y-1.5">
+              {desktopPrimaryLinks.map((navItem) => {
+                const NavIcon = getNavIcon(navItem);
+                const active = isRouteActive(navItem.to);
+                return (
+                  <Link key={navItem.to} to={navItem.to} className={desktopNavClass(navItem.to)}>
+                    <span className="inline-flex min-w-0 items-center gap-3">
+                      <span className={sidebarIconClass(active)}>
+                        <NavIcon className="h-4 w-4 shrink-0" />
+                      </span>
+                      <span className="truncate">{navItem.label}</span>
                     </span>
+                    <span
+                      aria-hidden="true"
+                      className={[
+                        'h-2 w-2 rounded-full transition-all duration-200',
+                        active ? 'bg-primary opacity-100' : 'bg-transparent opacity-0 group-hover:opacity-30',
+                      ].join(' ')}
+                    />
                   </Link>
-                ) : null}
-                <Link to="/change-password" className={desktopUtilityLinkClass('/change-password')}>
+                );
+              })}
+
+              {desktopOverflowLinks.length > 0 ? (
+                <div className={sidebarInsetSurfaceClass} ref={adminMoreMenuRef}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setAdminMoreMenuOpen((previous) => !previous);
+                      setRuntimePopoverOpen(false);
+                    }}
+                    className={[
+                      sidebarLinkBaseClass,
+                      'h-auto border-0 bg-transparent px-3 py-2.5 shadow-none',
+                      hasActiveOverflowLink || adminMoreMenuOpen
+                        ? 'bg-primary/10 text-primary ring-1 ring-primary/15'
+                        : 'text-foreground hover:bg-accent/80 hover:text-accent-foreground',
+                    ].join(' ')}
+                  >
+                    <span className="inline-flex items-center gap-3">
+                      <span className={sidebarIconClass(hasActiveOverflowLink || adminMoreMenuOpen)}>
+                        <FolderOpen className="h-4 w-4" />
+                      </span>
+                      More
+                    </span>
+                    <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${adminMoreMenuOpen ? 'rotate-180' : ''}`} />
+                  </Button>
+                  {adminMoreMenuOpen ? (
+                    <div className="mt-1.5 space-y-1">
+                      {desktopOverflowLinks.map((navItem) => {
+                        const NavIcon = getNavIcon(navItem);
+                        const active = isRouteActive(navItem.to);
+                        return (
+                          <Link
+                            key={navItem.to}
+                            to={navItem.to}
+                            className={overflowNavClass(navItem.to)}
+                            onClick={() => setAdminMoreMenuOpen(false)}
+                          >
+                            <span className="inline-flex min-w-0 items-center gap-3">
+                              <span className={sidebarIconClass(active)}>
+                                <NavIcon className="h-4 w-4 shrink-0" />
+                              </span>
+                              <span className="truncate">{navItem.label}</span>
+                            </span>
+                            <span
+                              aria-hidden="true"
+                              className={[
+                                'h-2 w-2 rounded-full transition-all duration-200',
+                                active ? 'bg-primary opacity-100' : 'bg-transparent opacity-0 group-hover:opacity-30',
+                              ].join(' ')}
+                            />
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </section>
+
+          <section className={sidebarSectionClass}>
+            {renderSectionHeader('Utilities')}
+            <div className="space-y-1.5">
+              {canAccessNotifications ? (
+                <Link to={workspaceNotificationsPath} className={desktopUtilityLinkClass(workspaceNotificationsPath)}>
                   <span className="inline-flex items-center gap-2">
-                    <KeyRound className="h-4 w-4" />
-                    Change Password
+                    <span className={sidebarIconClass(isRouteActive(workspaceNotificationsPath))}>
+                      <Bell className="h-4 w-4" />
+                    </span>
+                    Notifications
+                  </span>
+                  {unreadCount > 0 ? (
+                    <span className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  ) : null}
+                </Link>
+              ) : null}
+
+              <ThemeToggle className="w-full justify-between rounded-[1rem] border-0 bg-transparent px-3 py-2.5 font-medium text-foreground shadow-none hover:bg-accent/80 hover:text-accent-foreground" />
+
+              {renderRuntimePopover()}
+            </div>
+          </section>
+
+          <section className={sidebarSectionClass}>
+            {renderSectionHeader('Account')}
+            <div className="space-y-1.5">
+              <Link to="/settings" className={desktopUtilityLinkClass('/settings')}>
+                <span className="inline-flex items-center gap-2">
+                  <span className={sidebarIconClass(isRouteActive('/settings'))}>
+                    <Settings2 className="h-4 w-4" />
+                  </span>
+                  Profile & Settings
+                </span>
+              </Link>
+              {canManageTwoFactor ? (
+                <Link to="/security" className={desktopUtilityLinkClass('/security')}>
+                  <span className="inline-flex items-center gap-2">
+                    <span className={sidebarIconClass(isRouteActive('/security'))}>
+                      <ShieldCheck className="h-4 w-4" />
+                    </span>
+                    Security
                   </span>
                 </Link>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="flex w-full items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Logout
-                </button>
-              </div>
+              ) : null}
+              <Link to="/change-password" className={desktopUtilityLinkClass('/change-password')}>
+                <span className="inline-flex items-center gap-2">
+                  <span className={sidebarIconClass(isRouteActive('/change-password'))}>
+                    <KeyRound className="h-4 w-4" />
+                  </span>
+                  Change Password
+                </span>
+              </Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex w-full items-center gap-2 rounded-[1rem] bg-destructive/10 px-3 py-2.5 text-sm font-semibold text-destructive transition-all duration-200 hover:bg-destructive/15"
+              >
+                <LogOut className="h-4 w-4" />
+                Logout
+              </button>
             </div>
-          </div>
+          </section>
         </div>
       </aside>
 
-      <nav className="sticky top-0 z-50 border-b border-slate-200 bg-slate-50 shadow-sm lg:hidden">
+      <nav className="sticky top-0 z-50 border-b border-border/70 bg-background/95 shadow-sm backdrop-blur-xl lg:hidden">
         <div className="mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center">
               <Link to={homeItem.to} className="flex items-center gap-2">
-                <Shield className="h-7 w-7 text-indigo-600 sm:h-8 sm:w-8" />
-                <span className="text-lg font-bold leading-none text-slate-900 sm:text-xl">CAVP</span>
+                <Shield className="h-7 w-7 text-primary sm:h-8 sm:w-8" />
+                <span className="text-lg font-bold leading-none text-foreground sm:text-xl">CAVP</span>
               </Link>
             </div>
 
@@ -800,7 +940,7 @@ export const Navbar: React.FC = () => {
                 aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
                 aria-expanded={mobileMenuOpen ? 'true' : 'false'}
                 aria-controls="mobile-nav-drawer"
-                className="rounded-md p-2 text-slate-800 hover:bg-indigo-50 hover:text-indigo-700"
+                className="rounded-md p-2 text-foreground hover:bg-accent hover:text-accent-foreground"
               >
                 {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
               </Button>
@@ -810,16 +950,16 @@ export const Navbar: React.FC = () => {
       </nav>
       {mobileMenuMounted ? (
         <div
-          className={[
-            'fixed inset-x-0 bottom-0 top-16 z-40 lg:hidden transition-opacity duration-200',
-            mobileMenuOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
-          ].join(' ')}
+            className={[
+              'fixed inset-x-0 bottom-0 top-16 z-40 lg:hidden transition-opacity duration-200',
+              mobileMenuOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
+            ].join(' ')}
         >
           <button
             type="button"
             aria-label="Close navigation menu"
             className={[
-              'absolute inset-0 bg-slate-900/30 transition-opacity duration-200',
+              'absolute inset-0 bg-foreground/20 transition-opacity duration-200',
               mobileMenuOpen ? 'opacity-100' : 'opacity-0',
             ].join(' ')}
             onClick={() => setMobileMenuOpen(false)}
@@ -832,7 +972,7 @@ export const Navbar: React.FC = () => {
             aria-label="Navigation menu"
             tabIndex={-1}
             className={[
-              'absolute right-0 top-0 h-full w-full max-w-sm overflow-y-auto overscroll-y-contain border-l border-slate-200 bg-white px-4 py-4 shadow-2xl transition-transform duration-300 ease-out [scrollbar-gutter:stable]',
+              'app-sidebar-scroll absolute right-0 top-0 h-full w-full max-w-sm overflow-y-auto overscroll-y-contain border-l border-border/70 bg-background/95 px-4 py-4 shadow-[0_18px_50px_rgba(15,23,42,0.18)] transition-transform duration-300 ease-out backdrop-blur-xl [scrollbar-gutter:stable]',
               mobileMenuOpen ? 'translate-x-0' : 'translate-x-full',
             ].join(' ')}
           >
@@ -840,22 +980,22 @@ export const Navbar: React.FC = () => {
               {profilePictureUrl ? (
                 <img src={profilePictureUrl} alt={displayName || 'user'} className="h-10 w-10 rounded-full" />
               ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600 text-lg font-semibold text-white">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-linear-to-br from-cyan-500 via-blue-500 to-indigo-500 text-lg font-semibold text-white">
                   {initial}
                 </div>
               )}
               <div>
-                <p className="text-base font-medium text-slate-900">{displayName}</p>
-                <p className="text-sm text-slate-600">{(user as User | null)?.email || 'Signed in'}</p>
+                <p className="text-base font-medium text-foreground">{displayName}</p>
+                <p className="text-sm text-muted-foreground">{(user as User | null)?.email || 'Signed in'}</p>
               </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               {canShowOrganizationContext ? (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="rounded-[1.5rem] border border-border/70 bg-card/70 p-3.5 shadow-sm backdrop-blur-sm">
                   {canSwitchOrganization ? (
                     <select
-                      className="h-10 w-full rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
+                      className="h-10 w-full rounded-xl border border-border/70 bg-background px-2 text-sm text-foreground"
                       value={activeOrganizationId || '__default__'}
                       onChange={(event) => {
                         void handleOrganizationSelection(event.target.value);
@@ -871,123 +1011,142 @@ export const Navbar: React.FC = () => {
                       ))}
                     </select>
                   ) : (
-                    <p className="text-sm text-slate-800">{activeOrganizationLabel}</p>
+                    <p className="text-sm text-foreground">{activeOrganizationLabel}</p>
                   )}
                 </div>
               ) : null}
 
-              {navLinks.map((navItem) => {
-                const NavIcon = getNavIcon(navItem);
-                return (
-                  <Link
-                    key={navItem.to}
-                    to={navItem.to}
-                    className={mobileNavClass(navItem.to)}
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <NavIcon className="mr-2 h-4 w-4 shrink-0" />
-                    {navItem.label}
-                  </Link>
-                );
-              })}
-
-              {canAccessNotifications ? (
-                <Link
-                  to="/notifications"
-                  className={[
-                    'flex items-center justify-between rounded-lg px-3 py-2 transition-colors',
-                    isRouteActive('/notifications')
-                      ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
-                      : 'text-slate-800 hover:bg-indigo-50',
-                  ].join(' ')}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <span className="text-slate-800">Notifications</span>
-                  {unreadCount > 0 ? (
-                    <span className="rounded-full bg-red-600 px-2 py-1 text-xs font-bold text-white">
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </span>
-                  ) : null}
-                </Link>
-              ) : null}
-
-              {canViewReminderRuntime ? (
-                <button
-                  type="button"
-                  onClick={() => setRuntimePopoverOpen((previous) => !previous)}
-                  className="flex w-full items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-left"
-                >
-                  <span className="inline-flex items-center gap-2 text-slate-800">
-                    <span className={`h-2.5 w-2.5 rounded-full ${runtimeMeta.dotClass}`} />
-                    Reminder Runtime
-                  </span>
-                  <span className="text-xs font-semibold text-slate-700">{runtimeMeta.label}</span>
-                </button>
-              ) : null}
-
-              {canViewReminderRuntime && runtimePopoverOpen ? (
-                <div>{renderRuntimePanel(() => setMobileMenuOpen(false))}</div>
-              ) : null}
-
-              <div>
-                <ThemeToggle className="w-full justify-center" />
+              <div className="border-t border-border/70 pt-4">
+                {renderSectionHeader('Navigation')}
+                <div className="space-y-1.5">
+                  {navLinks.map((navItem) => {
+                    const NavIcon = getNavIcon(navItem);
+                    const active = isRouteActive(navItem.to);
+                    return (
+                      <Link
+                        key={navItem.to}
+                        to={navItem.to}
+                        className={mobileNavClass(navItem.to)}
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <span className={`${sidebarIconClass(active)} mr-2`}>
+                          <NavIcon className="h-4 w-4 shrink-0" />
+                        </span>
+                        {navItem.label}
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
 
-              {canManageTwoFactor ? (
-                <Link
-                  to="/security"
-                  className={[
-                    'flex items-center rounded-lg px-3 py-2 transition-colors',
-                    isRouteActive('/security')
-                      ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
-                      : 'hover:bg-indigo-50',
-                  ].join(' ')}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <ShieldCheck className="mr-2 h-5 w-5 text-slate-700" />
-                  <span className="text-slate-800">Security</span>
-                </Link>
-              ) : null}
+              <div className="border-t border-border/70 pt-4">
+                {renderSectionHeader('Utilities')}
+                <div className="space-y-1.5">
+                  {canAccessNotifications ? (
+                    <Link
+                      to={workspaceNotificationsPath}
+                      className={[
+                        'flex items-center justify-between rounded-[1rem] px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                        isRouteActive(workspaceNotificationsPath)
+                          ? 'bg-primary/10 text-primary ring-1 ring-primary/15'
+                          : 'text-foreground hover:bg-accent/80 hover:text-accent-foreground',
+                      ].join(' ')}
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <span className={`${sidebarIconClass(isRouteActive(workspaceNotificationsPath))} mr-0`}>
+                          <Bell className="h-4 w-4" />
+                        </span>
+                        Notifications
+                      </span>
+                      {unreadCount > 0 ? (
+                        <span className="rounded-full bg-destructive px-2 py-1 text-xs font-bold text-destructive-foreground">
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      ) : null}
+                    </Link>
+                  ) : null}
 
-              <Link
-                to="/settings"
-                className={[
-                  'flex items-center rounded-lg px-3 py-2 transition-colors',
-                  isRouteActive('/settings')
-                    ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
-                    : 'hover:bg-indigo-50',
-                ].join(' ')}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <Settings2 className="mr-2 h-5 w-5 text-slate-700" />
-                <span className="text-slate-800">Profile & Settings</span>
-              </Link>
+                  {canViewReminderRuntime ? (
+                    <button
+                      type="button"
+                      onClick={() => setRuntimePopoverOpen((previous) => !previous)}
+                      className={[
+                        'flex w-full items-center justify-between rounded-[1rem] px-3 py-2.5 text-left text-sm font-medium transition-all duration-200',
+                        runtimePopoverOpen
+                          ? 'bg-primary/10 text-primary ring-1 ring-primary/15'
+                          : 'text-foreground hover:bg-accent/80 hover:text-accent-foreground',
+                      ].join(' ')}
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                          <Cpu className="h-4 w-4" />
+                        </span>
+                        Reminder Runtime
+                      </span>
+                      <span className="text-xs font-semibold text-muted-foreground">{runtimeMeta.label}</span>
+                    </button>
+                  ) : null}
 
-              <Link
-                to="/change-password"
-                className={[
-                  'flex items-center rounded-lg px-3 py-2 transition-colors',
-                  isRouteActive('/change-password')
-                    ? 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300'
-                    : 'hover:bg-indigo-50',
-                ].join(' ')}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <KeyRound className="mr-2 h-5 w-5 text-slate-700" />
-                <span className="text-slate-800">Change Password</span>
-              </Link>
+                  {canViewReminderRuntime && runtimePopoverOpen ? (
+                    <div>{renderRuntimePanel(() => setMobileMenuOpen(false))}</div>
+                  ) : null}
 
-              <button
-                type="button"
-                onClick={() => {
-                  handleLogout();
-                  setMobileMenuOpen(false);
-                }}
-                className="flex w-full items-center rounded-lg px-3 py-2 text-red-600 hover:bg-red-50"
-              >
-                <LogOut className="mr-2 h-5 w-5" />
-                <span>Logout</span>
-              </button>
+                  <ThemeToggle className="w-full justify-between rounded-[1rem] border-0 bg-transparent px-3 py-2.5 font-medium text-foreground shadow-none hover:bg-accent/80 hover:text-accent-foreground" />
+                </div>
+              </div>
+
+              <div className="border-t border-border/70 pt-4">
+                {renderSectionHeader('Account')}
+                <div className="space-y-1.5">
+                  {canManageTwoFactor ? (
+                    <Link
+                      to="/security"
+                      className={mobileNavClass('/security')}
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <span className={`${sidebarIconClass(isRouteActive('/security'))} mr-2`}>
+                        <ShieldCheck className="h-5 w-5" />
+                      </span>
+                      <span>Security</span>
+                    </Link>
+                  ) : null}
+
+                  <Link
+                    to="/settings"
+                    className={mobileNavClass('/settings')}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <span className={`${sidebarIconClass(isRouteActive('/settings'))} mr-2`}>
+                      <Settings2 className="h-5 w-5" />
+                    </span>
+                    <span>Profile & Settings</span>
+                  </Link>
+
+                  <Link
+                    to="/change-password"
+                    className={mobileNavClass('/change-password')}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <span className={`${sidebarIconClass(isRouteActive('/change-password'))} mr-2`}>
+                      <KeyRound className="h-5 w-5" />
+                    </span>
+                    <span>Change Password</span>
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleLogout();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="flex w-full items-center rounded-[1rem] bg-destructive/10 px-3 py-2.5 text-sm font-semibold text-destructive transition-all duration-200 hover:bg-destructive/15"
+                  >
+                    <LogOut className="mr-2 h-5 w-5" />
+                    <span>Logout</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

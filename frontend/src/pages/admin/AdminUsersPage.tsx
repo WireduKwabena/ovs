@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { RefreshCw, Search, ShieldAlert, ShieldCheck, UserCog, Users } from "lucide-react";
 import { toast } from "react-toastify";
@@ -50,7 +50,19 @@ const formatUserTypeFilter = (value: UserTypeFilter): string => {
   return USER_TYPE_LABELS[value];
 };
 
-const AdminUsersPage: React.FC = () => {
+export interface AdminUsersPageProps {
+  scope?: "platform" | "org";
+  organizationId?: string | null;
+  title?: string;
+  description?: string;
+}
+
+const AdminUsersPage: React.FC<AdminUsersPageProps> = ({
+  scope = "platform",
+  organizationId = null,
+  title = "Admin Users",
+  description = "Manage platform users, access states, and account security controls.",
+}) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const page = parsePage(searchParams.get("page"));
   const searchQuery = (searchParams.get("q") || "").trim();
@@ -63,6 +75,7 @@ const AdminUsersPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [actionLoadingUserId, setActionLoadingUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const isPlatformScope = scope === "platform";
 
   const users = useMemo(() => payload?.results ?? [], [payload]);
   const totalPages = payload?.total_pages ?? 1;
@@ -72,11 +85,24 @@ const AdminUsersPage: React.FC = () => {
   const isActiveFilterActive = activeFilter !== "all";
   const hasUserFilters = isSearchFilterActive || isUserTypeFilterActive || isActiveFilterActive;
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
+    if (scope === "org" && !organizationId) {
+      setPayload(null);
+      setError("Active organization context is required to load organization users.");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
-      const response = await adminService.getUsers({
+      const getUsersForScope =
+        scope === "org" && organizationId
+          ? (params: Parameters<typeof adminService.getOrgUsers>[1]) =>
+              adminService.getOrgUsers(organizationId, params)
+          : adminService.getUsers;
+
+      const response = await getUsersForScope({
         q: searchQuery || undefined,
         user_type: userTypeFilter === "all" ? undefined : userTypeFilter,
         is_active:
@@ -93,7 +119,7 @@ const AdminUsersPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeFilter, organizationId, page, scope, searchQuery, userTypeFilter]);
 
   const updateQuery = (updates: Record<string, string | null>, options: { keepPage?: boolean } = {}) => {
     const nextParams = applyQueryUpdates(searchParams, updates, {
@@ -111,8 +137,7 @@ const AdminUsersPage: React.FC = () => {
 
   useEffect(() => {
     void fetchUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, userTypeFilter, activeFilter, page]);
+  }, [fetchUsers]);
 
   const applySearch = () => {
     updateQuery({ q: searchInput.trim() || null });
@@ -125,7 +150,11 @@ const AdminUsersPage: React.FC = () => {
   const updateUser = async (userId: string, updates: Record<string, unknown>, successMessage: string) => {
     try {
       setActionLoadingUserId(userId);
-      await adminService.updateUser(userId, updates);
+      if (scope === "org" && organizationId) {
+        await adminService.updateOrgUser(organizationId, userId, updates);
+      } else {
+        await adminService.updateUser(userId, updates);
+      }
       toast.success(successMessage);
       await fetchUsers();
     } catch (actionError: any) {
@@ -141,9 +170,9 @@ const AdminUsersPage: React.FC = () => {
         <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Admin Users</h1>
+              <h1 className="text-2xl font-semibold text-gray-900">{title}</h1>
               <p className="mt-1 text-sm text-slate-800">
-                Manage platform users, access states, and account security controls.
+                {description}
               </p>
             </div>
             <Button
@@ -336,26 +365,37 @@ const AdminUsersPage: React.FC = () => {
                           <div className="text-slate-800">{user.email}</div>
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-800">
-                          <Select
-                            value={user.user_type}
-                            onValueChange={(nextRole) => {
-                              void updateUser(
-                                user.id,
-                                { user_type: nextRole },
-                                "User role updated.",
-                              );
-                            }}
-                            disabled={busy}
-                          >
-                            <SelectTrigger className="w-40">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="internal">Operations User</SelectItem>
-                              <SelectItem value="applicant">Applicant</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          {isPlatformScope ? (
+                            <Select
+                              value={user.user_type}
+                              onValueChange={(nextRole) => {
+                                void updateUser(
+                                  user.id,
+                                  { user_type: nextRole },
+                                  "User role updated.",
+                                );
+                              }}
+                              disabled={busy}
+                            >
+                              <SelectTrigger className="w-40">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="admin">Admin</SelectItem>
+                                <SelectItem value="internal">Operations User</SelectItem>
+                                <SelectItem value="applicant">Applicant</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <div className="space-y-1">
+                              <span className="inline-flex rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-800">
+                                {USER_TYPE_LABELS[user.user_type] || "Applicant"}
+                              </span>
+                              <p className="text-xs text-slate-600">
+                                Role changes are managed from platform administration.
+                              </p>
+                            </div>
+                          )}
                         </td>
                         <td className="px-6 py-4 text-sm">
                           <span

@@ -107,6 +107,37 @@ export interface GovernanceOrganizationSummaryResponse {
   active_organization_source: string;
 }
 
+export interface GovernancePlatformOrganizationSubscriptionSummary {
+  id: string;
+  source: "active" | "latest";
+  provider: string;
+  status: string;
+  payment_status: string;
+  plan_id: string;
+  plan_name: string;
+  billing_cycle: string;
+  payment_method: string;
+  amount_usd: string;
+  current_period_end?: string | null;
+  cancel_at_period_end: boolean;
+  updated_at: string;
+}
+
+export interface GovernancePlatformOrganizationOversight {
+  id: string;
+  code: string;
+  name: string;
+  organization_type: string;
+  is_active: boolean;
+  active_member_count: number;
+  subscription: GovernancePlatformOrganizationSubscriptionSummary | null;
+}
+
+export interface GovernancePlatformOrganizationOversightListResponse {
+  count: number;
+  results: GovernancePlatformOrganizationOversight[];
+}
+
 export interface GovernanceOrganizationMember {
   id: string;
   user: string;

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { configureStore } from "@reduxjs/toolkit";
 import { Provider } from "react-redux";
 import { MemoryRouter } from "react-router-dom";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import { Navbar } from "./Navbar";
 
@@ -166,183 +166,74 @@ describe("Navbar runtime + active tab behavior", () => {
     authHookState.canManageRubrics = false;
   });
 
-  it("opens runtime popover and shows latest reminder counts", async () => {
-    mocks.getReminderHealth.mockResolvedValue({
-      generated_at: "2026-03-04T12:00:00Z",
-      max_retries: 3,
-      soon_retry_pending: 2,
-      soon_retry_exhausted: 1,
-      start_now_retry_pending: 0,
-      start_now_retry_exhausted: 1,
-      time_up_retry_pending: 0,
-      time_up_retry_exhausted: 0,
-    });
-
-    renderNavbar("/video-calls", {
+  it("does not expose reminder runtime controls to platform admins", async () => {
+    renderNavbar("/admin/platform/dashboard", {
       auth: {
         userType: "admin",
         user: {
           user_type: "admin",
           email: "admin@example.com",
-          full_name: "Admin User",
-          first_name: "Admin",
-          last_name: "User",
+          full_name: "Platform Admin",
+          first_name: "Platform",
+          last_name: "Admin",
         },
       },
     });
 
     await waitFor(() => {
-      expect(mocks.getReminderHealth).toHaveBeenCalledTimes(1);
+      expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /runtime/i }));
-
-    expect(await screen.findByText("Reminder Runtime")).toBeTruthy();
-    const soonPendingCard = screen.getByText("Soon Pending").closest("div");
-    expect(soonPendingCard).toBeTruthy();
-    expect(within(soonPendingCard as HTMLElement).getByText("2")).toBeTruthy();
-    expect(screen.getByText("Soon Exhausted")).toBeTruthy();
-    expect(screen.getByText("Last checked:", { exact: false })).toBeTruthy();
-    const traceLink = screen.getByRole("link", { name: /open reminder traces/i });
-    expect(traceLink.getAttribute("href")).toBe(
-      "/notifications?channel=all&event_type=video_call_reminder",
-    );
+    expect(mocks.getReminderHealth).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /runtime/i })).toBeNull();
+    expect(screen.queryByText(/reminder runtime/i)).toBeNull();
   });
 
   it("highlights the active navbar tab based on current route", async () => {
-    mocks.getReminderHealth.mockResolvedValue({
-      generated_at: "2026-03-04T12:00:00Z",
-      max_retries: 3,
-      soon_retry_pending: 0,
-      soon_retry_exhausted: 0,
-      start_now_retry_pending: 0,
-      start_now_retry_exhausted: 0,
-      time_up_retry_pending: 0,
-      time_up_retry_exhausted: 0,
-    });
+    authHookState.canAccessVideoCalls = true;
 
     renderNavbar("/video-calls", {
       auth: {
-        userType: "admin",
+        userType: "internal",
         user: {
-          user_type: "admin",
-          email: "admin@example.com",
-          full_name: "Admin User",
-          first_name: "Admin",
+          user_type: "internal",
+          email: "operator@example.com",
+          full_name: "Internal User",
+          first_name: "Internal",
           last_name: "User",
         },
       },
     });
 
     await waitFor(() => {
-      expect(mocks.getReminderHealth).toHaveBeenCalledTimes(1);
+      expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
     });
 
     const videoCallLinks = screen.queryAllByRole("link", { name: /video calls/i });
-    if (videoCallLinks.length > 0) {
-      const hasActiveDesktopLink = videoCallLinks.some((link) =>
-        link.className.includes("bg-indigo-100"),
-      );
-      expect(hasActiveDesktopLink).toBe(true);
-      return;
-    }
-
-    const moreButton = screen.getByRole("button", { name: /more/i });
-    expect(moreButton.className.includes("bg-indigo-100")).toBe(true);
+    const hasActiveDesktopLink = videoCallLinks.some((link) =>
+      link.className.includes("bg-primary/10"),
+    );
+    expect(hasActiveDesktopLink).toBe(true);
   });
 
   it("renders fixed desktop sidebar and mobile top bar with the expected breakpoint classes", () => {
     const { container } = renderNavbar("/dashboard");
 
-    const desktopSidebar = container.querySelector("aside");
+    const desktopSidebar = screen.getByTestId("desktop-sidebar");
     const mobileTopBar = container.querySelector("nav");
 
     expect(desktopSidebar).toBeTruthy();
-    expect(desktopSidebar?.className).toContain("hidden");
-    expect(desktopSidebar?.className).toContain("w-64");
-    expect(desktopSidebar?.className).toContain("lg:flex");
-    expect(desktopSidebar?.className).toContain("xl:w-72");
+    expect(desktopSidebar.className).toContain("hidden");
+    expect(desktopSidebar.className).toContain("w-64");
+    expect(desktopSidebar.className).toContain("lg:flex");
+    expect(desktopSidebar.className).toContain("xl:w-72");
+    expect(desktopSidebar.className).toContain("overflow-y-auto");
+    expect(desktopSidebar.className).toContain("bg-background/95");
 
     expect(mobileTopBar).toBeTruthy();
     expect(mobileTopBar?.className).toContain("lg:hidden");
     expect(mobileTopBar?.className).toContain("sticky");
     expect(mobileTopBar?.className).toContain("top-0");
-  });
-
-  it("shows unavailable status in runtime popover when health endpoint fails", async () => {
-    mocks.getReminderHealth.mockRejectedValue(new Error("Runtime unavailable"));
-
-    renderNavbar("/dashboard", {
-      auth: {
-        userType: "admin",
-        user: {
-          user_type: "admin",
-          email: "admin@example.com",
-          full_name: "Admin User",
-          first_name: "Admin",
-          last_name: "User",
-        },
-      },
-    });
-
-    await waitFor(() => {
-      expect(mocks.getReminderHealth).toHaveBeenCalledTimes(1);
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /runtime/i }));
-
-    expect(await screen.findByText("Reminder Runtime")).toBeTruthy();
-    expect(screen.getByText("Unavailable")).toBeTruthy();
-    expect(screen.getByText(/runtime unavailable/i)).toBeTruthy();
-  });
-
-  it("shows reminder trace link in the mobile runtime panel", async () => {
-    mocks.getReminderHealth.mockResolvedValue({
-      generated_at: "2026-03-04T12:00:00Z",
-      max_retries: 3,
-      soon_retry_pending: 1,
-      soon_retry_exhausted: 0,
-      start_now_retry_pending: 0,
-      start_now_retry_exhausted: 0,
-      time_up_retry_pending: 0,
-      time_up_retry_exhausted: 0,
-    });
-
-    renderNavbar("/video-calls", {
-      auth: {
-        userType: "admin",
-        user: {
-          user_type: "admin",
-          email: "admin@example.com",
-          full_name: "Admin User",
-          first_name: "Admin",
-          last_name: "User",
-        },
-      },
-    });
-
-    await waitFor(() => {
-      expect(mocks.getReminderHealth).toHaveBeenCalledTimes(1);
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /open navigation menu/i }));
-    const runtimeToggle = screen
-      .getAllByText("Reminder Runtime")
-      .map((node) => node.closest("button"))
-      .find((button): button is HTMLButtonElement => button instanceof HTMLButtonElement);
-    expect(runtimeToggle).toBeTruthy();
-    fireEvent.click(runtimeToggle as HTMLButtonElement);
-
-    const traceLinks = await screen.findAllByRole("link", {
-      name: /open reminder traces/i,
-    });
-    expect(
-      traceLinks.some(
-        (link) =>
-          link.getAttribute("href") ===
-          "/notifications?channel=all&event_type=video_call_reminder",
-      ),
-    ).toBe(true);
   });
 
   it("does not poll reminder runtime for internal users", async () => {
@@ -365,6 +256,66 @@ describe("Navbar runtime + active tab behavior", () => {
     expect(mocks.getReminderHealth).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: /runtime/i })).toBeNull();
   });
+
+  it("keeps platform admin navigation scoped to subscriptions and organization status only", async () => {
+    authHookState.organizations = [
+      {
+        id: "org-1",
+        code: "ORG1",
+        name: "Registry Commission",
+        organization_type: "agency",
+      },
+    ];
+    authHookState.activeOrganization = authHookState.organizations[0];
+    authHookState.activeOrganizationId = "org-1";
+    authHookState.canManageActiveOrganizationGovernance = true;
+    authHookState.canAccessAppointments = true;
+    authHookState.canManageRegistry = true;
+    authHookState.canAccessCampaigns = true;
+    authHookState.canAccessApplications = true;
+    authHookState.canAccessVideoCalls = true;
+    authHookState.canManageRubrics = true;
+    authHookState.canAccessInternalWorkflow = true;
+    authHookState.canViewAuditLogs = true;
+
+    renderNavbar("/admin/platform/dashboard", {
+      auth: {
+        userType: "admin",
+        user: {
+          user_type: "admin",
+          email: "admin@example.com",
+          full_name: "Platform Admin",
+          first_name: "Platform",
+          last_name: "Admin",
+        },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
+    });
+
+    expect(screen.getAllByRole("link", { name: /platform dashboard/i }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: /runtime/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /appointment exercises/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /video calls/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /rubrics/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /appointment workflow/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /offices/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /nominees/i })).toBeNull();
+    expect(screen.queryByLabelText(/switch active organization/i)).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /more/i }));
+    expect(screen.queryByRole("link", { name: /analytics/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /ai monitor/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /control center/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /ml monitoring/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /^cases$/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /^users$/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /^members$/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /committees/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /onboarding/i })).toBeNull();
+  }, 10000);
 
   it("hides appointment-exercise and rubrics links for applicants", async () => {
     renderNavbar("/dashboard", {
@@ -409,7 +360,7 @@ describe("Navbar runtime + active tab behavior", () => {
 
     const dashboardLinks = screen
       .getAllByRole("link", { name: /^workspace$/i })
-      .filter((link) => link.getAttribute("href") === "/workspace");
+      .filter((link) => link.getAttribute("href") === "/workspace/home");
     expect(dashboardLinks.length).toBeGreaterThan(0);
     expect(screen.queryByRole("link", { name: /committee workspace/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /appointment exercises/i })).toBeNull();
@@ -490,7 +441,7 @@ describe("Navbar runtime + active tab behavior", () => {
     expect(screen.getAllByRole("link", { name: /appointment workflow/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /offices/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /nominees/i }).length).toBeGreaterThan(0);
-  });
+  }, 10000);
 
   it("shows organization admin workspace links for users with governance access", async () => {
     authHookState.canManageActiveOrganizationGovernance = true;
@@ -522,15 +473,15 @@ describe("Navbar runtime + active tab behavior", () => {
     });
 
     const organizationDashboardLinks = screen
-      .getAllByRole("link", { name: /^dashboard$/i })
-      .filter((link) => link.getAttribute("href") === "/organization/dashboard");
+      .getAllByRole("link", { name: /organization dashboard/i })
+      .filter((link) => link.getAttribute("href") === "/admin/org/org-1/dashboard");
     expect(organizationDashboardLinks.length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: /more/i }));
     expect(screen.getAllByRole("link", { name: /^members$/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /committees/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /onboarding/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /subscription/i }).length).toBeGreaterThan(0);
-  });
+  }, 10000);
 
   it("hides organization admin workspace links when governance access is unavailable", async () => {
     authHookState.canManageActiveOrganizationGovernance = false;
@@ -558,8 +509,8 @@ describe("Navbar runtime + active tab behavior", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /more/i }));
     const organizationDashboardLinks = screen
-      .queryAllByRole("link", { name: /^dashboard$/i })
-      .filter((link) => link.getAttribute("href") === "/organization/dashboard");
+      .queryAllByRole("link", { name: /organization dashboard/i })
+      .filter((link) => link.getAttribute("href") === "/admin/org/org-1/dashboard");
     expect(organizationDashboardLinks.length).toBe(0);
     expect(screen.queryByRole("link", { name: /^members$/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /subscription/i })).toBeNull();

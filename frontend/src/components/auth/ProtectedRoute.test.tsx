@@ -75,6 +75,8 @@ const renderWithState = (
           <Route path="/login" element={<div>Login page</div>} />
           <Route path="/login/2fa" element={<div>2FA page</div>} />
           <Route path="/dashboard" element={<div>Dashboard page</div>} />
+          <Route path="/candidate/home" element={<div>Candidate home page</div>} />
+          <Route path="/admin/platform/dashboard" element={<div>Platform dashboard page</div>} />
           <Route path="/organization/setup" element={<div>Organization setup page</div>} />
           <Route
             path="/private"
@@ -350,7 +352,7 @@ describe("ProtectedRoute integration", () => {
       }),
       "/no-applicant",
     );
-    expect(screen.getByText("Dashboard page")).toBeTruthy();
+    expect(screen.getByText("Candidate home page")).toBeTruthy();
   });
 
   it("shows loader while rehydration is incomplete", () => {
@@ -397,7 +399,7 @@ describe("ProtectedRoute integration", () => {
       }),
       "/applications",
     );
-    expect(screen.getByText("Dashboard page")).toBeTruthy();
+    expect(screen.getByText("Candidate home page")).toBeTruthy();
   });
 
   it("allows admin users on /applications/:caseId routes", () => {
@@ -419,7 +421,7 @@ describe("ProtectedRoute integration", () => {
       }),
       "/campaigns",
     );
-    expect(screen.getByText("Dashboard page")).toBeTruthy();
+    expect(screen.getByText("Candidate home page")).toBeTruthy();
   });
 
   it("redirects applicants away from /campaigns/:campaignId", () => {
@@ -430,7 +432,7 @@ describe("ProtectedRoute integration", () => {
       }),
       "/campaigns/campaign-001",
     );
-    expect(screen.getByText("Dashboard page")).toBeTruthy();
+    expect(screen.getByText("Candidate home page")).toBeTruthy();
   });
 
   it("allows capability-bearing users on /campaigns", () => {
@@ -464,7 +466,7 @@ describe("ProtectedRoute integration", () => {
       }),
       "/rubrics",
     );
-    expect(screen.getByText("Dashboard page")).toBeTruthy();
+    expect(screen.getByText("Candidate home page")).toBeTruthy();
   });
 
   it("redirects applicants away from /rubrics/new", () => {
@@ -475,7 +477,7 @@ describe("ProtectedRoute integration", () => {
       }),
       "/rubrics/new",
     );
-    expect(screen.getByText("Dashboard page")).toBeTruthy();
+    expect(screen.getByText("Candidate home page")).toBeTruthy();
   });
 
   it("redirects applicants away from /government/* routes", () => {
@@ -493,7 +495,7 @@ describe("ProtectedRoute integration", () => {
         }),
         route,
       );
-      expect(screen.getByText("Dashboard page")).toBeTruthy();
+      expect(screen.getByText("Candidate home page")).toBeTruthy();
       cleanup();
     });
   });
@@ -676,7 +678,7 @@ describe("ProtectedRoute integration", () => {
     expect(screen.getByText("Dashboard page")).toBeTruthy();
   });
 
-  it("allows platform admin on governance routes", () => {
+  it("blocks platform admin on governance routes", () => {
     renderWithState(
       createGuardState({
         isAuthenticated: true,
@@ -685,7 +687,7 @@ describe("ProtectedRoute integration", () => {
       }),
       "/organization/dashboard",
     );
-    expect(screen.getByText("Organization dashboard page")).toBeTruthy();
+    expect(screen.getByText("Platform dashboard page")).toBeTruthy();
   });
 });
 

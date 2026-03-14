@@ -9,17 +9,17 @@ import {
 
 describe("authRouting", () => {
   describe("getDashboardPathForUser", () => {
-    it("returns admin dashboard for admin", () => {
-      expect(getDashboardPathForUser("admin")).toBe("/admin/dashboard");
+    it("returns the platform dashboard path for admins", () => {
+      expect(getDashboardPathForUser("admin")).toBe("/admin/platform/dashboard");
     });
 
-    it("returns shared workspace for internal non-admin roles", () => {
-      expect(getDashboardPathForUser("internal")).toBe("/workspace");
-      expect(getDashboardPathForUser(null)).toBe("/workspace");
+    it("returns the shared dashboard resolver path for internal non-admin roles", () => {
+      expect(getDashboardPathForUser("internal")).toBe("/dashboard");
+      expect(getDashboardPathForUser(null)).toBe("/dashboard");
     });
 
-    it("returns candidate access path for applicant users", () => {
-      expect(getDashboardPathForUser("applicant")).toBe("/candidate/access");
+    it("returns candidate home path for applicant users", () => {
+      expect(getDashboardPathForUser("applicant")).toBe("/candidate/home");
     });
   });
 
@@ -97,7 +97,7 @@ describe("authRouting", () => {
           twoFactorRequired: false,
           twoFactorToken: null,
         }),
-      ).toBe("/admin/dashboard");
+      ).toBe("/admin/platform/dashboard");
 
       expect(
         resolveUnauthenticatedRouteRedirect({
@@ -106,7 +106,7 @@ describe("authRouting", () => {
           twoFactorRequired: false,
           twoFactorToken: null,
         }),
-      ).toBe("/workspace");
+      ).toBe("/dashboard");
 
       expect(
         resolveUnauthenticatedRouteRedirect({
@@ -115,8 +115,8 @@ describe("authRouting", () => {
           twoFactorRequired: false,
           twoFactorToken: null,
         }),
-      ).toBe("/candidate/access");
-    });
+      ).toBe("/candidate/home");
+      });
 
     it("allows unauthenticated requests without 2FA challenge", () => {
       expect(

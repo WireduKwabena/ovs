@@ -19,7 +19,7 @@ import { formatDate, formatFileSize } from "@/utils/helper";
 import { Button } from "../ui/button";
 
 export const CaseReview: React.FC = () => {
-  const { caseId } = useParams<{ caseId: string }>();
+  const { caseId, orgId } = useParams<{ caseId: string; orgId?: string }>();
   const navigate = useNavigate();
   const [application, setApplication] =
     useState<ApplicationWithDocuments | null>(null);
@@ -27,6 +27,9 @@ export const CaseReview: React.FC = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [notes, setNotes] = useState("");
   const [decision, setDecision] = useState<"approve" | "reject" | null>(null);
+  const reviewListPath = orgId
+    ? `/admin/org/${encodeURIComponent(String(orgId).trim())}/cases`
+    : "/admin/cases";
 
   const loadApplication = useCallback(async () => {
     if (!caseId) {
@@ -65,7 +68,7 @@ export const CaseReview: React.FC = () => {
         notes: notes.trim(),
       });
       toast.success("Application approved successfully!");
-      navigate("/admin/cases");
+      navigate(reviewListPath);
     } catch {
       toast.error("Failed to approve application");
     } finally {
@@ -90,7 +93,7 @@ export const CaseReview: React.FC = () => {
         notes: notes.trim(),
       });
       toast.success("Application rejected");
-      navigate("/admin/cases");
+      navigate(reviewListPath);
     } catch {
       toast.error("Failed to reject application");
     } finally {
@@ -109,7 +112,7 @@ export const CaseReview: React.FC = () => {
         notes: notes.trim(),
       });
       toast.info("Applicant has been notified to provide more information");
-      navigate("/admin/cases");
+      navigate(reviewListPath);
     } catch {
       toast.error("Failed to request more information");
     } finally {
@@ -143,7 +146,7 @@ export const CaseReview: React.FC = () => {
               </div>
             </div>
             <button
-              onClick={() => navigate("/admin/cases")}
+              onClick={() => navigate(reviewListPath)}
               className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
             >
               Back to Cases
@@ -266,7 +269,7 @@ export const CaseReview: React.FC = () => {
         {/* Header */}
         <div className="flex flex-wrap items-center gap-3 sm:gap-4">
           <Button
-            onClick={() => navigate("/admin/cases")}
+            onClick={() => navigate(reviewListPath)}
             variant="ghost"
             className="rounded-lg p-2 text-slate-800 transition-colors hover:bg-slate-100"
           >

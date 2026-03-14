@@ -17,14 +17,14 @@ describe("DashboardPage role routing", () => {
     vi.clearAllMocks();
   });
 
-  it("redirects admins to /admin/dashboard", async () => {
-    mockUseAuth.mockReturnValue({ userType: "admin" });
+  it("redirects admins to /admin/platform/dashboard", async () => {
+    mockUseAuth.mockReturnValue({ userType: "admin", loading: false });
 
     render(
       <MemoryRouter initialEntries={["/dashboard"]}>
         <Routes>
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/admin/dashboard" element={<div>Admin Dashboard Page</div>} />
+          <Route path="/admin/platform/dashboard" element={<div>Admin Dashboard Page</div>} />
         </Routes>
       </MemoryRouter>,
     );
@@ -34,6 +34,7 @@ describe("DashboardPage role routing", () => {
 
   it("redirects org-admin users with active organization to organization dashboard", async () => {
     mockUseAuth.mockReturnValue({
+      loading: false,
       userType: "internal",
       canManageActiveOrganizationGovernance: true,
       activeOrganizationId: "org-1",
@@ -43,7 +44,7 @@ describe("DashboardPage role routing", () => {
       <MemoryRouter initialEntries={["/dashboard"]}>
         <Routes>
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/organization/dashboard" element={<div>Organization Dashboard</div>} />
+          <Route path="/admin/org/org-1/dashboard" element={<div>Organization Dashboard</div>} />
         </Routes>
       </MemoryRouter>,
     );
@@ -53,6 +54,7 @@ describe("DashboardPage role routing", () => {
 
   it("redirects org-admin users without active organization to setup", async () => {
     mockUseAuth.mockReturnValue({
+      loading: false,
       userType: "internal",
       canManageActiveOrganizationGovernance: true,
       activeOrganizationId: null,
@@ -72,6 +74,7 @@ describe("DashboardPage role routing", () => {
 
   it("routes committee actors to shared workspace", async () => {
     mockUseAuth.mockReturnValue({
+      loading: false,
       userType: "internal",
       canAccessInternalWorkflow: false,
       canAccessApplications: false,
@@ -89,7 +92,7 @@ describe("DashboardPage role routing", () => {
       <MemoryRouter initialEntries={["/dashboard"]}>
         <Routes>
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/workspace" element={<div>Workspace</div>} />
+          <Route path="/workspace/home" element={<div>Workspace</div>} />
         </Routes>
       </MemoryRouter>,
     );
@@ -99,6 +102,7 @@ describe("DashboardPage role routing", () => {
 
   it("routes internal workflow users to shared workspace", async () => {
     mockUseAuth.mockReturnValue({
+      loading: false,
       userType: "internal",
       canAccessInternalWorkflow: true,
       canAccessApplications: false,
@@ -116,7 +120,7 @@ describe("DashboardPage role routing", () => {
       <MemoryRouter initialEntries={["/dashboard"]}>
         <Routes>
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/workspace" element={<div>Workspace</div>} />
+          <Route path="/workspace/home" element={<div>Workspace</div>} />
         </Routes>
       </MemoryRouter>,
     );
@@ -124,14 +128,14 @@ describe("DashboardPage role routing", () => {
     expect(await screen.findByText("Workspace")).toBeTruthy();
   });
 
-  it("redirects applicant users to candidate access", async () => {
-    mockUseAuth.mockReturnValue({ userType: "applicant" });
+  it("redirects applicant users to candidate home", async () => {
+    mockUseAuth.mockReturnValue({ userType: "applicant", loading: false });
 
     render(
       <MemoryRouter initialEntries={["/dashboard"]}>
         <Routes>
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/candidate/access" element={<div>Candidate Access Page</div>} />
+          <Route path="/candidate/home" element={<div>Candidate Access Page</div>} />
         </Routes>
       </MemoryRouter>,
     );
@@ -139,4 +143,3 @@ describe("DashboardPage role routing", () => {
     expect(await screen.findByText("Candidate Access Page")).toBeTruthy();
   });
 });
-

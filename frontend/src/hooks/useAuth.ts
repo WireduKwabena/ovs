@@ -113,38 +113,29 @@ export const useAuth = () => {
   const isInternalOrAdmin = isAdmin || hasGovernmentCapability;
   const isApplicant = userType === 'applicant';
   const canViewAuditLogs = isAdmin || hasCapability("gams.audit.view");
-  const canManageRegistry = isAdmin || hasCapability("gams.registry.manage");
+  const canManageRegistry = hasCapability("gams.registry.manage");
   const canAccessAppointments =
-    isAdmin ||
     hasAnyCapabilityValue(resolvedCapabilities, APPOINTMENT_ROUTE_CAPABILITIES) ||
     hasAnyRoleValue(resolvedRoles, APPOINTMENT_WORKFLOW_ROLES);
   const canAdvanceAppointmentStage =
-    isAdmin ||
     hasAnyRoleValue(resolvedRoles, STAGE_ACTOR_ROLES) ||
     hasCapability("gams.appointment.stage");
   const canFinalizeAppointment =
-    isAdmin ||
     hasAnyRoleValue(resolvedRoles, FINAL_DECISION_ROLES) ||
     hasCapability("gams.appointment.decide");
   const canPublishAppointment =
-    isAdmin ||
     hasAnyRoleValue(resolvedRoles, PUBLICATION_ROLES) ||
     hasCapability("gams.appointment.publish");
-  const canViewAppointmentStageActions = isAdmin || hasAnyRoleValue(resolvedRoles, STAGE_HISTORY_ROLES);
+  const canViewAppointmentStageActions = hasAnyRoleValue(resolvedRoles, STAGE_HISTORY_ROLES);
   const canAccessInternalWorkflow =
-    isAdmin ||
     hasGovernmentCapability ||
     hasAnyRoleValue(resolvedRoles, APPOINTMENT_WORKFLOW_ROLES);
   const canAccessApplications = canAccessInternalWorkflow || canViewAuditLogs;
-  const canAccessCampaigns =
-    isAdmin ||
-    hasAnyCapabilityValue(resolvedCapabilities, CAMPAIGN_MANAGE_CAPABILITIES);
+  const canAccessCampaigns = hasAnyCapabilityValue(resolvedCapabilities, CAMPAIGN_MANAGE_CAPABILITIES);
   const canAccessVideoCalls = canAccessInternalWorkflow;
-  const canManageRubrics =
-    isAdmin ||
-    hasAnyCapabilityValue(resolvedCapabilities, RUBRIC_MANAGE_CAPABILITIES);
+  const canManageRubrics = hasAnyCapabilityValue(resolvedCapabilities, RUBRIC_MANAGE_CAPABILITIES);
   const canManageRegistryInActiveOrganization =
-    canManageRegistry && (isAdmin || Boolean(activeOrganizationId));
+    canManageRegistry && Boolean(activeOrganizationId);
   const canSwitchOrganization = isAuthenticated && userType !== "applicant" && hasMultipleOrganizations;
   const canManageActiveOrganizationGovernance =
     canManageOrganizationGovernance({

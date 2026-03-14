@@ -43,6 +43,19 @@ Key design rule:
 
 ### Frontend (React + TypeScript)
 
+Role-aware route layers:
+
+- Platform admin UI: `/admin/platform/*`
+- Organization admin UI: `/admin/org/:orgId/*`
+- Internal workspace UI: `/workspace/*`
+- Candidate UI: `/candidate/*`
+
+Compatibility behavior:
+
+- Existing legacy routes continue to work through redirects where safe.
+- Platform admin pages stay platform-scoped; org-admin pages stay organization-scoped.
+- Organization-scoped calls attach `X-Active-Organization-ID` from the selected org context.
+
 - Government routes:
   - `/government/positions`
   - `/government/personnel`

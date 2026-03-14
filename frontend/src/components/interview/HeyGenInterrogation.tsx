@@ -499,7 +499,7 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
 
   if (isComplete) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-900 to-blue-900 flex items-center justify-center p-8">
+      <div className="min-h-screen bg-linear-to-br from-green-900 to-blue-900 flex items-center justify-center p-8">
         <div className="max-w-2xl w-full bg-white rounded-2xl shadow-2xl p-12 text-center">
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <svg
@@ -549,7 +549,7 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-900 via-gray-900 to-black">
+    <div className="min-h-screen bg-linear-to-br from-red-900 via-gray-900 to-black">
       {/* Warning Banner */}
       <div className="bg-yellow-600 text-white p-4 text-center font-semibold">
         ⚠️ LIVE AI INTERROGATION - All responses analyzed in real-time
@@ -633,7 +633,7 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
             {/* Current Question */}
             <div className="bg-white rounded-xl shadow-2xl p-6">
               <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-10 h-10 bg-red-600 text-white rounded-full flex items-center justify-center font-bold">
+                <div className="shrink-0 w-10 h-10 bg-red-600 text-white rounded-full flex items-center justify-center font-bold">
                   {questionNumber}
                 </div>
                 <div className="flex-1">
@@ -730,7 +730,7 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
                 <button
                   onClick={startRecording}
                   disabled={!currentQuestion || !wsConnected}
-                  className="flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-2xl font-bold text-xl hover:from-green-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-2xl"
+                  className="flex items-center gap-3 px-10 py-5 bg-linear-to-r from-green-600 to-blue-600 text-white rounded-2xl font-bold text-xl hover:from-green-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-2xl"
                 >
                   <span className="text-2xl">🎤</span>
                   Start Speaking
@@ -738,7 +738,7 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
               ) : isRecording ? (
                 <button
                   onClick={stopRecording}
-                  className="flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-red-600 to-pink-600 text-white rounded-2xl font-bold text-xl hover:from-red-700 hover:to-pink-700 shadow-2xl"
+                  className="flex items-center gap-3 px-10 py-5 bg-linear-to-r from-red-600 to-pink-600 text-white rounded-2xl font-bold text-xl hover:from-red-700 hover:to-pink-700 shadow-2xl"
                 >
                   <span className="text-2xl">⏹️</span>
                   Stop & Submit

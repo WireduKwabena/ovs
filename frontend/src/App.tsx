@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect } from "react";
+import React, { Suspense, useEffect, useReducer, useRef } from "react";
 import {
   BrowserRouter as Router,
   Navigate,
@@ -12,16 +12,22 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { UnauthenticatedRoute } from "./components/auth/UnauthenticatedRoute";
-import { fetchProfile } from "./store/authSlice";
+import { fetchProfile, switchActiveOrganization } from "./store/authSlice";
 import { type AppDispatch, type RootState } from "./app/store";
 import {
   APPOINTMENT_ROUTE_CAPABILITIES,
   CAMPAIGN_MANAGE_CAPABILITIES,
   INTERNAL_WORKFLOW_ROUTE_CAPABILITIES,
-  LEGACY_CAPABILITY_STALE_FALLBACK_USER_TYPES,
   REGISTRY_ROUTE_CAPABILITIES,
   RUBRIC_MANAGE_CAPABILITIES,
 } from "./utils/frontendAuthz";
+import {
+  getCandidatePath,
+  getOrgAdminPath,
+  getOrganizationSetupPath,
+  getPlatformAdminPath,
+  getWorkspacePath,
+} from "./utils/appPaths";
 
 const Navbar = React.lazy(() =>
   import("./components/common/Navbar").then((module) => ({ default: module.Navbar })),
@@ -33,8 +39,13 @@ const PublicAppointmentDetailPage = React.lazy(() => import("./pages/PublicAppoi
 const SubscriptionPlansPage = React.lazy(() => import("./pages/SubscriptionPlansPage"));
 const OrganizationAdminSignupPage = React.lazy(() => import("./pages/OrganizationAdminSignupPage"));
 const OrganizationSetupPage = React.lazy(() => import("./pages/OrganizationSetupPage"));
-const OrganizationDashboardPage = React.lazy(() =>
-  import("./pages/organization/OrganizationAdminDashboardPage"),
+const OrgDashboardPage = React.lazy(() => import("./pages/org-admin/OrgDashboardPage"));
+const OrgCasesPage = React.lazy(() => import("./pages/org-admin/OrgCasesPage"));
+const OrgUsersPage = React.lazy(() => import("./pages/org-admin/OrgUsersPage"));
+const WorkspaceHomePage = React.lazy(() => import("./pages/workspace/WorkspaceHomePage"));
+const CandidateHomePage = React.lazy(() => import("./pages/candidate/CandidateHomePage"));
+const PlatformDashboardPage = React.lazy(() =>
+  import("./pages/platform-admin/PlatformDashboardPage"),
 );
 const OrganizationMembersPage = React.lazy(() => import("./pages/OrganizationMembersPage"));
 const OrganizationCommitteesPage = React.lazy(() => import("./pages/OrganizationCommitteesPage"));
@@ -47,18 +58,14 @@ const ForgotPasswordPage = React.lazy(() => import("./pages/ForgotPasswordPage")
 const EmailSentPage = React.lazy(() => import("./pages/EmailSentPage"));
 const ResetPasswordPage = React.lazy(() => import("./pages/ResetPasswordPage"));
 const BillingCheckoutResultPage = React.lazy(() => import("./pages/BillingCheckoutResultPage"));
-const CandidateAccessPage = React.lazy(() => import("./pages/CandidateAccessPage"));
 const InvitationAcceptPage = React.lazy(() => import("./pages/InvitationAcceptPage"));
 const DashboardPage = React.lazy(() => import("./pages/DashboardPage"));
-const OperationsDashboardPage = React.lazy(() => import("./pages/OperationsDashboardPage"));
 const ChangePasswordPage = React.lazy(() => import("./pages/ChangePasswordPage"));
 const UserSettingsPage = React.lazy(() => import("./pages/UserSettingsPage"));
 const SecurityPage = React.lazy(() => import("./pages/SecurityPage"));
 const FraudInsightsPage = React.lazy(() => import("./pages/FraudInsightsPage"));
 const BackgroundChecksPage = React.lazy(() => import("./pages/BackgroundChecksPage"));
 const AuditLogsPage = React.lazy(() => import("./pages/AuditLogsPage"));
-const MlMonitoringPage = React.lazy(() => import("./pages/MlMonitoringPage"));
-const AiMonitorPage = React.lazy(() => import("./pages/AiMonitorPage"));
 const CampaignsPage = React.lazy(() => import("./pages/CampaignsPage"));
 const CampaignWorkspacePage = React.lazy(() => import("./pages/CampaignWorkspacePage"));
 const VideoCallsPage = React.lazy(() => import("./pages/VideoCallsPage"));
@@ -68,12 +75,6 @@ const GovernmentPersonnelPage = React.lazy(() => import("./pages/GovernmentPerso
 const AppointmentsRegistryPage = React.lazy(() => import("./pages/AppointmentsRegistryPage"));
 const ErrorPage = React.lazy(() => import("./pages/ErrorPage"));
 const NotFoundPage = React.lazy(() => import("./pages/NotFoundPage"));
-const AdminDashboardPage = React.lazy(() => import("./pages/admin/AdminDashboardPage"));
-const AdminAnalyticsPage = React.lazy(() => import("./pages/admin/AdminAnalyticsPage"));
-const AdminRegisterPage = React.lazy(() => import("./pages/admin/AdminRegisterPage"));
-const AdminCasesPage = React.lazy(() => import("./pages/admin/AdminCasesPage"));
-const AdminControlCenterPage = React.lazy(() => import("./pages/admin/AdminControlCenterPage"));
-const AdminUsersPage = React.lazy(() => import("./pages/admin/AdminUsersPage"));
 const AdminCaseReview = React.lazy(() =>
   import("./components/admin/CaseReview").then((module) => ({ default: module.CaseReview })),
 );
@@ -115,18 +116,174 @@ const HIDE_NAVBAR_PREFIXES = [
   "/billing",
 ];
 
-const LEGACY_INTERNAL_FALLBACK: Array<"admin"> = [...LEGACY_CAPABILITY_STALE_FALLBACK_USER_TYPES];
+const ORG_WORKFLOW_DISALLOWED_USER_TYPES: Array<"applicant" | "admin"> = ["applicant", "admin"];
 
 const shouldHideNavbar = (pathname: string): boolean => {
   if (pathname === "/") return true;
   return HIDE_NAVBAR_PREFIXES.some((prefix) => prefix !== "/" && pathname.startsWith(prefix));
 };
 
+const RouteLoader: React.FC = () => (
+  <div className="relative flex min-h-[40vh] items-center justify-center">
+    <Loader className="h-8 w-8 animate-spin" />
+  </div>
+);
+
+const LegacyPlatformRedirect: React.FC<{ segment: string }> = ({ segment }) => {
+  const location = useLocation();
+  return <Navigate to={`${getPlatformAdminPath(segment)}${location.search || ""}`} replace />;
+};
+
+const LegacyWorkspaceRedirect: React.FC<{ segment?: string }> = ({ segment = "home" }) => {
+  const location = useLocation();
+  return <Navigate to={`${getWorkspacePath(segment)}${location.search || ""}`} replace />;
+};
+
+const LegacyCandidateRedirect: React.FC<{ segment?: string }> = ({ segment = "home" }) => {
+  const location = useLocation();
+  return <Navigate to={`${getCandidatePath(segment)}${location.search || ""}`} replace />;
+};
+
+const LegacyOrganizationRedirect: React.FC<{ segment: string }> = ({ segment }) => {
+  const location = useLocation();
+  const userType = useSelector((state: RootState) => state.auth.userType);
+  const activeOrganizationId = useSelector((state: RootState) =>
+    String(state.auth.activeOrganization?.id || "").trim(),
+  );
+
+  if (userType === "admin") {
+    return <Navigate to={getPlatformAdminPath("dashboard")} replace />;
+  }
+
+  if (!activeOrganizationId) {
+    return <Navigate to={getOrganizationSetupPath("/dashboard")} replace />;
+  }
+
+  return <Navigate to={`${getOrgAdminPath(activeOrganizationId, segment)}${location.search || ""}`} replace />;
+};
+
+const LegacyOrganizationCommitteeRedirect: React.FC = () => {
+  const { committeeId } = useParams<{ committeeId: string }>();
+  const userType = useSelector((state: RootState) => state.auth.userType);
+  const activeOrganizationId = useSelector((state: RootState) =>
+    String(state.auth.activeOrganization?.id || "").trim(),
+  );
+
+  if (userType === "admin") {
+    return <Navigate to={getPlatformAdminPath("dashboard")} replace />;
+  }
+
+  if (!activeOrganizationId) {
+    return <Navigate to={getOrganizationSetupPath("/dashboard")} replace />;
+  }
+
+  return (
+    <Navigate
+      to={`${getOrgAdminPath(activeOrganizationId, "committees")}/${encodeURIComponent(String(committeeId || "").trim())}`}
+      replace
+    />
+  );
+};
+
+const LegacyOrganizationCaseReviewRedirect: React.FC = () => {
+  const { caseId } = useParams<{ caseId: string }>();
+  const userType = useSelector((state: RootState) => state.auth.userType);
+  const activeOrganizationId = useSelector((state: RootState) =>
+    String(state.auth.activeOrganization?.id || "").trim(),
+  );
+
+  if (userType === "admin") {
+    return <Navigate to={getPlatformAdminPath("dashboard")} replace />;
+  }
+
+  if (!activeOrganizationId) {
+    return <Navigate to={getOrganizationSetupPath("/dashboard")} replace />;
+  }
+
+  return (
+    <Navigate
+      to={`${getOrgAdminPath(activeOrganizationId, "cases")}/${encodeURIComponent(String(caseId || "").trim())}`}
+      replace
+    />
+  );
+};
+
+const OrganizationScopedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const dispatch = useDispatch<AppDispatch>();
+  const location = useLocation();
+  const { orgId } = useParams<{ orgId: string }>();
+  const userType = useSelector((state: RootState) => state.auth.userType);
+  const activeOrganizationId = useSelector((state: RootState) =>
+    String(state.auth.activeOrganization?.id || "").trim(),
+  );
+  const switchingActiveOrganization = useSelector(
+    (state: RootState) => state.auth.switchingActiveOrganization,
+  );
+  const loading = useSelector((state: RootState) => state.auth.loading);
+  const attemptedOrganizationIdRef = useRef<string | null>(null);
+  const [, forceAttemptSyncRender] = useReducer((count: number) => count + 1, 0);
+  const normalizedOrganizationId = String(orgId || "").trim();
+
+  useEffect(() => {
+    if (
+      !normalizedOrganizationId ||
+      normalizedOrganizationId === activeOrganizationId ||
+      switchingActiveOrganization ||
+      attemptedOrganizationIdRef.current === normalizedOrganizationId
+    ) {
+      return;
+    }
+
+    attemptedOrganizationIdRef.current = normalizedOrganizationId;
+    let isSubscribed = true;
+    // Keep the guard fail-closed even if the org-switch thunk exits without a visible store update.
+    queueMicrotask(() => {
+      if (isSubscribed) {
+        forceAttemptSyncRender();
+      }
+    });
+    void dispatch(switchActiveOrganization(normalizedOrganizationId));
+    return () => {
+      isSubscribed = false;
+    };
+  }, [activeOrganizationId, dispatch, forceAttemptSyncRender, normalizedOrganizationId, switchingActiveOrganization]);
+
+  const routePath = `${location.pathname}${location.search || ""}`;
+  const setupRedirectPath = getOrganizationSetupPath(routePath);
+  const syncAttempted = attemptedOrganizationIdRef.current === normalizedOrganizationId;
+  const isOrganizationSynced =
+    normalizedOrganizationId.length > 0 && activeOrganizationId === normalizedOrganizationId;
+
+  if (userType === "admin") {
+    return <Navigate to={getPlatformAdminPath("dashboard")} replace />;
+  }
+
+  return (
+    <ProtectedRoute
+      disallowUserTypes={["applicant"]}
+      requireOrganizationGovernance
+      activeOrganizationRedirectPath={setupRedirectPath}
+    >
+      {!normalizedOrganizationId ? (
+        <Navigate to="/dashboard" replace />
+      ) : loading || switchingActiveOrganization ? (
+        <RouteLoader />
+      ) : isOrganizationSynced ? (
+        <>{children}</>
+      ) : syncAttempted ? (
+        <Navigate to={setupRedirectPath} replace />
+      ) : (
+        <RouteLoader />
+      )}
+    </ProtectedRoute>
+  );
+};
+
 const HeyGenInterrogationPage: React.FC = () => {
   const { applicationId } = useParams<{ applicationId: string }>();
 
   if (!applicationId) {
-    return <Navigate to="/workspace" />;
+    return <Navigate to={getWorkspacePath("home")} />;
   }
 
   return <HeyGenInterrogation applicationId={applicationId} />;
@@ -136,10 +293,15 @@ const CandidateInterrogationPage: React.FC = () => {
   const { applicationId } = useParams<{ applicationId: string }>();
 
   if (!applicationId) {
-    return <Navigate to="/candidate/access" />;
+    return <Navigate to={getCandidatePath("home")} />;
   }
 
-  return <HeyGenInterrogation applicationId={applicationId} completionRedirectPath="/candidate/access" />;
+  return (
+    <HeyGenInterrogation
+      applicationId={applicationId}
+      completionRedirectPath={getCandidatePath("home")}
+    />
+  );
 };
 
 const AppShell: React.FC = () => {
@@ -157,15 +319,34 @@ const AppShell: React.FC = () => {
         </Suspense>
       ) : null}
 
-      <main className={showAppNavigation ? "lg:pl-64 xl:pl-72" : ""}>
+      <main
+        className={
+          showAppNavigation
+            ? "relative min-h-screen overflow-x-clip bg-background lg:pl-64 xl:pl-72"
+            : ""
+        }
+      >
+        {showAppNavigation ? (
+          <>
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,116,144,0.12),transparent_32%),radial-gradient(circle_at_top_right,rgba(34,211,238,0.10),transparent_26%),linear-gradient(180deg,rgba(148,163,184,0.08),transparent_24%)]"
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-y-0 left-0 w-px bg-border/70 lg:left-64 xl:left-72"
+            />
+          </>
+        ) : null}
         <Suspense
           fallback={
-            <div className="flex min-h-[40vh] items-center justify-center">
+            <div className="relative flex min-h-[40vh] items-center justify-center">
               <Loader className="h-8 w-8 animate-spin" />
             </div>
           }
         >
-          <Routes>
+          <div className={showAppNavigation ? "relative" : ""}>
+            <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/gazette" element={<PublicGazettePage />} />
           <Route path="/transparency" element={<PublicTransparencyPage />} />
@@ -180,69 +361,101 @@ const AppShell: React.FC = () => {
             }
           />
           <Route
+            path="/admin/org/:orgId/dashboard"
+            element={
+              <OrganizationScopedRoute>
+                <OrgDashboardPage />
+              </OrganizationScopedRoute>
+            }
+          />
+          <Route
+            path="/admin/org/:orgId/users"
+            element={
+              <OrganizationScopedRoute>
+                <OrgUsersPage />
+              </OrganizationScopedRoute>
+            }
+          />
+          <Route
+            path="/admin/org/:orgId/cases"
+            element={
+              <OrganizationScopedRoute>
+                <OrgCasesPage />
+              </OrganizationScopedRoute>
+            }
+          />
+          <Route
+            path="/admin/org/:orgId/members"
+            element={
+              <OrganizationScopedRoute>
+                <OrganizationMembersPage />
+              </OrganizationScopedRoute>
+            }
+          />
+          <Route
+            path="/admin/org/:orgId/committees"
+            element={
+              <OrganizationScopedRoute>
+                <OrganizationCommitteesPage />
+              </OrganizationScopedRoute>
+            }
+          />
+          <Route
+            path="/admin/org/:orgId/committees/:committeeId"
+            element={
+              <OrganizationScopedRoute>
+                <CommitteeDetailPage />
+              </OrganizationScopedRoute>
+            }
+          />
+          <Route
+            path="/admin/org/:orgId/onboarding"
+            element={
+              <OrganizationScopedRoute>
+                <OrganizationOnboardingPage />
+              </OrganizationScopedRoute>
+            }
+          />
+          <Route
             path="/organization/dashboard"
             element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requireOrganizationGovernance
-                requireActiveOrganization
-              >
-                <OrganizationDashboardPage />
-              </ProtectedRoute>
+              <LegacyOrganizationRedirect segment="dashboard" />
             }
           />
           <Route
             path="/organization/committee-dashboard"
             element={
               <ProtectedRoute
-                disallowUserTypes={["applicant"]}
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
                 requiredRoles={["committee_member", "committee_chair"]}
                 requireActiveOrganization
               >
-                <Navigate to="/workspace?view=committee" replace />
+                <Navigate to={`${getWorkspacePath("home")}?view=committee`} replace />
               </ProtectedRoute>
             }
           />
           <Route
             path="/organization/members"
             element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requireOrganizationGovernance
-                requireActiveOrganization
-              >
-                <OrganizationMembersPage />
-              </ProtectedRoute>
+              <LegacyOrganizationRedirect segment="members" />
             }
           />
           <Route
             path="/organization/committees"
             element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requireOrganizationGovernance
-                requireActiveOrganization
-              >
-                <OrganizationCommitteesPage />
-              </ProtectedRoute>
+              <LegacyOrganizationRedirect segment="committees" />
             }
           />
           <Route
             path="/organization/committees/:committeeId"
             element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requireOrganizationGovernance
-                requireActiveOrganization
-              >
-                <CommitteeDetailPage />
-              </ProtectedRoute>
+              <LegacyOrganizationCommitteeRedirect />
             }
           />
           <Route
             path="/organization/setup"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}>
                 <OrganizationSetupPage />
               </ProtectedRoute>
             }
@@ -250,13 +463,7 @@ const AppShell: React.FC = () => {
           <Route
             path="/organization/onboarding"
             element={
-              <ProtectedRoute
-                disallowUserTypes={["applicant"]}
-                requireOrganizationGovernance
-                requireActiveOrganization
-              >
-                <OrganizationOnboardingPage />
-              </ProtectedRoute>
+              <LegacyOrganizationRedirect segment="onboarding" />
             }
           />
           <Route
@@ -312,23 +519,195 @@ const AppShell: React.FC = () => {
           <Route path="/billing/success" element={<BillingCheckoutResultPage />} />
           <Route path="/billing/cancel" element={<BillingCheckoutResultPage />} />
 
-          <Route path="/candidate/access" element={<CandidateAccessPage />} />
+          <Route path={getCandidatePath("home")} element={<CandidateHomePage />} />
+          <Route path="/candidate/access" element={<LegacyCandidateRedirect segment="home" />} />
           <Route path="/candidate/interview/:applicationId" element={<CandidateInterrogationPage />} />
           <Route path="/invite/:token" element={<InvitationAcceptPage />} />
 
           <Route
             path="/interview/interrogation/:applicationId"
             element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
+              <ProtectedRoute disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}>
                 <HeyGenInterrogationPage />
               </ProtectedRoute>
             }
           />
           <Route
-            path="/workspace"
+            path={getWorkspacePath("home")}
+            element={
+              <ProtectedRoute disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}>
+                <WorkspaceHomePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/workspace" element={<LegacyWorkspaceRedirect segment="home" />} />
+          <Route
+            path={getWorkspacePath("applications")}
+            element={
+              <ProtectedRoute
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+              >
+                <ApplicationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={`${getWorkspacePath("applications")}/:caseId`}
+            element={
+              <ProtectedRoute
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+              >
+                <ApplicationDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={getWorkspacePath("notifications")}
             element={
               <ProtectedRoute disallowUserTypes={["applicant"]}>
-                <OperationsDashboardPage />
+                <NotificationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={`${getWorkspacePath("notifications")}/:notificationId`}
+            element={
+              <ProtectedRoute disallowUserTypes={["applicant"]}>
+                <NotificationDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={getWorkspacePath("campaigns")}
+            element={
+              <ProtectedRoute
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+                requiredCapabilities={[...CAMPAIGN_MANAGE_CAPABILITIES]}
+              >
+                <CampaignsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={`${getWorkspacePath("campaigns")}/:campaignId`}
+            element={
+              <ProtectedRoute
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+                requiredCapabilities={[...CAMPAIGN_MANAGE_CAPABILITIES]}
+              >
+                <CampaignWorkspacePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={getWorkspacePath("video-calls")}
+            element={
+              <ProtectedRoute
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+              >
+                <VideoCallsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={getWorkspacePath("audit-logs")}
+            element={
+              <ProtectedRoute
+                requiredCapabilities={["gams.audit.view"]}
+                legacyUserTypeFallback={["admin"]}
+              >
+                <AuditLogsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={getWorkspacePath("fraud-insights")}
+            element={
+              <ProtectedRoute
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+              >
+                <FraudInsightsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={getWorkspacePath("background-checks")}
+            element={
+              <ProtectedRoute
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+              >
+                <BackgroundChecksPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={getWorkspacePath("rubrics")}
+            element={
+              <ProtectedRoute
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+                requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
+              >
+                <RubricsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={getWorkspacePath("rubrics/new")}
+            element={
+              <ProtectedRoute
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+                requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
+              >
+                <RubricBuilderPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={`${getWorkspacePath("rubrics")}/:rubricId/edit`}
+            element={
+              <ProtectedRoute
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+                requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
+              >
+                <RubricBuilderPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={getWorkspacePath("government/positions")}
+            element={
+              <ProtectedRoute
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+                requiredCapabilities={[...REGISTRY_ROUTE_CAPABILITIES]}
+              >
+                <GovernmentPositionsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={getWorkspacePath("government/personnel")}
+            element={
+              <ProtectedRoute
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+                requiredCapabilities={[...REGISTRY_ROUTE_CAPABILITIES]}
+              >
+                <GovernmentPersonnelPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={getWorkspacePath("government/appointments")}
+            element={
+              <ProtectedRoute
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+                requiredCapabilities={[...APPOINTMENT_ROUTE_CAPABILITIES]}
+              >
+                <AppointmentsRegistryPage />
               </ProtectedRoute>
             }
           />
@@ -368,9 +747,8 @@ const AppShell: React.FC = () => {
             path="/fraud-insights"
             element={
               <ProtectedRoute
-                disallowUserTypes={["applicant"]}
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
                 requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
               >
                 <FraudInsightsPage />
               </ProtectedRoute>
@@ -380,9 +758,8 @@ const AppShell: React.FC = () => {
             path="/background-checks"
             element={
               <ProtectedRoute
-                disallowUserTypes={["applicant"]}
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
                 requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
               >
                 <BackgroundChecksPage />
               </ProtectedRoute>
@@ -400,28 +777,41 @@ const AppShell: React.FC = () => {
             }
           />
           <Route
-            path="/ml-monitoring"
+            path={getPlatformAdminPath("ml-monitoring")}
+            element={<Navigate to={getPlatformAdminPath("dashboard")} replace />}
+          />
+          <Route
+            path={getPlatformAdminPath("ai-monitor")}
+            element={<Navigate to={getPlatformAdminPath("dashboard")} replace />}
+          />
+          <Route
+            path={getPlatformAdminPath("dashboard")}
             element={
               <ProtectedRoute adminOnly>
-                <MlMonitoringPage />
+                <PlatformDashboardPage />
               </ProtectedRoute>
             }
           />
           <Route
-            path="/ai-monitor"
-            element={
-              <ProtectedRoute adminOnly>
-                <AiMonitorPage />
-              </ProtectedRoute>
-            }
+            path={getPlatformAdminPath("analytics")}
+            element={<Navigate to={getPlatformAdminPath("dashboard")} replace />}
           />
+          <Route
+            path={getPlatformAdminPath("register")}
+            element={<Navigate to={getPlatformAdminPath("dashboard")} replace />}
+          />
+          <Route
+            path={getPlatformAdminPath("control-center")}
+            element={<Navigate to={getPlatformAdminPath("dashboard")} replace />}
+          />
+          <Route path="/ml-monitoring" element={<LegacyPlatformRedirect segment="ml-monitoring" />} />
+          <Route path="/ai-monitor" element={<LegacyPlatformRedirect segment="ai-monitor" />} />
           <Route
             path="/applications"
             element={
               <ProtectedRoute
-                disallowUserTypes={["applicant"]}
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
                 requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
               >
                 <ApplicationsPage />
               </ProtectedRoute>
@@ -431,9 +821,8 @@ const AppShell: React.FC = () => {
             path="/applications/:caseId"
             element={
               <ProtectedRoute
-                disallowUserTypes={["applicant"]}
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
                 requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
               >
                 <ApplicationDetailPage />
               </ProtectedRoute>
@@ -459,9 +848,8 @@ const AppShell: React.FC = () => {
             path="/campaigns"
             element={
               <ProtectedRoute
-                disallowUserTypes={["applicant"]}
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
                 requiredCapabilities={[...CAMPAIGN_MANAGE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
               >
                 <CampaignsPage />
               </ProtectedRoute>
@@ -471,9 +859,8 @@ const AppShell: React.FC = () => {
             path="/campaigns/:campaignId"
             element={
               <ProtectedRoute
-                disallowUserTypes={["applicant"]}
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
                 requiredCapabilities={[...CAMPAIGN_MANAGE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
               >
                 <CampaignWorkspacePage />
               </ProtectedRoute>
@@ -483,9 +870,8 @@ const AppShell: React.FC = () => {
             path="/video-calls"
             element={
               <ProtectedRoute
-                disallowUserTypes={["applicant"]}
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
                 requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
               >
                 <VideoCallsPage />
               </ProtectedRoute>
@@ -495,9 +881,8 @@ const AppShell: React.FC = () => {
             path="/government/positions"
             element={
               <ProtectedRoute
-                disallowUserTypes={["applicant"]}
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
                 requiredCapabilities={[...REGISTRY_ROUTE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
               >
                 <GovernmentPositionsPage />
               </ProtectedRoute>
@@ -507,9 +892,8 @@ const AppShell: React.FC = () => {
             path="/government/personnel"
             element={
               <ProtectedRoute
-                disallowUserTypes={["applicant"]}
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
                 requiredCapabilities={[...REGISTRY_ROUTE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
               >
                 <GovernmentPersonnelPage />
               </ProtectedRoute>
@@ -519,9 +903,8 @@ const AppShell: React.FC = () => {
             path="/government/appointments"
             element={
               <ProtectedRoute
-                disallowUserTypes={["applicant"]}
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
                 requiredCapabilities={[...APPOINTMENT_ROUTE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
               >
                 <AppointmentsRegistryPage />
               </ProtectedRoute>
@@ -531,9 +914,8 @@ const AppShell: React.FC = () => {
             path="/rubrics"
             element={
               <ProtectedRoute
-                disallowUserTypes={["applicant"]}
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
                 requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
               >
                 <RubricsPage />
               </ProtectedRoute>
@@ -544,9 +926,8 @@ const AppShell: React.FC = () => {
             path="/rubrics/new"
             element={
               <ProtectedRoute
-                disallowUserTypes={["applicant"]}
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
                 requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
               >
                 <RubricBuilderPage />
               </ProtectedRoute>
@@ -556,9 +937,8 @@ const AppShell: React.FC = () => {
             path="/rubrics/:rubricId/edit"
             element={
               <ProtectedRoute
-                disallowUserTypes={["applicant"]}
+                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
                 requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
-                legacyUserTypeFallback={LEGACY_INTERNAL_FALLBACK}
               >
                 <RubricBuilderPage />
               </ProtectedRoute>
@@ -567,79 +947,70 @@ const AppShell: React.FC = () => {
           <Route
             path="/admin/dashboard"
             element={
-              <ProtectedRoute adminOnly>
-                <AdminDashboardPage />
-              </ProtectedRoute>
+              <LegacyPlatformRedirect segment="dashboard" />
             }
           />
           <Route
             path="/admin/analytics"
             element={
-              <ProtectedRoute adminOnly>
-                <AdminAnalyticsPage />
-              </ProtectedRoute>
+              <LegacyPlatformRedirect segment="analytics" />
             }
           />
           <Route
             path="/admin/register"
             element={
-              <ProtectedRoute adminOnly>
-                <AdminRegisterPage />
-              </ProtectedRoute>
+              <LegacyPlatformRedirect segment="register" />
             }
           />
           <Route
             path="/admin/control-center"
             element={
-              <ProtectedRoute adminOnly>
-                <AdminControlCenterPage />
-              </ProtectedRoute>
+              <LegacyPlatformRedirect segment="control-center" />
             }
           />
           <Route
             path="/admin/users"
             element={
-              <ProtectedRoute adminOnly>
-                <AdminUsersPage />
-              </ProtectedRoute>
+              <LegacyOrganizationRedirect segment="users" />
             }
           />
           <Route
             path="/admin/rubrics"
             element={
-              <ProtectedRoute adminOnly>
-                <RubricsPage />
-              </ProtectedRoute>
+              <Navigate to={getWorkspacePath("rubrics")} replace />
             }
           />
           <Route
             path="/admin/applications"
             element={
-              <ProtectedRoute adminOnly>
-                <AdminCasesPage />
-              </ProtectedRoute>
+              <LegacyOrganizationRedirect segment="cases" />
             }
           />
           <Route
             path="/admin/cases"
             element={
-              <ProtectedRoute adminOnly>
-                <AdminCasesPage />
-              </ProtectedRoute>
+              <LegacyOrganizationRedirect segment="cases" />
+            }
+          />
+          <Route
+            path="/admin/org/:orgId/cases/:caseId"
+            element={
+              <OrganizationScopedRoute>
+                <AdminCaseReview />
+              </OrganizationScopedRoute>
             }
           />
           <Route
             path="/admin/cases/:caseId"
             element={
-              <ProtectedRoute adminOnly>
-                <AdminCaseReview />
-              </ProtectedRoute>
+              <LegacyOrganizationCaseReviewRedirect />
             }
           />
 
           <Route path="/error" element={<ErrorPage />} />
           <Route path="*" element={<NotFoundPage />} />
-          </Routes>
+            </Routes>
+          </div>
         </Suspense>
       </main>
     </div>

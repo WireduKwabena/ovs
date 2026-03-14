@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import BasePermission
 
 from .authz import (
@@ -55,6 +56,25 @@ def is_platform_admin_user(user) -> bool:
     if not getattr(user, "is_authenticated", False):
         return False
     return bool(getattr(user, "is_superuser", False) or getattr(user, "user_type", None) == "admin")
+
+
+class BlockPlatformAdminOrgWorkflowMixin:
+    """
+    Deny platform-admin access to organization-owned workflow endpoints.
+
+    Platform administrators are limited to organization subscription oversight
+    and organization active/inactive status management. Operational GAMS/OVS
+    workflows remain organization-admin responsibilities.
+    """
+
+    platform_admin_forbidden_message = (
+        "Platform admins can only manage organization subscriptions and organization active status."
+    )
+
+    def initial(self, request, *args, **kwargs):
+        if is_platform_admin_user(getattr(request, "user", None)):
+            raise PermissionDenied(self.platform_admin_forbidden_message)
+        return super().initial(request, *args, **kwargs)
 
 
 class IsInternalOperatorOrAdmin(BasePermission):

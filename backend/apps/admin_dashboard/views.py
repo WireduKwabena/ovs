@@ -12,9 +12,14 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from apps.applications.models import Document, VettingCase
-from apps.auth_actions import IsAdminUser
 from apps.authentication.models import User
 from apps.core.authz import GOVERNMENT_ROLE_GROUPS
+from apps.core.permissions import (
+    IsRegistryGovernanceAdmin,
+    get_request_tenant_context,
+    is_platform_admin_user,
+    scope_internal_queryset_to_tenant,
+)
 from apps.fraud.models import FraudDetectionResult
 from apps.rubrics.models import RubricEvaluation
 
@@ -113,16 +118,77 @@ def _parse_admin_user_ordering(value: str | None, *, default: str = "-created_at
     return f"-{mapped}" if descending else mapped
 
 
+def _scoped_admin_cases_queryset(request):
+    queryset = VettingCase.objects.select_related("applicant", "assigned_to").all()
+    if is_platform_admin_user(getattr(request, "user", None)):
+        return queryset
+    return scope_internal_queryset_to_tenant(
+        queryset,
+        request=request,
+        organization_field="organization_id",
+        include_null_legacy=False,
+    )
+
+
+def _scoped_admin_users_queryset(request):
+    queryset = User.objects.all()
+    user = getattr(request, "user", None)
+    if is_platform_admin_user(user):
+        return queryset
+
+    tenant_context = get_request_tenant_context(request)
+    allowed_org_ids = {
+        str(value).strip()
+        for value in (tenant_context.get("allowed_organization_ids") or set())
+        if str(value).strip()
+    }
+    active_org_id = str(tenant_context.get("active_organization_id") or "").strip()
+
+    if active_org_id and active_org_id in allowed_org_ids:
+        return queryset.filter(
+            organization_memberships__organization_id=active_org_id,
+            organization_memberships__is_active=True,
+        ).distinct()
+
+    if allowed_org_ids:
+        return queryset.filter(
+            organization_memberships__organization_id__in=list(allowed_org_ids),
+            organization_memberships__is_active=True,
+        ).distinct()
+
+    return queryset.none()
+
+
+def _platform_admin_org_management_forbidden(request):
+    if not is_platform_admin_user(getattr(request, "user", None)):
+        return None
+    return Response(
+        {
+            "detail": (
+                "Platform administrators do not manage organization dashboards, analytics, cases, "
+                "or users from this API. Those workflows belong to organization administrators."
+            )
+        },
+        status=status.HTTP_403_FORBIDDEN,
+    )
+
+
 @extend_schema(responses={200: AdminDashboardResponseSerializer})
 @api_view(['GET'])
-@permission_classes([IsAdminUser])
+@permission_classes([IsRegistryGovernanceAdmin])
 def admin_dashboard(request):
     """
     Main admin dashboard with statistics
     GET /api/admin/dashboard/
     """
+    platform_forbidden_response = _platform_admin_org_management_forbidden(request)
+    if platform_forbidden_response is not None:
+        return platform_forbidden_response
+
+    cases = _scoped_admin_cases_queryset(request)
+
     # Application statistics
-    status_counts = VettingCase.objects.aggregate(
+    status_counts = cases.aggregate(
         total=Count('id'),
         pending=Count('id', filter=Q(status='pending')),
         under_review=Count('id', filter=Q(status='under_review')),
@@ -131,7 +197,7 @@ def admin_dashboard(request):
     )
 
     # Recent applications
-    recent_applications = VettingCase.objects.select_related(
+    recent_applications = cases.select_related(
         "applicant", "rubric_evaluation"
     ).order_by("-created_at")[:10]
     
@@ -149,22 +215,22 @@ def admin_dashboard(request):
         })
     
     # Documents statistics
-    total_documents = Document.objects.count()
-    verified_documents = Document.objects.filter(status='verified').count()
+    total_documents = Document.objects.filter(case__in=cases).count()
+    verified_documents = Document.objects.filter(case__in=cases, status='verified').count()
     
     # Fraud statistics
-    fraud_results = FraudDetectionResult.objects.all()
+    fraud_results = FraudDetectionResult.objects.filter(application__in=cases)
     total_fraud_scans = fraud_results.count()
     high_risk = fraud_results.filter(risk_level='HIGH').count()
     
     # Monthly trends
     thirty_days_ago = timezone.now() - timedelta(days=30)
-    monthly_applications = VettingCase.objects.filter(
+    monthly_applications = cases.filter(
         created_at__gte=thirty_days_ago
     ).count()
     
     # Average processing time (simplified)
-    avg_consistency_score = VettingCase.objects.filter(
+    avg_consistency_score = cases.filter(
         consistency_score__isnull=False
     ).aggregate(Avg('consistency_score'))['consistency_score__avg'] or 0
     
@@ -194,29 +260,35 @@ def admin_dashboard(request):
 
 @extend_schema(responses={200: AdminAnalyticsResponseSerializer})
 @api_view(['GET'])
-@permission_classes([IsAdminUser])
+@permission_classes([IsRegistryGovernanceAdmin])
 def admin_analytics(request):
     """
     Detailed analytics for admin
     GET /api/admin/analytics/
     """
+    platform_forbidden_response = _platform_admin_org_management_forbidden(request)
+    if platform_forbidden_response is not None:
+        return platform_forbidden_response
+
+    cases = _scoped_admin_cases_queryset(request)
+
     # Application status distribution
-    status_distribution = VettingCase.objects.values('status').annotate(
+    status_distribution = cases.values('status').annotate(
         count=Count('id')
     )
     
     # Application type distribution
-    type_distribution = VettingCase.objects.values('position_applied').annotate(
+    type_distribution = cases.values('position_applied').annotate(
         count=Count('id')
     )
     
     # Priority distribution
-    priority_distribution = VettingCase.objects.values('priority').annotate(
+    priority_distribution = cases.values('priority').annotate(
         count=Count('id')
     )
     
     # Rubric evaluation statistics
-    rubric_stats = RubricEvaluation.objects.aggregate(
+    rubric_stats = RubricEvaluation.objects.filter(case__in=cases).aggregate(
         avg_score=Avg("total_weighted_score"),
         pass_count=Count("id", filter=Q(passes_threshold=True)),
         fail_count=Count("id", filter=Q(passes_threshold=False)),
@@ -229,7 +301,7 @@ def admin_analytics(request):
         month_start = timezone.now() - timedelta(days=30 * (i + 1))
         month_end = timezone.now() - timedelta(days=30 * i)
         
-        count = VettingCase.objects.filter(
+        count = cases.filter(
             created_at__gte=month_start,
             created_at__lt=month_end
         ).count()
@@ -247,21 +319,25 @@ def admin_analytics(request):
         'priority_distribution': list(priority_distribution),
         'rubric_statistics': rubric_stats,
         'monthly_trend': monthly_trend,
-        'total_applications': VettingCase.objects.count(),
-        'total_users': VettingCase.objects.values('applicant').distinct().count()
+        'total_applications': cases.count(),
+        'total_users': cases.values('applicant').distinct().count()
     })
 
 
 @extend_schema(responses={200: AdminCasesResponseSerializer})
 @api_view(['GET'])
-@permission_classes([IsAdminUser])
+@permission_classes([IsRegistryGovernanceAdmin])
 def admin_cases(request):
     """
     Get all cases for admin review
     GET /api/admin/cases/
     Supports filtering: ?status=pending&application_type=employment
     """
-    cases = VettingCase.objects.select_related("applicant", "assigned_to").all()
+    platform_forbidden_response = _platform_admin_org_management_forbidden(request)
+    if platform_forbidden_response is not None:
+        return platform_forbidden_response
+
+    cases = _scoped_admin_cases_queryset(request)
     
     # Apply filters
     status_filter = request.query_params.get('status')
@@ -298,14 +374,18 @@ def admin_cases(request):
 
 @extend_schema(responses={200: AdminUsersResponseSerializer})
 @api_view(['GET'])
-@permission_classes([IsAdminUser])
+@permission_classes([IsRegistryGovernanceAdmin])
 def admin_users(request):
     """
     List users for admin management.
     GET /api/admin/users/
     Supports filtering: ?q=email_or_name&user_type=admin|internal|applicant&is_active=true|false
     """
-    users = User.objects.all()
+    platform_forbidden_response = _platform_admin_org_management_forbidden(request)
+    if platform_forbidden_response is not None:
+        return platform_forbidden_response
+
+    users = _scoped_admin_users_queryset(request)
 
     query = (request.query_params.get('q') or "").strip()
     if query:
@@ -358,19 +438,43 @@ def admin_users(request):
     },
 )
 @api_view(['PATCH'])
-@permission_classes([IsAdminUser])
+@permission_classes([IsRegistryGovernanceAdmin])
 def admin_user_update(request, user_id):
     """
     Partially update an admin-managed user.
     PATCH /api/admin/users/<uuid:user_id>/
     """
-    managed_user = get_object_or_404(User, pk=user_id)
+    platform_forbidden_response = _platform_admin_org_management_forbidden(request)
+    if platform_forbidden_response is not None:
+        return platform_forbidden_response
+
+    managed_user = get_object_or_404(_scoped_admin_users_queryset(request), pk=user_id)
     serializer = AdminUserUpdateRequestSerializer(data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
 
     updates = serializer.validated_data.copy()
     reset_two_factor = bool(updates.pop("reset_two_factor", False))
     group_roles = updates.pop("group_roles", None)
+    is_platform_actor = is_platform_admin_user(getattr(request, "user", None))
+
+    if not is_platform_actor:
+        attempted_identity_fields = [
+            field_name
+            for field_name in ("user_type", "is_staff")
+            if field_name in updates
+        ]
+        if group_roles is not None:
+            attempted_identity_fields.append("group_roles")
+        if attempted_identity_fields:
+            return Response(
+                {
+                    "detail": (
+                        "Organization administrators can only activate/deactivate users "
+                        "and reset two-factor authentication from this view."
+                    )
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
     if "is_active" in updates:
         next_active = bool(updates["is_active"])

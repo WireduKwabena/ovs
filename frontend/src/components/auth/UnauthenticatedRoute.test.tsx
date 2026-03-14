@@ -48,8 +48,9 @@ const renderWithState = (
     <Provider store={store}>
       <MemoryRouter initialEntries={[route]}>
         <Routes>
-          <Route path="/workspace" element={<div>Workspace page</div>} />
-          <Route path="/admin/dashboard" element={<div>Admin dashboard page</div>} />
+          <Route path="/dashboard" element={<div>Dashboard page</div>} />
+          <Route path="/admin/platform/dashboard" element={<div>Platform dashboard page</div>} />
+          <Route path="/candidate/home" element={<div>Candidate home page</div>} />
 
           <Route
             path="/login"
@@ -137,10 +138,10 @@ describe("UnauthenticatedRoute integration", () => {
       }),
       "/forgot-password",
     );
-    expect(screen.getByText("Workspace page")).toBeTruthy();
+    expect(screen.getByText("Dashboard page")).toBeTruthy();
   });
 
-  it("redirects authenticated admins to admin dashboard", () => {
+  it("redirects authenticated admins to the shared dashboard resolver", () => {
     renderWithState(
       createPublicState({
         isAuthenticated: true,
@@ -148,7 +149,18 @@ describe("UnauthenticatedRoute integration", () => {
       }),
       "/reset-password/token",
     );
-    expect(screen.getByText("Admin dashboard page")).toBeTruthy();
+    expect(screen.getByText("Platform dashboard page")).toBeTruthy();
+  });
+
+  it("redirects authenticated applicants to candidate home", () => {
+    renderWithState(
+      createPublicState({
+        isAuthenticated: true,
+        userType: "applicant",
+      }),
+      "/login",
+    );
+    expect(screen.getByText("Candidate home page")).toBeTruthy();
   });
 
   it("shows loader while auth state is still rehydrating", () => {

@@ -41,7 +41,7 @@ export const canManageOrganizationGovernance = (params: {
   const activeMemberships = resolvedMemberships.filter((membership) => Boolean(membership?.is_active));
 
   if (params.isAdmin) {
-    return true;
+    return false;
   }
 
   if (activeOrganizationId) {

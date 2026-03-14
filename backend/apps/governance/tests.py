@@ -510,12 +510,8 @@ class GovernanceApiTests(APITestCase):
         self.assertEqual(response.json()["organization"]["id"], str(self.org_a.id))
 
         self.client.force_authenticate(self.platform_admin)
-        missing_scope = self.client.get("/api/governance/organization/summary/")
-        self.assertEqual(missing_scope.status_code, 400)
-
-        scoped = self.client.get(f"/api/governance/organization/summary/?organization_id={self.org_b.id}")
-        self.assertEqual(scoped.status_code, 200)
-        self.assertEqual(scoped.json()["organization"]["id"], str(self.org_b.id))
+        denied = self.client.get("/api/governance/organization/summary/")
+        self.assertEqual(denied.status_code, 403)
 
     def test_committee_member_cannot_access_governance_management_endpoints(self):
         committee_group, _ = Group.objects.get_or_create(name="committee_member")
@@ -949,31 +945,23 @@ class GovernanceApiTests(APITestCase):
         )
         self.assertEqual(response.status_code, 403)
 
-    def test_platform_admin_override_and_lookups(self):
+    def test_platform_admin_is_blocked_from_org_governance_workflows(self):
         self.client.force_authenticate(self.platform_admin)
 
         global_members = self.client.get("/api/governance/organization/members/")
-        self.assertEqual(global_members.status_code, 200)
-        member_ids = {item["id"] for item in self._results(global_members)}
-        self.assertIn(str(self.membership_a_admin.id), member_ids)
-        self.assertIn(str(self.membership_b_operator.id), member_ids)
+        self.assertEqual(global_members.status_code, 403)
 
         patch_response = self.client.patch(
             f"/api/governance/organization/members/{self.membership_b_operator.id}/",
             {"title": "Platform Updated"},
             format="json",
         )
-        self.assertEqual(patch_response.status_code, 200)
-        self.membership_b_operator.refresh_from_db()
-        self.assertEqual(self.membership_b_operator.title, "Platform Updated")
+        self.assertEqual(patch_response.status_code, 403)
 
         member_options = self.client.get(
             f"/api/governance/organization/lookups/member-options/?organization_id={self.org_a.id}"
         )
-        self.assertEqual(member_options.status_code, 200)
-        option_membership_ids = {row["organization_membership_id"] for row in member_options.json()}
-        self.assertIn(str(self.membership_a_admin.id), option_membership_ids)
-        self.assertNotIn(str(self.membership_b_operator.id), option_membership_ids)
+        self.assertEqual(member_options.status_code, 403)
 
         choices = self.client.get("/api/governance/organization/lookups/choices/")
         self.assertEqual(choices.status_code, 200)
@@ -981,4 +969,104 @@ class GovernanceApiTests(APITestCase):
         self.assertIn("committee_roles", payload)
         self.assertIn("committee_types", payload)
         self.assertIn("organization_types", payload)
+
+    def test_platform_admin_can_list_organization_subscription_oversight(self):
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            organization=self.org_a,
+            status="complete",
+            payment_status="paid",
+            plan_id="growth",
+            plan_name="Growth",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="399.00",
+            reference="PLATFORM-GOV-ORG-ACTIVE",
+        )
+        BillingSubscription.objects.create(
+            provider="paystack",
+            organization=self.org_b,
+            status="failed",
+            payment_status="unpaid",
+            plan_id="starter",
+            plan_name="Starter",
+            billing_cycle="monthly",
+            payment_method="mobile_money",
+            amount_usd="149.00",
+            reference="PLATFORM-GOV-ORG-FAILED",
+        )
+
+        self.client.force_authenticate(self.platform_admin)
+        response = self.client.get("/api/governance/platform/organizations/")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertGreaterEqual(payload["count"], 2)
+        org_rows = {row["code"]: row for row in payload["results"]}
+        self.assertEqual(org_rows["gov-api-org-a"]["subscription"]["source"], "active")
+        self.assertEqual(org_rows["gov-api-org-a"]["subscription"]["plan_name"], "Growth")
+        self.assertEqual(org_rows["gov-api-org-b"]["subscription"]["status"], "failed")
+        self.assertEqual(org_rows["gov-api-org-b"]["subscription"]["payment_status"], "unpaid")
+
+    def test_platform_oversight_prefers_active_subscription_over_newer_failed_attempt(self):
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            organization=self.org_a,
+            status="complete",
+            payment_status="paid",
+            plan_id="growth",
+            plan_name="Growth",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="399.00",
+            reference="PLATFORM-GOV-ORG-ACTIVE-CURRENT",
+        )
+        BillingSubscription.objects.create(
+            provider="paystack",
+            organization=self.org_a,
+            status="failed",
+            payment_status="unpaid",
+            plan_id="starter",
+            plan_name="Starter",
+            billing_cycle="monthly",
+            payment_method="mobile_money",
+            amount_usd="149.00",
+            reference="PLATFORM-GOV-ORG-ACTIVE-FAILED-LATEST",
+        )
+
+        self.client.force_authenticate(self.platform_admin)
+        response = self.client.get("/api/governance/platform/organizations/")
+
+        self.assertEqual(response.status_code, 200)
+        org_row = next(
+            row for row in response.json()["results"] if row["id"] == str(self.org_a.id)
+        )
+        self.assertEqual(org_row["subscription"]["source"], "active")
+        self.assertEqual(org_row["subscription"]["plan_name"], "Growth")
+        self.assertEqual(org_row["subscription"]["status"], "complete")
+
+    def test_platform_admin_can_toggle_organization_active_status(self):
+        self.client.force_authenticate(self.platform_admin)
+        response = self.client.patch(
+            f"/api/governance/platform/organizations/{self.org_b.id}/",
+            {"is_active": False},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.org_b.refresh_from_db()
+        self.assertFalse(self.org_b.is_active)
+        self.assertEqual(response.json()["is_active"], False)
+
+    def test_non_platform_actor_cannot_access_platform_organization_oversight(self):
+        self.client.force_authenticate(self.org_admin)
+        list_response = self.client.get("/api/governance/platform/organizations/")
+        patch_response = self.client.patch(
+            f"/api/governance/platform/organizations/{self.org_a.id}/",
+            {"is_active": False},
+            format="json",
+        )
+
+        self.assertEqual(list_response.status_code, 403)
+        self.assertEqual(patch_response.status_code, 403)
 

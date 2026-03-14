@@ -4,7 +4,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/app/store';
 import { Loader } from '../common/Loader';
-import { resolveProtectedRouteRedirect } from '@/utils/authRouting';
+import { getDashboardPathForUser, resolveProtectedRouteRedirect } from '@/utils/authRouting';
 import { canManageOrganizationGovernance } from '@/utils/organizationGovernance';
 
 interface ProtectedRouteProps {
@@ -71,17 +71,18 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     userType === "admin" ||
     resolvedRoles.includes("admin") ||
     Boolean(user && user.is_superuser);
+  const fallbackDashboardPath = getDashboardPathForUser(userType);
 
   if (adminOnly && !hasAdminAccess) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={fallbackDashboardPath} replace />;
   }
 
   if (userType && disallowUserTypes.includes(userType)) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={fallbackDashboardPath} replace />;
   }
 
   if (requiredRoles.length > 0 && !requiredRoles.some((role) => resolvedRoles.includes(role))) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={fallbackDashboardPath} replace />;
   }
 
   const resolvedCapabilities = Array.from(
@@ -101,7 +102,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       activeOrganizationId: String(activeOrganization?.id || "").trim() || null,
     })
   ) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={fallbackDashboardPath} replace />;
   }
 
   if (requireActiveOrganization) {
@@ -122,7 +123,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     if (canUseLegacyFallback) {
       return <>{children}</>;
     }
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={fallbackDashboardPath} replace />;
   }
 
   return <>{children}</>;

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { canManageOrganizationGovernance } from "./organizationGovernance";
 
 describe("canManageOrganizationGovernance", () => {
-  it("allows platform admin without memberships", () => {
+  it("denies platform admin without memberships", () => {
     expect(
       canManageOrganizationGovernance({
         isAdmin: true,
@@ -11,7 +11,7 @@ describe("canManageOrganizationGovernance", () => {
         memberships: [],
         activeOrganizationId: "org-1",
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("allows org-admin membership in active organization", () => {

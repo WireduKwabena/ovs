@@ -13,6 +13,7 @@ import { BackupCodesAttentionBadge } from "@/components/security/BackupCodesAtte
 import { VerificationFactorField } from "@/components/security/VerificationFactorField";
 import { useBackupCodesProtection } from "@/hooks/useBackupCodesProtection";
 import { useVerificationFactorInput } from "@/hooks/useVerificationFactorInput";
+import { getCandidatePath } from "@/utils/appPaths";
 
 export const TwoFactorPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -94,7 +95,8 @@ export const TwoFactorPage: React.FC = () => {
 
       toast.success("2FA verification successful.");
 
-      const defaultPath = response.user_type === "admin" ? "/admin/dashboard" : "/workspace";
+      const defaultPath =
+        response.user_type === "applicant" ? getCandidatePath("home") : "/dashboard";
       const redirectPath = requestedPath && requestedPath !== "/" ? requestedPath : defaultPath;
 
       if (response.backup_codes?.length) {
@@ -192,7 +194,7 @@ export const TwoFactorPage: React.FC = () => {
                 disabled={!backupCodesAcknowledged}
                 className="bg-cyan-700 text-white hover:bg-cyan-800 disabled:opacity-50"
                 onClick={() => {
-                  navigate(redirectAfterBackupCodes || "/workspace", { replace: true });
+                  navigate(redirectAfterBackupCodes || "/dashboard", { replace: true });
                 }}
               >
                 I saved them, continue

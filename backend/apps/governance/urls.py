@@ -8,6 +8,8 @@ from .views import (
     GovernanceMemberOptionsAPIView,
     OrganizationBootstrapAPIView,
     OrganizationMembershipViewSet,
+    PlatformOrganizationOversightAPIView,
+    PlatformOrganizationStatusAPIView,
     OrganizationSummaryAPIView,
 )
 
@@ -31,6 +33,16 @@ router.register(
 )
 
 urlpatterns = [
+    path(
+        "platform/organizations/",
+        PlatformOrganizationOversightAPIView.as_view(),
+        name="platform-organization-oversight",
+    ),
+    path(
+        "platform/organizations/<uuid:organization_id>/",
+        PlatformOrganizationStatusAPIView.as_view(),
+        name="platform-organization-status",
+    ),
     path("organization/bootstrap/", OrganizationBootstrapAPIView.as_view(), name="organization-bootstrap"),
     path("organization/summary/", OrganizationSummaryAPIView.as_view(), name="organization-summary"),
     path(

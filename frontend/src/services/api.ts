@@ -62,7 +62,10 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     if (config.headers) {
-      if (activeOrganizationId) {
+      const explicitOrganizationId = String(config.headers["X-Active-Organization-ID"] || "").trim();
+      if (explicitOrganizationId) {
+        config.headers["X-Active-Organization-ID"] = explicitOrganizationId;
+      } else if (activeOrganizationId) {
         config.headers["X-Active-Organization-ID"] = activeOrganizationId;
       } else {
         delete config.headers["X-Active-Organization-ID"];

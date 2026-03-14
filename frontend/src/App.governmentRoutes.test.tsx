@@ -1,16 +1,36 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { configureStore } from "@reduxjs/toolkit";
 import { Provider } from "react-redux";
 
 import App from "./App";
 
-vi.mock("./store/authSlice", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./store/authSlice")>();
+const FETCH_PROFILE_PENDING = "auth/fetchProfile/pending";
+const SWITCH_ACTIVE_ORGANIZATION_PENDING = "/auth/profile/active-organization//pending";
+const SWITCH_ACTIVE_ORGANIZATION_REJECTED = "/auth/profile/active-organization//rejected";
+
+vi.mock("./store/authSlice", () => {
+  const authReducer = (state = {}) => state;
   return {
-    ...actual,
-    fetchProfile: vi.fn(() => ({ type: "auth/fetchProfile/pending" })),
+    __esModule: true,
+    default: authReducer,
+    fetchProfile: vi.fn(() => ({ type: FETCH_PROFILE_PENDING })),
+    switchActiveOrganization: vi.fn((organizationId: string) => async (dispatch: (action: unknown) => unknown) => {
+      const meta = { arg: organizationId };
+      dispatch({
+        type: SWITCH_ACTIVE_ORGANIZATION_PENDING,
+        meta,
+      });
+      const rejectedAction = {
+        type: SWITCH_ACTIVE_ORGANIZATION_REJECTED,
+        payload: { message: "Failed to update active organization" },
+        meta,
+        error: { message: "Rejected" },
+      };
+      dispatch(rejectedAction);
+      return rejectedAction;
+    }),
   };
 });
 
@@ -22,8 +42,20 @@ vi.mock("./pages/HomePage", () => ({
   default: () => <div>Mock Home Page</div>,
 }));
 
+vi.mock("./pages/OrganizationSetupPage", () => ({
+  default: () => <div>Mock Organization Setup Page</div>,
+}));
+
 vi.mock("./pages/AppointmentsRegistryPage", () => ({
   default: () => <div>Mock Appointments Registry Page</div>,
+}));
+
+vi.mock("./pages/platform-admin/PlatformDashboardPage", () => ({
+  default: () => <div>Mock Platform Dashboard Page</div>,
+}));
+
+vi.mock("./pages/candidate/CandidateHomePage", () => ({
+  default: () => <div>Mock Candidate Home Page</div>,
 }));
 
 vi.mock("./pages/GovernmentPositionsPage", () => ({
@@ -36,6 +68,10 @@ vi.mock("./pages/GovernmentPersonnelPage", () => ({
 
 vi.mock("./pages/organization/OrganizationAdminDashboardPage", () => ({
   default: () => <div>Mock Organization Dashboard Page</div>,
+}));
+
+vi.mock("./components/admin/CaseReview", () => ({
+  CaseReview: () => <div>Mock Case Review Page</div>,
 }));
 
 vi.mock("./pages/DashboardPage", () => ({
@@ -97,9 +133,15 @@ const buildStore = (
       activeOrganizationSource: options?.activeOrganizationId ? "header" : "none",
       invalidRequestedOrganizationId: "",
       loading: false,
+      switchingActiveOrganization: false,
       error: null,
+      passwordResetEmailSent: false,
       twoFactorRequired: false,
       twoFactorToken: null,
+      twoFactorSetupRequired: false,
+      twoFactorProvisioningUri: null,
+      twoFactorExpiresInSeconds: null,
+      twoFactorMessage: null,
     },
     notifications: {
       unreadCount: 0,
@@ -113,7 +155,28 @@ const buildStore = (
   };
 
   return configureStore({
-    reducer: (state = preloadedState) => state,
+    reducer: {
+      auth: (state = preloadedState.auth, action: { type: string; payload?: { message?: string } }) => {
+        switch (action.type) {
+          case SWITCH_ACTIVE_ORGANIZATION_PENDING:
+            return {
+              ...state,
+              switchingActiveOrganization: true,
+              error: null,
+            };
+          case SWITCH_ACTIVE_ORGANIZATION_REJECTED:
+            return {
+              ...state,
+              switchingActiveOrganization: false,
+              error: action.payload?.message || "Failed to update active organization",
+            };
+          default:
+            return state;
+        }
+      },
+      notifications: (state = preloadedState.notifications) => state,
+      _persist: (state = preloadedState._persist) => state,
+    },
     preloadedState,
   });
 };
@@ -164,12 +227,12 @@ describe("App government route access", () => {
 
   it("redirects applicant away from government appointments route", async () => {
     renderAppAt("/government/appointments", "applicant");
-    expect(await screen.findByText("Mock Dashboard Page")).toBeTruthy();
+    expect(await screen.findByText("Mock Candidate Home Page")).toBeTruthy();
   });
 
   it("allows org-admin scoped internal users to access organization dashboard route", async () => {
     renderAppAt(
-      "/organization/dashboard",
+      "/admin/org/org-1/dashboard",
       "internal",
       [],
       {
@@ -189,7 +252,7 @@ describe("App government route access", () => {
 
   it("redirects non-org-admin internal users away from organization dashboard route", async () => {
     renderAppAt(
-      "/organization/dashboard",
+      "/admin/org/org-1/dashboard",
       "internal",
       [],
       {
@@ -202,7 +265,7 @@ describe("App government route access", () => {
 
   it("redirects capability-only internal users away from organization dashboard route", async () => {
     renderAppAt(
-      "/organization/dashboard",
+      "/admin/org/org-1/dashboard",
       "internal",
       ["gams.registry.manage"],
       {
@@ -220,12 +283,135 @@ describe("App government route access", () => {
     expect(await screen.findByText("Mock Dashboard Page")).toBeTruthy();
   });
 
-  it("allows platform admin to access organization dashboard route", async () => {
-    renderAppAt("/organization/dashboard", "admin", [], {
+  it("redirects legacy organization dashboard route to organization setup when active org is missing", async () => {
+    renderAppAt("/organization/dashboard", "internal", [], {
+      activeOrganizationId: null,
+      organizationMemberships: [
+        {
+          id: "m-4",
+          organization_id: "org-1",
+          membership_role: "registry_admin",
+          is_active: true,
+        },
+      ],
+    });
+    expect(await screen.findByText("Mock Organization Setup Page")).toBeTruthy();
+  });
+
+  it("fails closed to organization setup when org dashboard route orgId is mismatched", async () => {
+    renderAppAt("/admin/org/org-2/dashboard", "internal", [], {
+      activeOrganizationId: "org-1",
+      organizationMemberships: [
+        {
+          id: "m-5",
+          organization_id: "org-1",
+          membership_role: "registry_admin",
+          is_active: true,
+        },
+      ],
+    });
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/organization/setup");
+      expect(decodeURIComponent(window.location.search)).toContain(
+        "next=/admin/org/org-2/dashboard",
+      );
+    });
+  });
+
+  it("redirects platform admin away from organization dashboard route", async () => {
+    renderAppAt("/admin/org/org-1/dashboard", "admin", [], {
       activeOrganizationId: "org-1",
       organizationMemberships: [],
     });
-    expect(await screen.findByText("Mock Organization Dashboard Page")).toBeTruthy();
+    expect(await screen.findByText("Mock Platform Dashboard Page")).toBeTruthy();
+  });
+
+  it("redirects platform admin away from organization setup routes", async () => {
+    renderAppAt("/organization/setup", "admin", [], {
+      activeOrganizationId: "org-1",
+      organizationMemberships: [],
+    });
+    expect(await screen.findByText("Mock Platform Dashboard Page")).toBeTruthy();
+  });
+
+  it("redirects platform admin away from appointment exercise routes", async () => {
+    renderAppAt("/workspace/campaigns", "admin", [], {
+      activeOrganizationId: "org-1",
+      organizationMemberships: [],
+    });
+    expect(await screen.findByText("Mock Platform Dashboard Page")).toBeTruthy();
+  });
+
+  it("redirects platform admin away from appointment workflow routes", async () => {
+    renderAppAt("/government/appointments", "admin", [], {
+      activeOrganizationId: "org-1",
+      organizationMemberships: [],
+    });
+    expect(await screen.findByText("Mock Platform Dashboard Page")).toBeTruthy();
+  });
+
+  it("redirects retired platform analytics routes back to the platform dashboard", async () => {
+    renderAppAt("/admin/platform/analytics", "admin", [], {
+      activeOrganizationId: "org-1",
+      organizationMemberships: [],
+    });
+    expect(await screen.findByText("Mock Platform Dashboard Page")).toBeTruthy();
+  });
+
+  it("redirects retired platform registration routes back to the platform dashboard", async () => {
+    renderAppAt("/admin/platform/register", "admin", [], {
+      activeOrganizationId: "org-1",
+      organizationMemberships: [],
+    });
+    expect(await screen.findByText("Mock Platform Dashboard Page")).toBeTruthy();
+  });
+
+  it("redirects legacy admin case routes away from platform admin and into org scope for org admins", async () => {
+    renderAppAt("/admin/cases", "internal", [], {
+      activeOrganizationId: "org-1",
+      organizationMemberships: [
+        {
+          id: "m-6",
+          organization_id: "org-1",
+          membership_role: "registry_admin",
+          is_active: true,
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/admin/org/org-1/cases");
+    });
+  });
+
+  it("allows org-admin scoped internal users to access organization case review routes", async () => {
+    renderAppAt("/admin/org/org-1/cases/case-001", "internal", [], {
+      activeOrganizationId: "org-1",
+      organizationMemberships: [
+        {
+          id: "m-7",
+          organization_id: "org-1",
+          membership_role: "registry_admin",
+          is_active: true,
+        },
+      ],
+    });
+    expect(await screen.findByText("Mock Case Review Page")).toBeTruthy();
+  });
+
+  it("redirects org-admin scoped internal users away from platform admin routes", async () => {
+    renderAppAt("/admin/platform/dashboard", "internal", [], {
+      activeOrganizationId: "org-1",
+      organizationMemberships: [
+        {
+          id: "m-3",
+          organization_id: "org-1",
+          membership_role: "registry_admin",
+          is_active: true,
+        },
+      ],
+    });
+    expect(await screen.findByText("Mock Dashboard Page")).toBeTruthy();
   });
 
   it("shows app navigation and content offset on internal dashboard routes", async () => {
@@ -235,6 +421,7 @@ describe("App government route access", () => {
     expect(screen.getByTestId("mock-navbar")).toBeTruthy();
 
     const main = screen.getByRole("main");
+    expect(main.className).toContain("relative");
     expect(main.className).toContain("lg:pl-64");
     expect(main.className).toContain("xl:pl-72");
   });
@@ -242,10 +429,13 @@ describe("App government route access", () => {
   it("hides app navigation and shell offset on the homepage", async () => {
     renderAppAt("/", "internal", ["gams.campaign.manage"]);
 
-    expect(await screen.findByText("Mock Home Page")).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.queryByText("Mock Home Page")).toBeTruthy();
+    });
     expect(screen.queryByTestId("mock-navbar")).toBeNull();
 
     const main = screen.getByRole("main");
+    expect(main.className).not.toContain("relative");
     expect(main.className).not.toContain("lg:pl-64");
     expect(main.className).not.toContain("xl:pl-72");
   });
