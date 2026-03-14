@@ -134,7 +134,7 @@ describe("OrganizationDashboardPage", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText(/organization dashboard/i)).toBeTruthy();
+    expect(await screen.findByText(/organization governance workspace/i)).toBeTruthy();
     expect(await screen.findByText("4")).toBeTruthy();
     expect(await screen.findByText(/token preview/i)).toBeTruthy();
     expect(await screen.findByRole("button", { name: /manage onboarding/i })).toBeTruthy();
@@ -155,6 +155,100 @@ describe("OrganizationDashboardPage", () => {
     );
 
     expect(await screen.findByText(/active organization required/i)).toBeTruthy();
+  });
+
+  it("surfaces billing trace links when organization billing needs attention", async () => {
+    mocks.useAuth.mockReturnValue({
+      userType: "internal",
+      activeOrganization: { id: "org-1", code: "ORG1", name: "Org One", organization_type: "agency" },
+      activeOrganizationId: "org-1",
+      canManageActiveOrganizationGovernance: true,
+    });
+    mocks.getOrganizationSummary.mockResolvedValue({
+      organization: {
+        id: "org-1",
+        code: "ORG1",
+        name: "Org One",
+        organization_type: "agency",
+        is_active: true,
+      },
+      actor: {
+        is_platform_admin: false,
+        can_manage_registry: true,
+        active_membership_id: "m-1",
+        active_membership_role: "registry_admin",
+      },
+      stats: {
+        members_total: 5,
+        members_active: 4,
+        committees_total: 2,
+        committees_active: 2,
+        committee_memberships_active: 7,
+        active_chairs: 2,
+      },
+      active_organization_source: "header",
+    });
+    mocks.getSubscriptionManagement.mockResolvedValue({
+      status: "ok",
+      subscription: {
+        id: "sub-1",
+        organization_id: "org-1",
+        organization_name: "Org One",
+        provider: "stripe",
+        status: "failed",
+        payment_status: "unpaid",
+        plan_id: "growth",
+        plan_name: "Growth",
+        billing_cycle: "monthly",
+        amount_usd: "399.00",
+        payment_method: { type: "card", display: "Card", brand: "visa", last4: "4242", exp_month: 1, exp_year: 2030 },
+        checkout_url: null,
+        current_period_start: null,
+        current_period_end: null,
+        cancel_at_period_end: false,
+        cancellation_requested_at: null,
+        cancellation_effective_at: null,
+        can_update_payment_method: true,
+        can_delete_payment_method: true,
+        retry_available: true,
+        retry_reason: "payment_failed",
+        latest_incident: {
+          code: "payment_failed",
+          message: "Stripe reported an invoice payment failure.",
+          detected_at: "2026-01-02T10:30:00Z",
+          source: "stripe",
+          event_type: "invoice.payment_failed",
+        },
+        updated_at: "2026-01-01T00:00:00Z",
+      },
+    });
+    mocks.getOnboardingTokenState.mockResolvedValue({
+      status: "ok",
+      organization_id: "org-1",
+      organization_name: "Org One",
+      subscription_id: "sub-1",
+      subscription_active: false,
+      has_active_token: false,
+      token: null,
+      organization_seat_limit: 10,
+      organization_seat_used: 4,
+      organization_seat_remaining: 6,
+    });
+
+    render(
+      <MemoryRouter>
+        <OrganizationDashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText(/billing needs attention/i)).toBeTruthy();
+    expect(screen.getByText(/stripe reported an invoice payment failure/i)).toBeTruthy();
+    expect(screen.getByRole("link", { name: /open payment failure trace/i }).getAttribute("href")).toBe(
+      "/notifications?channel=all&event_type=billing_payment_failed&subsystem=billing",
+    );
+    expect(screen.getByRole("link", { name: /open runtime error trace/i }).getAttribute("href")).toBe(
+      "/notifications?channel=all&event_type=processing_error&subsystem=billing",
+    );
   });
 });
 

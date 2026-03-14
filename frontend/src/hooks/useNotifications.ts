@@ -5,15 +5,37 @@ import { notificationService } from "@/services/notification.service";
 
 type UseNotificationsOptions = {
   archived?: "active" | "archived" | "all";
+  channel?: "in_app" | "email" | "sms" | "all";
+  eventType?: string;
+  idempotencyKey?: string;
+  subsystem?: string;
 };
 
 export const useNotifications = (options?: UseNotificationsOptions) => {
   const queryClient = useQueryClient();
   const archived = options?.archived ?? "active";
+  const channel = options?.channel ?? "in_app";
+  const eventType = options?.eventType?.trim() || undefined;
+  const idempotencyKey = options?.idempotencyKey?.trim() || undefined;
+  const subsystem = options?.subsystem?.trim() || undefined;
 
   const { data: notificationsData, isLoading, refetch } = useQuery({
-    queryKey: ["notifications", archived],
-    queryFn: () => notificationService.getAll({ archived }),
+    queryKey: [
+      "notifications",
+      archived,
+      channel,
+      eventType ?? "",
+      idempotencyKey ?? "",
+      subsystem ?? "",
+    ],
+    queryFn: () =>
+      notificationService.getAll({
+        archived,
+        channel,
+        event_type: eventType,
+        idempotency_key: idempotencyKey,
+        subsystem,
+      }),
     refetchInterval: 30000,
     staleTime: 1000 * 60,
   });

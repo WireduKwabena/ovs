@@ -55,6 +55,15 @@ const renderPage = (initialPath: string) => {
   );
 };
 
+const installClipboardMock = () => {
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(window.navigator, "clipboard", {
+    configurable: true,
+    value: { writeText },
+  });
+  return writeText;
+};
+
 describe("NotificationDetailPage archive controls", () => {
   afterEach(() => {
     cleanup();
@@ -188,5 +197,115 @@ describe("NotificationDetailPage archive controls", () => {
     expect(
       await screen.findByText(/available in (\d+m|\d+h(?: \d+m)?)/i),
     ).toBeTruthy();
+  });
+
+  it("does not mark email notifications as read on load", async () => {
+    mocks.getById.mockResolvedValue({
+      id: "notif-6",
+      notification_type: "email",
+      title: "Email delivery record",
+      message: "Email reminder sent successfully.",
+      status: "sent",
+      metadata: {
+        event_type: "video_call_reminder",
+        idempotency_key: "trace-123",
+      },
+      is_read: false,
+      is_archived: false,
+      created_at: "2026-03-06T10:00:00Z",
+    });
+
+    renderPage("/notifications/notif-6");
+
+    expect(await screen.findByText("Email delivery record")).toBeTruthy();
+    await waitFor(() => {
+      expect(mocks.markSingleAsRead).not.toHaveBeenCalled();
+    });
+  });
+
+  it("copies the trace key from notification detail", async () => {
+    const writeText = installClipboardMock();
+    mocks.getById.mockResolvedValue({
+      id: "notif-7",
+      notification_type: "email",
+      title: "Trace detail",
+      message: "Reminder delivery record",
+      status: "sent",
+      metadata: {
+        event_type: "video_call_reminder",
+        idempotency_key: "trace-123",
+      },
+      idempotency_key: "trace-123",
+      is_read: false,
+      is_archived: false,
+      created_at: "2026-03-06T10:00:00Z",
+    });
+
+    renderPage("/notifications/notif-7");
+
+    const copyButton = await screen.findByRole("button", {
+      name: /copy trace key/i,
+    });
+    fireEvent.click(copyButton);
+
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith("trace-123");
+    });
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("Trace key copied.");
+  });
+
+  it("builds an open trace view link with prefilled filters", async () => {
+    mocks.getById.mockResolvedValue({
+      id: "notif-8",
+      notification_type: "email",
+      title: "Trace detail",
+      message: "Reminder delivery record",
+      status: "sent",
+      metadata: {
+        event_type: "video_call_reminder",
+        idempotency_key: "trace-123",
+      },
+      idempotency_key: "trace-123",
+      is_read: false,
+      is_archived: false,
+      created_at: "2026-03-06T10:00:00Z",
+    });
+
+    renderPage("/notifications/notif-8");
+
+    const traceLink = await screen.findByRole("link", {
+      name: /open trace view/i,
+    });
+    expect(traceLink.getAttribute("href")).toBe(
+      "/notifications?channel=email&event_type=video_call_reminder&idempotency_key=trace-123",
+    );
+  });
+
+  it("preserves subsystem scope in the open trace view link", async () => {
+    mocks.getById.mockResolvedValue({
+      id: "notif-9",
+      notification_type: "email",
+      title: "Billing trace detail",
+      message: "Billing delivery record",
+      status: "sent",
+      metadata: {
+        event_type: "processing_error",
+        subsystem: "billing",
+        idempotency_key: "billing-trace-123",
+      },
+      idempotency_key: "billing-trace-123",
+      is_read: false,
+      is_archived: false,
+      created_at: "2026-03-06T10:00:00Z",
+    });
+
+    renderPage("/notifications/notif-9");
+
+    const traceLink = await screen.findByRole("link", {
+      name: /open trace view/i,
+    });
+    expect(traceLink.getAttribute("href")).toBe(
+      "/notifications?channel=email&event_type=processing_error&idempotency_key=billing-trace-123&subsystem=billing",
+    );
   });
 });

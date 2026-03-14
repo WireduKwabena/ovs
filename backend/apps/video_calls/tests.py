@@ -14,7 +14,11 @@ from apps.applications.models import VettingCase
 from apps.authentication.models import User
 from apps.notifications.models import Notification
 from apps.video_calls.models import VideoMeeting, VideoMeetingEvent, VideoMeetingParticipant
-from apps.video_calls.services import notify_meeting_start_now
+from apps.video_calls.services import (
+    notify_meeting_cancelled,
+    notify_meeting_start_now,
+    notify_meeting_updated,
+)
 from apps.video_calls.tasks import process_video_meeting_reminders
 
 
@@ -344,6 +348,176 @@ class VideoMeetingApiTests(APITestCase):
             notifications.values_list("metadata__idempotency_key", flat=True),
         )
         self.assertEqual(len(idempotency_keys), 1)
+
+    @override_settings(NOTIFICATIONS_SMS_ENABLED=False)
+    @patch("apps.notifications.services.send_mail", return_value=1)
+    def test_notify_meeting_updated_is_idempotent(self, _send_mail):
+        meeting = VideoMeeting.objects.create(
+            organizer=self.internal_user,
+            case=self.case,
+            title="Idempotent updated notification",
+            status=VideoMeeting.STATUS_SCHEDULED,
+            scheduled_start=timezone.now() + timedelta(hours=2),
+            scheduled_end=timezone.now() + timedelta(hours=3),
+            timezone="UTC",
+        )
+        meeting.participants.create(user=self.internal_user, role="host")
+        meeting.participants.create(user=self.candidate, role="candidate")
+        Notification.objects.filter(metadata__event_type="video_call_updated").delete()
+
+        notify_meeting_updated(meeting)
+        notify_meeting_updated(meeting)
+
+        notifications = Notification.objects.filter(
+            metadata__event_type="video_call_updated",
+        )
+        self.assertEqual(notifications.count(), 4)
+        self.assertEqual(
+            set(notifications.values_list("notification_type", flat=True)),
+            {"in_app", "email"},
+        )
+        idempotency_keys = set(
+            notifications.values_list("metadata__idempotency_key", flat=True),
+        )
+        self.assertEqual(len(idempotency_keys), 1)
+        self.assertEqual(_send_mail.call_count, 2)
+
+    @override_settings(NOTIFICATIONS_SMS_ENABLED=False)
+    @patch("apps.notifications.services.send_mail", return_value=1)
+    def test_notify_meeting_cancelled_is_idempotent(self, _send_mail):
+        meeting = VideoMeeting.objects.create(
+            organizer=self.internal_user,
+            case=self.case,
+            title="Idempotent cancelled notification",
+            status=VideoMeeting.STATUS_CANCELLED,
+            scheduled_start=timezone.now() + timedelta(hours=2),
+            scheduled_end=timezone.now() + timedelta(hours=3),
+            timezone="UTC",
+            cancellation_reason="Panel withdrawn",
+        )
+        meeting.participants.create(user=self.internal_user, role="host")
+        meeting.participants.create(user=self.candidate, role="candidate")
+        Notification.objects.filter(metadata__event_type="video_call_cancelled").delete()
+
+        notify_meeting_cancelled(meeting)
+        notify_meeting_cancelled(meeting)
+
+        notifications = Notification.objects.filter(
+            metadata__event_type="video_call_cancelled",
+        )
+        self.assertEqual(notifications.count(), 4)
+        self.assertEqual(
+            set(notifications.values_list("notification_type", flat=True)),
+            {"in_app", "email"},
+        )
+        idempotency_keys = set(
+            notifications.values_list("metadata__idempotency_key", flat=True),
+        )
+        self.assertEqual(len(idempotency_keys), 1)
+        self.assertEqual(_send_mail.call_count, 2)
+
+    @override_settings(NOTIFICATIONS_SMS_ENABLED=False)
+    @patch("apps.notifications.services.send_mail", return_value=1)
+    def test_reminder_task_retry_does_not_duplicate_video_call_reminder_notifications(
+        self,
+        _send_mail,
+    ):
+        meeting = VideoMeeting.objects.create(
+            organizer=self.internal_user,
+            case=self.case,
+            title="Retry-safe soon reminder",
+            scheduled_start=timezone.now() + timedelta(minutes=4),
+            scheduled_end=timezone.now() + timedelta(minutes=34),
+            timezone="UTC",
+            reminder_before_minutes=5,
+        )
+        meeting.participants.create(user=self.internal_user, role="host")
+        meeting.participants.create(user=self.candidate, role="candidate")
+        Notification.objects.filter(metadata__event_type="video_call_reminder").delete()
+
+        first_stats = process_video_meeting_reminders()
+        self.assertEqual(first_stats["soon"], 1)
+
+        first_notifications = Notification.objects.filter(
+            metadata__event_type="video_call_reminder",
+        )
+        self.assertEqual(first_notifications.count(), 4)
+        first_idempotency_keys = set(
+            first_notifications.values_list("metadata__idempotency_key", flat=True),
+        )
+        self.assertEqual(len(first_idempotency_keys), 1)
+        self.assertEqual(_send_mail.call_count, 2)
+
+        # Simulate a retry edge where scheduler state is reopened for the same reminder window.
+        VideoMeeting.objects.filter(id=meeting.id).update(
+            reminder_before_sent_at=None,
+            reminder_before_next_retry_at=None,
+            updated_at=timezone.now(),
+        )
+
+        second_stats = process_video_meeting_reminders()
+        self.assertEqual(second_stats["soon"], 1)
+
+        final_notifications = Notification.objects.filter(
+            metadata__event_type="video_call_reminder",
+        )
+        self.assertEqual(final_notifications.count(), 4)
+        final_idempotency_keys = set(
+            final_notifications.values_list("metadata__idempotency_key", flat=True),
+        )
+        self.assertEqual(final_idempotency_keys, first_idempotency_keys)
+        self.assertEqual(_send_mail.call_count, 2)
+
+    @override_settings(NOTIFICATIONS_SMS_ENABLED=False)
+    @patch("apps.notifications.services.send_mail", return_value=1)
+    def test_time_up_retry_does_not_duplicate_video_call_time_up_notifications(
+        self,
+        _send_mail,
+    ):
+        meeting = VideoMeeting.objects.create(
+            organizer=self.internal_user,
+            case=self.case,
+            title="Retry-safe time-up reminder",
+            status=VideoMeeting.STATUS_COMPLETED,
+            scheduled_start=timezone.now() - timedelta(hours=1),
+            scheduled_end=timezone.now() - timedelta(minutes=1),
+            timezone="UTC",
+        )
+        meeting.participants.create(user=self.internal_user, role="host")
+        meeting.participants.create(user=self.candidate, role="candidate")
+        Notification.objects.filter(metadata__event_type="video_call_time_up").delete()
+
+        first_stats = process_video_meeting_reminders()
+        self.assertEqual(first_stats["completed"], 1)
+
+        first_notifications = Notification.objects.filter(
+            metadata__event_type="video_call_time_up",
+        )
+        self.assertEqual(first_notifications.count(), 4)
+        first_idempotency_keys = set(
+            first_notifications.values_list("metadata__idempotency_key", flat=True),
+        )
+        self.assertEqual(len(first_idempotency_keys), 1)
+        self.assertEqual(_send_mail.call_count, 2)
+
+        VideoMeeting.objects.filter(id=meeting.id).update(
+            reminder_time_up_sent_at=None,
+            reminder_time_up_next_retry_at=None,
+            updated_at=timezone.now(),
+        )
+
+        second_stats = process_video_meeting_reminders()
+        self.assertEqual(second_stats["completed"], 1)
+
+        final_notifications = Notification.objects.filter(
+            metadata__event_type="video_call_time_up",
+        )
+        self.assertEqual(final_notifications.count(), 4)
+        final_idempotency_keys = set(
+            final_notifications.values_list("metadata__idempotency_key", flat=True),
+        )
+        self.assertEqual(final_idempotency_keys, first_idempotency_keys)
+        self.assertEqual(_send_mail.call_count, 2)
 
     def test_reminder_task_uses_per_meeting_lead_minutes(self):
         starts_in_ten = VideoMeeting.objects.create(

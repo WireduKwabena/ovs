@@ -58,6 +58,18 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
         if priority:
             queryset = queryset.filter(priority=priority)
 
+        idempotency_key = (self.request.query_params.get("idempotency_key") or "").strip()
+        if idempotency_key:
+            queryset = queryset.filter(idempotency_key=idempotency_key)
+
+        event_type = (self.request.query_params.get("event_type") or "").strip()
+        if event_type:
+            queryset = queryset.filter(metadata__event_type=event_type)
+
+        subsystem = (self.request.query_params.get("subsystem") or "").strip()
+        if subsystem:
+            queryset = queryset.filter(metadata__subsystem=subsystem)
+
         return queryset
 
     @action(detail=False, methods=["post"])

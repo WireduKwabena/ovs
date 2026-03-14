@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.contrib.auth.models import Group
+from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -128,6 +129,119 @@ class NotificationApiTests(APITestCase):
         self.assertIn("Unread", subjects)
         self.assertIn("Read", subjects)
         self.assertNotIn("Other user notification", subjects)
+
+    def test_list_filters_by_idempotency_key_for_current_user_only(self):
+        matching = Notification.objects.create(
+            recipient=self.user,
+            subject="Retry-safe trace",
+            message="Current user matching idempotency key",
+            notification_type="in_app",
+            status="sent",
+            priority="normal",
+            metadata={"event_type": "video_call_reminder", "idempotency_key": "trace-123"},
+            idempotency_key="trace-123",
+        )
+        Notification.objects.create(
+            recipient=self.user,
+            subject="Different trace",
+            message="Current user different idempotency key",
+            notification_type="in_app",
+            status="sent",
+            priority="normal",
+            metadata={"event_type": "video_call_reminder", "idempotency_key": "trace-456"},
+            idempotency_key="trace-456",
+        )
+        Notification.objects.create(
+            recipient=self.other_user,
+            subject="Other user matching trace",
+            message="Should not leak across users",
+            notification_type="in_app",
+            status="sent",
+            priority="normal",
+            metadata={"event_type": "video_call_reminder", "idempotency_key": "trace-123"},
+            idempotency_key="trace-123",
+        )
+
+        response = self.client.get("/api/notifications/?channel=all&idempotency_key=trace-123")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["id"], str(matching.id))
+        self.assertEqual(response.data["results"][0]["idempotency_key"], "trace-123")
+
+    def test_list_filters_by_event_type_for_current_user_only(self):
+        matching = Notification.objects.create(
+            recipient=self.user,
+            subject="Meeting reminder",
+            message="Reminder for the authenticated user",
+            notification_type="in_app",
+            status="sent",
+            priority="normal",
+            metadata={"event_type": "video_call_reminder"},
+        )
+        Notification.objects.create(
+            recipient=self.user,
+            subject="Other event type",
+            message="Current user different event type",
+            notification_type="in_app",
+            status="sent",
+            priority="normal",
+            metadata={"event_type": "status_updated"},
+        )
+        Notification.objects.create(
+            recipient=self.other_user,
+            subject="Other user reminder",
+            message="Should not leak across users",
+            notification_type="in_app",
+            status="sent",
+            priority="normal",
+            metadata={"event_type": "video_call_reminder"},
+        )
+
+        response = self.client.get("/api/notifications/?channel=all&event_type=video_call_reminder")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["id"], str(matching.id))
+        self.assertEqual(response.data["results"][0]["metadata"]["event_type"], "video_call_reminder")
+
+    def test_list_filters_by_subsystem_for_current_user_only(self):
+        matching = Notification.objects.create(
+            recipient=self.user,
+            subject="Billing processing error",
+            message="Billing webhook failed",
+            notification_type="in_app",
+            status="sent",
+            priority="high",
+            metadata={"event_type": "processing_error", "subsystem": "billing"},
+        )
+        Notification.objects.create(
+            recipient=self.user,
+            subject="AI processing error",
+            message="AI pipeline failed",
+            notification_type="in_app",
+            status="sent",
+            priority="high",
+            metadata={"event_type": "processing_error", "subsystem": "ai_monitor"},
+        )
+        Notification.objects.create(
+            recipient=self.other_user,
+            subject="Other user billing processing error",
+            message="Should not leak across users",
+            notification_type="in_app",
+            status="sent",
+            priority="high",
+            metadata={"event_type": "processing_error", "subsystem": "billing"},
+        )
+
+        response = self.client.get(
+            "/api/notifications/?channel=all&event_type=processing_error&subsystem=billing"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["id"], str(matching.id))
+        self.assertEqual(response.data["results"][0]["metadata"]["subsystem"], "billing")
 
     def test_unread_count_excludes_read_notifications(self):
         response = self.client.get("/api/notifications/unread-count/")
@@ -263,6 +377,35 @@ class NotificationServiceTests(TestCase):
         self.assertEqual(notification.retry_count, 1)
         self.assertIn("smtp down", notification.failure_reason)
 
+    @patch("apps.notifications.services.send_mail", return_value=1)
+    def test_send_email_notification_does_not_resend_existing_idempotent_record(self, send_mail_mock):
+        first = NotificationService._send_email_notification(
+            recipient=self.applicant,
+            subject="Subject",
+            fallback_message="Body",
+            metadata={"event_type": "demo"},
+            idempotency_key="demo-email-idempotency",
+        )
+        second = NotificationService._send_email_notification(
+            recipient=self.applicant,
+            subject="Subject",
+            fallback_message="Body",
+            metadata={"event_type": "demo"},
+            idempotency_key="demo-email-idempotency",
+        )
+
+        self.assertIsNotNone(first)
+        self.assertEqual(first.id, second.id)
+        self.assertEqual(send_mail_mock.call_count, 1)
+        self.assertEqual(
+            Notification.objects.filter(
+                recipient=self.applicant,
+                notification_type="email",
+                idempotency_key="demo-email-idempotency",
+            ).count(),
+            1,
+        )
+
     def test_send_email_notification_returns_none_without_email(self):
         result = NotificationService._send_email_notification(
             recipient=SimpleNamespace(email=""),
@@ -365,6 +508,88 @@ class NotificationServiceTests(TestCase):
         for notification in notifications:
             self.assertEqual(notification.metadata.get("raw"), "nons")
             self.assertEqual(notification.metadata.get("nested"), ["nons"])
+
+    @patch("apps.notifications.services.send_mail", return_value=1)
+    def test_send_admin_notification_is_idempotent_when_key_is_provided(self, send_mail_mock):
+        first = NotificationService.send_admin_notification(
+            self.hr,
+            notification_type="processing_error",
+            title="Billing Error",
+            message="Webhook processing failed",
+            metadata={"event_type": "processing_error", "subsystem": "billing"},
+            idempotency_key="billing-processing-error-1",
+        )
+        second = NotificationService.send_admin_notification(
+            self.hr,
+            notification_type="processing_error",
+            title="Billing Error",
+            message="Webhook processing failed",
+            metadata={"event_type": "processing_error", "subsystem": "billing"},
+            idempotency_key="billing-processing-error-1",
+        )
+
+        self.assertTrue(first)
+        self.assertTrue(second)
+        self.assertEqual(send_mail_mock.call_count, 1)
+        self.assertEqual(
+            Notification.objects.filter(
+                recipient=self.hr,
+                idempotency_key="billing-processing-error-1",
+            ).count(),
+            2,
+        )
+
+    def test_notification_unique_idempotency_per_recipient_and_channel(self):
+        Notification.objects.create(
+            recipient=self.applicant,
+            subject="One",
+            message="First",
+            notification_type="in_app",
+            status="sent",
+            metadata={"event_type": "demo", "idempotency_key": "demo-key"},
+            idempotency_key="demo-key",
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                Notification.objects.create(
+                    recipient=self.applicant,
+                    subject="Two",
+                    message="Second",
+                    notification_type="in_app",
+                    status="sent",
+                    metadata={"event_type": "demo", "idempotency_key": "demo-key"},
+                    idempotency_key="demo-key",
+                )
+
+    def test_notification_allows_null_idempotency_duplicates(self):
+        Notification.objects.create(
+            recipient=self.applicant,
+            subject="One",
+            message="First",
+            notification_type="in_app",
+            status="sent",
+            metadata={"event_type": "demo"},
+            idempotency_key=None,
+        )
+        Notification.objects.create(
+            recipient=self.applicant,
+            subject="Two",
+            message="Second",
+            notification_type="in_app",
+            status="sent",
+            metadata={"event_type": "demo"},
+            idempotency_key=None,
+        )
+
+        self.assertEqual(
+            Notification.objects.filter(
+                recipient=self.applicant,
+                notification_type="in_app",
+                idempotency_key__isnull=True,
+            ).count(),
+            2,
+        )
 
     @patch("apps.notifications.services.send_mail", return_value=1)
     def test_send_interview_scheduled_creates_candidate_notifications(

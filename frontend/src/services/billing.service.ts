@@ -63,6 +63,14 @@ export interface BillingPaymentMethodSummary {
   exp_year: number | null;
 }
 
+export interface BillingLatestIncidentSummary {
+  code: string;
+  message: string;
+  detected_at: string | null;
+  source: string;
+  event_type: string | null;
+}
+
 export interface BillingManagedSubscription {
   id: string;
   organization_id?: string | null;
@@ -85,6 +93,7 @@ export interface BillingManagedSubscription {
   can_delete_payment_method: boolean;
   retry_available: boolean;
   retry_reason: string | null;
+  latest_incident?: BillingLatestIncidentSummary | null;
   updated_at: string;
 }
 

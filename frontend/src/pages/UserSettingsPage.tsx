@@ -12,6 +12,7 @@ import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
 
 import type { AppDispatch } from "@/app/store";
+import BillingAttentionPanel from "@/components/billing/BillingAttentionPanel";
 import { useAuth } from "@/hooks/useAuth";
 import { billingService, type BillingSubscriptionManageResponse } from "@/services/billing.service";
 import { fetchProfile, updateUserProfile } from "@/store/authSlice";
@@ -628,6 +629,13 @@ const UserSettingsPage: React.FC = () => {
                   <p className="text-[11px] text-slate-700">
                     Organization billing and onboarding administration is handled in the organization dashboard.
                   </p>
+                  {canManageOrganizationBilling ? (
+                    <BillingAttentionPanel
+                      subscription={managedSubscription}
+                      onAfterAction={fetchBillingManagement}
+                      renewHref="/subscribe?returnTo=%2Fsettings"
+                    />
+                  ) : null}
                   {canManageOrganizationBilling ? (
                     <Button
                       type="button"

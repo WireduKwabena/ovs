@@ -195,6 +195,7 @@ class Notification(models.Model):
     # Soft-archive lifecycle
     is_archived = models.BooleanField(default=False, db_index=True)
     archived_at = models.DateTimeField(null=True, blank=True)
+    idempotency_key = models.CharField(max_length=255, null=True, blank=True, db_index=True)
 
     # Metadata
     metadata = models.JSONField(
@@ -211,6 +212,13 @@ class Notification(models.Model):
             models.Index(fields=['recipient', 'is_archived']),
             models.Index(fields=['status', 'priority']),
             models.Index(fields=['-created_at']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['recipient', 'notification_type', 'idempotency_key'],
+                condition=models.Q(idempotency_key__isnull=False),
+                name='uq_notification_recipient_type_idempotency',
+            ),
         ]
         verbose_name = 'Notification'
         verbose_name_plural = 'Notifications'
@@ -255,11 +263,6 @@ class Notification(models.Model):
     def event_type(self) -> str:
         """Stable helper for event-driven notification tracing."""
         return str((self.metadata or {}).get("event_type", "") or "")
-
-    @property
-    def idempotency_key(self) -> str:
-        """Expose metadata idempotency key when present."""
-        return str((self.metadata or {}).get("idempotency_key", "") or "")
 
 
 class AlertRule(models.Model):

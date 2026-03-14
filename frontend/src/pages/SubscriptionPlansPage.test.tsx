@@ -80,6 +80,9 @@ describe("SubscriptionPlansPage hosted checkout integration", () => {
 
     renderAt();
 
+    expect(await screen.findByText(/stripe hosted checkout/i)).toBeTruthy();
+    expect(screen.getByText(/you will be redirected to stripe to complete payment securely/i)).toBeTruthy();
+    expect(screen.getByText(/later payment-method changes use the stripe billing portal/i)).toBeTruthy();
     fireEvent.click(await screen.findByRole("button", { name: /continue to stripe/i }));
 
     await waitFor(() => {
@@ -118,6 +121,9 @@ describe("SubscriptionPlansPage hosted checkout integration", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: /paystack/i }));
     fireEvent.click(await screen.findByRole("button", { name: /^mobile money/i }));
+    expect(await screen.findByText(/paystack hosted checkout/i)).toBeTruthy();
+    expect(screen.getByText(/mobile money authorization stays inside paystack's hosted checkout/i)).toBeTruthy();
+    expect(screen.getByText(/billing email is required for authorization and receipts/i)).toBeTruthy();
     expect(await screen.findByText(/source: configured fallback/i)).toBeTruthy();
     fireEvent.change(screen.getByLabelText(/billing email/i), {
       target: { value: "  PAYSTACK.TEST@EXAMPLE.COM " },

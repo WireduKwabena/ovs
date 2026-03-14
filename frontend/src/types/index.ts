@@ -621,6 +621,7 @@ export interface Notification {
   message: string;
   status: 'unread' | 'read' | 'archived' | 'pending' | 'sent' | 'failed';
   metadata: Record<string, any>;
+  idempotency_key?: string;
   is_read: boolean;
   is_archived?: boolean;
   archived_at?: string;

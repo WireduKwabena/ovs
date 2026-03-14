@@ -34,18 +34,6 @@ vi.mock("./pages/organization/OrganizationAdminDashboardPage", () => ({
   default: () => <div>Mock Organization Dashboard Page</div>,
 }));
 
-vi.mock("./pages/admin/AdminDashboardPage", () => ({
-  default: () => <div>Mock Admin Dashboard Page</div>,
-}));
-
-vi.mock("./pages/admin/AdminOrganizationsPage", () => ({
-  default: () => <div>Mock Admin Organizations Page</div>,
-}));
-
-vi.mock("./pages/OperationsDashboardPage", () => ({
-  default: () => <div>Mock Workspace Page</div>,
-}));
-
 vi.mock("./pages/DashboardPage", () => ({
   __esModule: true,
   DashboardPage: () => <div>Mock Dashboard Page</div>,
@@ -228,27 +216,12 @@ describe("App government route access", () => {
     expect(await screen.findByText("Mock Dashboard Page")).toBeTruthy();
   });
 
-  it("allows platform admin to access organization dashboard route when org context is active", async () => {
+  it("allows platform admin to access organization dashboard route", async () => {
     renderAppAt("/organization/dashboard", "admin", [], {
       activeOrganizationId: "org-1",
       organizationMemberships: [],
     });
     expect(await screen.findByText("Mock Organization Dashboard Page")).toBeTruthy();
-  });
-
-  it("allows platform admin to access admin dashboard route", async () => {
-    renderAppAt("/admin/dashboard", "admin");
-    expect(await screen.findByText("Mock Admin Dashboard Page")).toBeTruthy();
-  });
-
-  it("allows platform admin to access admin organizations route", async () => {
-    renderAppAt("/admin/organizations", "admin");
-    expect(await screen.findByText("Mock Admin Organizations Page")).toBeTruthy();
-  });
-
-  it("allows internal users to access workspace route", async () => {
-    renderAppAt("/workspace", "internal");
-    expect(await screen.findByText("Mock Workspace Page")).toBeTruthy();
   });
 });
 

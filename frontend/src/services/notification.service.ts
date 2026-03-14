@@ -12,6 +12,7 @@ type NotificationApiRecord = {
   archived_at?: string;
   metadata?: Record<string, unknown>;
   notification_type?: Notification["notification_type"];
+  idempotency_key?: string;
   created_at: string;
   read_at?: string;
   priority?: Notification["priority"];
@@ -26,14 +27,27 @@ const extractResults = <T>(payload: PaginatedResponse<T> | T[]): T[] => {
 
 const normalizeNotification = (record: NotificationApiRecord): Notification => {
   const isRead = record.is_read ?? record.status === "read";
+  const normalizedStatus: Notification["status"] = isRead
+    ? "read"
+    : record.status === "pending"
+      ? "pending"
+      : record.status === "sent"
+        ? "sent"
+        : record.status === "failed"
+          ? "failed"
+          : record.status === "archived"
+            ? "archived"
+            : "unread";
+
   return {
     id: record.id,
     notification_type: record.notification_type ?? "in_app",
     title: record.title || record.subject || "Notification",
     subject: record.subject,
     message: record.message ?? "",
-    status: isRead ? "read" : "unread",
+    status: normalizedStatus,
     metadata: (record.metadata as Record<string, unknown>) || {},
+    idempotency_key: record.idempotency_key,
     is_read: isRead,
     is_archived: Boolean(record.is_archived),
     archived_at: record.archived_at,
@@ -63,6 +77,9 @@ export const notificationService = {
     priority?: string;
     channel?: "in_app" | "email" | "sms" | "all";
     archived?: "active" | "archived" | "all";
+    event_type?: string;
+    idempotency_key?: string;
+    subsystem?: string;
   }): Promise<Notification[]> {
     try {
       const { archived = "active", ...restParams } = params ?? {};
@@ -86,7 +103,7 @@ export const notificationService = {
   async getById(id: string): Promise<Notification> {
     try {
       const response = await api.get<NotificationApiRecord>(`/notifications/${id}/`, {
-        params: { channel: "in_app", archived: "all" },
+        params: { channel: "all", archived: "all" },
       });
       return normalizeNotification(response.data);
     } catch (error: any) {

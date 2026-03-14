@@ -16,6 +16,7 @@ from apps.audit.models import AuditLog
 from apps.campaigns.models import VettingCampaign
 from apps.candidates.models import Candidate, CandidateEnrollment
 from apps.governance.models import Organization, OrganizationMembership
+from apps.notifications.models import Notification
 
 from .models import BillingSubscription, BillingWebhookEvent, OrganizationOnboardingToken
 from .quotas import get_organization_seat_quota_snapshot
@@ -202,6 +203,38 @@ class BillingApiTests(APITestCase):
         self.assertEqual(response.data["subscription"]["plan_id"], "growth")
         self.assertEqual(response.data["subscription"]["organization_id"], str(organization.id))
         self.assertEqual(response.data["subscription"]["organization_name"], organization.name)
+
+    def test_billing_manage_includes_latest_incident_summary_for_failed_subscription(self):
+        internal_user = self._create_internal_user(email="billing-incident@example.com")
+        incident_at = timezone.now() - timedelta(hours=2)
+        BillingSubscription.objects.create(
+            provider="paystack",
+            status="failed",
+            payment_status="unpaid",
+            plan_id="growth",
+            plan_name="Growth",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="399.00",
+            reference="OVS-LATEST-INCIDENT",
+            registration_consumed_by_email=internal_user.email,
+            metadata={
+                "last_payment_failure_event": "charge.failed",
+                "last_payment_failure_at": incident_at.isoformat(),
+            },
+        )
+
+        self.client.force_authenticate(user=internal_user)
+        response = self.client.get(self.billing_manage_endpoint)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["subscription"]["status"], "failed")
+        self.assertEqual(response.data["subscription"]["payment_status"], "unpaid")
+        self.assertEqual(response.data["subscription"]["latest_incident"]["code"], "payment_failed")
+        self.assertEqual(response.data["subscription"]["latest_incident"]["source"], "paystack")
+        self.assertEqual(response.data["subscription"]["latest_incident"]["event_type"], "charge.failed")
+        self.assertIn("payment failure event", response.data["subscription"]["latest_incident"]["message"].lower())
+        self.assertEqual(response.data["subscription"]["latest_incident"]["detected_at"], incident_at)
 
     def test_billing_manage_falls_back_to_legacy_subscription_when_org_owned_missing(self):
         internal_user = self._create_internal_user(email="billing-org-fallback@example.com")
@@ -2407,6 +2440,192 @@ class BillingApiTests(APITestCase):
         self.assertEqual(persisted.status, "failed")
         self.assertEqual(persisted.payment_status, "unpaid")
 
+    @override_settings(PAYSTACK_SECRET_KEY="sk_test_paystack")
+    @patch("apps.notifications.services.send_mail", return_value=1)
+    def test_paystack_webhook_charge_failed_emits_billing_payment_failed_notifications(self, _send_mail):
+        admin_user = get_user_model().objects.create_user(
+            email="billing-admin-payments@example.com",
+            password="StrongPass123!",
+            first_name="Billing",
+            last_name="Admin",
+            user_type="admin",
+            is_staff=True,
+            is_superuser=True,
+        )
+        BillingSubscription.objects.create(
+            provider="paystack",
+            status="open",
+            payment_status="pending",
+            session_id="OVS-PAYSTACK-WEBHOOK-FAILED-TRACE-123",
+            plan_id="growth",
+            plan_name="Growth",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="399.00",
+            reference="OVS-PAYSTACK-WEBHOOK-FAILED-TRACE-123",
+        )
+
+        payload_data = {
+            "id": "evt_paystack_failed_trace_123",
+            "event": "charge.failed",
+            "data": {
+                "reference": "OVS-PAYSTACK-WEBHOOK-FAILED-TRACE-123",
+                "status": "failed",
+            },
+        }
+        payload = json.dumps(payload_data).encode("utf-8")
+        signature = self._paystack_signature(payload, "sk_test_paystack")
+
+        response = self.client.post(
+            self.paystack_webhook_endpoint,
+            payload,
+            content_type="application/json",
+            HTTP_X_PAYSTACK_SIGNATURE=signature,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        notifications = Notification.objects.filter(
+            recipient=admin_user,
+            metadata__event_type="billing_payment_failed",
+            metadata__subsystem="billing",
+            metadata__provider="paystack",
+            metadata__reference="OVS-PAYSTACK-WEBHOOK-FAILED-TRACE-123",
+        )
+        self.assertEqual(notifications.count(), 2)
+        self.assertEqual(
+            set(notifications.values_list("notification_type", flat=True)),
+            {"in_app", "email"},
+        )
+
+    @override_settings(PAYSTACK_SECRET_KEY="sk_test_paystack")
+    @patch("apps.notifications.services.send_mail", return_value=1)
+    def test_paystack_webhook_charge_failed_notifies_org_billing_managers(self, _send_mail):
+        platform_admin = get_user_model().objects.create_user(
+            email="billing-platform-admin@example.com",
+            password="StrongPass123!",
+            first_name="Platform",
+            last_name="Admin",
+            user_type="admin",
+            is_staff=True,
+            is_superuser=True,
+        )
+        org_admin = self._create_internal_user(email="billing-org-admin@example.com")
+        organization = self._create_org_membership(
+            org_admin,
+            code="billing-org-alerts",
+            name="Billing Org Alerts",
+            membership_role="org_admin",
+        )
+        unrelated_org_admin = self._create_internal_user(email="billing-other-org-admin@example.com")
+        self._create_org_membership(
+            unrelated_org_admin,
+            code="billing-other-org-alerts",
+            name="Billing Other Org Alerts",
+            membership_role="org_admin",
+        )
+
+        BillingSubscription.objects.create(
+            provider="paystack",
+            organization=organization,
+            status="open",
+            payment_status="pending",
+            session_id="OVS-PAYSTACK-WEBHOOK-FAILED-ORG-123",
+            plan_id="growth",
+            plan_name="Growth",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="399.00",
+            reference="OVS-PAYSTACK-WEBHOOK-FAILED-ORG-123",
+        )
+
+        payload_data = {
+            "id": "evt_paystack_failed_org_123",
+            "event": "charge.failed",
+            "data": {
+                "reference": "OVS-PAYSTACK-WEBHOOK-FAILED-ORG-123",
+                "status": "failed",
+            },
+        }
+        payload = json.dumps(payload_data).encode("utf-8")
+        signature = self._paystack_signature(payload, "sk_test_paystack")
+
+        response = self.client.post(
+            self.paystack_webhook_endpoint,
+            payload,
+            content_type="application/json",
+            HTTP_X_PAYSTACK_SIGNATURE=signature,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        scoped_notifications = Notification.objects.filter(
+            metadata__event_type="billing_payment_failed",
+            metadata__subsystem="billing",
+            metadata__provider="paystack",
+            metadata__reference="OVS-PAYSTACK-WEBHOOK-FAILED-ORG-123",
+        )
+        self.assertEqual(scoped_notifications.filter(recipient=platform_admin).count(), 2)
+        self.assertEqual(scoped_notifications.filter(recipient=org_admin).count(), 2)
+        self.assertFalse(scoped_notifications.filter(recipient=unrelated_org_admin).exists())
+
+    @override_settings(PAYSTACK_SECRET_KEY="sk_test_paystack")
+    @patch("apps.notifications.services.send_mail", return_value=1)
+    @patch("apps.billing.views._persist_paystack_transaction", side_effect=RuntimeError("Paystack persistence failed"))
+    def test_paystack_webhook_failed_processing_emits_billing_processing_error_notifications(
+        self,
+        _persist_paystack_transaction,
+        _send_mail,
+    ):
+        admin_user = get_user_model().objects.create_user(
+            email="billing-admin-paystack@example.com",
+            password="StrongPass123!",
+            first_name="Billing",
+            last_name="Admin",
+            user_type="admin",
+            is_staff=True,
+            is_superuser=True,
+        )
+        payload_data = {
+            "id": "evt_paystack_processing_failed_123",
+            "event": "charge.success",
+            "data": {
+                "reference": "OVS-PAYSTACK-WEBHOOK-ERROR-123",
+            },
+        }
+        payload = json.dumps(payload_data).encode("utf-8")
+        signature = self._paystack_signature(payload, "sk_test_paystack")
+
+        response = self.client.post(
+            self.paystack_webhook_endpoint,
+            payload,
+            content_type="application/json",
+            HTTP_X_PAYSTACK_SIGNATURE=signature,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(response.data["event_type"], "charge.success")
+        self.assertIn("Paystack persistence failed", response.data["detail"])
+
+        webhook_event = BillingWebhookEvent.objects.get(
+            provider="paystack",
+            event_id="evt_paystack_processing_failed_123",
+        )
+        self.assertEqual(webhook_event.processing_status, "failed")
+        self.assertEqual(webhook_event.processing_error, "Paystack persistence failed")
+
+        notifications = Notification.objects.filter(
+            recipient=admin_user,
+            metadata__event_type="processing_error",
+            metadata__subsystem="billing",
+            metadata__provider="paystack",
+            metadata__webhook_event_id="evt_paystack_processing_failed_123",
+        )
+        self.assertEqual(notifications.count(), 2)
+        self.assertEqual(
+            set(notifications.values_list("notification_type", flat=True)),
+            {"in_app", "email"},
+        )
+
     @override_settings(STRIPE_SECRET_KEY="sk_test_123")
     @patch("apps.billing.views._ensure_stripe_ready")
     @patch("apps.billing.views._stripe_create_checkout_session")
@@ -2829,6 +3048,145 @@ class BillingApiTests(APITestCase):
         self.assertEqual(subscription.status, "failed")
         self.assertEqual(subscription.payment_status, "unpaid")
         self.assertIn("last_invoice_payment_failed_at", subscription.metadata)
+
+    @override_settings(STRIPE_WEBHOOK_SECRET="whsec_test_123")
+    @patch("apps.notifications.services.send_mail", return_value=1)
+    @patch("apps.billing.views._ensure_stripe_webhook_ready")
+    @patch("apps.billing.views._stripe_construct_event")
+    def test_stripe_invoice_payment_failed_notifications_are_retry_safe(
+        self,
+        mock_construct,
+        mock_ready,
+        send_mail_mock,
+    ):
+        admin_user = get_user_model().objects.create_user(
+            email="billing-admin-invoice@example.com",
+            password="StrongPass123!",
+            first_name="Billing",
+            last_name="Admin",
+            user_type="admin",
+            is_staff=True,
+            is_superuser=True,
+        )
+        mock_ready.return_value = None
+        BillingSubscription.objects.create(
+            provider="stripe",
+            status="complete",
+            payment_status="paid",
+            session_id="cs_failed_invoice_trace",
+            plan_id="growth",
+            plan_name="Growth",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="399.00",
+            reference="OVS-WEBHOOK-INVOICE-FAILED-TRACE",
+            metadata={"stripe_subscription_id": "sub_failed_trace_123"},
+        )
+        mock_construct.return_value = {
+            "id": "evt_invoice_failed_trace_123",
+            "type": "invoice.payment_failed",
+            "data": {
+                "object": {
+                    "id": "in_failed_trace_123",
+                    "subscription": "sub_failed_trace_123",
+                }
+            },
+        }
+
+        first_response = self.client.post(
+            self.stripe_webhook_endpoint,
+            "{}",
+            content_type="application/json",
+            HTTP_STRIPE_SIGNATURE="sig_test",
+        )
+        second_response = self.client.post(
+            self.stripe_webhook_endpoint,
+            "{}",
+            content_type="application/json",
+            HTTP_STRIPE_SIGNATURE="sig_test",
+        )
+
+        self.assertEqual(first_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(second_response.status_code, status.HTTP_200_OK)
+        notifications = Notification.objects.filter(
+            recipient=admin_user,
+            metadata__event_type="billing_payment_failed",
+            metadata__subsystem="billing",
+            metadata__provider="stripe",
+            metadata__reference="OVS-WEBHOOK-INVOICE-FAILED-TRACE",
+        )
+        self.assertEqual(notifications.count(), 2)
+        self.assertEqual(send_mail_mock.call_count, 1)
+
+    @override_settings(STRIPE_WEBHOOK_SECRET="whsec_test_123")
+    @patch("apps.notifications.services.send_mail", return_value=1)
+    @patch("apps.billing.views._ensure_stripe_webhook_ready")
+    @patch("apps.billing.views._stripe_construct_event")
+    @patch("apps.billing.views._persist_stripe_session", side_effect=RuntimeError("Stripe persistence failed"))
+    def test_stripe_webhook_failed_processing_notifications_are_retry_safe(
+        self,
+        _persist_stripe_session,
+        mock_construct,
+        mock_ready,
+        send_mail_mock,
+    ):
+        admin_user = get_user_model().objects.create_user(
+            email="billing-admin-stripe@example.com",
+            password="StrongPass123!",
+            first_name="Billing",
+            last_name="Admin",
+            user_type="admin",
+            is_staff=True,
+            is_superuser=True,
+        )
+        mock_ready.return_value = None
+        mock_construct.return_value = {
+            "id": "evt_stripe_processing_failed_123",
+            "type": "checkout.session.completed",
+            "data": {
+                "object": {
+                    "id": "cs_processing_failed_123",
+                    "status": "complete",
+                }
+            },
+        }
+
+        first_response = self.client.post(
+            self.stripe_webhook_endpoint,
+            "{}",
+            content_type="application/json",
+            HTTP_STRIPE_SIGNATURE="sig_test",
+        )
+        second_response = self.client.post(
+            self.stripe_webhook_endpoint,
+            "{}",
+            content_type="application/json",
+            HTTP_STRIPE_SIGNATURE="sig_test",
+        )
+
+        self.assertEqual(first_response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(second_response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        webhook_event = BillingWebhookEvent.objects.get(
+            provider="stripe",
+            event_id="evt_stripe_processing_failed_123",
+        )
+        self.assertEqual(webhook_event.processing_status, "failed")
+        self.assertEqual(webhook_event.processing_error, "Stripe persistence failed")
+
+        notifications = Notification.objects.filter(
+            recipient=admin_user,
+            metadata__event_type="processing_error",
+            metadata__subsystem="billing",
+            metadata__provider="stripe",
+            metadata__webhook_event_id="evt_stripe_processing_failed_123",
+        )
+        self.assertEqual(notifications.count(), 2)
+        self.assertEqual(
+            set(notifications.values_list("notification_type", flat=True)),
+            {"in_app", "email"},
+        )
+        self.assertEqual(send_mail_mock.call_count, 1)
 
     @override_settings(STRIPE_WEBHOOK_SECRET="whsec_test_123")
     @patch("apps.billing.views._ensure_stripe_webhook_ready")

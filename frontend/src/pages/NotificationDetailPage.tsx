@@ -1,11 +1,13 @@
 import React from "react";
-import { ArrowLeft, ArrowRight, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Copy, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import { Loader } from "@/components/common/Loader";
 import { notificationService } from "@/services/notification.service";
+import { copyTextToClipboard } from "@/utils/helper";
+import { buildNotificationTraceHref } from "@/utils/notificationTrace";
 import {
   extractNotificationActions,
   extractNotificationContext,
@@ -72,7 +74,7 @@ export const NotificationDetailPage: React.FC = () => {
       }
 
       const detail = await notificationService.getById(notificationId);
-      if (!detail.is_read) {
+      if (detail.notification_type === "in_app" && !detail.is_read) {
         try {
           await notificationService.markSingleAsRead(notificationId);
           await queryClient.invalidateQueries({ queryKey: ["notifications"] });
@@ -108,7 +110,26 @@ export const NotificationDetailPage: React.FC = () => {
   );
   const contextFields = data ? extractNotificationContext(data) : [];
   const [isArchiving, setIsArchiving] = React.useState(false);
+  const [isCopyingTraceKey, setIsCopyingTraceKey] = React.useState(false);
   const [isRestoring, setIsRestoring] = React.useState(false);
+  const eventType =
+    typeof data?.metadata?.event_type === "string" ? data.metadata.event_type : "";
+  const subsystem =
+    typeof data?.metadata?.subsystem === "string" ? data.metadata.subsystem : "";
+  const traceKey = data?.idempotency_key ?? "";
+  const traceViewHref = React.useMemo(() => {
+    if (!data || (!eventType && !traceKey)) {
+      return "";
+    }
+
+    return buildNotificationTraceHref({
+      channel: data.notification_type,
+      eventType,
+      idempotencyKey: traceKey,
+      subsystem,
+      view: data.is_archived ? "archived" : "all",
+    });
+  }, [data, eventType, subsystem, traceKey]);
 
   const handleDelete = async () => {
     if (!notificationId || isArchiving) {
@@ -149,6 +170,26 @@ export const NotificationDetailPage: React.FC = () => {
       toast.error(message);
     } finally {
       setIsRestoring(false);
+    }
+  };
+
+  const handleCopyTraceKey = async () => {
+    if (!traceKey) {
+      return;
+    }
+
+    setIsCopyingTraceKey(true);
+    try {
+      await copyTextToClipboard(traceKey);
+      toast.success("Trace key copied.");
+    } catch (copyError) {
+      const message =
+        copyError instanceof Error
+          ? copyError.message
+          : "Failed to copy trace key.";
+      toast.error(message);
+    } finally {
+      setIsCopyingTraceKey(false);
     }
   };
 
@@ -218,6 +259,51 @@ export const NotificationDetailPage: React.FC = () => {
               ) : null}
             </div>
           </header>
+
+          {eventType || traceKey ? (
+            <section className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  {eventType ? (
+                    <span className="inline-flex rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-700">
+                      Event: {eventType}
+                    </span>
+                  ) : null}
+                  {subsystem ? (
+                    <span className="inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-cyan-800">
+                      Subsystem: {subsystem}
+                    </span>
+                  ) : null}
+                  <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-emerald-800">
+                    Channel: {data.notification_type}
+                  </span>
+                  {traceKey ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleCopyTraceKey()}
+                      disabled={isCopyingTraceKey}
+                      className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 font-mono text-[11px] text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      title="Copy trace key"
+                      aria-label="Copy trace key"
+                    >
+                      <Copy className="h-3 w-3" />
+                      {isCopyingTraceKey ? "Copying..." : `Key: ${traceKey}`}
+                    </button>
+                  ) : null}
+                </div>
+
+                {traceViewHref ? (
+                  <Link
+                    to={traceViewHref}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-100"
+                  >
+                    Open trace view
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
 
           <section className="flex flex-wrap items-center gap-2">
             {data.is_archived ? (

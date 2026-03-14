@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Building2, Loader2, RefreshCw, ShieldCheck, Users, Workflow } from "lucide-react";
 import { toast } from "react-toastify";
 
+import BillingAttentionPanel from "@/components/billing/BillingAttentionPanel";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { billingService, type BillingSubscriptionManageResponse } from "@/services/billing.service";
@@ -221,6 +222,13 @@ const OrganizationDashboardPage: React.FC = () => {
                   ? "N/A"
                   : onboardingState.organization_seat_remaining}
               </p>
+              <div className="mt-4">
+                <BillingAttentionPanel
+                  subscription={billingSummary?.subscription ?? null}
+                  onAfterAction={loadDashboard}
+                  renewHref="/subscribe?returnTo=%2Forganization%2Fdashboard"
+                />
+              </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button type="button" variant="outline" onClick={() => navigate("/organization/onboarding")}>
                   Manage Onboarding

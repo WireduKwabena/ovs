@@ -9,6 +9,7 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
+from django.db.models import Q
 from django.utils.dateparse import parse_datetime
 from django.utils import timezone
 from rest_framework import status
@@ -49,7 +50,10 @@ from apps.core.permissions import (
     get_request_tenant_context,
     is_platform_admin_user,
 )
-from apps.core.policies.registry_policy import can_manage_registry_governance
+from apps.core.policies.registry_policy import (
+    ORG_GOVERNANCE_ADMIN_MEMBERSHIP_ROLES,
+    can_manage_registry_governance,
+)
 from .serializers import (
     BillingActionErrorSerializer,
     CheckoutConfirmErrorSerializer,
@@ -558,6 +562,68 @@ def _subscription_cancellation_fields(subscription: BillingSubscription):
     return cancel_at_period_end, requested_at, effective_at
 
 
+def _build_latest_subscription_incident(
+    *,
+    subscription: BillingSubscription,
+    metadata: dict,
+    cancel_at_period_end: bool,
+    cancellation_effective_at,
+    retry_available: bool,
+) -> dict | None:
+    normalized_provider = str(getattr(subscription, "provider", "") or "billing").strip().lower() or "billing"
+    normalized_status = str(getattr(subscription, "status", "") or "").strip().lower()
+    normalized_payment_status = str(getattr(subscription, "payment_status", "") or "").strip().lower()
+    payment_failure_event = str(metadata.get("last_payment_failure_event") or "").strip()
+    payment_failure_at = _parse_iso_datetime(metadata.get("last_payment_failure_at"))
+    invoice_payment_failed_at = _parse_iso_datetime(metadata.get("last_invoice_payment_failed_at"))
+
+    if (
+        payment_failure_event
+        or payment_failure_at is not None
+        or invoice_payment_failed_at is not None
+        or normalized_status in {"failed", "expired", "canceled", "cancelled"}
+        or normalized_payment_status in {"failed", "unpaid", "past_due"}
+    ):
+        if payment_failure_event:
+            message = f"{normalized_provider.title()} reported a payment failure event ({payment_failure_event})."
+        elif invoice_payment_failed_at is not None:
+            message = f"{normalized_provider.title()} reported an invoice payment failure."
+        elif normalized_payment_status in {"failed", "unpaid", "past_due"}:
+            message = (
+                f"The current payment status is {normalized_payment_status.replace('_', ' ')}."
+            )
+        else:
+            message = f"The current subscription status is {normalized_status.replace('_', ' ')}."
+
+        return {
+            "code": "payment_failed",
+            "message": message,
+            "detected_at": payment_failure_at or invoice_payment_failed_at or subscription.updated_at,
+            "source": normalized_provider,
+            "event_type": payment_failure_event or None,
+        }
+
+    if cancel_at_period_end:
+        return {
+            "code": "cancellation_scheduled",
+            "message": "Cancellation is scheduled at the end of the current billing period.",
+            "detected_at": cancellation_effective_at or subscription.updated_at,
+            "source": normalized_provider,
+            "event_type": None,
+        }
+
+    if retry_available:
+        return {
+            "code": "retry_available",
+            "message": "Billing retry is available for this subscription.",
+            "detected_at": subscription.updated_at,
+            "source": normalized_provider,
+            "event_type": None,
+        }
+
+    return None
+
+
 def _hydrate_stripe_identifiers(subscription: BillingSubscription):
     metadata = dict(subscription.metadata or {})
     raw_payload = dict(subscription.raw_last_payload or {})
@@ -684,6 +750,13 @@ def _build_subscription_summary(subscription: BillingSubscription) -> dict:
 
     can_update_payment_method = subscription.status == "complete" and subscription.provider in {"stripe", "sandbox"}
     can_delete_payment_method = subscription.status == "complete" and not cancel_at_period_end
+    latest_incident = _build_latest_subscription_incident(
+        subscription=subscription,
+        metadata=metadata,
+        cancel_at_period_end=cancel_at_period_end,
+        cancellation_effective_at=cancellation_effective_at,
+        retry_available=retry_available,
+    )
 
     return {
         "id": subscription.id,
@@ -709,6 +782,7 @@ def _build_subscription_summary(subscription: BillingSubscription) -> dict:
         "can_delete_payment_method": can_delete_payment_method,
         "retry_available": retry_available,
         "retry_reason": retry_reason,
+        "latest_incident": latest_incident,
         "updated_at": subscription.updated_at,
     }
 
@@ -968,6 +1042,199 @@ def _checkout_confirm_rate_limit_per_minute() -> int:
 
 def _billing_health_require_staff() -> bool:
     return bool(getattr(settings, "BILLING_HEALTH_REQUIRE_STAFF", False))
+
+
+def _resolve_billing_alert_organization_id(
+    *,
+    subscription: BillingSubscription | None = None,
+    extra_metadata: dict | None = None,
+) -> str | None:
+    subscription_organization_id = _normalized_organization_id(
+        getattr(subscription, "organization_id", None)
+    )
+    if subscription_organization_id:
+        return subscription_organization_id
+
+    if extra_metadata:
+        return _normalized_organization_id(extra_metadata.get("organization_id"))
+
+    return None
+
+
+def _billing_alert_recipients(*, organization_id: str | None = None):
+    try:
+        from apps.authentication.models import User
+    except Exception:
+        return []
+
+    platform_alert_filter = Q(user_type="admin") | Q(is_staff=True) | Q(is_superuser=True)
+    if not organization_id:
+        return User.objects.filter(is_active=True).filter(platform_alert_filter).distinct()
+
+    governance_alert_filter = Q(
+        organization_memberships__organization_id=organization_id,
+        organization_memberships__is_active=True,
+        organization_memberships__membership_role__in=tuple(ORG_GOVERNANCE_ADMIN_MEMBERSHIP_ROLES),
+    )
+    return User.objects.filter(is_active=True).filter(
+        platform_alert_filter | governance_alert_filter
+    ).distinct()
+
+
+def _notify_billing_processing_error(
+    *,
+    provider: str,
+    webhook_event: BillingWebhookEvent,
+    error_message: str,
+    billing_event_type: str = "",
+    subscription: BillingSubscription | None = None,
+    extra_metadata: dict | None = None,
+) -> None:
+    try:
+        from apps.notifications.services import NotificationService
+    except Exception:
+        return
+
+    organization_id = _resolve_billing_alert_organization_id(
+        subscription=subscription,
+        extra_metadata=extra_metadata,
+    )
+    recipients = _billing_alert_recipients(organization_id=organization_id)
+    if not recipients:
+        return
+
+    normalized_provider = str(provider or "billing").strip().lower() or "billing"
+    normalized_event_type = str(
+        billing_event_type or getattr(webhook_event, "event_type", "") or ""
+    ).strip()
+    event_identifier = (
+        str(getattr(webhook_event, "event_id", "") or "").strip()
+        or str(getattr(webhook_event, "id", "") or "").strip()
+        or "unknown"
+    )
+    metadata = {
+        "event_type": "processing_error",
+        "subsystem": "billing",
+        "provider": normalized_provider,
+        "billing_event_type": normalized_event_type,
+        "webhook_record_id": str(getattr(webhook_event, "id", "") or ""),
+        "webhook_event_id": str(getattr(webhook_event, "event_id", "") or ""),
+        "webhook_processing_status": str(getattr(webhook_event, "processing_status", "") or ""),
+        "error_message": str(error_message or ""),
+    }
+
+    if subscription is not None:
+        metadata.update(
+            {
+                "subscription_id": str(getattr(subscription, "id", "") or ""),
+                "organization_id": str(getattr(subscription, "organization_id", "") or ""),
+                "session_id": str(getattr(subscription, "session_id", "") or ""),
+                "reference": str(getattr(subscription, "reference", "") or ""),
+            }
+        )
+
+    if extra_metadata:
+        metadata.update(extra_metadata)
+
+    subject = f"{normalized_provider.title()} billing processing error"
+    if normalized_event_type:
+        message = (
+            f"{normalized_provider.title()} billing webhook processing failed for "
+            f"event {normalized_event_type}. Error: {error_message}"
+        )
+    else:
+        message = f"{normalized_provider.title()} billing processing failed. Error: {error_message}"
+
+    idempotency_key = (
+        f"billing_processing_error:{normalized_provider}:{normalized_event_type or 'unknown'}:{event_identifier}"
+    )
+
+    for recipient in recipients:
+        NotificationService.send_admin_notification(
+            recipient,
+            notification_type="processing_error",
+            title=subject,
+            message=message,
+            metadata=metadata,
+            idempotency_key=idempotency_key,
+        )
+
+
+def _notify_billing_payment_failure(
+    *,
+    provider: str,
+    billing_event_type: str,
+    subscription: BillingSubscription | None = None,
+    reference: str = "",
+    extra_metadata: dict | None = None,
+) -> None:
+    try:
+        from apps.notifications.services import NotificationService
+    except Exception:
+        return
+
+    organization_id = _resolve_billing_alert_organization_id(
+        subscription=subscription,
+        extra_metadata=extra_metadata,
+    )
+    recipients = _billing_alert_recipients(organization_id=organization_id)
+    if not recipients:
+        return
+
+    normalized_provider = str(provider or "billing").strip().lower() or "billing"
+    normalized_event_type = str(billing_event_type or "").strip() or "unknown"
+    resolved_reference = (
+        str(reference or "").strip()
+        or str(getattr(subscription, "reference", "") or "").strip()
+        or str(getattr(subscription, "session_id", "") or "").strip()
+    )
+    metadata = {
+        "event_type": "billing_payment_failed",
+        "subsystem": "billing",
+        "provider": normalized_provider,
+        "billing_event_type": normalized_event_type,
+        "reference": resolved_reference,
+    }
+
+    if subscription is not None:
+        metadata.update(
+            {
+                "subscription_id": str(getattr(subscription, "id", "") or ""),
+                "organization_id": str(getattr(subscription, "organization_id", "") or ""),
+                "session_id": str(getattr(subscription, "session_id", "") or ""),
+                "plan_id": str(getattr(subscription, "plan_id", "") or ""),
+                "plan_name": str(getattr(subscription, "plan_name", "") or ""),
+                "payment_status": str(getattr(subscription, "payment_status", "") or ""),
+                "subscription_status": str(getattr(subscription, "status", "") or ""),
+            }
+        )
+
+    if extra_metadata:
+        metadata.update(extra_metadata)
+
+    subject = f"{normalized_provider.title()} payment issue detected"
+    message = (
+        f"{normalized_provider.title()} reported a payment failure event "
+        f"({normalized_event_type})"
+    )
+    if resolved_reference:
+        message = f"{message} for reference {resolved_reference}."
+    else:
+        message = f"{message}."
+
+    idempotency_key = (
+        f"billing_payment_failed:{normalized_provider}:{normalized_event_type}:{resolved_reference or 'unknown'}"
+    )
+
+    for recipient in recipients:
+        NotificationService.send_admin_notification(
+            recipient,
+            notification_type="billing_payment_failed",
+            title=subject,
+            message=message,
+            metadata=metadata,
+            idempotency_key=idempotency_key,
+        )
 
 
 def _check_subscription_access_verify_rate_limit(request) -> tuple[bool, int, int, str]:
@@ -2564,6 +2831,12 @@ class PaystackWebhookAPIView(APIView):
                     sync_onboarding_tokens_for_subscription(subscription)
                     response_payload["session_id"] = subscription.session_id
                     response_payload["payment_status"] = subscription.payment_status
+                _notify_billing_payment_failure(
+                    provider="paystack",
+                    billing_event_type=event_type,
+                    subscription=subscription,
+                    reference=reference,
+                )
                 webhook_event.processing_status = "processed"
             else:
                 webhook_event.processing_status = "ignored"
@@ -2575,7 +2848,20 @@ class PaystackWebhookAPIView(APIView):
             webhook_event.processing_error = str(exc)
             webhook_event.processed_at = timezone.now()
             webhook_event.save(update_fields=["processing_status", "processing_error", "processed_at"])
-            raise
+            _notify_billing_processing_error(
+                provider="paystack",
+                webhook_event=webhook_event,
+                billing_event_type=event_type,
+                error_message=str(exc),
+            )
+            return Response(
+                {
+                    "received": True,
+                    "event_type": event_type,
+                    "detail": str(exc),
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         return Response(response_payload, status=status.HTTP_200_OK)
 
@@ -2676,6 +2962,13 @@ class StripeWebhookAPIView(APIView):
                     sync_onboarding_tokens_for_subscription(subscription)
                     response_payload["session_id"] = subscription.session_id
                     response_payload["payment_status"] = subscription.payment_status
+                _notify_billing_payment_failure(
+                    provider="stripe",
+                    billing_event_type=event_type,
+                    subscription=subscription,
+                    reference=str(getattr(subscription, "reference", "") or stripe_subscription_id),
+                    extra_metadata={"stripe_subscription_id": stripe_subscription_id},
+                )
             elif event_type == "customer.subscription.deleted":
                 stripe_subscription_id = str(event_data.get("id") or "").strip()
                 subscription = _find_subscription_by_stripe_subscription_id(stripe_subscription_id)
@@ -2747,7 +3040,20 @@ class StripeWebhookAPIView(APIView):
             webhook_event.processing_error = str(exc)
             webhook_event.processed_at = timezone.now()
             webhook_event.save(update_fields=["processing_status", "processing_error", "processed_at"])
-            raise
+            _notify_billing_processing_error(
+                provider="stripe",
+                webhook_event=webhook_event,
+                billing_event_type=event_type,
+                error_message=str(exc),
+            )
+            return Response(
+                {
+                    "received": True,
+                    "event_type": event_type,
+                    "detail": str(exc),
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         return Response(response_payload, status=status.HTTP_200_OK)
 

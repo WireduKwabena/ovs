@@ -1,8 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Activity, Lock, RefreshCw } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import { handleApiError } from '@/services/api';
 import { billingService, type BillingHealthResponse } from '@/services/billing.service';
+import {
+  buildBillingPaymentFailureNotificationTraceHref,
+  buildBillingProcessingErrorNotificationTraceHref,
+} from '@/utils/notificationTrace';
 
 const POLL_INTERVAL_MS = 60_000;
 
@@ -135,15 +140,29 @@ export const BillingHealthCard: React.FC<BillingHealthCardProps> = ({ onStatusCh
             {lastCheckedAt ? `Last checked ${lastCheckedAt.toLocaleTimeString()}` : 'Not checked yet'}
           </p>
         </div>
-        <button
-          type='button'
-          onClick={() => void loadHealth('refresh')}
-          disabled={isLoading || isRefreshing}
-          className='inline-flex w-full items-center justify-center gap-2 rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-900 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto'
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-          {isRefreshing ? 'Refreshing...' : 'Refresh'}
-        </button>
+        <div className='flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end'>
+          <Link
+            to={buildBillingProcessingErrorNotificationTraceHref()}
+            className='inline-flex w-full items-center justify-center gap-2 rounded-md border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-800 hover:bg-rose-100 sm:w-auto'
+          >
+            Open runtime errors
+          </Link>
+          <Link
+            to={buildBillingPaymentFailureNotificationTraceHref()}
+            className='inline-flex w-full items-center justify-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 sm:w-auto'
+          >
+            Open payment failures
+          </Link>
+          <button
+            type='button'
+            onClick={() => void loadHealth('refresh')}
+            disabled={isLoading || isRefreshing}
+            className='inline-flex w-full items-center justify-center gap-2 rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-900 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto'
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
       </div>
 
       {isLoading && !health ? (

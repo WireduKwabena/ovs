@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Brain, FileSearch, Plus, RefreshCw, ScanFace, Trash2 } from "lucide-react";
+import { AlertTriangle, Brain, FileSearch, Plus, RefreshCw, ScanFace, Trash2 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import type {
   AiMonitorSocialProfileResponse,
 } from "@/types";
 import { formatDate } from "@/utils/helper";
+import { buildProcessingErrorNotificationTraceHref } from "@/utils/notificationTrace";
 
 type SocialProfileRow = AiMonitorSocialProfileItem & { id: string };
 
@@ -40,6 +42,31 @@ const riskPillClass = (riskLevel: string): string => {
   return "bg-slate-200 text-slate-800";
 };
 
+const ProcessingErrorTraceCallout: React.FC<{
+  message: string;
+  className?: string;
+}> = ({ message, className = "mt-4" }) => (
+  <div className={`${className} rounded-lg border border-rose-200 bg-rose-50 px-3 py-3 text-sm text-rose-800`}>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="inline-flex items-start gap-2">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        <div>
+          <p>{message}</p>
+          <p className="mt-1 text-xs text-rose-700">
+            Review operational processing error notifications for related backend failures.
+          </p>
+        </div>
+      </div>
+      <Link
+        to={buildProcessingErrorNotificationTraceHref()}
+        className="inline-flex items-center justify-center rounded-md border border-rose-300 bg-white px-3 py-1.5 text-xs font-medium text-rose-800 hover:bg-rose-100"
+      >
+        Open processing errors
+      </Link>
+    </div>
+  </div>
+);
+
 const AiMonitorPage: React.FC = () => {
   const [modelName, setModelName] = useState("default");
   const [healthLoading, setHealthLoading] = useState(false);
@@ -51,12 +78,14 @@ const AiMonitorPage: React.FC = () => {
   const [topK, setTopK] = useState("3");
   const [classifyLoading, setClassifyLoading] = useState(false);
   const [classification, setClassification] = useState<AiMonitorDocumentClassificationResponse | null>(null);
+  const [classificationError, setClassificationError] = useState<string | null>(null);
 
   const [socialCaseId, setSocialCaseId] = useState("");
   const [socialConsent, setSocialConsent] = useState(true);
   const [socialProfiles, setSocialProfiles] = useState<SocialProfileRow[]>([createProfileRow()]);
   const [socialLoading, setSocialLoading] = useState(false);
   const [socialResult, setSocialResult] = useState<AiMonitorSocialProfileResponse | null>(null);
+  const [socialError, setSocialError] = useState<string | null>(null);
 
   const fetchHealth = useCallback(async (name: string) => {
     setHealthLoading(true);
@@ -84,6 +113,7 @@ const AiMonitorPage: React.FC = () => {
 
   const handleClassifyDocument = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setClassificationError(null);
     if (!documentFile) {
       toast.error("Select a document image or PDF to classify.");
       return;
@@ -103,9 +133,11 @@ const AiMonitorPage: React.FC = () => {
         top_k: parsedTopK,
       });
       setClassification(response);
+      setClassificationError(null);
       toast.success("Document classified successfully.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Document classification failed.";
+      setClassificationError(message);
       toast.error(message);
     } finally {
       setClassifyLoading(false);
@@ -146,6 +178,7 @@ const AiMonitorPage: React.FC = () => {
 
   const handleSocialCheck = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setSocialError(null);
     if (normalizedProfiles.length === 0) {
       toast.error("Add at least one social profile entry.");
       return;
@@ -159,9 +192,11 @@ const AiMonitorPage: React.FC = () => {
         profiles: normalizedProfiles,
       });
       setSocialResult(response);
+      setSocialError(null);
       toast.success("Social profile check completed.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Social profile check failed.";
+      setSocialError(message);
       toast.error(message);
     } finally {
       setSocialLoading(false);
@@ -252,9 +287,7 @@ const AiMonitorPage: React.FC = () => {
         </div>
 
         {healthError ? (
-          <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-            {healthError}
-          </div>
+          <ProcessingErrorTraceCallout message={healthError} />
         ) : null}
 
         {health ? (
@@ -340,6 +373,13 @@ const AiMonitorPage: React.FC = () => {
             </Button>
           </div>
         </form>
+
+        {classificationError ? (
+          <ProcessingErrorTraceCallout
+            message={classificationError}
+            className="mt-4"
+          />
+        ) : null}
 
         {classification ? (
           <div className="mt-4 space-y-3">
@@ -462,6 +502,13 @@ const AiMonitorPage: React.FC = () => {
             </Button>
           </div>
         </form>
+
+        {socialError ? (
+          <ProcessingErrorTraceCallout
+            message={socialError}
+            className="mt-4"
+          />
+        ) : null}
 
         {socialResult ? (
           <div className="mt-4 space-y-3">

@@ -39,7 +39,6 @@ describe("AdminUsersPage filters", () => {
           last_name: "Admin",
           full_name: "Alice Admin",
           user_type: "internal",
-          group_roles: ["registry_admin"],
           is_active: true,
           is_staff: false,
           is_superuser: false,
@@ -66,6 +65,7 @@ describe("AdminUsersPage filters", () => {
       expect(mocks.adminService.getUsers).toHaveBeenCalledWith(
         expect.objectContaining({
           q: "alice",
+          user_type: "internal",
           is_active: true,
         }),
       );
@@ -80,6 +80,7 @@ describe("AdminUsersPage filters", () => {
       expect(mocks.adminService.getUsers).toHaveBeenLastCalledWith(
         expect.objectContaining({
           q: undefined,
+          user_type: undefined,
           is_active: undefined,
         }),
       );

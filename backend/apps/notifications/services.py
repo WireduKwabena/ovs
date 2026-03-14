@@ -9,6 +9,7 @@ from typing import Any
 from django.conf import settings
 from django.core.mail import send_mail
 from django.core.serializers.json import DjangoJSONEncoder
+from django.db import IntegrityError
 from django.db.models import Q
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
@@ -152,11 +153,60 @@ class NotificationService:
             Notification.objects.filter(
                 recipient=recipient,
                 notification_type=notification_type,
-                metadata__idempotency_key=idempotency_key,
+                idempotency_key=idempotency_key,
             )
             .order_by("-created_at")
             .first()
         )
+
+    @staticmethod
+    def _create_or_get_notification_record(
+        *,
+        recipient,
+        notification_type: str,
+        subject: str,
+        message: str,
+        status: str,
+        priority: str,
+        related_case=None,
+        related_interview=None,
+        metadata_payload: dict[str, Any] | None = None,
+        idempotency_key: str | None = None,
+        **extra_fields,
+    ) -> tuple[Notification, bool]:
+        existing = NotificationService._find_existing_by_idempotency(
+            recipient=recipient,
+            notification_type=notification_type,
+            idempotency_key=idempotency_key,
+        )
+        if existing:
+            return existing, False
+
+        try:
+            return Notification.objects.create(
+                recipient=recipient,
+                subject=subject,
+                message=message,
+                notification_type=notification_type,
+                status=status,
+                priority=priority,
+                related_case=related_case,
+                related_interview=related_interview,
+                metadata=metadata_payload or {},
+                idempotency_key=idempotency_key,
+                **extra_fields,
+            ), True
+        except IntegrityError:
+            if not idempotency_key:
+                raise
+            existing = NotificationService._find_existing_by_idempotency(
+                recipient=recipient,
+                notification_type=notification_type,
+                idempotency_key=idempotency_key,
+            )
+            if existing:
+                return existing, False
+            raise
 
     @staticmethod
     def _create_in_app_notification(
@@ -174,15 +224,8 @@ class NotificationService:
             metadata,
             idempotency_key,
         )
-        existing = NotificationService._find_existing_by_idempotency(
-            recipient=recipient,
-            notification_type="in_app",
-            idempotency_key=resolved_key,
-        )
-        if existing:
-            return existing
 
-        return Notification.objects.create(
+        notification, _ = NotificationService._create_or_get_notification_record(
             recipient=recipient,
             subject=subject,
             message=message,
@@ -191,8 +234,10 @@ class NotificationService:
             priority=priority,
             related_case=related_case,
             related_interview=related_interview,
-            metadata=metadata_payload,
+            metadata_payload=metadata_payload,
+            idempotency_key=resolved_key,
         )
+        return notification
 
     @staticmethod
     def _send_email_notification(
@@ -216,15 +261,8 @@ class NotificationService:
             metadata,
             idempotency_key,
         )
-        existing = NotificationService._find_existing_by_idempotency(
-            recipient=recipient,
-            notification_type="email",
-            idempotency_key=resolved_key,
-        )
-        if existing:
-            return existing
 
-        email_notification = Notification.objects.create(
+        email_notification, created = NotificationService._create_or_get_notification_record(
             recipient=recipient,
             subject=subject,
             message=fallback_message,
@@ -233,9 +271,12 @@ class NotificationService:
             priority=priority,
             related_case=related_case,
             related_interview=related_interview,
+            metadata_payload=metadata_payload,
+            idempotency_key=resolved_key,
             email_to=email,
-            metadata=metadata_payload,
         )
+        if not created:
+            return email_notification
 
         html_message = None
         plain_message = fallback_message
@@ -304,15 +345,8 @@ class NotificationService:
             metadata,
             idempotency_key,
         )
-        existing = NotificationService._find_existing_by_idempotency(
-            recipient=recipient,
-            notification_type="sms",
-            idempotency_key=resolved_key,
-        )
-        if existing:
-            return existing
 
-        sms_notification = Notification.objects.create(
+        sms_notification, created = NotificationService._create_or_get_notification_record(
             recipient=recipient,
             subject=subject,
             message=message,
@@ -321,8 +355,11 @@ class NotificationService:
             priority=priority,
             related_case=related_case,
             related_interview=related_interview,
-            metadata=metadata_payload,
+            metadata_payload=metadata_payload,
+            idempotency_key=resolved_key,
         )
+        if not created:
+            return sms_notification
 
         delivery_successful = NotificationService._send_sms_notification(
             phone_number,
@@ -833,7 +870,14 @@ class NotificationService:
         return True
 
     @staticmethod
-    def send_admin_notification(admin_user, notification_type, title, message, metadata=None):
+    def send_admin_notification(
+        admin_user,
+        notification_type,
+        title,
+        message,
+        metadata=None,
+        idempotency_key: str | None = None,
+    ):
         """Send notification to an admin/staff recipient."""
         if admin_user is None:
             logger.warning("Skipping send_admin_notification: missing admin user.")
@@ -848,6 +892,7 @@ class NotificationService:
             message=message,
             metadata=payload,
             priority="high",
+            idempotency_key=idempotency_key,
         )
         NotificationService._send_email_notification(
             recipient=admin_user,
@@ -855,6 +900,7 @@ class NotificationService:
             fallback_message=message,
             metadata=payload,
             priority="high",
+            idempotency_key=idempotency_key,
         )
         NotificationService._send_sms_notification_record(
             recipient=admin_user,
@@ -862,6 +908,7 @@ class NotificationService:
             message=message,
             metadata=payload,
             priority="high",
+            idempotency_key=idempotency_key,
         )
         return True
 

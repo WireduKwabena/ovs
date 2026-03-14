@@ -1,16 +1,25 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 import { NotificationsPage } from "./NotificationsPage";
 
 const mocks = vi.hoisted(() => ({
   useNotifications: vi.fn(),
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
 }));
 
 vi.mock("@/hooks/useNotifications", () => ({
   useNotifications: mocks.useNotifications,
+}));
+
+vi.mock("react-toastify", () => ({
+  toast: {
+    success: mocks.toastSuccess,
+    error: mocks.toastError,
+  },
 }));
 
 const activeNotification = {
@@ -74,6 +83,23 @@ const futureMeetingNotification = {
   created_at: "2099-01-01T10:00:00Z",
 };
 
+const traceNotification = {
+  id: "trace-1",
+  notification_type: "in_app",
+  title: "Trace reminder",
+  subject: "Trace reminder",
+  message: "Reminder sent for retry-safe trace.",
+  status: "read",
+  metadata: {
+    event_type: "video_call_reminder",
+    idempotency_key: "trace-123",
+  },
+  idempotency_key: "trace-123",
+  is_read: true,
+  is_archived: false,
+  created_at: "2026-03-06T10:00:00Z",
+};
+
 const activeState = {
   notifications: [activeNotification],
   isLoading: false,
@@ -112,6 +138,25 @@ const activeFutureState = {
   refresh: vi.fn(),
   markAllAsRead: vi.fn(),
   markAsRead: vi.fn(),
+};
+
+const activeTraceState = {
+  notifications: [traceNotification],
+  isLoading: false,
+  archiveAsync: vi.fn(),
+  restoreAsync: vi.fn(),
+  refresh: vi.fn(),
+  markAllAsRead: vi.fn(),
+  markAsRead: vi.fn(),
+};
+
+const installClipboardMock = () => {
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(window.navigator, "clipboard", {
+    configurable: true,
+    value: { writeText },
+  });
+  return writeText;
 };
 
 describe("NotificationsPage soft archive UX", () => {
@@ -187,5 +232,154 @@ describe("NotificationsPage soft archive UX", () => {
     const title = joinButton.getAttribute("title") ?? "";
     expect(title).toMatch(/join will be available at/i);
     expect(screen.getByText(/available in (\d+m|\d+h(?: \d+m)?)/i)).toBeTruthy();
+  });
+
+  it("applies trace filters through the notifications hook", async () => {
+    mocks.useNotifications.mockImplementation(
+      ({ archived }: { archived: string }) =>
+        archived === "archived" ? archivedState : activeTraceState,
+    );
+
+    render(
+      <MemoryRouter>
+        <NotificationsPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Trace reminder")).toBeTruthy();
+    expect(screen.getByText(/Event: video_call_reminder/i)).toBeTruthy();
+    expect(screen.getByText(/Key: trace-123/i)).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText(/delivery channel/i), {
+      target: { value: "all" },
+    });
+    fireEvent.change(screen.getByLabelText(/event type/i), {
+      target: { value: "video_call_reminder" },
+    });
+    fireEvent.change(screen.getByLabelText(/idempotency key/i), {
+      target: { value: "trace-123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /apply filters/i }));
+
+    expect(mocks.useNotifications.mock.calls).toEqual(
+      expect.arrayContaining([
+        [
+          expect.objectContaining({
+            archived: "active",
+            channel: "all",
+            eventType: "video_call_reminder",
+            idempotencyKey: "trace-123",
+          }),
+        ],
+        [
+          expect.objectContaining({
+            archived: "archived",
+            channel: "all",
+            eventType: "video_call_reminder",
+            idempotencyKey: "trace-123",
+          }),
+        ],
+      ]),
+    );
+  });
+
+  it("copies the trace key from the notification card", async () => {
+    const writeText = installClipboardMock();
+    mocks.useNotifications.mockImplementation(
+      ({ archived }: { archived: string }) =>
+        archived === "archived" ? archivedState : activeTraceState,
+    );
+
+    render(
+      <MemoryRouter>
+        <NotificationsPage />
+      </MemoryRouter>,
+    );
+
+    const copyButton = await screen.findByRole("button", {
+      name: /copy trace key/i,
+    });
+    fireEvent.click(copyButton);
+
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith("trace-123");
+    });
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("Trace key copied.");
+  });
+
+  it("respects the archived trace view from the URL", async () => {
+    mocks.useNotifications.mockImplementation(
+      ({
+        archived,
+        channel,
+        eventType,
+        idempotencyKey,
+      }: {
+        archived: string;
+        channel?: string;
+        eventType?: string;
+        idempotencyKey?: string;
+      }) => {
+        expect(channel).toBe("all");
+        expect(eventType).toBe("video_call_reminder");
+        expect(idempotencyKey).toBe("trace-123");
+        return archived === "archived" ? archivedState : activeState;
+      },
+    );
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          "/notifications?view=archived&channel=all&event_type=video_call_reminder&idempotency_key=trace-123",
+        ]}
+      >
+        <NotificationsPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Archived update")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /restore/i })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^delete$/i })).toBeNull();
+  });
+
+  it("passes subsystem scope through the notifications hook and shows it in the UI", async () => {
+    mocks.useNotifications.mockImplementation(
+      ({
+        archived,
+        subsystem,
+      }: {
+        archived: string;
+        subsystem?: string;
+      }) => {
+        expect(subsystem).toBe("billing");
+        return archived === "archived"
+          ? archivedState
+          : {
+              ...activeTraceState,
+              notifications: [
+                {
+                  ...traceNotification,
+                  metadata: {
+                    ...traceNotification.metadata,
+                    subsystem: "billing",
+                  },
+                },
+              ],
+            };
+      },
+    );
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          "/notifications?channel=all&event_type=processing_error&subsystem=billing",
+        ]}
+      >
+        <NotificationsPage />
+      </MemoryRouter>,
+    );
+
+    const subsystemBadges = await screen.findAllByText(/subsystem: billing/i);
+    expect(subsystemBadges.length).toBeGreaterThan(0);
   });
 });

@@ -171,6 +171,14 @@ class BillingPaymentMethodSummarySerializer(serializers.Serializer):
     exp_year = serializers.IntegerField(allow_null=True)
 
 
+class BillingLatestIncidentSerializer(serializers.Serializer):
+    code = serializers.CharField()
+    message = serializers.CharField()
+    detected_at = serializers.DateTimeField(allow_null=True)
+    source = serializers.CharField()
+    event_type = serializers.CharField(allow_blank=True, allow_null=True)
+
+
 class BillingManagedSubscriptionSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     organization_id = serializers.CharField(allow_null=True, required=False)
@@ -193,6 +201,7 @@ class BillingManagedSubscriptionSerializer(serializers.Serializer):
     can_delete_payment_method = serializers.BooleanField()
     retry_available = serializers.BooleanField()
     retry_reason = serializers.CharField(allow_null=True)
+    latest_incident = BillingLatestIncidentSerializer(allow_null=True, required=False)
     updated_at = serializers.DateTimeField()
 
 

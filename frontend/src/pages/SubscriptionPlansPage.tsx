@@ -32,6 +32,11 @@ interface Plan {
   featured?: boolean;
 }
 
+interface CheckoutExpectation {
+  badge: string;
+  lines: string[];
+}
+
 const plans: Plan[] = [
   {
     id: "starter",
@@ -334,6 +339,55 @@ export const SubscriptionPlansPage: React.FC = () => {
   const selectedProviderDescription = selectedHostedProvider
     ? hostedProviderConfig[selectedHostedProvider].description
     : "Direct API confirmation flow.";
+  const checkoutExpectation = useMemo<CheckoutExpectation>(() => {
+    if (selectedHostedProvider === "stripe") {
+      return {
+        badge: "Stripe hosted checkout",
+        lines: [
+          "You will be redirected to Stripe to complete payment securely.",
+          "Card payments only in this flow.",
+          `After authorization, you will return here and continue to ${nextStepLabel}.`,
+          "Later payment-method changes use the Stripe billing portal.",
+        ],
+      };
+    }
+
+    if (selectedHostedProvider === "paystack") {
+      const routeLine =
+        effectivePaymentMethod === "mobile_money"
+          ? "Mobile money authorization stays inside Paystack's hosted checkout."
+          : effectivePaymentMethod === "bank_transfer"
+            ? "Bank transfer instructions are issued inside Paystack's hosted checkout."
+            : "Card authorization stays inside Paystack's hosted checkout.";
+      const currencyLine =
+        displayCurrency !== "USD"
+          ? `Displayed totals are converted to ${displayCurrency} before checkout.`
+          : "Displayed totals remain in USD for this checkout.";
+      return {
+        badge: "Paystack hosted checkout",
+        lines: [
+          "You will be redirected to Paystack to complete payment securely.",
+          routeLine,
+          "Billing email is required for authorization and receipts.",
+          currencyLine,
+          `After authorization, you will return here and continue to ${nextStepLabel}.`,
+        ],
+      };
+    }
+
+    return {
+      badge: "In-app confirmation",
+      lines: [
+        "Subscription confirmation happens inside this application.",
+        `After confirmation, you will continue to ${nextStepLabel}.`,
+      ],
+    };
+  }, [
+    displayCurrency,
+    effectivePaymentMethod,
+    nextStepLabel,
+    selectedHostedProvider,
+  ]);
 
   const handleConfirmSubscription = async () => {
     if (isProcessing) return;
@@ -702,6 +756,24 @@ export const SubscriptionPlansPage: React.FC = () => {
                 Routing: card can use Stripe or Paystack; mobile money and bank transfer are processed via Paystack.
               </p>
             ) : null}
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                  What to expect
+                </p>
+                <span className="inline-flex rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-900">
+                  {checkoutExpectation.badge}
+                </span>
+              </div>
+              <ul className="mt-3 space-y-2">
+                {checkoutExpectation.lines.map((line) => (
+                  <li key={line} className="flex items-start gap-2 text-xs text-slate-700">
+                    <Check className="mt-0.5 h-3.5 w-3.5 text-cyan-700" />
+                    <span>{line}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
 
           <aside className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">

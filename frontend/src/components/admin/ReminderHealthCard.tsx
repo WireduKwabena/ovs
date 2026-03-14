@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, CalendarClock, CheckCircle2, RefreshCw } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import { videoCallService } from "@/services/videoCall.service";
 import type { VideoMeetingReminderHealth } from "@/types";
+import { buildReminderNotificationTraceHref } from "@/utils/notificationTrace";
 
 const POLL_INTERVAL_MS = 60_000;
 
@@ -114,6 +116,7 @@ const ReminderHealthCard: React.FC<ReminderHealthCardProps> = ({ onStatusChange 
       : status === "attention"
         ? "inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
         : "inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-800";
+  const reminderTraceHref = buildReminderNotificationTraceHref();
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5">
@@ -140,6 +143,18 @@ const ReminderHealthCard: React.FC<ReminderHealthCardProps> = ({ onStatusChange 
           <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
           {isRefreshing ? "Refreshing..." : "Refresh"}
         </button>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Link
+          to={reminderTraceHref}
+          className="inline-flex items-center justify-center rounded-md border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-800 hover:bg-indigo-100"
+        >
+          Open reminder traces
+        </Link>
+        <span className="text-xs text-slate-700">
+          Review reminder-related notification delivery records.
+        </span>
       </div>
 
       {isLoading && !health ? (

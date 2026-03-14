@@ -14,7 +14,7 @@ const AdminRegisterForm: React.FC = () => {
         <h1 className="text-2xl font-black text-slate-900">Admin account creation is controlled</h1>
         <p className="mt-3 text-sm text-slate-700">
           Self-service admin signup is disabled. Create admin users through secure internal provisioning
-          channels and approved management commands.
+          (Django admin or approved management commands).
         </p>
 
         <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">

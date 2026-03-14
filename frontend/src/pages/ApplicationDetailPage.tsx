@@ -235,6 +235,7 @@ export const ApplicationDetailPage: React.FC = () => {
                       textClassName="block text-sm text-slate-700"
                     />
                     <input
+                      title="Select file"
                       id="detail-upload-file"
                       type="file"
                       accept="application/pdf,image/*"
