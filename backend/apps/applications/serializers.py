@@ -2,6 +2,13 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from apps.candidates.models import CandidateEnrollment
+from apps.core.validators import (
+    DETAILED_RESULTS_SCHEMA,
+    EVIDENCE_SCHEMA,
+    FRAUD_INDICATORS_SCHEMA,
+    JSONSchemaValidator,
+    SUGGESTED_QUESTIONS_SCHEMA,
+)
 
 try:
     from drf_spectacular.utils import extend_schema_field
@@ -27,6 +34,15 @@ User = get_user_model()
 
 
 class VerificationResultSerializer(serializers.ModelSerializer):
+    fraud_indicators = serializers.JSONField(
+        validators=[JSONSchemaValidator(FRAUD_INDICATORS_SCHEMA)],
+        required=False,
+    )
+    detailed_results = serializers.JSONField(
+        validators=[JSONSchemaValidator(DETAILED_RESULTS_SCHEMA)],
+        required=False,
+    )
+
     class Meta:
         model = VerificationResult
         fields = [
@@ -129,6 +145,15 @@ class ConsistencyCheckSerializer(serializers.ModelSerializer):
 
 
 class InterrogationFlagSerializer(serializers.ModelSerializer):
+    evidence = serializers.JSONField(
+        validators=[JSONSchemaValidator(EVIDENCE_SCHEMA)],
+        required=False,
+    )
+    suggested_questions = serializers.JSONField(
+        validators=[JSONSchemaValidator(SUGGESTED_QUESTIONS_SCHEMA)],
+        required=False,
+    )
+
     class Meta:
         model = InterrogationFlag
         fields = [

@@ -79,7 +79,7 @@ export const PublicGazettePage: React.FC = () => {
         status: appliedStatus === "all" ? undefined : appliedStatus,
       });
       setRecords(feed);
-    } catch (err) {
+    } catch {
       try {
         const legacyFeed = await governmentService.listPublicGazetteFeed();
         setRecords(filterLegacyGazetteRecords(legacyFeed, appliedSearch, appliedStatus));

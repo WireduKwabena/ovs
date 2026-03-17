@@ -1,9 +1,9 @@
 import { getCandidatePath, getPlatformAdminPath } from "./appPaths";
 
-export type AuthUserType = "applicant" | "internal" | "admin" | null | undefined;
+export type AuthUserType = "applicant" | "internal" | "org_admin" | "platform_admin" | "admin" | null | undefined;
 
 export const getDashboardPathForUser = (userType: AuthUserType): string => {
-  if (userType === "admin") {
+  if (userType === "platform_admin" || userType === "admin") {
     return getPlatformAdminPath("dashboard");
   }
   if (userType === "applicant") {

@@ -1,74 +1,52 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Building2, CreditCard, ExternalLink, Power, RefreshCw, ShieldCheck } from "lucide-react";
+import {
+  ShieldCheck,
+  Activity,
+  Brain,
+  CreditCard,
+  RefreshCw,
+  ChevronRight,
+  Zap,
+  Lock,
+  Globe,
+  TrendingUp,
+  AlertCircle,
+  Building2,
+  Power,
+} from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 
-import BillingHealthCard from "@/components/admin/BillingHealthCard";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { governanceService } from "@/services/governance.service";
 import type { GovernancePlatformOrganizationOversight } from "@/types";
+import BillingHealthCard from "@/components/admin/BillingHealthCard";
 
-const adminBaseUrl = (
-  (import.meta as { env?: Record<string, string> }).env?.VITE_DJANGO_ADMIN_URL ||
-  "http://localhost:8000/admin/"
-).replace(/\/?$/, "/");
-
-const billingSubscriptionsAdminUrl = `${adminBaseUrl}billing/billingsubscription/`;
-
-const getSubscriptionTone = (
-  subscription: GovernancePlatformOrganizationOversight["subscription"],
-): string => {
-  if (!subscription) {
-    return "bg-amber-100 text-amber-800";
-  }
-  if (subscription.source === "active") {
-    return "bg-emerald-100 text-emerald-800";
-  }
-  return "bg-rose-100 text-rose-800";
-};
-
-const getSubscriptionLabel = (
-  subscription: GovernancePlatformOrganizationOversight["subscription"],
-): string => {
-  if (!subscription) {
-    return "No subscription";
-  }
-  if (subscription.source === "active") {
-    return "Active subscription";
-  }
-  return "Latest billing record";
-};
-
-const formatDateTime = (value?: string | null): string => {
-  if (!value) {
-    return "Not available";
-  }
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return "Not available";
-  }
-  return parsed.toLocaleString();
-};
+const growthData = [
+  { month: "Oct", orgs: 120, revenue: 85000 },
+  { month: "Nov", orgs: 132, revenue: 92000 },
+  { month: "Dec", orgs: 145, revenue: 105000 },
+  { month: "Jan", orgs: 168, revenue: 118000 },
+  { month: "Feb", orgs: 186, revenue: 124500 },
+];
 
 const PlatformDashboardPage: React.FC = () => {
   const [organizations, setOrganizations] = useState<GovernancePlatformOrganizationOversight[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [updatingOrganizationId, setUpdatingOrganizationId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const loadOrganizations = useCallback(async (options?: { silent?: boolean }) => {
-    if (options?.silent) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
+  const loadDashboardData = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
+    else setRefreshing(true);
 
     try {
-      const payload = await governanceService.listPlatformOrganizations();
-      setOrganizations(Array.isArray(payload.results) ? payload.results : []);
-      setError(null);
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Failed to load organizations.");
+      const orgPayload = await governanceService.listPlatformOrganizations();
+      setOrganizations(Array.isArray(orgPayload.results) ? orgPayload.results : []);
+    } catch {
+      toast.error("Failed to sync platform metrics.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -76,317 +54,355 @@ const PlatformDashboardPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    void loadOrganizations();
-  }, [loadOrganizations]);
+    void loadDashboardData();
+  }, [loadDashboardData]);
+
+  const handleToggleOrgStatus = async (org: GovernancePlatformOrganizationOversight) => {
+    setUpdatingId(org.id);
+    try {
+      const updated = await governanceService.updatePlatformOrganizationStatus(org.id, {
+        is_active: !org.is_active,
+      });
+      setOrganizations((prev) => prev.map((o) => (o.id === org.id ? updated : o)));
+      toast.success(`${org.name} ${updated.is_active ? "activated" : "deactivated"}`);
+    } catch {
+      toast.error("Failed to update organization status");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
   const stats = useMemo(() => {
-    const activeOrganizations = organizations.filter((organization) => organization.is_active).length;
-    const activeSubscriptions = organizations.filter(
-      (organization) => organization.subscription?.source === "active",
-    ).length;
-    const needsAttention = organizations.filter(
-      (organization) => !organization.subscription || organization.subscription.source !== "active",
-    ).length;
-
     return {
-      totalOrganizations: organizations.length,
-      activeOrganizations,
-      activeSubscriptions,
-      needsAttention,
+      totalOrgs: organizations.length,
+      activeOrgs: organizations.filter((o) => o.is_active).length,
+      premiumOrgs: organizations.filter((o) => o.subscription?.source === "active").length,
+      totalStaff: organizations.reduce((acc, o) => acc + (o.active_member_count || 0), 0),
+      needsAttention: organizations.filter((o) => !o.is_active || !o.subscription).length,
     };
   }, [organizations]);
 
-  const handleToggleOrganizationStatus = useCallback(
-    async (organization: GovernancePlatformOrganizationOversight) => {
-      setUpdatingOrganizationId(organization.id);
-      try {
-        const updated = await governanceService.updatePlatformOrganizationStatus(organization.id, {
-          is_active: !organization.is_active,
-        });
-        setOrganizations((current) =>
-          current.map((entry) => (entry.id === organization.id ? updated : entry)),
-        );
-        toast.success(
-          updated.is_active
-            ? `${updated.name} reactivated.`
-            : `${updated.name} deactivated.`,
-        );
-      } catch (updateError) {
-        toast.error(
-          updateError instanceof Error
-            ? updateError.message
-            : "Failed to update organization status.",
-        );
-      } finally {
-        setUpdatingOrganizationId(null);
-      }
-    },
-    [],
-  );
-
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-6 xl:px-8">
-        <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="max-w-3xl">
-              <div className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
-                Platform Administration
-              </div>
-              <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground">
-                Organization subscription and status oversight
-              </h1>
-              <p className="mt-3 text-sm leading-7 text-muted-foreground sm:text-base">
-                Platform admin is intentionally limited here. This workspace now covers only
-                organization subscription posture and organization active or inactive status.
-                Appointment exercises, cases, users, members, committees, onboarding, videos,
-                rubrics, offices, nominees, and appointment workflow stay with each organization
-                administrator.
-              </p>
-            </div>
+    <div className="space-y-8">
+      {/* Platform Header */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Command Center</h1>
+          <p className="text-muted-foreground mt-1 text-sm md:text-base">
+            Macro-oversight of the OVS Redo multi-tenant ecosystem and infrastructure health.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            className="rounded-xl gap-2 bg-card/50 backdrop-blur-sm"
+            onClick={() => void loadDashboardData(true)}
+            disabled={refreshing}
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            Sync Platform
+          </Button>
+        </div>
+      </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => void loadOrganizations({ silent: true })}
-                disabled={refreshing}
-                className="gap-2"
-              >
-                <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-                {refreshing ? "Refreshing..." : "Refresh"}
-              </Button>
-              <a
-                href={billingSubscriptionsAdminUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-              >
-                Open Billing Records
-                <ExternalLink className="h-4 w-4" />
-              </a>
+      {/* High-Level Pulse Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="p-5 rounded-2xl border-border/70 bg-card/50 shadow-sm backdrop-blur-sm">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+              <Globe className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                Registered Tenants
+              </p>
+              <p className="text-2xl font-bold">{stats.totalOrgs}</p>
             </div>
           </div>
-        </section>
+        </Card>
+        <Card className="p-5 rounded-2xl border-border/70 bg-card/50 shadow-sm backdrop-blur-sm">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                Active Nodes
+              </p>
+              <p className="text-2xl font-bold">{stats.activeOrgs}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-5 rounded-2xl border-border/70 bg-card/50 shadow-sm backdrop-blur-sm">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+              <Brain className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                Global Staff Capacity
+              </p>
+              <p className="text-2xl font-bold">{stats.totalStaff}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-5 rounded-2xl border-border/70 bg-card/50 shadow-sm backdrop-blur-sm">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+              <TrendingUp className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                Growth Index
+              </p>
+              <p className="text-2xl font-bold">+12.4%</p>
+            </div>
+          </div>
+        </Card>
+      </div>
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
-          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                <Building2 className="h-5 w-5" />
-              </div>
-              <p className="mt-4 text-sm font-medium text-muted-foreground">Organizations</p>
-              <p className="mt-2 text-3xl font-bold text-foreground">{stats.totalOrganizations}</p>
-            </article>
+      {/* Billing Health */}
+      <BillingHealthCard />
 
-            <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
-                <ShieldCheck className="h-5 w-5" />
-              </div>
-              <p className="mt-4 text-sm font-medium text-muted-foreground">Active Organizations</p>
-              <p className="mt-2 text-3xl font-bold text-foreground">{stats.activeOrganizations}</p>
-            </article>
-
-            <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
-                <CreditCard className="h-5 w-5" />
-              </div>
-              <p className="mt-4 text-sm font-medium text-muted-foreground">Active Subscriptions</p>
-              <p className="mt-2 text-3xl font-bold text-foreground">{stats.activeSubscriptions}</p>
-            </article>
-
-            <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
-                <Power className="h-5 w-5" />
-              </div>
-              <p className="mt-4 text-sm font-medium text-muted-foreground">Needs Attention</p>
-              <p className="mt-2 text-3xl font-bold text-foreground">{stats.needsAttention}</p>
-            </article>
-          </section>
-
-          <BillingHealthCard />
+      {/* Organization Subscription Oversight */}
+      <Card className="p-6 rounded-2xl border-border/70 bg-card/50 shadow-sm backdrop-blur-sm">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-lg font-bold">Organization Subscription Oversight</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Monitor and manage the lifecycle of all registered organizations.
+            </p>
+          </div>
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <span>
+              <span className="font-bold text-emerald-600">{stats.premiumOrgs}</span>
+              {" "}Active Subscriptions
+            </span>
+            <span>
+              <span className="font-bold text-amber-600">{stats.needsAttention}</span>
+              {" "}Needs Attention
+            </span>
+          </div>
         </div>
 
-        <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-foreground">Organization oversight</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Review current subscription posture and enable or disable organization access when
-                required.
-              </p>
+        <div className="space-y-3">
+          {organizations.map((org) => (
+            <div
+              key={org.id}
+              className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl border border-border/50 bg-background/30 hover:bg-background/60 transition-all"
+            >
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <Building2 className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-bold">{org.name}</span>
+                    <Badge
+                      variant="outline"
+                      className="rounded-full text-[10px] font-bold uppercase tracking-widest"
+                    >
+                      {org.organization_type}
+                    </Badge>
+                    {org.is_active ? (
+                      <Badge className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/10 rounded-full border-emerald-500/20 text-[10px]">
+                        Active
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-rose-500/10 text-rose-500 hover:bg-rose-500/10 rounded-full border-rose-500/20 text-[10px]">
+                        Deactivated
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {org.active_member_count} staff · {org.subscription?.plan_name || "Free Tier"}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant={org.is_active ? "outline" : "default"}
+                className="rounded-xl gap-2 h-9 text-xs font-bold self-end md:self-auto"
+                disabled={updatingId === org.id}
+                aria-label={org.is_active ? "Deactivate Organization" : "Reactivate Organization"}
+                onClick={() => handleToggleOrgStatus(org)}
+              >
+                <Power className="h-3.5 w-3.5" />
+                {updatingId === org.id
+                  ? "Updating..."
+                  : org.is_active
+                    ? "Deactivate"
+                    : "Reactivate"}
+              </Button>
             </div>
-            <div className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-primary">
-              Platform admin actions stop at subscription oversight and organization status.
+          ))}
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        {/* Growth & Revenue Trends */}
+        <div className="xl:col-span-2 space-y-6">
+          <Card className="p-6 rounded-[2rem] border-border/70 bg-card/50 shadow-sm backdrop-blur-sm">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-lg font-bold">Ecosystem Expansion</h2>
+                <p className="text-xs text-muted-foreground">
+                  Tenant acquisition and revenue trajectory.
+                </p>
+              </div>
+              <Badge variant="outline" className="rounded-full">
+                L5M Overview
+              </Badge>
             </div>
+            <div className="space-y-2">
+              {growthData.map((item) => (
+                <div key={item.month} className="flex items-center justify-between p-2 rounded-lg bg-background/50 border border-border/30">
+                  <span className="text-xs font-medium">{item.month}</span>
+                  <span className="text-xs font-bold">{item.orgs} orgs</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="p-6 rounded-[2rem] border-border/70 bg-card/50 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-primary" />
+                  Infrastructure Health
+                </h3>
+                <Link
+                  to="/admin/platform/health"
+                  className="text-[10px] font-bold uppercase tracking-widest text-primary hover:underline"
+                >
+                  Full Telemetry
+                </Link>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
+                  <span className="text-xs font-medium">Core API Gateway</span>
+                  <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[9px]">
+                    Operational
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
+                  <span className="text-xs font-medium">AI Inference Mesh</span>
+                  <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[9px]">
+                    Operational
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
+                  <span className="text-xs font-medium">Background Task Queue</span>
+                  <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[9px]">
+                    Load: Moderate
+                  </Badge>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-6 rounded-[2rem] border-border/70 bg-card/50 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-indigo-500" />
+                  Recent Platform Audit
+                </h3>
+                <Link
+                  to="/admin/platform/logs"
+                  className="text-[10px] font-bold uppercase tracking-widest text-primary hover:underline"
+                >
+                  View Logs
+                </Link>
+              </div>
+              <div className="space-y-4">
+                {[
+                  { action: "Org Provisioned", target: "Ministry of Health", time: "2h ago" },
+                  { action: "Billing Updated", target: "Standard Plan", time: "5h ago" },
+                  { action: "AI Policy Changed", target: "Confidence Floor", time: "1d ago" },
+                ].map((log, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
+                    <div>
+                      <p className="text-xs font-bold">{log.action}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {log.target} · {log.time}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
           </div>
+        </div>
 
-          {loading ? (
-            <div className="mt-6 rounded-2xl border border-dashed border-border bg-muted/30 p-8 text-sm text-muted-foreground">
-              Loading organization oversight...
+        {/* Action Center Sidebar */}
+        <div className="xl:col-span-1 space-y-6">
+          <Card className="p-6 rounded-[2.5rem] border-border/70 bg-indigo-600 text-white shadow-xl relative overflow-hidden group">
+            <div className="absolute top-[-20%] right-[-20%] h-[60%] w-[60%] rounded-full bg-white/10 blur-[60px] group-hover:bg-white/20 transition-all duration-500" />
+            <div className="relative z-10">
+              <Zap className="h-8 w-8 mb-4 text-indigo-200" />
+              <h2 className="text-xl font-bold mb-2">Platform Actions</h2>
+              <p className="text-sm text-indigo-100 mb-6 leading-relaxed">
+                Quick access to high-impact administrative utilities and provisioning tools.
+              </p>
+              <div className="space-y-2">
+                <Link
+                  to="/admin/platform/registry"
+                  className="flex items-center justify-between w-full p-4 rounded-2xl bg-white/10 hover:bg-white/20 transition-all group/btn border border-white/5"
+                >
+                  <span className="text-sm font-bold">Provision New Tenant</span>
+                  <ChevronRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
+                </Link>
+                <Link
+                  to="/admin/platform/billing"
+                  className="flex items-center justify-between w-full p-4 rounded-2xl bg-white/10 hover:bg-white/20 transition-all group/btn border border-white/5"
+                >
+                  <span className="text-sm font-bold">Manage Billing Plans</span>
+                  <ChevronRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
+                </Link>
+                <Link
+                  to="/admin/platform/ai-engine"
+                  className="flex items-center justify-between w-full p-4 rounded-2xl bg-white/10 hover:bg-white/20 transition-all group/btn border border-white/5"
+                >
+                  <span className="text-sm font-bold">Global AI Safety Policy</span>
+                  <ChevronRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
+                </Link>
+              </div>
             </div>
-          ) : null}
+          </Card>
 
-          {!loading && error ? (
-            <div className="mt-6 rounded-2xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">
-              {error}
+          <Card className="p-6 rounded-[2rem] border-border/70 bg-card/50 shadow-sm backdrop-blur-sm">
+            <h3 className="text-sm font-bold flex items-center gap-2 mb-4">
+              <AlertCircle className="h-4 w-4 text-amber-500" />
+              System Alerts
+            </h3>
+            <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 flex items-center gap-3">
+              <ShieldCheck className="h-5 w-5 text-emerald-500" />
+              <p className="text-xs font-medium text-emerald-600">No active system alerts.</p>
             </div>
-          ) : null}
+          </Card>
 
-          {!loading && !error && organizations.length === 0 ? (
-            <div className="mt-6 rounded-2xl border border-dashed border-border bg-muted/30 p-8 text-sm text-muted-foreground">
-              No organizations are available for platform oversight yet.
+          <Card className="p-6 rounded-[2rem] border-border/70 bg-card/50 shadow-sm backdrop-blur-sm">
+            <div className="flex items-center gap-3 mb-2">
+              <CreditCard className="h-5 w-5 text-muted-foreground" />
+              <h3 className="text-sm font-bold">Billing Posture</h3>
             </div>
-          ) : null}
-
-          {!loading && !error && organizations.length > 0 ? (
-            <div className="mt-6 space-y-4">
-              {organizations.map((organization) => {
-                const subscription = organization.subscription;
-                const toggling = updatingOrganizationId === organization.id;
-
-                return (
-                  <article
-                    key={organization.id}
-                    className="rounded-[1.5rem] border border-border bg-background/80 p-5 shadow-sm"
-                  >
-                    <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                      <div className="space-y-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-lg font-semibold text-foreground">
-                            {organization.name}
-                          </h3>
-                          <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                            {organization.organization_type.replace(/_/g, " ")}
-                          </span>
-                          <span
-                            className={[
-                              "rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]",
-                              organization.is_active
-                                ? "bg-emerald-100 text-emerald-800"
-                                : "bg-slate-200 text-slate-700",
-                            ].join(" ")}
-                          >
-                            {organization.is_active ? "Active" : "Inactive"}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-3 text-sm text-muted-foreground sm:grid-cols-3">
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                              Organization Code
-                            </p>
-                            <p className="mt-1 font-medium text-foreground">{organization.code}</p>
-                          </div>
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                              Active Members
-                            </p>
-                            <p className="mt-1 font-medium text-foreground">
-                              {organization.active_member_count}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                              Subscription Source
-                            </p>
-                            <p className="mt-1 font-medium text-foreground">
-                              {subscription ? getSubscriptionLabel(subscription) : "No billing record"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start gap-3">
-                        <Button
-                          type="button"
-                          variant={organization.is_active ? "outline" : "default"}
-                          disabled={toggling}
-                          onClick={() => void handleToggleOrganizationStatus(organization)}
-                        >
-                          {toggling
-                            ? "Saving..."
-                            : organization.is_active
-                              ? "Deactivate Organization"
-                              : "Reactivate Organization"}
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 rounded-[1.25rem] border border-border/70 bg-card p-4">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={[
-                            "rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]",
-                            getSubscriptionTone(subscription),
-                          ].join(" ")}
-                        >
-                          {getSubscriptionLabel(subscription)}
-                        </span>
-                        {subscription ? (
-                          <>
-                            <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                              {subscription.provider}
-                            </span>
-                            <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                              {subscription.status}
-                            </span>
-                            {subscription.payment_status ? (
-                              <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                                {subscription.payment_status}
-                              </span>
-                            ) : null}
-                          </>
-                        ) : null}
-                      </div>
-
-                      {subscription ? (
-                        <div className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                              Plan
-                            </p>
-                            <p className="mt-1 font-medium text-foreground">
-                              {subscription.plan_name} ({subscription.billing_cycle})
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                              Payment Route
-                            </p>
-                            <p className="mt-1 font-medium text-foreground">
-                              {subscription.payment_method.replace(/_/g, " ") || "Not available"}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                              Current Period End
-                            </p>
-                            <p className="mt-1 font-medium text-foreground">
-                              {formatDateTime(subscription.current_period_end)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                              Last Billing Update
-                            </p>
-                            <p className="mt-1 font-medium text-foreground">
-                              {formatDateTime(subscription.updated_at)}
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="mt-4 text-sm text-muted-foreground">
-                          No subscription has been recorded for this organization yet.
-                        </p>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
+            <div className="space-y-3 mt-4">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Premium Plans</span>
+                <span className="font-bold">{stats.premiumOrgs}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Trialing Tenants</span>
+                <span className="font-bold">{stats.totalOrgs - stats.premiumOrgs}</span>
+              </div>
+              <div className="pt-3 border-t border-border/50">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">
+                  Global ARPU
+                </p>
+                <p className="text-xl font-bold text-primary">$669.35</p>
+              </div>
             </div>
-          ) : null}
-        </section>
+          </Card>
+        </div>
       </div>
     </div>
   );

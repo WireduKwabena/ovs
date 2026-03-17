@@ -25,7 +25,7 @@ const encodeOfficeTitleFilter = (title: string): string =>
   encodeURIComponent(title.trim().toLowerCase());
 
 const GovernmentPositionsPage: React.FC = () => {
-  const { activeOrganization, activeOrganizationId, isAdmin, canManageRegistry } = useAuth();
+  const { activeOrganization, activeOrganizationId, isAdmin, isPlatformAdmin, canManageRegistry } = useAuth();
   const [rows, setRows] = useState<GovernmentPosition[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -43,7 +43,8 @@ const GovernmentPositionsPage: React.FC = () => {
     is_public: true,
     is_vacant: true,
   });
-  const canManagePositionRegistry = canManageRegistry && (isAdmin || Boolean(activeOrganizationId));
+  // Platform admins can manage the registry without an active org; org admins require one.
+  const canManagePositionRegistry = canManageRegistry && (isPlatformAdmin || Boolean(activeOrganizationId));
 
   const loadPositions = useCallback(async () => {
     const data = await governmentService.listPositions({
@@ -119,14 +120,16 @@ const GovernmentPositionsPage: React.FC = () => {
   const scopedRows = useMemo(() => {
     return rows.filter((item) => {
       if (!activeOrganizationId) {
-        return isAdmin || !item.organization;
+        // Platform admins see all records; everyone else is shown only unscoped items.
+        // Org admins without an active org are prompted to select one (see warning below).
+        return isPlatformAdmin || !item.organization;
       }
       if (!item.organization) {
         return true;
       }
       return String(item.organization) === activeOrganizationId;
     });
-  }, [activeOrganizationId, isAdmin, rows]);
+  }, [activeOrganizationId, isPlatformAdmin, rows]);
 
   const stats = useMemo(() => {
     const total = scopedRows.length;
@@ -155,7 +158,7 @@ const GovernmentPositionsPage: React.FC = () => {
         </div>
       </header>
 
-      {!isAdmin && !activeOrganizationId ? (
+      {!isPlatformAdmin && !activeOrganizationId ? (
         <section className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
           Select an active organization to view organization-scoped office records.
         </section>

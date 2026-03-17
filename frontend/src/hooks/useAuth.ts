@@ -19,8 +19,9 @@ import type {
   RegisterData,
   User,
 } from '@/types';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { canManageOrganizationGovernance } from '@/utils/organizationGovernance';
+import { mergeRolesFromStore, mergeCapabilitiesFromStore } from '@/utils/authUtils';
 import {
   APPOINTMENT_ROUTE_CAPABILITIES,
   APPOINTMENT_WORKFLOW_ROLES,
@@ -52,24 +53,26 @@ export const useAuth = () => {
     loading,
     error,
   } = useSelector((state: RootState) => state.auth);
-  const resolvedRoles = Array.from(
-    new Set([
-      ...(Array.isArray(roles) ? roles : []),
-      ...((user as { roles?: string[] } | null)?.roles ?? []),
-      ...((user as { group_roles?: string[] } | null)?.group_roles ?? []),
-    ]),
+  const resolvedRoles = useMemo(
+    () => mergeRolesFromStore(roles, user as { roles?: string[]; group_roles?: string[] } | null),
+    [roles, user],
   );
-  const resolvedCapabilities = Array.from(
-    new Set([
-      ...(Array.isArray(capabilities) ? capabilities : []),
-      ...((user as { capabilities?: string[] } | null)?.capabilities ?? []),
-    ]),
+  const resolvedCapabilities = useMemo(
+    () => mergeCapabilitiesFromStore(capabilities, user as { capabilities?: string[] } | null),
+    [capabilities, user],
   );
-  const resolvedOrganizations = Array.isArray(organizations) ? organizations : [];
-  const resolvedOrganizationMemberships = Array.isArray(organizationMemberships)
-    ? organizationMemberships
-    : [];
-  const resolvedCommittees = Array.isArray(committees) ? committees : [];
+  const resolvedOrganizations = useMemo(
+    () => (Array.isArray(organizations) ? organizations : []),
+    [organizations],
+  );
+  const resolvedOrganizationMemberships = useMemo(
+    () => (Array.isArray(organizationMemberships) ? organizationMemberships : []),
+    [organizationMemberships],
+  );
+  const resolvedCommittees = useMemo(
+    () => (Array.isArray(committees) ? committees : []),
+    [committees],
+  );
 
   const hasRole = useCallback(
     (role: string) => resolvedRoles.includes(role),
@@ -103,7 +106,12 @@ export const useAuth = () => {
   );
 
   const hasAdminRole = hasRole("admin");
-  const isAdmin = userType === "admin" || hasAdminRole || Boolean(user && user.is_superuser);
+  // isPlatformAdmin: true only for platform-level admins (excludes org admins).
+  // Use this for platform-only gates (e.g. system health, billing management).
+  const isPlatformAdmin = userType === "platform_admin" || hasAdminRole || Boolean(user && user.is_superuser);
+  const isOrgAdmin = userType === "org_admin";
+  // isAdmin: true for both platform admins AND org admins so org-admin pages work correctly.
+  const isAdmin = isPlatformAdmin || isOrgAdmin;
   const activeOrganizationId = String(activeOrganization?.id || "").trim() || null;
   const hasMultipleOrganizations = resolvedOrganizations.length > 1;
   const hasGovernmentCapability = hasAnyCapabilityValue(
@@ -207,6 +215,8 @@ export const useAuth = () => {
     hasAnyCapability,
     hasCommitteeMembership,
     isAdmin,
+    isPlatformAdmin,
+    isOrgAdmin,
     isInternalOrAdmin: isInternalOrAdmin,
     isApplicant,
     canViewAuditLogs,

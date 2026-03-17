@@ -6,14 +6,17 @@ import type { RootState } from '@/app/store';
 import { Loader } from '../common/Loader';
 import { getDashboardPathForUser, resolveProtectedRouteRedirect } from '@/utils/authRouting';
 import { canManageOrganizationGovernance } from '@/utils/organizationGovernance';
+import { mergeRolesFromStore, mergeCapabilitiesFromStore } from '@/utils/authUtils';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   adminOnly?: boolean;
-  disallowUserTypes?: Array<"applicant" | "internal" | "admin">;
+  platformAdminOnly?: boolean;
+  orgAdminOnly?: boolean;
+  disallowUserTypes?: Array<"applicant" | "internal" | "org_admin" | "platform_admin">;
   requiredRoles?: string[];
   requiredCapabilities?: string[];
-  legacyUserTypeFallback?: Array<"admin">;
+  legacyUserTypeFallback?: Array<"org_admin" | "platform_admin">;
   requireOrganizationGovernance?: boolean;
   requireActiveOrganization?: boolean;
   activeOrganizationRedirectPath?: string;
@@ -22,6 +25,8 @@ interface ProtectedRouteProps {
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children, 
   adminOnly = false,
+  platformAdminOnly = false,
+  orgAdminOnly = false,
   disallowUserTypes = [],
   requiredRoles = [],
   requiredCapabilities = [],
@@ -60,24 +65,35 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to={routeRedirect} state={{ from: location }} replace />;
   }
 
-  const resolvedRoles = Array.from(
-    new Set([
-      ...(Array.isArray(roles) ? roles : []),
-      ...((user as { roles?: string[] } | null)?.roles ?? []),
-      ...((user as { group_roles?: string[] } | null)?.group_roles ?? []),
-    ]),
+  const resolvedRoles = mergeRolesFromStore(
+    roles,
+    user as { roles?: string[]; group_roles?: string[] } | null,
   );
-  const hasAdminAccess =
-    userType === "admin" ||
-    resolvedRoles.includes("admin") ||
-    Boolean(user && user.is_superuser);
+
+  const isPlatformAdmin = userType === "platform_admin" || userType === "admin";
+  const isOrgAdmin = userType === "org_admin";
+  const hasAdminRole = resolvedRoles.includes("admin");
+  // isAdminOrOrgAdmin: true for platform admins AND org admins.
+  // Use this for guards that both admin tiers should pass (e.g. adminOnly routes).
+  // For platform-admin-only guards use isPlatformAdmin directly.
+  const isAdminOrOrgAdmin = isPlatformAdmin || isOrgAdmin || hasAdminRole || Boolean(user && user.is_superuser);
+
   const fallbackDashboardPath = getDashboardPathForUser(userType);
 
-  if (adminOnly && !hasAdminAccess) {
+  if (adminOnly && !isAdminOrOrgAdmin) {
     return <Navigate to={fallbackDashboardPath} replace />;
   }
 
-  if (userType && disallowUserTypes.includes(userType)) {
+  if (platformAdminOnly && !isPlatformAdmin) {
+    return <Navigate to={fallbackDashboardPath} replace />;
+  }
+
+  if (orgAdminOnly && !isOrgAdmin) {
+    return <Navigate to={fallbackDashboardPath} replace />;
+  }
+
+  const effectiveType = isPlatformAdmin ? "platform_admin" : isOrgAdmin ? "org_admin" : userType;
+  if (effectiveType && (disallowUserTypes as string[]).includes(effectiveType)) {
     return <Navigate to={fallbackDashboardPath} replace />;
   }
 
@@ -85,18 +101,16 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to={fallbackDashboardPath} replace />;
   }
 
-  const resolvedCapabilities = Array.from(
-    new Set([
-      ...(Array.isArray(capabilities) ? capabilities : []),
-      ...((user as { capabilities?: string[] } | null)?.capabilities ?? []),
-    ]),
+  const resolvedCapabilities = mergeCapabilitiesFromStore(
+    capabilities,
+    user as { capabilities?: string[] } | null,
   );
   const resolvedMemberships = Array.isArray(organizationMemberships) ? organizationMemberships : [];
 
   if (
     requireOrganizationGovernance &&
     !canManageOrganizationGovernance({
-      isAdmin: hasAdminAccess,
+      isAdmin: isAdminOrOrgAdmin,
       roles: resolvedRoles,
       memberships: resolvedMemberships,
       activeOrganizationId: String(activeOrganization?.id || "").trim() || null,
@@ -119,7 +133,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     !requiredCapabilities.some((capability) => resolvedCapabilities.includes(capability))
   ) {
     const fallbackSet = new Set(legacyUserTypeFallback);
-    const canUseLegacyFallback = hasAdminAccess && fallbackSet.has("admin");
+    const canUseLegacyFallback = isAdminOrOrgAdmin && (fallbackSet.has("platform_admin") || fallbackSet.has("org_admin"));
     if (canUseLegacyFallback) {
       return <>{children}</>;
     }

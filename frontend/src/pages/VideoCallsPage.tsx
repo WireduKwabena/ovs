@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { LiveKitRoom, RoomAudioRenderer, VideoConference } from "@livekit/components-react";
+import {
+  LiveKitRoom,
+  RoomAudioRenderer,
+  VideoConference,
+} from "@livekit/components-react";
 import {
   CalendarClock,
   CheckCircle2,
@@ -22,7 +26,12 @@ import ReminderHealthCard from "@/components/admin/ReminderHealthCard";
 import { useAuth } from "@/hooks/useAuth";
 import { applicationService } from "@/services/application.service";
 import { videoCallService } from "@/services/videoCall.service";
-import type { VideoMeeting, VideoMeetingCreatePayload, VideoMeetingEvent, VideoMeetingJoinToken } from "@/types";
+import type {
+  VideoMeeting,
+  VideoMeetingCreatePayload,
+  VideoMeetingEvent,
+  VideoMeetingJoinToken,
+} from "@/types";
 import { downloadCsvFile } from "@/utils/csv";
 import { downloadJsonFile } from "@/utils/json";
 
@@ -70,9 +79,14 @@ const SELECT_FIELD_CLASS =
 const SELECT_FIELD_DISABLED_CLASS = `${SELECT_FIELD_CLASS} disabled:bg-muted disabled:text-muted-foreground`;
 const SELECT_FIELD_COMPACT_CLASS =
   "rounded-md border border-border bg-input px-2 py-1 text-xs text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
-const SELECT_FIELD_INLINE_CLASS = "bg-transparent text-xs text-foreground focus:outline-none";
+const SELECT_FIELD_INLINE_CLASS =
+  "bg-transparent text-xs text-foreground focus:outline-none";
 
-type MeetingTemplate = "custom" | "one_on_one" | "panel_screening" | "final_panel";
+type MeetingTemplate =
+  | "custom"
+  | "one_on_one"
+  | "panel_screening"
+  | "final_panel";
 type RecurrencePattern = "none" | "daily" | "weekly";
 type SeriesScope = "future" | "all";
 type SeriesAction = "shift" | "cancel" | "reschedule";
@@ -97,12 +111,15 @@ interface CaseOption {
   label: string;
 }
 
-const TEMPLATE_PRESETS: Record<Exclude<MeetingTemplate, "custom">, {
-  title: string;
-  description: string;
-  durationMinutes: number;
-  reminderBeforeMinutes: number;
-}> = {
+const TEMPLATE_PRESETS: Record<
+  Exclude<MeetingTemplate, "custom">,
+  {
+    title: string;
+    description: string;
+    durationMinutes: number;
+    reminderBeforeMinutes: number;
+  }
+> = {
   one_on_one: {
     title: "1v1 Candidate Screening",
     description: "Structured one-on-one vetting interview with candidate.",
@@ -142,7 +159,10 @@ const toCalendarTimestamp = (isoValue: string): string => {
   if (Number.isNaN(date.getTime())) {
     return "";
   }
-  return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  return date
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d{3}Z$/, "Z");
 };
 
 const buildGoogleCalendarUrl = (meeting: VideoMeeting): string => {
@@ -183,9 +203,13 @@ const VideoCallsPage: React.FC = () => {
     meeting: VideoMeeting;
     credentials: VideoMeetingJoinToken;
   } | null>(null);
-  const [statusFilter, setStatusFilter] = useState<"all" | VideoMeeting["status"]>("all");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | VideoMeeting["status"]
+  >("all");
   const [actionMeetingId, setActionMeetingId] = useState<string | null>(null);
-  const [expandedRescheduleId, setExpandedRescheduleId] = useState<string | null>(null);
+  const [expandedRescheduleId, setExpandedRescheduleId] = useState<
+    string | null
+  >(null);
   const [expandedEventsId, setExpandedEventsId] = useState<string | null>(null);
   const [reschedulingId, setReschedulingId] = useState<string | null>(null);
   const [loadingEventsId, setLoadingEventsId] = useState<string | null>(null);
@@ -193,10 +217,18 @@ const VideoCallsPage: React.FC = () => {
   const [rescheduleDrafts, setRescheduleDrafts] = useState<
     Record<string, { start: string; end: string; timezone: string }>
   >({});
-  const [seriesScopeDrafts, setSeriesScopeDrafts] = useState<Record<string, SeriesScope>>({});
-  const [eventTimelineByMeeting, setEventTimelineByMeeting] = useState<Record<string, VideoMeetingEvent[]>>({});
-  const [eventFilterByMeeting, setEventFilterByMeeting] = useState<Record<string, TimelineFilterMode>>({});
-  const [eventRangeByMeeting, setEventRangeByMeeting] = useState<Record<string, TimelineTimeRange>>({});
+  const [seriesScopeDrafts, setSeriesScopeDrafts] = useState<
+    Record<string, SeriesScope>
+  >({});
+  const [eventTimelineByMeeting, setEventTimelineByMeeting] = useState<
+    Record<string, VideoMeetingEvent[]>
+  >({});
+  const [eventFilterByMeeting, setEventFilterByMeeting] = useState<
+    Record<string, TimelineFilterMode>
+  >({});
+  const [eventRangeByMeeting, setEventRangeByMeeting] = useState<
+    Record<string, TimelineTimeRange>
+  >({});
   const [seriesConfirmation, setSeriesConfirmation] = useState<{
     meeting: VideoMeeting;
     scope: SeriesScope;
@@ -208,7 +240,10 @@ const VideoCallsPage: React.FC = () => {
   const autoJoinAttemptedRef = useRef<string | null>(null);
   const focusedMeetingId = searchParams.get("meeting");
   const autojoinValue = (searchParams.get("autojoin") || "").toLowerCase();
-  const shouldAutoJoin = autojoinValue === "1" || autojoinValue === "true" || autojoinValue === "yes";
+  const shouldAutoJoin =
+    autojoinValue === "1" ||
+    autojoinValue === "true" ||
+    autojoinValue === "yes";
 
   const [form, setForm] = useState({
     template: "custom" as MeetingTemplate,
@@ -227,12 +262,17 @@ const VideoCallsPage: React.FC = () => {
   const sortedMeetings = useMemo(
     () =>
       [...meetings].sort(
-        (a, b) => new Date(a.scheduled_start).getTime() - new Date(b.scheduled_start).getTime(),
+        (a, b) =>
+          new Date(a.scheduled_start).getTime() -
+          new Date(b.scheduled_start).getTime(),
       ),
     [meetings],
   );
   const filteredMeetings = useMemo(
-    () => (statusFilter === "all" ? sortedMeetings : sortedMeetings.filter((meeting) => meeting.status === statusFilter)),
+    () =>
+      statusFilter === "all"
+        ? sortedMeetings
+        : sortedMeetings.filter((meeting) => meeting.status === statusFilter),
     [sortedMeetings, statusFilter],
   );
 
@@ -242,7 +282,8 @@ const VideoCallsPage: React.FC = () => {
       const payload = await videoCallService.list();
       setMeetings(payload);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to load meetings.";
+      const message =
+        error instanceof Error ? error.message : "Failed to load meetings.";
       toast.error(message);
     } finally {
       setLoading(false);
@@ -264,7 +305,9 @@ const VideoCallsPage: React.FC = () => {
     const loadCaseOptions = async () => {
       setLoadingCaseOptions(true);
       try {
-        const cases = (await applicationService.getAll({ scope: isAdmin ? "all" : "assigned" })) as CaseRecord[];
+        const cases = (await applicationService.getAll({
+          scope: isAdmin ? "all" : "assigned",
+        })) as CaseRecord[];
         const normalized = cases
           .map((item): (CaseOption & { assignedTo: string | null }) | null => {
             const id = String(item.id ?? "").trim();
@@ -274,11 +317,18 @@ const VideoCallsPage: React.FC = () => {
 
             const caseCode = String(item.case_id ?? "").trim() || id;
             const ownerEmail =
-              (typeof item.candidate_email === "string" ? item.candidate_email : "") ||
-              (typeof item.applicant_email === "string" ? item.applicant_email : "") ||
-              (typeof item.applicant?.email === "string" ? item.applicant.email : "");
+              (typeof item.candidate_email === "string"
+                ? item.candidate_email
+                : "") ||
+              (typeof item.applicant_email === "string"
+                ? item.applicant_email
+                : "") ||
+              (typeof item.applicant?.email === "string"
+                ? item.applicant.email
+                : "");
             const status = String(item.status ?? "").trim() || "unknown";
-            const assignedTo = item.assigned_to != null ? String(item.assigned_to) : null;
+            const assignedTo =
+              item.assigned_to != null ? String(item.assigned_to) : null;
 
             return {
               id,
@@ -286,7 +336,10 @@ const VideoCallsPage: React.FC = () => {
               assignedTo,
             };
           })
-          .filter((item): item is CaseOption & { assignedTo: string | null } => item !== null);
+          .filter(
+            (item): item is CaseOption & { assignedTo: string | null } =>
+              item !== null,
+          );
 
         if (mounted) {
           setCaseOptions(normalized.map(({ id, label }) => ({ id, label })));
@@ -294,7 +347,10 @@ const VideoCallsPage: React.FC = () => {
       } catch (error) {
         if (mounted) {
           setCaseOptions([]);
-          const message = error instanceof Error ? error.message : "Failed to load vetting cases for selection.";
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Failed to load vetting cases for selection.";
           toast.error(message);
         }
       } finally {
@@ -318,7 +374,10 @@ const VideoCallsPage: React.FC = () => {
     }
     const startDate = new Date(fromDatetimeLocal(form.start));
     const endDate = new Date(startDate.getTime() + durationMinutes * 60_000);
-    setForm((current) => ({ ...current, end: toDatetimeLocal(endDate.toISOString()) }));
+    setForm((current) => ({
+      ...current,
+      end: toDatetimeLocal(endDate.toISOString()),
+    }));
   };
 
   const applyTemplatePreset = (template: MeetingTemplate) => {
@@ -339,7 +398,9 @@ const VideoCallsPage: React.FC = () => {
 
       if (current.start) {
         const startDate = new Date(fromDatetimeLocal(current.start));
-        const endDate = new Date(startDate.getTime() + preset.durationMinutes * 60_000);
+        const endDate = new Date(
+          startDate.getTime() + preset.durationMinutes * 60_000,
+        );
         next.end = toDatetimeLocal(endDate.toISOString());
       }
       return next;
@@ -386,7 +447,10 @@ const VideoCallsPage: React.FC = () => {
         .filter(Boolean);
       const baseStart = new Date(fromDatetimeLocal(form.start));
       const baseEnd = new Date(fromDatetimeLocal(form.end));
-      if (Number.isNaN(baseStart.getTime()) || Number.isNaN(baseEnd.getTime())) {
+      if (
+        Number.isNaN(baseStart.getTime()) ||
+        Number.isNaN(baseEnd.getTime())
+      ) {
         toast.error("Invalid start or end datetime.");
         return;
       }
@@ -396,13 +460,20 @@ const VideoCallsPage: React.FC = () => {
       }
 
       const reminderBeforeMinutes = Number(form.reminderBeforeMinutes);
-      if (!Number.isFinite(reminderBeforeMinutes) || reminderBeforeMinutes < 1 || reminderBeforeMinutes > 120) {
+      if (
+        !Number.isFinite(reminderBeforeMinutes) ||
+        reminderBeforeMinutes < 1 ||
+        reminderBeforeMinutes > 120
+      ) {
         toast.error("Reminder lead-time must be between 1 and 120 minutes.");
         return;
       }
 
       const recurrenceCountRaw = Number(form.recurrenceCount || "1");
-      const recurrenceCount = form.recurrence === "none" ? 1 : Math.min(12, Math.max(1, Math.trunc(recurrenceCountRaw || 1)));
+      const recurrenceCount =
+        form.recurrence === "none"
+          ? 1
+          : Math.min(12, Math.max(1, Math.trunc(recurrenceCountRaw || 1)));
       const payload: VideoMeetingCreatePayload = {
         title: form.title.trim(),
         description: form.description.trim(),
@@ -432,7 +503,11 @@ const VideoCallsPage: React.FC = () => {
         createdCount = response.count;
       }
 
-      toast.success(createdCount === 1 ? "Video call scheduled." : `${createdCount} video calls scheduled.`);
+      toast.success(
+        createdCount === 1
+          ? "Video call scheduled."
+          : `${createdCount} video calls scheduled.`,
+      );
       setForm((current) => ({
         ...current,
         title: current.recurrence === "none" ? "" : current.title,
@@ -444,7 +519,8 @@ const VideoCallsPage: React.FC = () => {
       }));
       await loadMeetings();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to schedule meeting.";
+      const message =
+        error instanceof Error ? error.message : "Failed to schedule meeting.";
       toast.error(message);
     } finally {
       setSubmitting(false);
@@ -457,7 +533,8 @@ const VideoCallsPage: React.FC = () => {
       const credentials = await videoCallService.getJoinToken(meeting.id);
       setActiveJoin({ meeting, credentials });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to join meeting.";
+      const message =
+        error instanceof Error ? error.message : "Failed to join meeting.";
       toast.error(message);
     } finally {
       setJoiningMeetingId(null);
@@ -465,17 +542,28 @@ const VideoCallsPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!focusedMeetingId || !shouldAutoJoin || loading || activeJoin || joiningMeetingId) {
+    if (
+      !focusedMeetingId ||
+      !shouldAutoJoin ||
+      loading ||
+      activeJoin ||
+      joiningMeetingId
+    ) {
       return;
     }
     if (autoJoinAttemptedRef.current === focusedMeetingId) {
       return;
     }
-    const targetMeeting = meetings.find((meeting) => meeting.id === focusedMeetingId);
+    const targetMeeting = meetings.find(
+      (meeting) => meeting.id === focusedMeetingId,
+    );
     if (!targetMeeting) {
       return;
     }
-    if (targetMeeting.status === "cancelled" || targetMeeting.status === "completed") {
+    if (
+      targetMeeting.status === "cancelled" ||
+      targetMeeting.status === "completed"
+    ) {
       return;
     }
 
@@ -513,10 +601,16 @@ const VideoCallsPage: React.FC = () => {
     setDownloadingIcsId(meeting.id);
     try {
       const blob = await videoCallService.downloadCalendarIcs(meeting.id);
-      const safeTitle = (meeting.title || "video-meeting").replace(/[^a-zA-Z0-9-_]/g, "_");
+      const safeTitle = (meeting.title || "video-meeting").replace(
+        /[^a-zA-Z0-9-_]/g,
+        "_",
+      );
       triggerFileDownload(blob, `${safeTitle}-${meeting.id}.ics`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to download meeting calendar file.";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to download meeting calendar file.";
       toast.error(message);
     } finally {
       setDownloadingIcsId(null);
@@ -530,7 +624,8 @@ const VideoCallsPage: React.FC = () => {
       toast.success("Meeting extended by 15 minutes.");
       await loadMeetings();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to extend meeting.";
+      const message =
+        error instanceof Error ? error.message : "Failed to extend meeting.";
       toast.error(message);
     } finally {
       setActionMeetingId(null);
@@ -540,8 +635,12 @@ const VideoCallsPage: React.FC = () => {
   const handleQuickShift = async (meeting: VideoMeeting) => {
     setActionMeetingId(meeting.id);
     try {
-      const shiftedStart = new Date(new Date(meeting.scheduled_start).getTime() + 30 * 60_000);
-      const shiftedEnd = new Date(new Date(meeting.scheduled_end).getTime() + 30 * 60_000);
+      const shiftedStart = new Date(
+        new Date(meeting.scheduled_start).getTime() + 30 * 60_000,
+      );
+      const shiftedEnd = new Date(
+        new Date(meeting.scheduled_end).getTime() + 30 * 60_000,
+      );
       await videoCallService.reschedule(meeting.id, {
         scheduled_start: shiftedStart.toISOString(),
         scheduled_end: shiftedEnd.toISOString(),
@@ -550,7 +649,10 @@ const VideoCallsPage: React.FC = () => {
       toast.success("Meeting moved by 30 minutes.");
       await loadMeetings();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to reschedule meeting.";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to reschedule meeting.";
       toast.error(message);
     } finally {
       setActionMeetingId(null);
@@ -564,7 +666,8 @@ const VideoCallsPage: React.FC = () => {
       toast.info("Meeting cancelled.");
       await loadMeetings();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to cancel meeting.";
+      const message =
+        error instanceof Error ? error.message : "Failed to cancel meeting.";
       toast.error(message);
     } finally {
       setActionMeetingId(null);
@@ -578,7 +681,8 @@ const VideoCallsPage: React.FC = () => {
       toast.success("Meeting started.");
       await loadMeetings();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to start meeting.";
+      const message =
+        error instanceof Error ? error.message : "Failed to start meeting.";
       toast.error(message);
     } finally {
       setActionMeetingId(null);
@@ -592,7 +696,8 @@ const VideoCallsPage: React.FC = () => {
       toast.success("Meeting marked completed.");
       await loadMeetings();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to complete meeting.";
+      const message =
+        error instanceof Error ? error.message : "Failed to complete meeting.";
       toast.error(message);
     } finally {
       setActionMeetingId(null);
@@ -608,10 +713,16 @@ const VideoCallsPage: React.FC = () => {
         timezone: meeting.timezone || "UTC",
       },
     }));
-    setExpandedRescheduleId((current) => (current === meeting.id ? null : meeting.id));
+    setExpandedRescheduleId((current) =>
+      current === meeting.id ? null : meeting.id,
+    );
   };
 
-  const updateRescheduleDraft = (meetingId: string, field: "start" | "end" | "timezone", value: string) => {
+  const updateRescheduleDraft = (
+    meetingId: string,
+    field: "start" | "end" | "timezone",
+    value: string,
+  ) => {
     setRescheduleDrafts((current) => ({
       ...current,
       [meetingId]: {
@@ -640,7 +751,10 @@ const VideoCallsPage: React.FC = () => {
       setExpandedRescheduleId(null);
       await loadMeetings();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to reschedule meeting.";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to reschedule meeting.";
       toast.error(message);
     } finally {
       setReschedulingId(null);
@@ -663,7 +777,9 @@ const VideoCallsPage: React.FC = () => {
     return "all";
   };
 
-  const getVisibleTimelineEvents = (meeting: VideoMeeting): VideoMeetingEvent[] => {
+  const getVisibleTimelineEvents = (
+    meeting: VideoMeeting,
+  ): VideoMeetingEvent[] => {
     const events = eventTimelineByMeeting[meeting.id] || [];
     const mode = getTimelineFilterMode(meeting);
     const range = getTimelineTimeRange(meeting);
@@ -690,13 +806,19 @@ const VideoCallsPage: React.FC = () => {
 
     return scopedEvents.filter((event) => {
       const eventTimeMs = new Date(event.created_at).getTime();
-      return Number.isFinite(eventTimeMs) && nowMs - eventTimeMs <= rangeWindowMs;
+      return (
+        Number.isFinite(eventTimeMs) && nowMs - eventTimeMs <= rangeWindowMs
+      );
     });
   };
 
-  const loadMeetingEvents = async (meeting: VideoMeeting, mode?: TimelineFilterMode) => {
+  const loadMeetingEvents = async (
+    meeting: VideoMeeting,
+    mode?: TimelineFilterMode,
+  ) => {
     const filterMode = mode || getTimelineFilterMode(meeting);
-    const includeSeries = Boolean(meeting.series_id) && filterMode !== "meeting";
+    const includeSeries =
+      Boolean(meeting.series_id) && filterMode !== "meeting";
     setLoadingEventsId(meeting.id);
     try {
       const events = await videoCallService.listEvents(meeting.id, {
@@ -708,14 +830,20 @@ const VideoCallsPage: React.FC = () => {
         [meeting.id]: events,
       }));
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to load meeting history.";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to load meeting history.";
       toast.error(message);
     } finally {
       setLoadingEventsId(null);
     }
   };
 
-  const updateTimelineFilterMode = async (meeting: VideoMeeting, mode: TimelineFilterMode) => {
+  const updateTimelineFilterMode = async (
+    meeting: VideoMeeting,
+    mode: TimelineFilterMode,
+  ) => {
     setEventFilterByMeeting((current) => ({
       ...current,
       [meeting.id]: mode,
@@ -723,7 +851,10 @@ const VideoCallsPage: React.FC = () => {
     await loadMeetingEvents(meeting, mode);
   };
 
-  const updateTimelineTimeRange = (meeting: VideoMeeting, range: TimelineTimeRange) => {
+  const updateTimelineTimeRange = (
+    meeting: VideoMeeting,
+    range: TimelineTimeRange,
+  ) => {
     setEventRangeByMeeting((current) => ({
       ...current,
       [meeting.id]: range,
@@ -756,7 +887,10 @@ const VideoCallsPage: React.FC = () => {
       event.detail || "",
     ]);
 
-    const safeTitle = (meeting.title || "meeting").replace(/[^a-zA-Z0-9-_]/g, "_");
+    const safeTitle = (meeting.title || "meeting").replace(
+      /[^a-zA-Z0-9-_]/g,
+      "_",
+    );
     const filename = `${safeTitle}-${meeting.id}-history-${getTimelineFilterMode(meeting)}-${getTimelineTimeRange(meeting)}.csv`;
     downloadCsvFile(header, rows, filename);
   };
@@ -768,7 +902,10 @@ const VideoCallsPage: React.FC = () => {
       return;
     }
 
-    const safeTitle = (meeting.title || "meeting").replace(/[^a-zA-Z0-9-_]/g, "_");
+    const safeTitle = (meeting.title || "meeting").replace(
+      /[^a-zA-Z0-9-_]/g,
+      "_",
+    );
     const filename = `${safeTitle}-${meeting.id}-history-${getTimelineFilterMode(meeting)}-${getTimelineTimeRange(meeting)}.json`;
     downloadJsonFile(
       {
@@ -801,7 +938,8 @@ const VideoCallsPage: React.FC = () => {
     }
   };
 
-  const getSeriesScope = (meetingId: string): SeriesScope => seriesScopeDrafts[meetingId] || "future";
+  const getSeriesScope = (meetingId: string): SeriesScope =>
+    seriesScopeDrafts[meetingId] || "future";
 
   const updateSeriesScope = (meetingId: string, scope: SeriesScope) => {
     setSeriesScopeDrafts((current) => ({
@@ -816,8 +954,12 @@ const VideoCallsPage: React.FC = () => {
     }
     setActionMeetingId(meeting.id);
     try {
-      const shiftedStart = new Date(new Date(meeting.scheduled_start).getTime() + 30 * 60_000);
-      const shiftedEnd = new Date(new Date(meeting.scheduled_end).getTime() + 30 * 60_000);
+      const shiftedStart = new Date(
+        new Date(meeting.scheduled_start).getTime() + 30 * 60_000,
+      );
+      const shiftedEnd = new Date(
+        new Date(meeting.scheduled_end).getTime() + 30 * 60_000,
+      );
       const response = await videoCallService.rescheduleSeries(meeting.id, {
         scheduled_start: shiftedStart.toISOString(),
         scheduled_end: shiftedEnd.toISOString(),
@@ -827,7 +969,10 @@ const VideoCallsPage: React.FC = () => {
       toast.success(`${response.count} series meeting(s) moved by 30 minutes.`);
       await loadMeetings();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to reschedule meeting series.";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to reschedule meeting series.";
       toast.error(message);
     } finally {
       setActionMeetingId(null);
@@ -847,7 +992,10 @@ const VideoCallsPage: React.FC = () => {
       toast.info(`${response.count} series meeting(s) cancelled.`);
       await loadMeetings();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to cancel meeting series.";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to cancel meeting series.";
       toast.error(message);
     } finally {
       setActionMeetingId(null);
@@ -875,14 +1023,20 @@ const VideoCallsPage: React.FC = () => {
       setExpandedRescheduleId(null);
       await loadMeetings();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to reschedule meeting series.";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to reschedule meeting series.";
       toast.error(message);
     } finally {
       setReschedulingId(null);
     }
   };
 
-  const requestSeriesActionConfirmation = (meeting: VideoMeeting, action: SeriesAction) => {
+  const requestSeriesActionConfirmation = (
+    meeting: VideoMeeting,
+    action: SeriesAction,
+  ) => {
     if (!meeting.series_id) {
       return;
     }
@@ -911,11 +1065,14 @@ const VideoCallsPage: React.FC = () => {
       return;
     }
     const requiresTypedConfirmation =
-      seriesConfirmation.action === "cancel" && seriesConfirmation.scope === "all";
+      seriesConfirmation.action === "cancel" &&
+      seriesConfirmation.scope === "all";
     const isTypedConfirmationValid =
       seriesConfirmationText.trim().toUpperCase() === SERIES_CANCEL_ALL_PHRASE;
     if (requiresTypedConfirmation && !isTypedConfirmationValid) {
-      toast.error(`Type "${SERIES_CANCEL_ALL_PHRASE}" to confirm cancelling all series meetings.`);
+      toast.error(
+        `Type "${SERIES_CANCEL_ALL_PHRASE}" to confirm cancelling all series meetings.`,
+      );
       return;
     }
 
@@ -935,7 +1092,8 @@ const VideoCallsPage: React.FC = () => {
   };
 
   const requiresTypedSeriesConfirmation =
-    seriesConfirmation?.action === "cancel" && seriesConfirmation?.scope === "all";
+    seriesConfirmation?.action === "cancel" &&
+    seriesConfirmation?.scope === "all";
   const isSeriesConfirmationReady =
     !requiresTypedSeriesConfirmation ||
     seriesConfirmationText.trim().toUpperCase() === SERIES_CANCEL_ALL_PHRASE;
@@ -946,9 +1104,12 @@ const VideoCallsPage: React.FC = () => {
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-semibold text-slate-900">Video Calls</h1>
+              <h1 className="text-2xl font-semibold text-slate-900">
+                Video Calls
+              </h1>
               <p className="mt-1 text-sm text-slate-700">
-                Schedule and run 1v1 or 1vMany candidate meetings through LiveKit.
+                Schedule and run 1v1 or 1vMany candidate meetings through
+                LiveKit.
               </p>
             </div>
             <button
@@ -971,9 +1132,14 @@ const VideoCallsPage: React.FC = () => {
               <HelpTooltip text="Create 1v1 or panel sessions, optionally link to a case, and apply recurrence for multi-round interviews." />
             </h2>
             <div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
-              Hover or focus the <Info className="mx-1 inline h-4 w-4 align-text-bottom" /> icons beside labels for guidance.
+              Hover or focus the{" "}
+              <Info className="mx-1 inline h-4 w-4 align-text-bottom" /> icons
+              beside labels for guidance.
             </div>
-            <form className="mt-4 grid gap-4 md:grid-cols-2" onSubmit={handleCreate}>
+            <form
+              className="mt-4 grid gap-4 md:grid-cols-2"
+              onSubmit={handleCreate}
+            >
               <div className="space-y-1 text-sm text-slate-700">
                 <FieldLabel
                   label="Template"
@@ -982,13 +1148,18 @@ const VideoCallsPage: React.FC = () => {
                   textClassName="block text-sm text-slate-700"
                 />
                 <select
+                  title="templates"
                   value={form.template}
-                  onChange={(event) => applyTemplatePreset(event.target.value as MeetingTemplate)}
+                  onChange={(event) =>
+                    applyTemplatePreset(event.target.value as MeetingTemplate)
+                  }
                   className={SELECT_FIELD_CLASS}
                 >
                   <option value="custom">Custom</option>
                   <option value="one_on_one">1v1 Screening</option>
-                  <option value="panel_screening">Panel Screening (1vMany)</option>
+                  <option value="panel_screening">
+                    Panel Screening (1vMany)
+                  </option>
                   <option value="final_panel">Final Panel (1vMany)</option>
                 </select>
               </div>
@@ -1001,11 +1172,17 @@ const VideoCallsPage: React.FC = () => {
                   textClassName="block text-sm text-slate-700"
                 />
                 <input
+                  title="number"
                   type="number"
                   min={1}
                   max={120}
                   value={form.reminderBeforeMinutes}
-                  onChange={(event) => setForm((prev) => ({ ...prev, reminderBeforeMinutes: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      reminderBeforeMinutes: event.target.value,
+                    }))
+                  }
                   className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 placeholder:opacity-100 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
               </div>
@@ -1019,9 +1196,12 @@ const VideoCallsPage: React.FC = () => {
                   textClassName="block text-sm text-slate-700"
                 />
                 <input
+                  title="Meeting title"
                   required
                   value={form.title}
-                  onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, title: event.target.value }))
+                  }
                   className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
               </div>
@@ -1034,12 +1214,17 @@ const VideoCallsPage: React.FC = () => {
                   textClassName="block text-sm text-slate-700"
                 />
                 <select
+                  title="case"
                   value={form.caseId}
-                  onChange={(event) => setForm((prev) => ({ ...prev, caseId: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, caseId: event.target.value }))
+                  }
                   disabled={loadingCaseOptions}
                   className={SELECT_FIELD_DISABLED_CLASS}
                 >
-                  <option value="">{loadingCaseOptions ? "Loading cases..." : "No linked case"}</option>
+                  <option value="">
+                    {loadingCaseOptions ? "Loading cases..." : "No linked case"}
+                  </option>
                   {caseOptions.map((option) => (
                     <option key={option.id} value={option.id}>
                       {option.label}
@@ -1048,7 +1233,8 @@ const VideoCallsPage: React.FC = () => {
                 </select>
                 {!loadingCaseOptions && caseOptions.length === 0 && (
                   <p className="text-xs text-slate-700">
-                    No vetting cases available yet. Create a case first or invite explicit participants by email.
+                    No vetting cases available yet. Create a case first or
+                    invite explicit participants by email.
                   </p>
                 )}
               </div>
@@ -1061,8 +1247,14 @@ const VideoCallsPage: React.FC = () => {
                   textClassName="block text-sm text-slate-700"
                 />
                 <textarea
+                  title="description"
                   value={form.description}
-                  onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      description: event.target.value,
+                    }))
+                  }
                   className="min-h-24 w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
               </div>
@@ -1076,10 +1268,13 @@ const VideoCallsPage: React.FC = () => {
                   textClassName="block text-sm text-slate-700"
                 />
                 <input
+                  title="number"
                   required
                   type="datetime-local"
                   value={form.start}
-                  onChange={(event) => setForm((prev) => ({ ...prev, start: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, start: event.target.value }))
+                  }
                   className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
               </div>
@@ -1093,10 +1288,13 @@ const VideoCallsPage: React.FC = () => {
                   textClassName="block text-sm text-slate-700"
                 />
                 <input
+                  title="number"
                   required
                   type="datetime-local"
                   value={form.end}
-                  onChange={(event) => setForm((prev) => ({ ...prev, end: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, end: event.target.value }))
+                  }
                   className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
               </div>
@@ -1130,12 +1328,16 @@ const VideoCallsPage: React.FC = () => {
                   textClassName="block text-sm text-slate-700"
                 />
                 <select
+                  title="number"
                   value={form.recurrence}
                   onChange={(event) =>
                     setForm((prev) => ({
                       ...prev,
                       recurrence: event.target.value as RecurrencePattern,
-                      recurrenceCount: event.target.value === "none" ? "1" : prev.recurrenceCount,
+                      recurrenceCount:
+                        event.target.value === "none"
+                          ? "1"
+                          : prev.recurrenceCount,
                     }))
                   }
                   className={SELECT_FIELD_CLASS}
@@ -1155,11 +1357,17 @@ const VideoCallsPage: React.FC = () => {
                     textClassName="block text-sm text-slate-700"
                   />
                   <input
+                    title="number"
                     type="number"
                     min={1}
                     max={12}
                     value={form.recurrenceCount}
-                    onChange={(event) => setForm((prev) => ({ ...prev, recurrenceCount: event.target.value }))}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        recurrenceCount: event.target.value,
+                      }))
+                    }
                     className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                   />
                 </div>
@@ -1173,8 +1381,14 @@ const VideoCallsPage: React.FC = () => {
                   textClassName="block text-sm text-slate-700"
                 />
                 <input
+                  title="number"
                   value={form.timezone}
-                  onChange={(event) => setForm((prev) => ({ ...prev, timezone: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      timezone: event.target.value,
+                    }))
+                  }
                   className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
               </div>
@@ -1188,7 +1402,12 @@ const VideoCallsPage: React.FC = () => {
                 />
                 <input
                   value={form.participantEmails}
-                  onChange={(event) => setForm((prev) => ({ ...prev, participantEmails: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      participantEmails: event.target.value,
+                    }))
+                  }
                   placeholder="candidate1@example.com,candidate2@example.com"
                   className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 placeholder:opacity-100 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
@@ -1200,7 +1419,11 @@ const VideoCallsPage: React.FC = () => {
                   disabled={submitting}
                   className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarClock className="h-4 w-4" />}
+                  {submitting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <CalendarClock className="h-4 w-4" />
+                  )}
                   {submitting ? "Scheduling..." : "Schedule Meeting"}
                 </button>
               </div>
@@ -1221,7 +1444,11 @@ const VideoCallsPage: React.FC = () => {
                 <HelpTooltip text="Filter meetings by lifecycle state (scheduled, ongoing, completed, cancelled)." />
                 <select
                   value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value as "all" | VideoMeeting["status"])}
+                  onChange={(event) =>
+                    setStatusFilter(
+                      event.target.value as "all" | VideoMeeting["status"],
+                    )
+                  }
                   className={SELECT_FIELD_COMPACT_CLASS}
                 >
                   <option value="all">All</option>
@@ -1248,7 +1475,9 @@ const VideoCallsPage: React.FC = () => {
               Loading meetings...
             </div>
           ) : filteredMeetings.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-700">No meetings scheduled yet.</p>
+            <p className="mt-4 text-sm text-slate-700">
+              No meetings scheduled yet.
+            </p>
           ) : (
             <div className="mt-4 space-y-3">
               {filteredMeetings.map((meeting) => (
@@ -1265,21 +1494,31 @@ const VideoCallsPage: React.FC = () => {
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-1">
-                      <h3 className="text-base font-semibold text-slate-900">{meeting.title}</h3>
-                      <p className="text-sm text-slate-700">{meeting.description || "No description provided."}</p>
+                      <h3 className="text-base font-semibold text-slate-900">
+                        {meeting.title}
+                      </h3>
+                      <p className="text-sm text-slate-700">
+                        {meeting.description || "No description provided."}
+                      </p>
                       <p className="text-xs text-slate-700">
                         {new Date(meeting.scheduled_start).toLocaleString()} -{" "}
-                        {new Date(meeting.scheduled_end).toLocaleString()} ({meeting.timezone})
+                        {new Date(meeting.scheduled_end).toLocaleString()} (
+                        {meeting.timezone})
                       </p>
                       <p className="text-xs text-slate-700">
-                        Room: <span className="font-mono">{meeting.livekit_room_name}</span>
+                        Room:{" "}
+                        <span className="font-mono">
+                          {meeting.livekit_room_name}
+                        </span>
                       </p>
                       <p className="text-xs text-slate-700">
-                        Reminder: {meeting.reminder_before_minutes} minute(s) before start
+                        Reminder: {meeting.reminder_before_minutes} minute(s)
+                        before start
                       </p>
                       {meeting.series_id && (
                         <p className="text-xs text-slate-700">
-                          Series ID: <span className="font-mono">{meeting.series_id}</span>
+                          Series ID:{" "}
+                          <span className="font-mono">{meeting.series_id}</span>
                         </p>
                       )}
                       <div className="mt-2 flex flex-wrap gap-2">
@@ -1313,7 +1552,12 @@ const VideoCallsPage: React.FC = () => {
                               <span>Series</span>
                               <select
                                 value={getSeriesScope(meeting.id)}
-                                onChange={(event) => updateSeriesScope(meeting.id, event.target.value as SeriesScope)}
+                                onChange={(event) =>
+                                  updateSeriesScope(
+                                    meeting.id,
+                                    event.target.value as SeriesScope,
+                                  )
+                                }
                                 className={SELECT_FIELD_INLINE_CLASS}
                               >
                                 <option value="future">Future</option>
@@ -1324,11 +1568,17 @@ const VideoCallsPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => void handleJoin(meeting)}
-                            disabled={joiningMeetingId === meeting.id || meeting.status === "cancelled" || meeting.status === "completed"}
+                            disabled={
+                              joiningMeetingId === meeting.id ||
+                              meeting.status === "cancelled" ||
+                              meeting.status === "completed"
+                            }
                             className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
                           >
                             <Video className="h-3.5 w-3.5" />
-                            {joiningMeetingId === meeting.id ? "Joining..." : "Join"}
+                            {joiningMeetingId === meeting.id
+                              ? "Joining..."
+                              : "Join"}
                           </button>
                         </div>
                         <div className="mt-3 flex flex-wrap gap-2 max-[420px]:grid max-[420px]:grid-cols-1 *:w-full sm:*:w-auto">
@@ -1346,7 +1596,9 @@ const VideoCallsPage: React.FC = () => {
                             disabled={downloadingIcsId === meeting.id}
                             className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
                           >
-                            {downloadingIcsId === meeting.id ? "Downloading..." : "Download .ics"}
+                            {downloadingIcsId === meeting.id
+                              ? "Downloading..."
+                              : "Download .ics"}
                           </button>
                           <button
                             type="button"
@@ -1354,7 +1606,11 @@ const VideoCallsPage: React.FC = () => {
                             disabled={loadingEventsId === meeting.id}
                             className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
                           >
-                            {loadingEventsId === meeting.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <History className="h-3.5 w-3.5" />}
+                            {loadingEventsId === meeting.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <History className="h-3.5 w-3.5" />
+                            )}
                             History
                           </button>
                         </div>
@@ -1394,7 +1650,12 @@ const VideoCallsPage: React.FC = () => {
                             {meeting.series_id && (
                               <button
                                 type="button"
-                                onClick={() => requestSeriesActionConfirmation(meeting, "shift")}
+                                onClick={() =>
+                                  requestSeriesActionConfirmation(
+                                    meeting,
+                                    "shift",
+                                  )
+                                }
                                 disabled={actionMeetingId === meeting.id}
                                 className="rounded-lg border border-indigo-300 px-3 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
                               >
@@ -1421,7 +1682,12 @@ const VideoCallsPage: React.FC = () => {
                             {meeting.series_id && (
                               <button
                                 type="button"
-                                onClick={() => requestSeriesActionConfirmation(meeting, "cancel")}
+                                onClick={() =>
+                                  requestSeriesActionConfirmation(
+                                    meeting,
+                                    "cancel",
+                                  )
+                                }
                                 disabled={actionMeetingId === meeting.id}
                                 className="inline-flex items-center gap-1 rounded-lg border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-50"
                               >
@@ -1449,7 +1715,9 @@ const VideoCallsPage: React.FC = () => {
                             </button>
                             <button
                               type="button"
-                              onClick={() => void handleCompleteMeeting(meeting)}
+                              onClick={() =>
+                                void handleCompleteMeeting(meeting)
+                              }
                               disabled={actionMeetingId === meeting.id}
                               className="inline-flex items-center gap-1 rounded-lg border border-indigo-300 px-3 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-50 disabled:opacity-60"
                             >
@@ -1459,7 +1727,12 @@ const VideoCallsPage: React.FC = () => {
                             {meeting.series_id && (
                               <button
                                 type="button"
-                                onClick={() => requestSeriesActionConfirmation(meeting, "cancel")}
+                                onClick={() =>
+                                  requestSeriesActionConfirmation(
+                                    meeting,
+                                    "cancel",
+                                  )
+                                }
                                 disabled={actionMeetingId === meeting.id}
                                 className="inline-flex items-center gap-1 rounded-lg border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-50"
                               >
@@ -1482,7 +1755,13 @@ const VideoCallsPage: React.FC = () => {
                         <input
                           type="datetime-local"
                           value={rescheduleDrafts[meeting.id]?.start || ""}
-                          onChange={(event) => updateRescheduleDraft(meeting.id, "start", event.target.value)}
+                          onChange={(event) =>
+                            updateRescheduleDraft(
+                              meeting.id,
+                              "start",
+                              event.target.value,
+                            )
+                          }
                           className="w-full rounded-md border border-slate-700 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                         />
                       </label>
@@ -1491,15 +1770,29 @@ const VideoCallsPage: React.FC = () => {
                         <input
                           type="datetime-local"
                           value={rescheduleDrafts[meeting.id]?.end || ""}
-                          onChange={(event) => updateRescheduleDraft(meeting.id, "end", event.target.value)}
+                          onChange={(event) =>
+                            updateRescheduleDraft(
+                              meeting.id,
+                              "end",
+                              event.target.value,
+                            )
+                          }
                           className="w-full rounded-md border border-slate-700 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                         />
                       </label>
                       <label className="space-y-1 text-xs text-slate-700">
                         <span>Timezone</span>
                         <input
-                          value={rescheduleDrafts[meeting.id]?.timezone || "UTC"}
-                          onChange={(event) => updateRescheduleDraft(meeting.id, "timezone", event.target.value)}
+                          value={
+                            rescheduleDrafts[meeting.id]?.timezone || "UTC"
+                          }
+                          onChange={(event) =>
+                            updateRescheduleDraft(
+                              meeting.id,
+                              "timezone",
+                              event.target.value,
+                            )
+                          }
                           className="w-full rounded-md border border-slate-700 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                         />
                       </label>
@@ -1517,7 +1810,9 @@ const VideoCallsPage: React.FC = () => {
                           onClick={() => void submitReschedule(meeting)}
                           className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
                         >
-                          {reschedulingId === meeting.id ? "Saving..." : "Save schedule"}
+                          {reschedulingId === meeting.id
+                            ? "Saving..."
+                            : "Save schedule"}
                         </button>
                         {meeting.series_id && (
                           <button
@@ -1546,12 +1841,21 @@ const VideoCallsPage: React.FC = () => {
                             <HelpTooltip text="Choose whether to display history for this meeting only, the whole series, or both." />
                             <select
                               value={getTimelineFilterMode(meeting)}
-                              onChange={(event) => void updateTimelineFilterMode(meeting, event.target.value as TimelineFilterMode)}
+                              onChange={(event) =>
+                                void updateTimelineFilterMode(
+                                  meeting,
+                                  event.target.value as TimelineFilterMode,
+                                )
+                              }
                               className={SELECT_FIELD_INLINE_CLASS}
                             >
                               <option value="all">All history</option>
                               <option value="meeting">This meeting</option>
-                              {meeting.series_id && <option value="series">Other occurrences</option>}
+                              {meeting.series_id && (
+                                <option value="series">
+                                  Other occurrences
+                                </option>
+                              )}
                             </select>
                           </label>
                           <label className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-white px-2 py-1 text-xs text-slate-700">
@@ -1559,7 +1863,12 @@ const VideoCallsPage: React.FC = () => {
                             <HelpTooltip text="Limit history to recent periods for quicker audit review." />
                             <select
                               value={getTimelineTimeRange(meeting)}
-                              onChange={(event) => updateTimelineTimeRange(meeting, event.target.value as TimelineTimeRange)}
+                              onChange={(event) =>
+                                updateTimelineTimeRange(
+                                  meeting,
+                                  event.target.value as TimelineTimeRange,
+                                )
+                              }
                               className={SELECT_FIELD_INLINE_CLASS}
                             >
                               <option value="all">All</option>
@@ -1586,22 +1895,37 @@ const VideoCallsPage: React.FC = () => {
                           </button>
                           <button
                             type="button"
-                            onClick={() => void loadMeetingEvents(meeting, getTimelineFilterMode(meeting))}
+                            onClick={() =>
+                              void loadMeetingEvents(
+                                meeting,
+                                getTimelineFilterMode(meeting),
+                              )
+                            }
                             disabled={loadingEventsId === meeting.id}
                             className="inline-flex items-center gap-1 rounded-md border border-slate-700 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
                           >
-                            {loadingEventsId === meeting.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="h-3.5 w-3.5" />}
+                            {loadingEventsId === meeting.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <RefreshCcw className="h-3.5 w-3.5" />
+                            )}
                             Refresh
                           </button>
                         </div>
                       </div>
                       <p className="mb-2 text-[11px] text-slate-700">
-                        Showing {getVisibleTimelineEvents(meeting).length} event(s)
+                        Showing {getVisibleTimelineEvents(meeting).length}{" "}
+                        event(s)
                       </p>
-                      {loadingEventsId === meeting.id && !eventTimelineByMeeting[meeting.id] ? (
-                        <p className="text-xs text-slate-700">Loading history...</p>
+                      {loadingEventsId === meeting.id &&
+                      !eventTimelineByMeeting[meeting.id] ? (
+                        <p className="text-xs text-slate-700">
+                          Loading history...
+                        </p>
                       ) : getVisibleTimelineEvents(meeting).length === 0 ? (
-                        <p className="text-xs text-slate-700">No history for the selected view.</p>
+                        <p className="text-xs text-slate-700">
+                          No history for the selected view.
+                        </p>
                       ) : (
                         <div className="space-y-2">
                           {getVisibleTimelineEvents(meeting).map((event) => (
@@ -1614,12 +1938,14 @@ const VideoCallsPage: React.FC = () => {
                                   <span
                                     className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${meetingEventActionClass[event.action] || "bg-slate-200 text-slate-800 border border-slate-700"}`}
                                   >
-                                    {meetingEventActionLabel[event.action] || event.action}
+                                    {meetingEventActionLabel[event.action] ||
+                                      event.action}
                                   </span>
                                   <span
                                     className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${meetingEventScopeClass[event.scope] || "bg-slate-200 text-slate-800 border border-slate-700"}`}
                                   >
-                                    {meetingEventScopeLabel[event.scope] || event.scope}
+                                    {meetingEventScopeLabel[event.scope] ||
+                                      event.scope}
                                   </span>
                                   {event.meeting !== meeting.id && (
                                     <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 font-mono text-[10px] text-slate-700">
@@ -1636,7 +1962,9 @@ const VideoCallsPage: React.FC = () => {
                               </p>
                               <p className="mt-1 text-[11px] text-slate-700">
                                 By {event.actor_name}
-                                {event.actor_email ? ` (${event.actor_email})` : ""}
+                                {event.actor_email
+                                  ? ` (${event.actor_email})`
+                                  : ""}
                               </p>
                             </div>
                           ))}
@@ -1660,7 +1988,11 @@ const VideoCallsPage: React.FC = () => {
                 : "Reschedule series meetings?"
           }
           cancelLabel="Go back"
-          confirmLabel={seriesConfirmation?.action === "cancel" ? "Confirm cancel" : "Confirm update"}
+          confirmLabel={
+            seriesConfirmation?.action === "cancel"
+              ? "Confirm cancel"
+              : "Confirm update"
+          }
           confirmDisabled={!isSeriesConfirmationReady}
           onCancel={() => {
             setSeriesConfirmation(null);
@@ -1672,24 +2004,33 @@ const VideoCallsPage: React.FC = () => {
         >
           <p className="text-sm text-slate-700">
             {seriesConfirmation
-              ? `${seriesConfirmation.action === "cancel"
-                  ? "This will cancel"
-                  : "This will update"} ${seriesConfirmation.scope === "all" ? "all occurrences in the series" : "the selected meeting and future occurrences"} for "${seriesConfirmation.meeting.title}".`
+              ? `${
+                  seriesConfirmation.action === "cancel"
+                    ? "This will cancel"
+                    : "This will update"
+                } ${seriesConfirmation.scope === "all" ? "all occurrences in the series" : "the selected meeting and future occurrences"} for "${seriesConfirmation.meeting.title}".`
               : ""}
           </p>
           {seriesConfirmation?.scope === "all" && (
             <p className="mt-2 text-xs text-rose-700">
-              Scope is set to &quot;All&quot;. This affects the entire recurring series.
+              Scope is set to &quot;All&quot;. This affects the entire recurring
+              series.
             </p>
           )}
           {requiresTypedSeriesConfirmation && (
             <div className="mt-3 space-y-1">
               <p className="text-xs text-slate-700">
-                Type <span className="font-semibold">{SERIES_CANCEL_ALL_PHRASE}</span> to continue.
+                Type{" "}
+                <span className="font-semibold">
+                  {SERIES_CANCEL_ALL_PHRASE}
+                </span>{" "}
+                to continue.
               </p>
               <input
                 value={seriesConfirmationText}
-                onChange={(event) => setSeriesConfirmationText(event.target.value)}
+                onChange={(event) =>
+                  setSeriesConfirmationText(event.target.value)
+                }
                 placeholder={SERIES_CANCEL_ALL_PHRASE}
                 className="w-full rounded-md border border-slate-700 px-2 py-1.5 text-sm text-slate-900 placeholder:text-slate-500 placeholder:opacity-100 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               />
@@ -1704,7 +2045,9 @@ const VideoCallsPage: React.FC = () => {
                 <h3 className="text-base font-semibold text-slate-900">
                   In Call: {activeJoin.meeting.title}
                 </h3>
-                <p className="text-xs text-slate-700">Room: {activeJoin.credentials.room_name}</p>
+                <p className="text-xs text-slate-700">
+                  Room: {activeJoin.credentials.room_name}
+                </p>
               </div>
               <button
                 type="button"
@@ -1735,4 +2078,3 @@ const VideoCallsPage: React.FC = () => {
 };
 
 export default VideoCallsPage;
-

@@ -21,13 +21,9 @@ import {
   REGISTRY_ROUTE_CAPABILITIES,
   RUBRIC_MANAGE_CAPABILITIES,
 } from "./utils/frontendAuthz";
-import {
-  getCandidatePath,
-  getOrgAdminPath,
-  getOrganizationSetupPath,
-  getPlatformAdminPath,
-  getWorkspacePath,
-} from "./utils/appPaths";
+import { getCandidatePath, getOrgAdminPath, getOrganizationSetupPath, getPlatformAdminPath, getWorkspacePath } from "./utils/appPaths";
+import { SystemAdminLayout } from "./components/layouts/SystemAdminLayout";
+import { OrgAdminLayout } from "./components/layouts/OrgAdminLayout";
 
 const Navbar = React.lazy(() =>
   import("./components/common/Navbar").then((module) => ({ default: module.Navbar })),
@@ -47,6 +43,11 @@ const CandidateHomePage = React.lazy(() => import("./pages/candidate/CandidateHo
 const PlatformDashboardPage = React.lazy(() =>
   import("./pages/platform-admin/PlatformDashboardPage"),
 );
+const OrganizationRegistryPage = React.lazy(() => import("./pages/platform-admin/OrganizationRegistryPage"));
+const SystemHealthPage = React.lazy(() => import("./pages/platform-admin/SystemHealthPage"));
+const BillingManagementPage = React.lazy(() => import("./pages/platform-admin/BillingManagementPage"));
+const PlatformAuditLogsPage = React.lazy(() => import("./pages/platform-admin/PlatformAuditLogsPage"));
+const AiInfrastructurePage = React.lazy(() => import("./pages/platform-admin/AiInfrastructurePage"));
 const OrganizationMembersPage = React.lazy(() => import("./pages/OrganizationMembersPage"));
 const OrganizationCommitteesPage = React.lazy(() => import("./pages/OrganizationCommitteesPage"));
 const CommitteeDetailPage = React.lazy(() => import("./pages/CommitteeDetailPage"));
@@ -116,7 +117,7 @@ const HIDE_NAVBAR_PREFIXES = [
   "/billing",
 ];
 
-const ORG_WORKFLOW_DISALLOWED_USER_TYPES: Array<"applicant" | "admin"> = ["applicant", "admin"];
+const ORG_WORKFLOW_DISALLOWED_USER_TYPES: Array<"applicant" | "internal" | "org_admin" | "platform_admin"> = ["applicant", "platform_admin"];
 
 const shouldHideNavbar = (pathname: string): boolean => {
   if (pathname === "/") return true;
@@ -144,6 +145,24 @@ const LegacyCandidateRedirect: React.FC<{ segment?: string }> = ({ segment = "ho
   return <Navigate to={`${getCandidatePath(segment)}${location.search || ""}`} replace />;
 };
 
+// Redirect a legacy flat path (e.g. /applications/:caseId) to the canonical
+// /workspace/* equivalent while preserving the param and search string.
+const LegacySegmentParamRedirect: React.FC<{
+  segment: string;
+  paramKey: string;
+  suffix?: string;
+}> = ({ segment, paramKey, suffix = "" }) => {
+  const params = useParams<Record<string, string>>();
+  const location = useLocation();
+  const paramValue = encodeURIComponent(String(params[paramKey] || "").trim());
+  return (
+    <Navigate
+      to={`${getWorkspacePath(segment)}/${paramValue}${suffix}${location.search || ""}`}
+      replace
+    />
+  );
+};
+
 const LegacyOrganizationRedirect: React.FC<{ segment: string }> = ({ segment }) => {
   const location = useLocation();
   const userType = useSelector((state: RootState) => state.auth.userType);
@@ -151,7 +170,7 @@ const LegacyOrganizationRedirect: React.FC<{ segment: string }> = ({ segment }) 
     String(state.auth.activeOrganization?.id || "").trim(),
   );
 
-  if (userType === "admin") {
+  if (userType === "platform_admin" || userType === "admin") {
     return <Navigate to={getPlatformAdminPath("dashboard")} replace />;
   }
 
@@ -169,7 +188,7 @@ const LegacyOrganizationCommitteeRedirect: React.FC = () => {
     String(state.auth.activeOrganization?.id || "").trim(),
   );
 
-  if (userType === "admin") {
+  if (userType === "platform_admin" || userType === "admin") {
     return <Navigate to={getPlatformAdminPath("dashboard")} replace />;
   }
 
@@ -192,7 +211,7 @@ const LegacyOrganizationCaseReviewRedirect: React.FC = () => {
     String(state.auth.activeOrganization?.id || "").trim(),
   );
 
-  if (userType === "admin") {
+  if (userType === "platform_admin" || userType === "admin") {
     return <Navigate to={getPlatformAdminPath("dashboard")} replace />;
   }
 
@@ -254,13 +273,13 @@ const OrganizationScopedRoute: React.FC<{ children: React.ReactNode }> = ({ chil
   const isOrganizationSynced =
     normalizedOrganizationId.length > 0 && activeOrganizationId === normalizedOrganizationId;
 
-  if (userType === "admin") {
+  if (userType === "platform_admin" || userType === "admin") {
     return <Navigate to={getPlatformAdminPath("dashboard")} replace />;
   }
 
   return (
     <ProtectedRoute
-      disallowUserTypes={["applicant"]}
+      disallowUserTypes={["applicant", "platform_admin"]}
       requireOrganizationGovernance
       activeOrganizationRedirectPath={setupRedirectPath}
     >
@@ -304,713 +323,504 @@ const CandidateInterrogationPage: React.FC = () => {
   );
 };
 
+const AppRoutes: React.FC = () => (
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/gazette" element={<PublicGazettePage />} />
+      <Route path="/transparency" element={<PublicTransparencyPage />} />
+      <Route path="/transparency/appointments/:appointmentId" element={<PublicAppointmentDetailPage />} />
+      <Route path="/subscribe" element={<SubscriptionPlansPage />} />
+      <Route
+        path="/organization/get-started"
+        element={
+          <UnauthenticatedRoute>
+            <OrganizationAdminSignupPage />
+          </UnauthenticatedRoute>
+        }
+      />
+      <Route
+        path="/admin/org/:orgId/dashboard"
+        element={
+          <OrganizationScopedRoute>
+            <OrgDashboardPage />
+          </OrganizationScopedRoute>
+        }
+      />
+      <Route
+        path="/admin/org/:orgId/users"
+        element={
+          <OrganizationScopedRoute>
+            <OrgUsersPage />
+          </OrganizationScopedRoute>
+        }
+      />
+      <Route
+        path="/admin/org/:orgId/cases"
+        element={
+          <OrganizationScopedRoute>
+            <OrgCasesPage />
+          </OrganizationScopedRoute>
+        }
+      />
+      <Route
+        path="/admin/org/:orgId/members"
+        element={
+          <OrganizationScopedRoute>
+            <OrganizationMembersPage />
+          </OrganizationScopedRoute>
+        }
+      />
+      <Route
+        path="/admin/org/:orgId/committees"
+        element={
+          <OrganizationScopedRoute>
+            <OrganizationCommitteesPage />
+          </OrganizationScopedRoute>
+        }
+      />
+      <Route
+        path="/admin/org/:orgId/committees/:committeeId"
+        element={
+          <OrganizationScopedRoute>
+            <CommitteeDetailPage />
+          </OrganizationScopedRoute>
+        }
+      />
+      <Route
+        path="/admin/org/:orgId/onboarding"
+        element={
+          <OrganizationScopedRoute>
+            <OrganizationOnboardingPage />
+          </OrganizationScopedRoute>
+        }
+      />
+      <Route
+        path="/organization/dashboard"
+        element={
+          <LegacyOrganizationRedirect segment="dashboard" />
+        }
+      />
+      <Route
+        path="/organization/committee-dashboard"
+        element={
+          <ProtectedRoute
+            disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+            requiredRoles={["committee_member", "committee_chair"]}
+            requireActiveOrganization
+          >
+            <Navigate to={`${getWorkspacePath("home")}?view=committee`} replace />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/organization/members"
+        element={
+          <LegacyOrganizationRedirect segment="members" />
+        }
+      />
+      <Route
+        path="/organization/committees"
+        element={
+          <LegacyOrganizationRedirect segment="committees" />
+        }
+      />
+      <Route
+        path="/organization/committees/:committeeId"
+        element={
+          <LegacyOrganizationCommitteeRedirect />
+        }
+      />
+      <Route
+        path="/organization/setup"
+        element={
+          <ProtectedRoute disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}>
+            <OrganizationSetupPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/organization/onboarding"
+        element={
+          <LegacyOrganizationRedirect segment="onboarding" />
+        }
+      />
+      <Route
+        path="/login"
+        element={
+          <UnauthenticatedRoute>
+            <LoginPage />
+          </UnauthenticatedRoute>
+        }
+      />
+      <Route
+        path="/login/2fa"
+        element={
+          <UnauthenticatedRoute allowTwoFactorChallenge>
+            <TwoFactorPage />
+          </UnauthenticatedRoute>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <UnauthenticatedRoute>
+            <RegisterPage />
+          </UnauthenticatedRoute>
+        }
+      />
+
+      <Route
+        path="/forgot-password"
+        element={
+          <UnauthenticatedRoute>
+            <ForgotPasswordPage />
+          </UnauthenticatedRoute>
+        }
+      />
+      <Route
+        path="/forgot-password/email-sent"
+        element={
+          <UnauthenticatedRoute>
+            <EmailSentPage />
+          </UnauthenticatedRoute>
+        }
+      />
+      <Route
+        path="/reset-password/:token"
+        element={
+          <UnauthenticatedRoute>
+            <ResetPasswordPage />
+          </UnauthenticatedRoute>
+        }
+      />
+
+      <Route path="/billing/success" element={<BillingCheckoutResultPage />} />
+      <Route path="/billing/cancel" element={<BillingCheckoutResultPage />} />
+
+      <Route path={getCandidatePath("home")} element={<CandidateHomePage />} />
+      <Route path="/candidate/access" element={<LegacyCandidateRedirect segment="home" />} />
+      <Route path="/candidate/interview/:applicationId" element={<CandidateInterrogationPage />} />
+      <Route path="/invite/:token" element={<InvitationAcceptPage />} />
+
+      <Route
+        path="/interview/interrogation/:applicationId"
+        element={
+          <ProtectedRoute disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}>
+            <HeyGenInterrogationPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={getWorkspacePath("home")}
+        element={
+          <ProtectedRoute disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}>
+            <WorkspaceHomePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/workspace" element={<LegacyWorkspaceRedirect segment="home" />} />
+      <Route
+        path={getWorkspacePath("applications")}
+        element={
+          <ProtectedRoute
+            disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+            requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+          >
+            <ApplicationsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={`${getWorkspacePath("applications")}/:caseId`}
+        element={
+          <ProtectedRoute
+            disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+            requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+          >
+            <ApplicationDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={getWorkspacePath("notifications")}
+        element={
+          <ProtectedRoute disallowUserTypes={["applicant"]}>
+            <NotificationsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={`${getWorkspacePath("notifications")}/:notificationId`}
+        element={
+          <ProtectedRoute disallowUserTypes={["applicant"]}>
+            <NotificationDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={getWorkspacePath("campaigns")}
+        element={
+          <ProtectedRoute
+            disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+            requiredCapabilities={[...CAMPAIGN_MANAGE_CAPABILITIES]}
+          >
+            <CampaignsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={`${getWorkspacePath("campaigns")}/:campaignId`}
+        element={
+          <ProtectedRoute
+            disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+            requiredCapabilities={[...CAMPAIGN_MANAGE_CAPABILITIES]}
+          >
+            <CampaignWorkspacePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={getWorkspacePath("video-calls")}
+        element={
+          <ProtectedRoute
+            disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+            requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+          >
+            <VideoCallsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={getWorkspacePath("audit-logs")}
+        element={
+          <ProtectedRoute
+            requiredCapabilities={["gams.audit.view"]}
+            legacyUserTypeFallback={["org_admin", "platform_admin"]}
+          >
+            <AuditLogsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={getWorkspacePath("fraud-insights")}
+        element={
+          <ProtectedRoute
+            disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+            requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+          >
+            <FraudInsightsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={getWorkspacePath("background-checks")}
+        element={
+          <ProtectedRoute
+            disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+            requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+          >
+            <BackgroundChecksPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={getWorkspacePath("rubrics")}
+        element={
+          <ProtectedRoute
+            disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+            requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
+          >
+            <RubricsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={getWorkspacePath("rubrics/new")}
+        element={
+          <ProtectedRoute
+            disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+            requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
+          >
+            <RubricBuilderPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={`${getWorkspacePath("rubrics")}/:rubricId/edit`}
+        element={
+          <ProtectedRoute
+            disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+            requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
+          >
+            <RubricBuilderPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={getWorkspacePath("government/positions")}
+        element={
+          <ProtectedRoute
+            disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+            requiredCapabilities={[...REGISTRY_ROUTE_CAPABILITIES]}
+          >
+            <GovernmentPositionsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={getWorkspacePath("government/personnel")}
+        element={
+          <ProtectedRoute
+            disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+            requiredCapabilities={[...REGISTRY_ROUTE_CAPABILITIES]}
+          >
+            <GovernmentPersonnelPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={getWorkspacePath("government/appointments")}
+        element={
+          <ProtectedRoute
+            disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+            requiredCapabilities={[...APPOINTMENT_ROUTE_CAPABILITIES]}
+          >
+            <AppointmentsRegistryPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/change-password"
+        element={
+          <ProtectedRoute>
+            <ChangePasswordPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <UserSettingsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/security"
+        element={
+          <ProtectedRoute disallowUserTypes={["applicant"]}>
+            <SecurityPage />
+          </ProtectedRoute>
+        }
+      />
+      {/* Platform-admin routes */}
+      <Route path={getPlatformAdminPath("ml-monitoring")} element={<Navigate to={getPlatformAdminPath("dashboard")} replace />} />
+      <Route path={getPlatformAdminPath("ai-monitor")} element={<Navigate to={getPlatformAdminPath("dashboard")} replace />} />
+      <Route path={getPlatformAdminPath("analytics")} element={<Navigate to={getPlatformAdminPath("dashboard")} replace />} />
+      <Route path={getPlatformAdminPath("register")} element={<Navigate to={getPlatformAdminPath("dashboard")} replace />} />
+      <Route path={getPlatformAdminPath("control-center")} element={<Navigate to={getPlatformAdminPath("dashboard")} replace />} />
+      <Route path="/admin/platform/ai-engine" element={<ProtectedRoute platformAdminOnly><AiInfrastructurePage /></ProtectedRoute>} />
+      <Route path="/admin/platform/logs" element={<ProtectedRoute platformAdminOnly><PlatformAuditLogsPage /></ProtectedRoute>} />
+      <Route path="/admin/platform/registry" element={<ProtectedRoute platformAdminOnly><OrganizationRegistryPage /></ProtectedRoute>} />
+      <Route path="/admin/platform/billing" element={<ProtectedRoute platformAdminOnly><BillingManagementPage /></ProtectedRoute>} />
+      <Route path="/admin/platform/health" element={<ProtectedRoute platformAdminOnly><SystemHealthPage /></ProtectedRoute>} />
+      <Route path={getPlatformAdminPath("dashboard")} element={<ProtectedRoute platformAdminOnly><PlatformDashboardPage /></ProtectedRoute>} />
+
+      {/* Legacy flat-path redirects — forward to canonical /workspace/* paths */}
+      <Route path="/fraud-insights" element={<Navigate to={getWorkspacePath("fraud-insights")} replace />} />
+      <Route path="/background-checks" element={<Navigate to={getWorkspacePath("background-checks")} replace />} />
+      <Route path="/audit-logs" element={<Navigate to={getWorkspacePath("audit-logs")} replace />} />
+      <Route path="/applications" element={<Navigate to={getWorkspacePath("applications")} replace />} />
+      <Route path="/applications/:caseId" element={<LegacySegmentParamRedirect segment="applications" paramKey="caseId" />} />
+      <Route path="/notifications" element={<Navigate to={getWorkspacePath("notifications")} replace />} />
+      <Route path="/notifications/:notificationId" element={<LegacySegmentParamRedirect segment="notifications" paramKey="notificationId" />} />
+      <Route path="/campaigns" element={<Navigate to={getWorkspacePath("campaigns")} replace />} />
+      <Route path="/campaigns/:campaignId" element={<LegacySegmentParamRedirect segment="campaigns" paramKey="campaignId" />} />
+      <Route path="/video-calls" element={<Navigate to={getWorkspacePath("video-calls")} replace />} />
+      <Route path="/government/positions" element={<Navigate to={getWorkspacePath("government/positions")} replace />} />
+      <Route path="/government/personnel" element={<Navigate to={getWorkspacePath("government/personnel")} replace />} />
+      <Route path="/government/appointments" element={<Navigate to={getWorkspacePath("government/appointments")} replace />} />
+      <Route path="/rubrics" element={<Navigate to={getWorkspacePath("rubrics")} replace />} />
+      <Route path="/rubrics/new" element={<Navigate to={getWorkspacePath("rubrics/new")} replace />} />
+      <Route path="/rubrics/:rubricId/edit" element={<LegacySegmentParamRedirect segment="rubrics" paramKey="rubricId" suffix="/edit" />} />
+
+      {/* Legacy /ml-monitoring and /ai-monitor flat paths */}
+      <Route path="/ml-monitoring" element={<LegacyPlatformRedirect segment="ml-monitoring" />} />
+      <Route path="/ai-monitor" element={<LegacyPlatformRedirect segment="ai-monitor" />} />
+
+      {/* Legacy /admin/* paths */}
+      <Route path="/admin/dashboard" element={<LegacyPlatformRedirect segment="dashboard" />} />
+      <Route path="/admin/analytics" element={<LegacyPlatformRedirect segment="analytics" />} />
+      <Route path="/admin/register" element={<LegacyPlatformRedirect segment="register" />} />
+      <Route path="/admin/control-center" element={<LegacyPlatformRedirect segment="control-center" />} />
+      <Route path="/admin/users" element={<LegacyOrganizationRedirect segment="users" />} />
+      <Route path="/admin/rubrics" element={<Navigate to={getWorkspacePath("rubrics")} replace />} />
+      <Route path="/admin/applications" element={<LegacyOrganizationRedirect segment="cases" />} />
+      <Route path="/admin/cases" element={<LegacyOrganizationRedirect segment="cases" />} />
+      <Route
+        path="/admin/org/:orgId/cases/:caseId"
+        element={<OrganizationScopedRoute><AdminCaseReview /></OrganizationScopedRoute>}
+      />
+      <Route
+        path="/admin/org/:orgId/cases"
+        element={<OrganizationScopedRoute><OrgCasesPage /></OrganizationScopedRoute>}
+      />
+      <Route path="/admin/cases/:caseId" element={<LegacyOrganizationCaseReviewRedirect />} />
+
+      <Route path="/error" element={<ErrorPage />} />
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
+);
+
 const AppShell: React.FC = () => {
   const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
   const userType = useSelector((state: RootState) => state.auth.userType);
   const location = useLocation();
   const hideNavbar = shouldHideNavbar(location.pathname);
-  const showAppNavigation = isAuthenticated && userType !== "applicant" && !hideNavbar;
+
+  const showTopNavbar = isAuthenticated && (userType === "applicant" || userType === "internal") && !hideNavbar;
+  const isPlatformAdmin = isAuthenticated && (userType === "platform_admin" || userType === "admin");
+  const isOrgAdmin = isAuthenticated && userType === "org_admin";
+
+  if (isPlatformAdmin) {
+    return (
+      <SystemAdminLayout>
+        <Suspense fallback={<RouteLoader />}>
+          <AppRoutes />
+        </Suspense>
+      </SystemAdminLayout>
+    );
+  }
+
+  if (isOrgAdmin) {
+    return (
+      <OrgAdminLayout>
+        <Suspense fallback={<RouteLoader />}>
+          <AppRoutes />
+        </Suspense>
+      </OrgAdminLayout>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {showAppNavigation ? (
+      {showTopNavbar ? (
         <Suspense fallback={<div className="h-16 border-b border-slate-200 bg-slate-50" />}>
           <Navbar />
         </Suspense>
       ) : null}
 
-      <main
-        className={
-          showAppNavigation
-            ? "relative min-h-screen overflow-x-clip bg-background lg:pl-64 xl:pl-72"
-            : ""
-        }
-      >
-        {showAppNavigation ? (
-          <>
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,116,144,0.12),transparent_32%),radial-gradient(circle_at_top_right,rgba(34,211,238,0.10),transparent_26%),linear-gradient(180deg,rgba(148,163,184,0.08),transparent_24%)]"
-            />
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-y-0 left-0 w-px bg-border/70 lg:left-64 xl:left-72"
-            />
-          </>
-        ) : null}
-        <Suspense
-          fallback={
-            <div className="relative flex min-h-[40vh] items-center justify-center">
-              <Loader className="h-8 w-8 animate-spin" />
-            </div>
-          }
-        >
-          <div className={showAppNavigation ? "relative" : ""}>
-            <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/gazette" element={<PublicGazettePage />} />
-          <Route path="/transparency" element={<PublicTransparencyPage />} />
-          <Route path="/transparency/appointments/:appointmentId" element={<PublicAppointmentDetailPage />} />
-          <Route path="/subscribe" element={<SubscriptionPlansPage />} />
-          <Route
-            path="/organization/get-started"
-            element={
-              <UnauthenticatedRoute>
-                <OrganizationAdminSignupPage />
-              </UnauthenticatedRoute>
-            }
-          />
-          <Route
-            path="/admin/org/:orgId/dashboard"
-            element={
-              <OrganizationScopedRoute>
-                <OrgDashboardPage />
-              </OrganizationScopedRoute>
-            }
-          />
-          <Route
-            path="/admin/org/:orgId/users"
-            element={
-              <OrganizationScopedRoute>
-                <OrgUsersPage />
-              </OrganizationScopedRoute>
-            }
-          />
-          <Route
-            path="/admin/org/:orgId/cases"
-            element={
-              <OrganizationScopedRoute>
-                <OrgCasesPage />
-              </OrganizationScopedRoute>
-            }
-          />
-          <Route
-            path="/admin/org/:orgId/members"
-            element={
-              <OrganizationScopedRoute>
-                <OrganizationMembersPage />
-              </OrganizationScopedRoute>
-            }
-          />
-          <Route
-            path="/admin/org/:orgId/committees"
-            element={
-              <OrganizationScopedRoute>
-                <OrganizationCommitteesPage />
-              </OrganizationScopedRoute>
-            }
-          />
-          <Route
-            path="/admin/org/:orgId/committees/:committeeId"
-            element={
-              <OrganizationScopedRoute>
-                <CommitteeDetailPage />
-              </OrganizationScopedRoute>
-            }
-          />
-          <Route
-            path="/admin/org/:orgId/onboarding"
-            element={
-              <OrganizationScopedRoute>
-                <OrganizationOnboardingPage />
-              </OrganizationScopedRoute>
-            }
-          />
-          <Route
-            path="/organization/dashboard"
-            element={
-              <LegacyOrganizationRedirect segment="dashboard" />
-            }
-          />
-          <Route
-            path="/organization/committee-dashboard"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredRoles={["committee_member", "committee_chair"]}
-                requireActiveOrganization
-              >
-                <Navigate to={`${getWorkspacePath("home")}?view=committee`} replace />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/organization/members"
-            element={
-              <LegacyOrganizationRedirect segment="members" />
-            }
-          />
-          <Route
-            path="/organization/committees"
-            element={
-              <LegacyOrganizationRedirect segment="committees" />
-            }
-          />
-          <Route
-            path="/organization/committees/:committeeId"
-            element={
-              <LegacyOrganizationCommitteeRedirect />
-            }
-          />
-          <Route
-            path="/organization/setup"
-            element={
-              <ProtectedRoute disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}>
-                <OrganizationSetupPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/organization/onboarding"
-            element={
-              <LegacyOrganizationRedirect segment="onboarding" />
-            }
-          />
-          <Route
-            path="/login"
-            element={
-              <UnauthenticatedRoute>
-                <LoginPage />
-              </UnauthenticatedRoute>
-            }
-          />
-          <Route
-            path="/login/2fa"
-            element={
-              <UnauthenticatedRoute allowTwoFactorChallenge>
-                <TwoFactorPage />
-              </UnauthenticatedRoute>
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              <UnauthenticatedRoute>
-                <RegisterPage />
-              </UnauthenticatedRoute>
-            }
-          />
-
-          <Route
-            path="/forgot-password"
-            element={
-              <UnauthenticatedRoute>
-                <ForgotPasswordPage />
-              </UnauthenticatedRoute>
-            }
-          />
-          <Route
-            path="/forgot-password/email-sent"
-            element={
-              <UnauthenticatedRoute>
-                <EmailSentPage />
-              </UnauthenticatedRoute>
-            }
-          />
-          <Route
-            path="/reset-password/:token"
-            element={
-              <UnauthenticatedRoute>
-                <ResetPasswordPage />
-              </UnauthenticatedRoute>
-            }
-          />
-
-          <Route path="/billing/success" element={<BillingCheckoutResultPage />} />
-          <Route path="/billing/cancel" element={<BillingCheckoutResultPage />} />
-
-          <Route path={getCandidatePath("home")} element={<CandidateHomePage />} />
-          <Route path="/candidate/access" element={<LegacyCandidateRedirect segment="home" />} />
-          <Route path="/candidate/interview/:applicationId" element={<CandidateInterrogationPage />} />
-          <Route path="/invite/:token" element={<InvitationAcceptPage />} />
-
-          <Route
-            path="/interview/interrogation/:applicationId"
-            element={
-              <ProtectedRoute disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}>
-                <HeyGenInterrogationPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path={getWorkspacePath("home")}
-            element={
-              <ProtectedRoute disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}>
-                <WorkspaceHomePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="/workspace" element={<LegacyWorkspaceRedirect segment="home" />} />
-          <Route
-            path={getWorkspacePath("applications")}
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
-              >
-                <ApplicationsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path={`${getWorkspacePath("applications")}/:caseId`}
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
-              >
-                <ApplicationDetailPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path={getWorkspacePath("notifications")}
-            element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
-                <NotificationsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path={`${getWorkspacePath("notifications")}/:notificationId`}
-            element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
-                <NotificationDetailPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path={getWorkspacePath("campaigns")}
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...CAMPAIGN_MANAGE_CAPABILITIES]}
-              >
-                <CampaignsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path={`${getWorkspacePath("campaigns")}/:campaignId`}
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...CAMPAIGN_MANAGE_CAPABILITIES]}
-              >
-                <CampaignWorkspacePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path={getWorkspacePath("video-calls")}
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
-              >
-                <VideoCallsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path={getWorkspacePath("audit-logs")}
-            element={
-              <ProtectedRoute
-                requiredCapabilities={["gams.audit.view"]}
-                legacyUserTypeFallback={["admin"]}
-              >
-                <AuditLogsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path={getWorkspacePath("fraud-insights")}
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
-              >
-                <FraudInsightsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path={getWorkspacePath("background-checks")}
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
-              >
-                <BackgroundChecksPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path={getWorkspacePath("rubrics")}
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
-              >
-                <RubricsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path={getWorkspacePath("rubrics/new")}
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
-              >
-                <RubricBuilderPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path={`${getWorkspacePath("rubrics")}/:rubricId/edit`}
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
-              >
-                <RubricBuilderPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path={getWorkspacePath("government/positions")}
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...REGISTRY_ROUTE_CAPABILITIES]}
-              >
-                <GovernmentPositionsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path={getWorkspacePath("government/personnel")}
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...REGISTRY_ROUTE_CAPABILITIES]}
-              >
-                <GovernmentPersonnelPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path={getWorkspacePath("government/appointments")}
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...APPOINTMENT_ROUTE_CAPABILITIES]}
-              >
-                <AppointmentsRegistryPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <DashboardPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/change-password"
-            element={
-              <ProtectedRoute>
-                <ChangePasswordPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <ProtectedRoute>
-                <UserSettingsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/security"
-            element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
-                <SecurityPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/fraud-insights"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
-              >
-                <FraudInsightsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/background-checks"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
-              >
-                <BackgroundChecksPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/audit-logs"
-            element={
-              <ProtectedRoute
-                requiredCapabilities={["gams.audit.view"]}
-                legacyUserTypeFallback={["admin"]}
-              >
-                <AuditLogsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path={getPlatformAdminPath("ml-monitoring")}
-            element={<Navigate to={getPlatformAdminPath("dashboard")} replace />}
-          />
-          <Route
-            path={getPlatformAdminPath("ai-monitor")}
-            element={<Navigate to={getPlatformAdminPath("dashboard")} replace />}
-          />
-          <Route
-            path={getPlatformAdminPath("dashboard")}
-            element={
-              <ProtectedRoute adminOnly>
-                <PlatformDashboardPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path={getPlatformAdminPath("analytics")}
-            element={<Navigate to={getPlatformAdminPath("dashboard")} replace />}
-          />
-          <Route
-            path={getPlatformAdminPath("register")}
-            element={<Navigate to={getPlatformAdminPath("dashboard")} replace />}
-          />
-          <Route
-            path={getPlatformAdminPath("control-center")}
-            element={<Navigate to={getPlatformAdminPath("dashboard")} replace />}
-          />
-          <Route path="/ml-monitoring" element={<LegacyPlatformRedirect segment="ml-monitoring" />} />
-          <Route path="/ai-monitor" element={<LegacyPlatformRedirect segment="ai-monitor" />} />
-          <Route
-            path="/applications"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
-              >
-                <ApplicationsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/applications/:caseId"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
-              >
-                <ApplicationDetailPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/notifications"
-            element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
-                <NotificationsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/notifications/:notificationId"
-            element={
-              <ProtectedRoute disallowUserTypes={["applicant"]}>
-                <NotificationDetailPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/campaigns"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...CAMPAIGN_MANAGE_CAPABILITIES]}
-              >
-                <CampaignsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/campaigns/:campaignId"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...CAMPAIGN_MANAGE_CAPABILITIES]}
-              >
-                <CampaignWorkspacePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/video-calls"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
-              >
-                <VideoCallsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/government/positions"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...REGISTRY_ROUTE_CAPABILITIES]}
-              >
-                <GovernmentPositionsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/government/personnel"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...REGISTRY_ROUTE_CAPABILITIES]}
-              >
-                <GovernmentPersonnelPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/government/appointments"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...APPOINTMENT_ROUTE_CAPABILITIES]}
-              >
-                <AppointmentsRegistryPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/rubrics"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
-              >
-                <RubricsPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/rubrics/new"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
-              >
-                <RubricBuilderPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/rubrics/:rubricId/edit"
-            element={
-              <ProtectedRoute
-                disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
-                requiredCapabilities={[...RUBRIC_MANAGE_CAPABILITIES]}
-              >
-                <RubricBuilderPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/dashboard"
-            element={
-              <LegacyPlatformRedirect segment="dashboard" />
-            }
-          />
-          <Route
-            path="/admin/analytics"
-            element={
-              <LegacyPlatformRedirect segment="analytics" />
-            }
-          />
-          <Route
-            path="/admin/register"
-            element={
-              <LegacyPlatformRedirect segment="register" />
-            }
-          />
-          <Route
-            path="/admin/control-center"
-            element={
-              <LegacyPlatformRedirect segment="control-center" />
-            }
-          />
-          <Route
-            path="/admin/users"
-            element={
-              <LegacyOrganizationRedirect segment="users" />
-            }
-          />
-          <Route
-            path="/admin/rubrics"
-            element={
-              <Navigate to={getWorkspacePath("rubrics")} replace />
-            }
-          />
-          <Route
-            path="/admin/applications"
-            element={
-              <LegacyOrganizationRedirect segment="cases" />
-            }
-          />
-          <Route
-            path="/admin/cases"
-            element={
-              <LegacyOrganizationRedirect segment="cases" />
-            }
-          />
-          <Route
-            path="/admin/org/:orgId/cases/:caseId"
-            element={
-              <OrganizationScopedRoute>
-                <AdminCaseReview />
-              </OrganizationScopedRoute>
-            }
-          />
-          <Route
-            path="/admin/cases/:caseId"
-            element={
-              <LegacyOrganizationCaseReviewRedirect />
-            }
-          />
-
-          <Route path="/error" element={<ErrorPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-            </Routes>
-          </div>
+      <main className={showTopNavbar ? "relative lg:pl-64 xl:pl-72" : ""}>
+        <Suspense fallback={<RouteLoader />}>
+          <AppRoutes />
         </Suspense>
       </main>
     </div>
@@ -1049,7 +859,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
-
-
-

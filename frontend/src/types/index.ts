@@ -6,7 +6,7 @@ export interface User {
   first_name?: string;
   last_name?: string;
   full_name: string;
-  user_type?: 'applicant' | 'internal' | 'admin';
+  user_type?: 'applicant' | 'internal' | 'org_admin' | 'platform_admin';
   roles?: string[];
   group_roles?: string[];
   capabilities?: string[];
@@ -260,7 +260,7 @@ export interface AdminUser {
   phone_number?: string;
   organization?: string;
   department?: string;
-  user_type?: 'applicant' | 'internal' | 'admin';
+  user_type?: 'applicant' | 'internal' | 'org_admin' | 'platform_admin';
   roles?: string[];
   group_roles?: string[];
   capabilities?: string[];
@@ -1087,7 +1087,7 @@ export interface CreateRubricData {
 export interface LoginResponse {
   user: User | AdminUser;
   tokens: AuthTokens;
-  user_type?: 'applicant' | 'internal' | 'admin';
+  user_type?: 'applicant' | 'internal' | 'org_admin' | 'platform_admin';
   backup_codes?: string[];
 }
 
@@ -1112,7 +1112,7 @@ export interface TwoFactorBackupCodesResponse {
 export interface TwoFactorChallengeResponse {
   message: string;
   token: string;
-  user_type?: 'applicant' | 'internal' | 'admin';
+  user_type?: 'applicant' | 'internal' | 'org_admin' | 'platform_admin';
   setup_required?: boolean;
   expires_in_seconds?: number;
   provisioning_uri?: string | null;
@@ -1122,7 +1122,7 @@ export type LoginAttemptResponse = LoginResponse | TwoFactorChallengeResponse;
 
 export interface RegisterResponse {
   user: User | AdminUser;
-  user_type?: 'applicant' | 'internal' | 'admin';
+  user_type?: 'applicant' | 'internal' | 'org_admin' | 'platform_admin';
   message?: string;
 }
 

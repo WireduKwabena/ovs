@@ -10,8 +10,10 @@ Environment-specific settings in separate files.
 """
 
 import os
+import warnings
 import importlib.util
 from pathlib import Path
+from django.core.exceptions import ImproperlyConfigured
 
 try:
     from decouple import config
@@ -67,7 +69,21 @@ def env_list(name: str, default: str = "") -> list[str]:
     return values
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-j!^!kca^!j*r4=krx%(*1yfsg_5!mnehigj3svhs-64)t%p=h9')
+_INSECURE_DEFAULT_KEY = 'django-insecure-j!^!kca^!j*r4=krx%(*1yfsg_5!mnehigj3svhs-64)t%p=h9'
+SECRET_KEY = config('SECRET_KEY', default=_INSECURE_DEFAULT_KEY)
+if SECRET_KEY == _INSECURE_DEFAULT_KEY:
+    _debug_mode = os.getenv('DEBUG', '').strip().lower() in {'1', 'true', 't', 'yes', 'y', 'on'}
+    if not _debug_mode:
+        raise ImproperlyConfigured(
+            "Django SECRET_KEY is using the hardcoded insecure default. "
+            "Set the SECRET_KEY environment variable. "
+            "This check is enforced when DEBUG=False."
+        )
+    warnings.warn(
+        "Django SECRET_KEY is using the hardcoded insecure default. "
+        "Set the SECRET_KEY environment variable before deploying.",
+        stacklevel=1,
+    )
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env_bool('DEBUG', default=False)
@@ -149,6 +165,8 @@ if _has_module("whitenoise"):
     MIDDLEWARE.append("whitenoise.middleware.WhiteNoiseMiddleware")
 if _has_module("corsheaders"):
     MIDDLEWARE.append("corsheaders.middleware.CorsMiddleware")
+# Request ID must be injected early so all subsequent middleware and views have access.
+MIDDLEWARE.append("apps.core.middleware.RequestIDMiddleware")
 if _has_module("redis") and USE_REDIS:
     MIDDLEWARE.append("ai_ml_services.middleware.rate_limit.DjangoRateLimitMiddleware")
 MIDDLEWARE += [
@@ -285,6 +303,18 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.BrowsableAPIRenderer',
     ],
     'EXCEPTION_HANDLER': 'apps.core.exceptions.custom_exception_handler',
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '200/minute',
+        'user': '600/minute',
+        'login': '10/minute',
+        'two_factor': '5/minute',
+        'password_reset': '5/minute',
+        'registration': '10/minute',
+    },
 }
 if _has_module("drf_spectacular"):
     REST_FRAMEWORK["DEFAULT_SCHEMA_CLASS"] = "drf_spectacular.openapi.AutoSchema"
@@ -393,6 +423,10 @@ elif ENABLE_REALTIME and _has_module("channels"):
     }
 else:
     CHANNEL_LAYERS = {}
+# Gate that allows the placeholder ML pipeline to run in non-production environments.
+# Must be explicitly set to True; defaults to False so production never falls back to the stub.
+PLACEHOLDER_ML_ENABLED = config('PLACEHOLDER_ML_ENABLED', default=False, cast=bool)
+
 AI_ML_RATE_LIMIT_PER_MINUTE = config('AI_ML_RATE_LIMIT_PER_MINUTE', default=120, cast=int)
 AI_ML_RATE_LIMIT_REDIS_URL = config('AI_ML_RATE_LIMIT_REDIS_URL', default=REDIS_URL)
 AI_ML_RATE_LIMIT_PATH_PREFIXES = tuple(
@@ -877,6 +911,9 @@ VIDEO_CALLS_REMINDER_RETRY_MAX_SECONDS = config(
     default=900,
     cast=int,
 )
+# WebSocket rate limiting: maximum messages per minute per connection.
+WS_INTERVIEW_RATE_LIMIT_PER_MINUTE = config("WS_INTERVIEW_RATE_LIMIT_PER_MINUTE", default=120, cast=int)
+
 DJANGO_API_URL = config("DJANGO_API_URL", default="http://localhost:8000")
 SERVICE_TOKEN = config("SERVICE_TOKEN", default="")
 

@@ -10,20 +10,14 @@ export const APPOINTMENT_ROUTE_CAPABILITIES = [...GOVERNMENT_WORKFLOW_CAPABILITI
 
 export const REGISTRY_ROUTE_CAPABILITIES = ["gams.registry.manage"] as const;
 
-// Campaign lifecycle management follows registry authority, not generic stage actors.
-export const CAMPAIGN_MANAGE_CAPABILITIES = ["gams.registry.manage"] as const;
+// Campaign and rubric lifecycle management follow registry authority, not generic stage actors.
+// Both are aliases of REGISTRY_ROUTE_CAPABILITIES — update that constant to change all three.
+export const CAMPAIGN_MANAGE_CAPABILITIES = REGISTRY_ROUTE_CAPABILITIES;
+export const RUBRIC_MANAGE_CAPABILITIES = REGISTRY_ROUTE_CAPABILITIES;
 
-export const RUBRIC_MANAGE_CAPABILITIES = [
-  "gams.registry.manage",
-] as const;
-
-export const INTERNAL_WORKFLOW_ROUTE_CAPABILITIES = [
-  "gams.registry.manage",
-  "gams.appointment.stage",
-  "gams.appointment.decide",
-  "gams.appointment.publish",
-  "gams.appointment.view_internal",
-] as const;
+// Internal workflow access requires the same capability set as the government workflow.
+// This is an alias — update GOVERNMENT_WORKFLOW_CAPABILITIES to change both.
+export const INTERNAL_WORKFLOW_ROUTE_CAPABILITIES = GOVERNMENT_WORKFLOW_CAPABILITIES;
 
 export const APPOINTMENT_WORKFLOW_ROLES = [
   "registry_admin",

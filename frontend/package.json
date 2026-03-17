@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
-    "test:filters": "vitest src/utils/queryParams.test.ts src/pages/AuditLogsPage.test.tsx src/pages/MlMonitoringPage.test.tsx src/pages/BackgroundChecksPage.test.tsx src/pages/CampaignsPage.test.tsx src/pages/admin/AdminCasesPage.test.tsx src/pages/admin/AdminUsersPage.test.tsx --run --testTimeout=20000",
+    "test:filters": "vitest src/utils/queryParams.test.ts src/pages/AuditLogsPage.test.tsx src/pages/BackgroundChecksPage.test.tsx src/pages/CampaignsPage.test.tsx src/pages/org-admin/OrgCasesPage.test.tsx --run --testTimeout=20000",
     "test:ux-guards": "vitest src/components/common/FieldHelp.test.tsx src/pages/campaignWorkspaceQuota.test.ts src/pages/CampaignWorkspacePage.test.tsx --run",
     "type-check": "tsc --noEmit"
   },
@@ -42,6 +42,7 @@
     "livekit-client": "^2.17.2",
     "lucide-react": "^0.554.0",
     "qrcode.react": "^4.2.0",
+    "radix-ui": "^1.4.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-dropzone": "^14.3.8",
@@ -55,7 +56,8 @@
     "redux-persist": "^6.0.0",
     "tailwind-merge": "^3.4.0",
     "typescript-eslint": "^8.48.0",
-    "yup": "^1.7.1"
+    "yup": "^1.7.1",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

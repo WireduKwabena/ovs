@@ -7,6 +7,16 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
+# Allowed MIME types and maximum file size for document uploads.
+_ALLOWED_DOCUMENT_MIME_TYPES: frozenset[str] = frozenset({
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/tiff",
+    "image/webp",
+})
+_MAX_DOCUMENT_UPLOAD_BYTES: int = 20 * 1024 * 1024  # 20 MB
+
 from apps.audit.events import log_event
 from apps.billing.quotas import (
     VETTING_OPERATION_DOCUMENT_VERIFICATION,
@@ -282,6 +292,26 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
             )
 
         file = serializer.validated_data["file"]
+
+        # MIME type enforcement — reject files the AI/ML pipeline cannot process.
+        file_mime = getattr(file, "content_type", "") or "application/octet-stream"
+        if file_mime not in _ALLOWED_DOCUMENT_MIME_TYPES:
+            raise ValidationError(
+                {
+                    "file": (
+                        f"Unsupported file type '{file_mime}'. "
+                        f"Allowed types: {', '.join(sorted(_ALLOWED_DOCUMENT_MIME_TYPES))}."
+                    )
+                }
+            )
+
+        # File size enforcement — guard against memory exhaustion in the worker.
+        if file.size > _MAX_DOCUMENT_UPLOAD_BYTES:
+            max_mb = _MAX_DOCUMENT_UPLOAD_BYTES // (1024 * 1024)
+            raise ValidationError(
+                {"file": f"File exceeds the {max_mb} MB size limit."}
+            )
+
         def _reserve_and_create_document():
             enforce_vetting_operation_quota(
                 operation=VETTING_OPERATION_DOCUMENT_VERIFICATION,

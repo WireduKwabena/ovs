@@ -13,7 +13,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.utils.text import slugify
 from rest_framework import generics, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -49,6 +49,12 @@ from apps.authentication.serializers import (
     UserAuthResponseSerializer,
     UserRegistrationSerializer,
     UserSerializer,
+)
+from apps.authentication.throttles import (
+    LoginRateThrottle,
+    PasswordResetRateThrottle,
+    RegistrationRateThrottle,
+    TwoFactorRateThrottle,
 )
 from apps.core.authz import (
     ROLE_ADMIN,
@@ -284,6 +290,7 @@ class OrganizationAdminRegisterView(generics.CreateAPIView):
 
     queryset = User.objects.none()
     permission_classes = [AllowAny]
+    throttle_classes = [RegistrationRateThrottle]
     serializer_class = OrganizationAdminRegistrationSerializer
 
     @extend_schema(
@@ -381,6 +388,7 @@ class RegisterView(generics.CreateAPIView):
     """
     queryset = User.objects.all()
     permission_classes = [AllowAny]
+    throttle_classes = [RegistrationRateThrottle]
     serializer_class = UserRegistrationSerializer
     
     @extend_schema(
@@ -441,6 +449,7 @@ class RegisterView(generics.CreateAPIView):
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([LoginRateThrottle])
 def login_view(request):
     """
     User login endpoint
@@ -481,6 +490,7 @@ def login_view(request):
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([LoginRateThrottle])
 def admin_login_view(request):
     """
     Admin login endpoint
@@ -507,6 +517,7 @@ def admin_login_view(request):
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([TwoFactorRateThrottle])
 def two_factor_verification_view(request):
     """
     2FA verification endpoint
@@ -976,6 +987,7 @@ def change_password_view(request):
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([PasswordResetRateThrottle])
 def password_reset_request_view(request):
     """
     Request password reset

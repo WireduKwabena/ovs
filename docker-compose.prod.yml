@@ -191,6 +191,35 @@ services:
       celery_worker:
         condition: service_healthy
 
+  # PgBouncer — connection pooler in front of PostgreSQL.
+  # Activate with: docker compose --profile pgbouncer up
+  # When active, set DATABASE_URL in .env to postgresql://.../ovs?host=pgbouncer&port=6432
+  # NOTE: Django migrations must run against the real Postgres (not pgbouncer in transaction mode).
+  # backend_init already uses DATABASE_URL from .env; point it at Postgres directly for migrations.
+  pgbouncer:
+    image: bitnami/pgbouncer:latest
+    restart: unless-stopped
+    environment:
+      POSTGRESQL_HOST: ${POSTGRES_HOST:-db}
+      POSTGRESQL_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRESQL_USERNAME: ${POSTGRES_USERNAME:-ovs}
+      POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRESQL_DATABASE: ${POSTGRES_DB:-ovs}
+      PGBOUNCER_PORT: 6432
+      PGBOUNCER_POOL_MODE: ${PGBOUNCER_POOL_MODE:-transaction}
+      PGBOUNCER_MAX_CLIENT_CONN: ${PGBOUNCER_MAX_CLIENT_CONN:-200}
+      PGBOUNCER_DEFAULT_POOL_SIZE: ${PGBOUNCER_DEFAULT_POOL_SIZE:-20}
+      PGBOUNCER_AUTH_TYPE: ${PGBOUNCER_AUTH_TYPE:-scram-sha-256}
+    ports:
+      - "${PGBOUNCER_EXTERNAL_PORT:-6432}:6432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - pgbouncer
+
   frontend:
     image: ${FRONTEND_IMAGE:-ovs-redo-frontend:latest}
     restart: unless-stopped

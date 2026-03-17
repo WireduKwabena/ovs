@@ -31,7 +31,7 @@ export const DashboardPage: React.FC = () => {
     return <Loader size="lg" />;
   }
 
-  if (userType === "admin") {
+  if (userType === "platform_admin" || userType === "admin") {
     return <Navigate to={getPlatformAdminPath("dashboard")} replace />;
   }
 

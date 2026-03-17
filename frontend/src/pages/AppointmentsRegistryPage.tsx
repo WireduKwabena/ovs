@@ -118,6 +118,7 @@ const SELECT_FIELD_COMPACT_CLASS =
 const AppointmentsRegistryPage: React.FC = () => {
   const {
     isAdmin,
+    isPlatformAdmin,
     canManageRegistry,
     canManageRegistryInActiveOrganization,
     canAdvanceAppointmentStage,
@@ -358,7 +359,8 @@ const AppointmentsRegistryPage: React.FC = () => {
 
   const isWithinActiveOrganization = useCallback(
     (organizationId: string | null | undefined): boolean => {
-      if (isAdmin) {
+      // Only platform admins bypass org scoping — org admins are always scoped to their active org.
+      if (isPlatformAdmin) {
         return true;
       }
       const normalizedOrganizationId = String(organizationId || "").trim();
@@ -370,7 +372,7 @@ const AppointmentsRegistryPage: React.FC = () => {
       }
       return normalizedOrganizationId === activeOrganizationId;
     },
-    [activeOrganizationId, isAdmin],
+    [activeOrganizationId, isPlatformAdmin],
   );
 
   const hasCommitteeAccess = useCallback(
@@ -379,12 +381,13 @@ const AppointmentsRegistryPage: React.FC = () => {
       if (!normalizedCommitteeId) {
         return true;
       }
-      if (isAdmin) {
+      // Only platform admins have cross-org committee visibility.
+      if (isPlatformAdmin) {
         return true;
       }
       return hasCommitteeMembership(normalizedCommitteeId);
     },
-    [hasCommitteeMembership, isAdmin],
+    [hasCommitteeMembership, isPlatformAdmin],
   );
 
   const canManagePublicationForRow = useCallback(

@@ -29,8 +29,40 @@ except ModuleNotFoundError:  # pragma: no cover - optional in some setups
     SpectacularSwaggerView = None
     SpectacularRedocView = None
 
+# Versioned URL patterns shared between /api/ (legacy) and /api/v1/ (current).
+# New clients should target /api/v1/. Legacy /api/ routes are kept for
+# backward compatibility during the migration window.
+_v1_urlpatterns = [
+    path("system/", include("apps.core.urls")),
+    path("auth/", include("apps.authentication.urls")),
+    path("public/transparency/", include("apps.appointments.public_urls")),
+    path("admin/", include("apps.admin_dashboard.urls")),
+    path("campaigns/", include("apps.campaigns.urls")),
+    path("positions/", include("apps.positions.urls")),
+    path("personnel/", include("apps.personnel.urls")),
+    path("appointments/", include("apps.appointments.urls")),
+    path("applications/", include("apps.applications.urls")),
+    path("interviews/", include("apps.interviews.urls")),
+    path("video-calls/", include("apps.video_calls.urls")),
+    path("rubrics/", include("apps.rubrics.urls")),
+    path("notifications/", include("apps.notifications.urls")),
+    path("audit/", include("apps.audit.urls")),
+    path("fraud/", include("apps.fraud.urls")),
+    path("billing/", include("apps.billing.urls")),
+    path("governance/", include("apps.governance.urls")),
+    path("government/", include("apps.core.government_alias_urls")),
+    path("background-checks/", include("apps.background_checks.urls")),
+    path("ml-monitoring/", include("apps.ml_monitoring.urls")),
+    path("ai-monitor/", include("ai_ml_services.urls")),
+    path("", include("apps.candidates.urls")),
+    path("invitations/", include("apps.invitations.urls")),
+]
+
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # Versioned API (preferred for new integrations)
+    path("api/v1/", include(_v1_urlpatterns)),
+    # Legacy unversioned API (backward compatibility — do not add new endpoints here)
     path("api/system/", include("apps.core.urls")),
     path("api/auth/", include("apps.authentication.urls")),
     path("api/public/transparency/", include("apps.appointments.public_urls")),

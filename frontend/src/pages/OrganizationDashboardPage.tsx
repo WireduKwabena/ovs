@@ -1,1 +1,1 @@
-export { default } from "./organization/OrganizationAdminDashboardPage";
+export { default } from "./org-admin/OrgDashboardPage";

@@ -1,6 +1,8 @@
 import logging
 
 from celery import shared_task
+from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Avg
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -21,7 +23,17 @@ def _build_placeholder_analysis(document: Document) -> dict:
     Temporary baseline until OCR/authenticity/fraud models are wired.
     Produces deterministic values from document metadata to keep the
     document pipeline and rubric flow functional.
+
+    WARNING: This is NOT real analysis. Scores are derived from filename
+    heuristics. Replace with real model inference before production use.
     """
+    logger.warning(
+        "Document %s (case %s) is being analysed by the PLACEHOLDER pipeline. "
+        "Results are filename-heuristic only and must NOT be used for real vetting decisions. "
+        "Wire up the OCR/authenticity/fraud models to replace this stub.",
+        document.id,
+        getattr(document.case, "id", "unknown"),
+    )
     filename = (document.original_filename or "").lower()
 
     authenticity_score = 92.0
@@ -57,6 +69,99 @@ def _build_placeholder_analysis(document: Document) -> dict:
         "authenticity_model_version": "baseline-0.1",
         "fraud_model_version": "baseline-0.1",
     }
+
+
+def _run_document_analysis(document: Document) -> dict:
+    """
+    Run real AI/ML document analysis via AIOrchestrator.
+
+    Falls back to the placeholder pipeline only when PLACEHOLDER_ML_ENABLED=True
+    (development / CI use only).  In production the placeholder must never run.
+    """
+    placeholder_enabled: bool = getattr(settings, "PLACEHOLDER_ML_ENABLED", False)
+
+    try:
+        from ai_ml_services.service import verify_document as ai_verify_document  # noqa: PLC0415
+
+        try:
+            file_path = document.file.path
+        except (ValueError, NotImplementedError) as exc:
+            raise RuntimeError(
+                f"Document {document.id} uses cloud storage; local file_path unavailable for inference."
+            ) from exc
+
+        result = ai_verify_document(
+            file_path=file_path,
+            document_type=document.document_type,
+            case_id=str(document.case.id),
+        )
+
+        if not result.get("success"):
+            raise RuntimeError(
+                f"AI/ML pipeline returned failure for document {document.id}: {result}"
+            )
+
+        results = result.get("results", {})
+        authenticity = results.get("authenticity", {})
+        overall_score = float(results.get("overall_score", 0.0))
+        authenticity_score = float(authenticity.get("overall_score", overall_score))
+        recommendation = results.get("recommendation", "MANUAL_REVIEW")
+        ocr = results.get("ocr", {})
+
+        _fraud_map = {"APPROVE": "legitimate", "MANUAL_REVIEW": "suspicious", "REJECT": "fraudulent"}
+        fraud_prediction = _fraud_map.get(recommendation, "suspicious")
+
+        if recommendation == "APPROVE":
+            fraud_risk_score = max(0.0, 100.0 - authenticity_score)
+        elif recommendation == "REJECT":
+            fraud_risk_score = max(75.0, 100.0 - authenticity_score)
+        else:
+            fraud_risk_score = max(35.0, 100.0 - authenticity_score)
+
+        is_authentic = authenticity_score >= 70 and recommendation != "REJECT"
+
+        dl_result = authenticity.get("deep_learning", {})
+        dl_confidence = float(dl_result.get("confidence", 0.8)) if isinstance(dl_result, dict) else 0.8
+
+        return {
+            "ocr_text": ocr.get("text", ""),
+            "ocr_confidence": float(ocr.get("confidence", 0.0)),
+            "ocr_language": ocr.get("language", "en"),
+            "authenticity_score": authenticity_score,
+            "authenticity_confidence": dl_confidence * 100,
+            "is_authentic": is_authentic,
+            "metadata_check_passed": is_authentic,
+            "visual_check_passed": recommendation != "REJECT",
+            "tampering_detected": not is_authentic,
+            "fraud_risk_score": fraud_risk_score,
+            "fraud_prediction": fraud_prediction,
+            "fraud_indicators": results.get("decision_constraints") or [],
+            "detailed_results": {
+                "pipeline": "ai_ml_services",
+                "document_type": document.document_type,
+                "recommendation": recommendation,
+                "automated_decision_allowed": results.get("automated_decision_allowed", False),
+                "processing_time": result.get("processing_time", 0.0),
+            },
+            "ocr_model_version": "ai_ml_services-1.0",
+            "authenticity_model_version": "ai_ml_services-1.0",
+            "fraud_model_version": "ai_ml_services-1.0",
+        }
+
+    except Exception as exc:  # noqa: BLE001
+        if placeholder_enabled:
+            logger.warning(
+                "AI/ML pipeline failed for document %s (%s); falling back to placeholder "
+                "(PLACEHOLDER_ML_ENABLED=True). NOT suitable for production.",
+                document.id,
+                exc,
+            )
+            return _build_placeholder_analysis(document)
+
+        raise ImproperlyConfigured(
+            f"AI/ML pipeline failed for document {document.id} and PLACEHOLDER_ML_ENABLED is False. "
+            "Fix the AI/ML service or set PLACEHOLDER_ML_ENABLED=True in a non-production environment."
+        ) from exc
 
 
 def _upsert_flag_for_document(document: Document, result: VerificationResult) -> None:
@@ -182,6 +287,16 @@ def verify_document_async(self, document_id: int):
     except Document.DoesNotExist:
         return {"success": False, "error": f"Document {document_id} not found"}
 
+    # Idempotency guard: if the document is already fully processed, skip
+    # re-processing to prevent duplicate VerificationResult records on retry.
+    if document.status in {"verified", "flagged"}:
+        logger.info(
+            "Document %s already processed (status=%s). Skipping duplicate task execution.",
+            document_id,
+            document.status,
+        )
+        return {"success": True, "document_id": document.id, "status": document.status, "skipped": True}
+
     started_at = timezone.now()
     document.status = "processing"
     document.save(update_fields=["status"])
@@ -198,7 +313,7 @@ def verify_document_async(self, document_id: int):
             additional=0,
         )
 
-        analysis = _build_placeholder_analysis(document)
+        analysis = _run_document_analysis(document)
         duration = (timezone.now() - started_at).total_seconds()
 
         result, _ = VerificationResult.objects.update_or_create(

@@ -5,7 +5,6 @@ import {
   Bell,
   Briefcase,
   Building2,
-  ChevronDown,
   ClipboardCheck,
   Cpu,
   CreditCard,
@@ -112,15 +111,14 @@ export const Navbar: React.FC = () => {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileMenuMounted, setMobileMenuMounted] = useState(false);
-  const [adminMoreMenuOpen, setAdminMoreMenuOpen] = useState(false);
   const [runtimePopoverOpen, setRuntimePopoverOpen] = useState(false);
+  const [moreExpanded, setMoreExpanded] = useState(false);
   const [reminderRuntimeStatus, setReminderRuntimeStatus] = useState<ReminderRuntimeStatus>('unknown');
   const [reminderRuntimeSnapshot, setReminderRuntimeSnapshot] = useState<VideoMeetingReminderHealth | null>(null);
   const [reminderRuntimeCheckedAt, setReminderRuntimeCheckedAt] = useState<string | null>(null);
   const [reminderRuntimeError, setReminderRuntimeError] = useState<string | null>(null);
   const [reminderRuntimeRefreshing, setReminderRuntimeRefreshing] = useState(false);
 
-  const adminMoreMenuRef = useRef<HTMLDivElement>(null);
   const runtimePopoverRef = useRef<HTMLDivElement>(null);
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const mobileDrawerRef = useRef<HTMLDivElement>(null);
@@ -136,7 +134,7 @@ export const Navbar: React.FC = () => {
   const hasCapability = (capability: string): boolean => resolvedCapabilities.includes(capability);
 
   const hasAdminAccess =
-    userType === 'admin' || hasRole('admin') || Boolean((user as User | null)?.is_superuser);
+    userType === 'platform_admin' || userType === 'admin' || hasRole('admin') || Boolean((user as User | null)?.is_superuser);
   const canAccessAudit = hasAdminAccess || canViewAuditLogs || hasCapability('gams.audit.view');
   const canAccessRegistry = canManageRegistry;
   const canAccessAppointments = canAccessAppointmentsFromHook;
@@ -233,9 +231,6 @@ export const Navbar: React.FC = () => {
   }, [canViewReminderRuntime, isAuthenticated]);
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (adminMoreMenuRef.current && !adminMoreMenuRef.current.contains(event.target as Node)) {
-        setAdminMoreMenuOpen(false);
-      }
       if (runtimePopoverRef.current && !runtimePopoverRef.current.contains(event.target as Node)) {
         setRuntimePopoverOpen(false);
       }
@@ -464,7 +459,6 @@ export const Navbar: React.FC = () => {
 
   const sidebarSurfaceClass =
     'rounded-[1.75rem] border border-border/70 bg-card/70 p-4 shadow-sm backdrop-blur-xl';
-  const sidebarInsetSurfaceClass = 'rounded-[1.35rem] bg-muted/40 p-1.5';
   const sidebarSectionClass = 'mt-6 border-t border-border/70 pt-5';
   const sidebarSectionLabelClass =
     'text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground';
@@ -489,14 +483,6 @@ export const Navbar: React.FC = () => {
       sidebarLinkBaseClass,
       isRouteActive(to)
         ? 'bg-primary/10 text-primary ring-1 ring-primary/15 shadow-sm'
-        : 'text-foreground hover:bg-accent/80 hover:text-accent-foreground',
-    ].join(' ');
-
-  const overflowNavClass = (to: string): string =>
-    [
-      sidebarLinkBaseClass,
-      isRouteActive(to)
-        ? 'bg-primary/10 text-primary ring-1 ring-primary/15'
         : 'text-foreground hover:bg-accent/80 hover:text-accent-foreground',
     ].join(' ');
 
@@ -525,7 +511,6 @@ export const Navbar: React.FC = () => {
         : { to: workspaceHomePath, label: 'Workspace' };
 
   const desktopPrimaryLinks: NavItem[] = [homeItem];
-  const desktopOverflowLinks: NavItem[] = [];
 
   const pushUnique = (target: NavItem[], item: NavItem) => {
     if (!target.some((entry) => entry.to === item.to)) {
@@ -549,47 +534,47 @@ export const Navbar: React.FC = () => {
     pushUnique(desktopPrimaryLinks, { to: workspaceVideoCallsPath, label: 'Video Calls' });
   }
 
+  const desktopSecondaryLinks: NavItem[] = [];
+
   if (!hasAdminAccess && !isApplicantUser && canAccessAppointments) {
-    pushUnique(desktopOverflowLinks, {
+    pushUnique(desktopSecondaryLinks, {
       to: workspaceAppointmentsPath,
       label: 'Appointment Workflow',
     });
   }
 
   if (!hasAdminAccess && !isApplicantUser && canAccessRegistry) {
-    pushUnique(desktopOverflowLinks, { to: workspacePositionsPath, label: 'Offices' });
-    pushUnique(desktopOverflowLinks, { to: workspacePersonnelPath, label: 'Nominees' });
+    pushUnique(desktopSecondaryLinks, { to: workspacePositionsPath, label: 'Offices' });
+    pushUnique(desktopSecondaryLinks, { to: workspacePersonnelPath, label: 'Nominees' });
   }
 
   if (!hasAdminAccess && !isApplicantUser && canManageActiveOrganizationGovernance && activeOrganizationId) {
-    pushUnique(desktopOverflowLinks, { to: organizationCasesPath, label: 'Cases' });
-    pushUnique(desktopOverflowLinks, { to: organizationUsersPath, label: 'Users' });
-    pushUnique(desktopOverflowLinks, { to: organizationMembersPath, label: 'Members' });
-    pushUnique(desktopOverflowLinks, { to: organizationCommitteesPath, label: 'Committees' });
-    pushUnique(desktopOverflowLinks, { to: organizationOnboardingPath, label: 'Onboarding' });
+    pushUnique(desktopPrimaryLinks, { to: organizationCasesPath, label: 'Cases' });
+    pushUnique(desktopPrimaryLinks, { to: organizationUsersPath, label: 'Users' });
+    pushUnique(desktopSecondaryLinks, { to: organizationMembersPath, label: 'Members' });
+    pushUnique(desktopSecondaryLinks, { to: organizationCommitteesPath, label: 'Committees' });
+    pushUnique(desktopSecondaryLinks, { to: organizationOnboardingPath, label: 'Onboarding' });
     if (canManageOrganizationBilling) {
-      pushUnique(desktopOverflowLinks, { to: '/settings', label: 'Subscription' });
+      pushUnique(desktopSecondaryLinks, { to: '/settings', label: 'Subscription' });
     }
   }
 
   if (!isApplicantUser && canAccessInternalRoutes && !hasAdminAccess) {
-    pushUnique(desktopOverflowLinks, { to: workspaceFraudInsightsPath, label: 'Fraud Insights' });
-    pushUnique(desktopOverflowLinks, {
+    pushUnique(desktopPrimaryLinks, { to: workspaceFraudInsightsPath, label: 'Fraud Insights' });
+    pushUnique(desktopPrimaryLinks, {
       to: workspaceBackgroundChecksPath,
       label: 'Background Checks',
     });
   }
 
   if (!isApplicantUser && canAccessAudit) {
-    pushUnique(desktopOverflowLinks, { to: workspaceAuditLogsPath, label: 'Audit' });
+    pushUnique(desktopPrimaryLinks, { to: workspaceAuditLogsPath, label: 'Audit' });
   }
 
-  const navLinks: NavItem[] = [...desktopPrimaryLinks];
-  desktopOverflowLinks.forEach((link) => pushUnique(navLinks, link));
-  const hasActiveOverflowLink = desktopOverflowLinks.some((navItem) => isRouteActive(navItem.to));
+  const navLinks: NavItem[] = desktopPrimaryLinks;
 
   const renderRuntimePanel = (onNavigate?: () => void) => (
-    <div className="rounded-[1.5rem] border border-border/70 bg-card/92 p-4 text-sm text-card-foreground shadow-[0_24px_60px_rgba(15,23,42,0.18)] backdrop-blur-xl">
+    <div className="rounded-3xl border border-border/70 bg-card/92 p-4 text-sm text-card-foreground shadow-[0_24px_60px_rgba(15,23,42,0.18)] backdrop-blur-xl">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -675,7 +660,7 @@ export const Navbar: React.FC = () => {
           <span className="text-xs text-muted-foreground">{runtimeMeta.label}</span>
         </Button>
         {runtimePopoverOpen ? (
-          <div className="absolute left-0 top-[calc(100%+0.5rem)] z-50 w-[22rem] max-w-[calc(100vw-2rem)]">
+          <div className="absolute left-0 top-[calc(100%+0.5rem)] z-50 w-88 max-w-[calc(100vw-2rem)]">
             {renderRuntimePanel()}
           </div>
         ) : null}
@@ -787,63 +772,37 @@ export const Navbar: React.FC = () => {
                 );
               })}
 
-              {desktopOverflowLinks.length > 0 ? (
-                <div className={sidebarInsetSurfaceClass} ref={adminMoreMenuRef}>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => {
-                      setAdminMoreMenuOpen((previous) => !previous);
-                      setRuntimePopoverOpen(false);
-                    }}
-                    className={[
-                      sidebarLinkBaseClass,
-                      'h-auto border-0 bg-transparent px-3 py-2.5 shadow-none',
-                      hasActiveOverflowLink || adminMoreMenuOpen
-                        ? 'bg-primary/10 text-primary ring-1 ring-primary/15'
-                        : 'text-foreground hover:bg-accent/80 hover:text-accent-foreground',
-                    ].join(' ')}
-                  >
-                    <span className="inline-flex items-center gap-3">
-                      <span className={sidebarIconClass(hasActiveOverflowLink || adminMoreMenuOpen)}>
-                        <FolderOpen className="h-4 w-4" />
+              {desktopSecondaryLinks.length > 0 && <button
+                type="button"
+                aria-label="More"
+                onClick={() => setMoreExpanded((prev) => !prev)}
+                className={[
+                  sidebarLinkBaseClass,
+                  'border-0 bg-transparent text-foreground hover:bg-accent/80 hover:text-accent-foreground',
+                ].join(' ')}
+              >
+                <span className="inline-flex min-w-0 items-center gap-3">
+                  <span className={sidebarIconClass(false)}>
+                    <FileText className="h-4 w-4 shrink-0" />
+                  </span>
+                  <span className="truncate">{moreExpanded ? 'Less' : 'More'}</span>
+                </span>
+              </button>}
+
+              {moreExpanded && desktopSecondaryLinks.length > 0 && desktopSecondaryLinks.map((navItem) => {
+                const NavIcon = getNavIcon(navItem);
+                const active = isRouteActive(navItem.to);
+                return (
+                  <Link key={navItem.to} to={navItem.to} className={desktopNavClass(navItem.to)}>
+                    <span className="inline-flex min-w-0 items-center gap-3">
+                      <span className={sidebarIconClass(active)}>
+                        <NavIcon className="h-4 w-4 shrink-0" />
                       </span>
-                      More
+                      <span className="truncate">{navItem.label}</span>
                     </span>
-                    <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${adminMoreMenuOpen ? 'rotate-180' : ''}`} />
-                  </Button>
-                  {adminMoreMenuOpen ? (
-                    <div className="mt-1.5 space-y-1">
-                      {desktopOverflowLinks.map((navItem) => {
-                        const NavIcon = getNavIcon(navItem);
-                        const active = isRouteActive(navItem.to);
-                        return (
-                          <Link
-                            key={navItem.to}
-                            to={navItem.to}
-                            className={overflowNavClass(navItem.to)}
-                            onClick={() => setAdminMoreMenuOpen(false)}
-                          >
-                            <span className="inline-flex min-w-0 items-center gap-3">
-                              <span className={sidebarIconClass(active)}>
-                                <NavIcon className="h-4 w-4 shrink-0" />
-                              </span>
-                              <span className="truncate">{navItem.label}</span>
-                            </span>
-                            <span
-                              aria-hidden="true"
-                              className={[
-                                'h-2 w-2 rounded-full transition-all duration-200',
-                                active ? 'bg-primary opacity-100' : 'bg-transparent opacity-0 group-hover:opacity-30',
-                              ].join(' ')}
-                            />
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
+                  </Link>
+                );
+              })}
             </div>
           </section>
 
@@ -930,7 +889,6 @@ export const Navbar: React.FC = () => {
                 variant="ghost"
                 ref={mobileMenuButtonRef}
                 onClick={() => {
-                  setAdminMoreMenuOpen(false);
                   setRuntimePopoverOpen(false);
                   if (!mobileMenuOpen) {
                     setMobileMenuMounted(true);

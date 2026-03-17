@@ -9,7 +9,7 @@ import type { PersonnelRecord } from "@/types";
 import { governmentService } from "@/services/government.service";
 
 const GovernmentPersonnelPage: React.FC = () => {
-  const { activeOrganization, activeOrganizationId, isAdmin, canManageRegistry } = useAuth();
+  const { activeOrganization, activeOrganizationId, isAdmin, isPlatformAdmin, canManageRegistry } = useAuth();
   const [rows, setRows] = useState<PersonnelRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -27,7 +27,7 @@ const GovernmentPersonnelPage: React.FC = () => {
     is_active_officeholder: false,
     is_public: true,
   });
-  const canManagePersonnelRegistry = canManageRegistry && (isAdmin || Boolean(activeOrganizationId));
+  const canManagePersonnelRegistry = canManageRegistry && (isPlatformAdmin || Boolean(activeOrganizationId));
 
   const loadPersonnel = useCallback(async () => {
     const data = await governmentService.listPersonnel({
@@ -105,14 +105,14 @@ const GovernmentPersonnelPage: React.FC = () => {
   const scopedRows = useMemo(() => {
     return rows.filter((item) => {
       if (!activeOrganizationId) {
-        return isAdmin || !item.organization;
+        return isPlatformAdmin || !item.organization;
       }
       if (!item.organization) {
         return true;
       }
       return String(item.organization) === activeOrganizationId;
     });
-  }, [activeOrganizationId, isAdmin, rows]);
+  }, [activeOrganizationId, isPlatformAdmin, rows]);
 
   const stats = useMemo(() => {
     const total = scopedRows.length;
@@ -141,7 +141,7 @@ const GovernmentPersonnelPage: React.FC = () => {
         </div>
       </header>
 
-      {!isAdmin && !activeOrganizationId ? (
+      {!isPlatformAdmin && !activeOrganizationId ? (
         <section className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
           Select an active organization to view organization-scoped nominee and officeholder records.
         </section>
@@ -167,7 +167,7 @@ const GovernmentPersonnelPage: React.FC = () => {
         {!canManagePersonnelRegistry ? (
           <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
             {!canManageRegistry
-              ? "Only registry operators can create or edit nominee and officeholder records."
+              ? "Only registry operators can create or edit personnel records."
               : "Select an active organization before creating nominee and officeholder records."}
           </div>
         ) : null}
@@ -242,7 +242,7 @@ const GovernmentPersonnelPage: React.FC = () => {
           <div className="md:col-span-2 flex justify-end">
             <Button type="submit" disabled={creating || !canManagePersonnelRegistry}>
               <Plus className="mr-2 h-4 w-4" />
-              {creating ? "Saving..." : "Create Record"}
+              {creating ? "Saving..." : "Create Personnel"}
             </Button>
           </div>
           </fieldset>

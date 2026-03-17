@@ -27,7 +27,7 @@ interface AuthState {
   user: User | AdminUser | null;
   tokens: AuthTokens | null;
   isAuthenticated: boolean;
-  userType: "applicant" | "internal" | "admin" | null;
+  userType: 'applicant' | 'internal' | 'org_admin' | 'platform_admin' | 'admin' | null;
   roles: string[];
   capabilities: string[];
   organizations: OrganizationSummary[];
@@ -74,14 +74,33 @@ const initialState: AuthState = {
 };
 
 const resolveUserType = (
-  payloadType: LoginResponse["user_type"] | undefined,
-  user: User | AdminUser,
-): AuthState["userType"] => {
-  if (payloadType) {
-    return payloadType;
+  payload: {
+    user_type?: string;
+    user: User | AdminUser;
+    active_organization?: unknown;
+    is_platform_admin?: boolean;
   }
-  const fallbackType = (user as User & { user_type?: AuthState["userType"] }).user_type;
-  return fallbackType ?? null;
+): AuthState["userType"] => {
+  const { user, user_type: payloadType, is_platform_admin } = payload;
+  
+  // 1. Explicit Platform Admin flag from backend (Governance actor summary) or Superuser
+  if (is_platform_admin === true || user.is_superuser === true) {
+    return 'platform_admin';
+  }
+
+  // 2. Resolve based on payload hint
+  const typeHint = payloadType || (user as any).user_type;
+
+  // Normalize legacy "admin" alias to the canonical "platform_admin" value.
+  if (typeHint === 'admin' || typeHint === 'platform_admin') {
+    return 'platform_admin';
+  }
+
+  if (typeHint === 'org_admin') {
+    return 'org_admin';
+  }
+
+  return (typeHint as AuthState["userType"]) || null;
 };
 
 const isTwoFactorChallenge = (
@@ -241,6 +260,17 @@ const normalizeCommitteeContextList = (value: unknown): CommitteeContext[] => {
   }
   return Array.from(deduped.values());
 };
+
+// Reusable empty org context — used when a session is established but the
+// profile hasn't been fetched yet (i.e. immediately after login / 2FA verify).
+const EMPTY_ORG_CONTEXT = {
+  organizations: [],
+  organization_memberships: [],
+  committees: [],
+  active_organization: null,
+  active_organization_source: "none",
+  invalid_requested_organization_id: "",
+} as const;
 
 const applyOrganizationContext = (
   state: AuthState,
@@ -492,24 +522,23 @@ const authSlice = createSlice({
           state.twoFactorProvisioningUri = action.payload.provisioning_uri ?? null;
           state.twoFactorExpiresInSeconds = action.payload.expires_in_seconds ?? null;
           state.twoFactorMessage = action.payload.message;
-          state.userType = (action.payload.user_type as AuthState["userType"]) ?? null;
+          state.userType = resolveUserType({
+            user_type: action.payload.user_type,
+            user: { is_superuser: false, is_staff: false } as any, // Limited info during 2FA challenge
+          });
           return;
         }
 
         state.user = action.payload.user;
         state.tokens = action.payload.tokens;
-        state.userType = resolveUserType(action.payload.user_type, action.payload.user);
+        state.userType = resolveUserType({
+          user_type: action.payload.user_type,
+          user: action.payload.user,
+        });
         state.roles = resolveRoles(action.payload);
         state.capabilities = resolveCapabilities(action.payload);
         state.isAuthenticated = true;
-        applyOrganizationContext(state, {
-          organizations: [],
-          organization_memberships: [],
-          committees: [],
-          active_organization: null,
-          active_organization_source: "none",
-          invalid_requested_organization_id: "",
-        });
+        applyOrganizationContext(state, EMPTY_ORG_CONTEXT);
         clearTwoFactorState(state);
       })
       .addCase(login.rejected, (state, action) => {
@@ -527,19 +556,15 @@ const authSlice = createSlice({
       .addCase(verifyTwoFactor.fulfilled, (state, action) => {
         state.user = action.payload.user;
         state.tokens = action.payload.tokens;
-        state.userType = resolveUserType(action.payload.user_type, action.payload.user);
+        state.userType = resolveUserType({
+          user_type: action.payload.user_type,
+          user: action.payload.user,
+        });
         state.roles = resolveRoles(action.payload);
         state.capabilities = resolveCapabilities(action.payload);
         state.isAuthenticated = true;
         state.loading = false;
-        applyOrganizationContext(state, {
-          organizations: [],
-          organization_memberships: [],
-          committees: [],
-          active_organization: null,
-          active_organization_source: "none",
-          invalid_requested_organization_id: "",
-        });
+        applyOrganizationContext(state, EMPTY_ORG_CONTEXT);
         clearTwoFactorState(state);
       })
       .addCase(verifyTwoFactor.rejected, (state, action) => {
@@ -587,7 +612,12 @@ const authSlice = createSlice({
       })
       .addCase(fetchProfile.fulfilled, (state, action) => {
         state.user = action.payload.user;
-        state.userType = action.payload.user_type as AuthState["userType"];
+        state.userType = resolveUserType({
+          user_type: action.payload.user_type,
+          user: action.payload.user,
+          active_organization: action.payload.active_organization,
+          is_platform_admin: (action.payload as any).actor?.is_platform_admin,
+        });
         state.roles = resolveRoles(action.payload);
         state.capabilities = resolveCapabilities(action.payload);
         applyOrganizationContext(state, action.payload);
@@ -607,7 +637,12 @@ const authSlice = createSlice({
       })
       .addCase(switchActiveOrganization.fulfilled, (state, action) => {
         state.user = action.payload.user;
-        state.userType = action.payload.user_type as AuthState["userType"];
+        state.userType = resolveUserType({
+          user_type: action.payload.user_type,
+          user: action.payload.user,
+          active_organization: action.payload.active_organization,
+          is_platform_admin: (action.payload as any).actor?.is_platform_admin,
+        });
         state.roles = resolveRoles(action.payload);
         state.capabilities = resolveCapabilities(action.payload);
         applyOrganizationContext(state, action.payload);

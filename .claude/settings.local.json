@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(ls frontend/src/pages/admin/*.tsx)"
+      "Bash(ls frontend/src/pages/admin/*.tsx)",
+      "Bash(find:*)",
+      "Bash(cd:*)",
+      "Bash(cat:*)"
     ]
   }
 }

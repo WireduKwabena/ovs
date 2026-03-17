@@ -66,7 +66,7 @@ vi.mock("./pages/GovernmentPersonnelPage", () => ({
   default: () => <div>Mock Government Personnel Page</div>,
 }));
 
-vi.mock("./pages/organization/OrganizationAdminDashboardPage", () => ({
+vi.mock("./pages/org-admin/OrgDashboardPage", () => ({
   default: () => <div>Mock Organization Dashboard Page</div>,
 }));
 

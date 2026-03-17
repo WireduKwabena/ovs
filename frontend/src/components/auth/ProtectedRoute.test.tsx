@@ -114,7 +114,7 @@ const renderWithState = (
                   "gams.appointment.publish",
                   "gams.appointment.view_internal",
                 ]}
-                legacyUserTypeFallback={["admin"]}
+                legacyUserTypeFallback={["platform_admin"]}
               >
                 <div>Applications page</div>
               </ProtectedRoute>
@@ -132,7 +132,7 @@ const renderWithState = (
                   "gams.appointment.publish",
                   "gams.appointment.view_internal",
                 ]}
-                legacyUserTypeFallback={["admin"]}
+                legacyUserTypeFallback={["platform_admin"]}
               >
                 <div>Application detail page</div>
               </ProtectedRoute>
@@ -150,7 +150,7 @@ const renderWithState = (
                   "gams.appointment.publish",
                   "gams.appointment.view_internal",
                 ]}
-                legacyUserTypeFallback={["admin"]}
+                legacyUserTypeFallback={["platform_admin"]}
               >
                 <div>Campaigns page</div>
               </ProtectedRoute>
@@ -168,7 +168,7 @@ const renderWithState = (
                   "gams.appointment.publish",
                   "gams.appointment.view_internal",
                 ]}
-                legacyUserTypeFallback={["admin"]}
+                legacyUserTypeFallback={["platform_admin"]}
               >
                 <div>Campaign workspace page</div>
               </ProtectedRoute>
@@ -184,7 +184,7 @@ const renderWithState = (
                   "gams.appointment.stage",
                   "gams.appointment.decide",
                 ]}
-                legacyUserTypeFallback={["admin"]}
+                legacyUserTypeFallback={["platform_admin"]}
               >
                 <div>Rubrics page</div>
               </ProtectedRoute>
@@ -200,7 +200,7 @@ const renderWithState = (
                   "gams.appointment.stage",
                   "gams.appointment.decide",
                 ]}
-                legacyUserTypeFallback={["admin"]}
+                legacyUserTypeFallback={["platform_admin"]}
               >
                 <div>Rubric builder page</div>
               </ProtectedRoute>
@@ -212,7 +212,7 @@ const renderWithState = (
               <ProtectedRoute
                 disallowUserTypes={["applicant"]}
                 requiredCapabilities={["gams.registry.manage"]}
-                legacyUserTypeFallback={["admin"]}
+                legacyUserTypeFallback={["platform_admin"]}
               >
                 <div>Government positions page</div>
               </ProtectedRoute>
@@ -224,7 +224,7 @@ const renderWithState = (
               <ProtectedRoute
                 disallowUserTypes={["applicant"]}
                 requiredCapabilities={["gams.registry.manage"]}
-                legacyUserTypeFallback={["admin"]}
+                legacyUserTypeFallback={["platform_admin"]}
               >
                 <div>Government personnel page</div>
               </ProtectedRoute>
@@ -242,7 +242,7 @@ const renderWithState = (
                   "gams.appointment.publish",
                   "gams.appointment.view_internal",
                 ]}
-                legacyUserTypeFallback={["admin"]}
+                legacyUserTypeFallback={["platform_admin"]}
               >
                 <div>Government appointments page</div>
               </ProtectedRoute>
@@ -265,7 +265,7 @@ const renderWithState = (
             element={
               <ProtectedRoute
                 requiredCapabilities={["gams.audit.view"]}
-                legacyUserTypeFallback={["admin"]}
+                legacyUserTypeFallback={["platform_admin"]}
               >
                 <div>Audit logs page</div>
               </ProtectedRoute>
