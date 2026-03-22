@@ -9,7 +9,7 @@ import type { PersonnelRecord } from "@/types";
 import { governmentService } from "@/services/government.service";
 
 const GovernmentPersonnelPage: React.FC = () => {
-  const { activeOrganization, activeOrganizationId, isAdmin, isPlatformAdmin, canManageRegistry } = useAuth();
+  const { activeOrganization, activeOrganizationId, isPlatformAdmin, canManageRegistry } = useAuth();
   const [rows, setRows] = useState<PersonnelRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

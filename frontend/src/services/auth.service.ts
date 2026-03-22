@@ -15,6 +15,13 @@ import type {
   User,
 } from "@/types";
 import { getApiErrorMessage } from "@/utils/apiError";
+import {
+  ActiveOrganizationSelectionResponseSchema,
+  LoginAttemptResponseSchema,
+  LoginResponseSchema,
+  ProfileResponseSchema,
+  parseAuthResponse,
+} from "./auth.schemas";
 
 export interface LoginCredentials {
   email: string;
@@ -108,7 +115,7 @@ export const authService = {
   async login(credentials: LoginCredentials): Promise<LoginAttemptResponse> {
     try {
       const response = await api.post<LoginAttemptResponse>("/auth/login/", credentials);
-      return response.data;
+      return parseAuthResponse(LoginAttemptResponseSchema, response.data, "login") as unknown as LoginAttemptResponse;
     } catch (error: any) {
       throw toApiError(error, "Login failed");
     }
@@ -117,7 +124,7 @@ export const authService = {
   async verifyTwoFactor(data: TwoFactorVerifyPayload): Promise<LoginResponse> {
     try {
       const response = await api.post<LoginResponse>("/auth/login/verify/", data);
-      return response.data;
+      return parseAuthResponse(LoginResponseSchema, response.data, "verifyTwoFactor") as unknown as LoginResponse;
     } catch (error: any) {
       throw toApiError(error, "Two-factor verification failed");
     }
@@ -126,7 +133,7 @@ export const authService = {
   async adminLogin(credentials: LoginCredentials): Promise<LoginAttemptResponse> {
     try {
       const response = await api.post<LoginAttemptResponse>("/auth/admin/login/", credentials);
-      return response.data;
+      return parseAuthResponse(LoginAttemptResponseSchema, response.data, "adminLogin") as unknown as LoginAttemptResponse;
     } catch (error: any) {
       throw toApiError(error, "Admin login failed");
     }
@@ -135,7 +142,7 @@ export const authService = {
   async adminVerifyTwoFactor(data: TwoFactorVerifyPayload): Promise<LoginResponse> {
     try {
       const response = await api.post<LoginResponse>("/auth/admin/login/verify/", data);
-      return response.data;
+      return parseAuthResponse(LoginResponseSchema, response.data, "adminVerifyTwoFactor") as unknown as LoginResponse;
     } catch (error: any) {
       throw toApiError(error, "Admin two-factor verification failed");
     }
@@ -194,7 +201,7 @@ export const authService = {
           ? { active_organization_id: params.activeOrganizationId }
           : undefined,
       });
-      return response.data;
+      return parseAuthResponse(ProfileResponseSchema, response.data, "getProfile") as unknown as ProfileResponse;
     } catch (error: any) {
       throw toApiError(error, "Profile fetch failed");
     }
@@ -209,7 +216,11 @@ export const authService = {
         "/auth/profile/active-organization/",
         payload,
       );
-      return response.data;
+      return parseAuthResponse(
+        ActiveOrganizationSelectionResponseSchema,
+        response.data,
+        "setActiveOrganization",
+      ) as unknown as ActiveOrganizationSelectionResponse;
     } catch (error: any) {
       throw toApiError(error, "Failed to update active organization.");
     }
