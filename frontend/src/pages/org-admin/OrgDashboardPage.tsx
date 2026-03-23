@@ -224,7 +224,7 @@ const OrgDashboardPage: React.FC = () => {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         {/* Vetting Pipeline Visualization */}
         <div className="xl:col-span-2 space-y-6">
-          <Card className="p-6 rounded-[2rem] border-border/70 bg-card/50 shadow-sm backdrop-blur-sm">
+          <Card className="p-6 rounded-4xl border-border/70 bg-card/50 shadow-sm backdrop-blur-sm">
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h2 className="text-lg font-bold">Vetting Pipeline Pulse</h2>
@@ -251,7 +251,7 @@ const OrgDashboardPage: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Committee Health */}
-            <Card className="p-6 rounded-[2rem] border-border/70 bg-card/50 shadow-sm">
+            <Card className="p-6 rounded-4xl border-border/70 bg-card/50 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-bold flex items-center gap-2">
                   <Workflow className="h-4 w-4 text-primary" />
@@ -276,7 +276,7 @@ const OrgDashboardPage: React.FC = () => {
             </Card>
 
             {/* Onboarding Overview */}
-            <Card className="p-6 rounded-[2rem] border-border/70 bg-card/50 shadow-sm">
+            <Card className="p-6 rounded-4xl border-border/70 bg-card/50 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-bold flex items-center gap-2">
                   <UserPlus className="h-4 w-4 text-indigo-500" />
@@ -352,7 +352,7 @@ const OrgDashboardPage: React.FC = () => {
             </div>
           </Card>
 
-          <Card className="p-6 rounded-[2rem] border-border/70 bg-card/50 shadow-sm backdrop-blur-sm">
+          <Card className="p-6 rounded-4xl border-border/70 bg-card/50 shadow-sm backdrop-blur-sm">
             <h3 className="text-sm font-bold flex items-center gap-2 mb-4">
               <Clock className="h-4 w-4 text-primary" />
               Recent Activity

@@ -25,7 +25,7 @@ const encodeOfficeTitleFilter = (title: string): string =>
   encodeURIComponent(title.trim().toLowerCase());
 
 const GovernmentPositionsPage: React.FC = () => {
-  const { activeOrganization, activeOrganizationId, isAdmin, isPlatformAdmin, canManageRegistry } = useAuth();
+  const { activeOrganization, activeOrganizationId, isPlatformAdmin, canManageRegistry } = useAuth();
   const [rows, setRows] = useState<GovernmentPosition[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
