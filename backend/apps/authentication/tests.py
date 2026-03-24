@@ -966,7 +966,15 @@ class EmailAuthEndpointTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("error", response.data)
 
-    def test_two_factor_setup_stores_plain_totp_secret(self):
+    def test_two_factor_setup_caches_secret_and_does_not_persist_to_db(self):
+        """
+        The setup endpoint must store the pending secret in the cache only.
+        Persisting it to the DB before OTP verification would allow an attacker
+        who intercepts the provisioning_uri to register their own authenticator
+        on the same secret before the user confirms ownership.
+        """
+        from django.core.cache import cache as django_cache
+
         admin = User.objects.create_user(
             email="admin2fa@example.com",
             password=self.password,
@@ -988,11 +996,18 @@ class EmailAuthEndpointTests(APITestCase):
             response = self.client.get("/api/auth/admin/2fa/setup/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        admin.refresh_from_db()
-        self.assertEqual(admin.two_factor_secret, "A" * 32)
         self.assertIn("provisioning_uri", response.data)
 
+        # Secret must be held in cache, NOT persisted to the DB yet.
+        cached_secret = django_cache.get(f"2fa:pending_secret:{admin.pk}")
+        self.assertEqual(cached_secret, "A" * 32, "Pending secret not stored in cache")
+        admin.refresh_from_db()
+        self.assertNotEqual(admin.two_factor_secret, "A" * 32,
+                            "Secret must not be saved to DB before OTP verification")
+
     def test_two_factor_setup_allows_internal(self):
+        from django.core.cache import cache as django_cache
+
         self.client.force_authenticate(user=self.user)
 
         with patch(
@@ -1006,8 +1021,8 @@ class EmailAuthEndpointTests(APITestCase):
             response = self.client.get("/api/auth/admin/2fa/setup/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.two_factor_secret, "C" * 32)
+        # Secret is in cache, not in DB.
+        self.assertEqual(django_cache.get(f"2fa:pending_secret:{self.user.pk}"), "C" * 32)
 
     @override_settings(AUTH_TWO_FACTOR_BACKUP_CODE_COUNT=2, AUTH_TWO_FACTOR_BACKUP_CODE_LENGTH=8)
     def test_backup_codes_regenerate_with_otp(self):

@@ -344,7 +344,9 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
 
         if resolved_org_id:
             with transaction.atomic():
-                Organization.objects.select_for_update().filter(id=resolved_org_id).exists()
+                # Lock the org row for the duration of the transaction so that
+                # concurrent uploads for the same org serialize quota checks.
+                Organization.objects.select_for_update().get(id=resolved_org_id)
                 document = _reserve_and_create_document()
         else:
             document = _reserve_and_create_document()

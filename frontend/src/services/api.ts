@@ -76,6 +76,27 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// --- Token-refresh serialization -------------------------------------------
+// Prevents multiple concurrent 401 responses from each triggering an
+// independent refresh call (race condition → multiple /token/refresh/ calls,
+// all but the first invalidate each other's new tokens).
+let _isRefreshing = false;
+let _refreshQueue: Array<(token: string) => void> = [];
+
+function _processRefreshQueue(newAccessToken: string) {
+  _refreshQueue.forEach((resolve) => resolve(newAccessToken));
+  _refreshQueue = [];
+}
+
+function _drainRefreshQueueWithError() {
+  _refreshQueue.forEach((_, idx, arr) => {
+    // Reject queued requests — they will fall through to the 401 handler.
+    arr[idx] = () => {};
+  });
+  _refreshQueue = [];
+}
+// ---------------------------------------------------------------------------
+
 // Response interceptor - handle 401 with refresh
 api.interceptors.response.use(
   (response) => response,
@@ -90,13 +111,30 @@ api.interceptors.response.use(
 
     if (statusCode === 401 && originalRequest && !originalRequest._retry) {
       originalRequest._retry = true;
+
+      if (_isRefreshing) {
+        // Another request already started the refresh — queue this one and
+        // retry it once the refresh resolves.
+        return new Promise<string>((resolve) => {
+          _refreshQueue.push(resolve);
+        }).then((newToken) => {
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          }
+          return api(originalRequest);
+        });
+      }
+
+      _isRefreshing = true;
       try {
-        const refreshResult = await store.dispatch(refreshToken()).unwrap(); // Dispatch thunk
+        const refreshResult = await store.dispatch(refreshToken()).unwrap();
+        _processRefreshQueue(refreshResult.access);
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${refreshResult.access}`;
         }
-        return api(originalRequest); // Retry original
+        return api(originalRequest);
       } catch {
+        _drainRefreshQueueWithError();
         await store.dispatch(logout());
         store.dispatch(
           setError({
@@ -104,6 +142,8 @@ api.interceptors.response.use(
             status: 401,
           })
         );
+      } finally {
+        _isRefreshing = false;
       }
     } else if (statusCode === 401) {
       await store.dispatch(logout());

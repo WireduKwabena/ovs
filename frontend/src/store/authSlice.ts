@@ -369,15 +369,20 @@ export const logout = createAsyncThunk<
   void,
   void,
   { state: { auth: AuthState } }
->("/auth/logout/", async (_, { getState }) => {
+>("/auth/logout/", async (_, { getState, dispatch }) => {
   const refreshTokenValue = getState().auth.tokens?.refresh;
-  if (!refreshTokenValue) return;
-
-  try {
-    await authService.logout(refreshTokenValue);
-  } catch {
-    // Best effort only; local session is still cleared.
+  if (refreshTokenValue) {
+    try {
+      await authService.logout(refreshTokenValue);
+    } catch {
+      // Best effort only; local session is still cleared.
+    }
   }
+
+  // Wipe all non-auth slices so a subsequent login cannot see the previous
+  // user's in-memory data (notifications, applications, rubrics, etc.).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (dispatch as any)({ type: "store/reset" });
 });
 
 export const fetchProfile = createAsyncThunk<

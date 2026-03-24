@@ -217,12 +217,12 @@ class User(AbstractUser):
 
     def generate_backup_codes(self, *, count=None, length=None, save=True) -> list[str]:
         code_count = int(count or getattr(settings, "AUTH_TWO_FACTOR_BACKUP_CODE_COUNT", 8))
-        code_length = int(length or getattr(settings, "AUTH_TWO_FACTOR_BACKUP_CODE_LENGTH", 8))
+        code_length = int(length or getattr(settings, "AUTH_TWO_FACTOR_BACKUP_CODE_LENGTH", 12))
 
         if code_count <= 0:
             code_count = 8
-        if code_length < 6:
-            code_length = 8
+        if code_length < 8:
+            code_length = 12
 
         alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         generated_codes: list[str] = []
@@ -408,7 +408,22 @@ class PasswordResetToken(models.Model):
         verbose_name = "Password Reset Token"
         verbose_name_plural = "Password Reset Tokens"
         indexes = [models.Index(fields=["user", "token"])]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(user__isnull=False, admin_user__isnull=True)
+                    | models.Q(user__isnull=True, admin_user__isnull=False)
+                ),
+                name="chk_password_reset_token_one_user",
+            )
+        ]
 
     def __str__(self):
-        return f"Token for {self.user.get_full_name()} (Expires: {self.expires_at})"
+        if self.user:
+            name = self.user.get_full_name()
+        elif self.admin_user:
+            name = str(self.admin_user)
+        else:
+            name = "Unknown"
+        return f"Token for {name} (Expires: {self.expires_at})"
 

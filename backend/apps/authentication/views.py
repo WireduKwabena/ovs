@@ -577,7 +577,8 @@ def two_factor_verification_view(request):
         )
 
     if using_backup_code and not user.consume_backup_code(backup_code):
-        cache.delete(consumed_cache_key)
+        # Do NOT delete the cache key here — fail-close to prevent replay
+        # attacks that could exploit the window between verify and consume.
         return Response({"error": "Invalid OTP or backup code."}, status=status.HTTP_400_BAD_REQUEST)
 
     two_factor_required = requires_two_factor_for_user(user)
@@ -629,9 +630,12 @@ def two_factor_setup_view(request):
         return Response({'error': '2FA dependency is not installed.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     secret = pyotp.random_base32()
+    # Store in cache only — do NOT persist to DB until the user proves they
+    # can generate a valid OTP (confirmed in two_factor_enable_view).
+    cache.set(f"2fa:pending_secret:{user.pk}", secret, timeout=600)
+    # Temporarily set on the model instance (not saved) so get_totp_uri() works.
     user.two_factor_secret = secret
-    user.save()
-    
+
     return Response({'provisioning_uri': user.get_totp_uri()})
 
 
@@ -662,11 +666,22 @@ def two_factor_enable_view(request):
     if not otp:
         return Response({'error': 'OTP not provided.'}, status=status.HTTP_400_BAD_REQUEST)
 
+    pending_secret = cache.get(f"2fa:pending_secret:{user.pk}")
+    if not pending_secret:
+        return Response(
+            {'error': 'No pending 2FA setup found. Call the setup endpoint first.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Temporarily apply the pending secret so verify_totp() uses it.
+    user.two_factor_secret = pending_secret
     if not user.verify_totp(otp):
         return Response({'error': 'Invalid OTP.'}, status=status.HTTP_400_BAD_REQUEST)
 
+    # OTP confirmed — now persist the secret and enable 2FA.
     user.is_two_factor_enabled = True
-    user.save()
+    user.save(update_fields=["two_factor_secret", "is_two_factor_enabled", "updated_at"])
+    cache.delete(f"2fa:pending_secret:{user.pk}")
     return Response({'message': '2FA enabled successfully.'})
 
 
