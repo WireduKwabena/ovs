@@ -48,8 +48,7 @@ export const OrgAdminLayout: React.FC<OrgAdminLayoutProps> = ({ children }) => {
   ] : [];
 
   const handleLogout = () => {
-    logout();
-    navigate('/login');
+    void logout().finally(() => navigate('/login'));
   };
 
   const isRouteActive = (to: string) => {

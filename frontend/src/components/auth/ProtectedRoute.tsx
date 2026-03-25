@@ -80,6 +80,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   const fallbackDashboardPath = getDashboardPathForUser(userType);
 
+  // Evaluate disallowUserTypes FIRST so an explicitly blocked type can never
+  // pass through via a downstream adminOnly / platformAdminOnly gate.
+  const effectiveType = isPlatformAdmin ? "platform_admin" : isOrgAdmin ? "org_admin" : userType;
+  if (effectiveType && (disallowUserTypes as string[]).includes(effectiveType)) {
+    return <Navigate to={fallbackDashboardPath} replace />;
+  }
+
   if (adminOnly && !isAdminOrOrgAdmin) {
     return <Navigate to={fallbackDashboardPath} replace />;
   }
@@ -89,11 +96,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (orgAdminOnly && !isOrgAdmin) {
-    return <Navigate to={fallbackDashboardPath} replace />;
-  }
-
-  const effectiveType = isPlatformAdmin ? "platform_admin" : isOrgAdmin ? "org_admin" : userType;
-  if (effectiveType && (disallowUserTypes as string[]).includes(effectiveType)) {
     return <Navigate to={fallbackDashboardPath} replace />;
   }
 

@@ -12,6 +12,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { UnauthenticatedRoute } from "./components/auth/UnauthenticatedRoute";
+import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { fetchProfile, switchActiveOrganization } from "./store/authSlice";
 import { type AppDispatch, type RootState } from "./app/store";
 import {
@@ -852,9 +853,11 @@ const App: React.FC = () => {
   }
 
   return (
-    <Router>
-      <AppShell />
-    </Router>
+    <ErrorBoundary>
+      <Router>
+        <AppShell />
+      </Router>
+    </ErrorBoundary>
   );
 };
 

@@ -594,6 +594,21 @@ def two_factor_verification_view(request):
     refresh = RefreshToken.for_user(user)
     _mark_recent_auth(request=request, refresh_token=refresh)
 
+    try:
+        from apps.audit.events import log_event as _log_event  # noqa: PLC0415
+        _log_event(
+            request=request,
+            action="login",
+            entity_type="User",
+            entity_id=str(user.pk),
+            changes={
+                "two_factor_method": "backup_code" if using_backup_code else "totp",
+                "two_factor_enabled_on_login": not was_two_factor_enabled and user.is_two_factor_enabled,
+            },
+        )
+    except Exception:  # noqa: BLE001
+        pass  # Audit failure must never block authentication
+
     user_serializer = AdminUserSerializer(user) if has_role(user, ROLE_ADMIN) else UserSerializer(user)
     payload = {
         "user": user_serializer.data,
@@ -682,6 +697,19 @@ def two_factor_enable_view(request):
     user.is_two_factor_enabled = True
     user.save(update_fields=["two_factor_secret", "is_two_factor_enabled", "updated_at"])
     cache.delete(f"2fa:pending_secret:{user.pk}")
+
+    try:
+        from apps.audit.events import log_event as _log_event  # noqa: PLC0415
+        _log_event(
+            request=request,
+            action="modify",
+            entity_type="User",
+            entity_id=str(user.pk),
+            changes={"two_factor_enabled": True},
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
     return Response({'message': '2FA enabled successfully.'})
 
 

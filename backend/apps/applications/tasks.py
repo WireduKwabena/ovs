@@ -207,9 +207,14 @@ def _refresh_case_aggregates(document: Document):
         avg_fraud=Avg("fraud_risk_score"),
         avg_ocr=Avg("ocr_confidence"),
     )
-    case.document_authenticity_score = aggregate["avg_authenticity"] or case.document_authenticity_score
-    case.fraud_risk_score = aggregate["avg_fraud"] or case.fraud_risk_score
-    case.consistency_score = aggregate["avg_ocr"] or case.consistency_score
+    # Use explicit None check — `or` would silently keep the old score when the
+    # new aggregate is 0.0 (a valid score), masking real data.
+    if aggregate["avg_authenticity"] is not None:
+        case.document_authenticity_score = aggregate["avg_authenticity"]
+    if aggregate["avg_fraud"] is not None:
+        case.fraud_risk_score = aggregate["avg_fraud"]
+    if aggregate["avg_ocr"] is not None:
+        case.consistency_score = aggregate["avg_ocr"]
 
     processed_states = {"verified", "flagged", "failed"}
     case.documents_verified = documents.exists() and not documents.exclude(status__in=processed_states).exists()
@@ -241,17 +246,13 @@ def _ensure_interview_session_for_case(case):
 
     from apps.interviews.models import InterviewSession
 
-    interview_session = (
-        InterviewSession.objects.filter(case=case)
-        .order_by("-created_at")
-        .first()
+    interview_session, _ = InterviewSession.objects.get_or_create(
+        case=case,
+        defaults={
+            "use_dynamic_questions": True,
+            "status": "created",
+        },
     )
-    if interview_session is None:
-        interview_session = InterviewSession.objects.create(
-            case=case,
-            use_dynamic_questions=True,
-            status="created",
-        )
 
     if case.status not in {"approved", "rejected", "on_hold"}:
         target_status = case.status

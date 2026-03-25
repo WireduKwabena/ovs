@@ -494,7 +494,31 @@ class VerificationResult(models.Model):
     class Meta:
         verbose_name = 'Verification Result'
         verbose_name_plural = 'Verification Results'
-    
+
+    def clean(self):
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        errors = {}
+        # is_authentic should align with authenticity_score
+        if self.is_authentic and self.authenticity_score is not None and self.authenticity_score < 50:
+            errors['authenticity_score'] = (
+                "is_authentic=True is inconsistent with authenticity_score < 50."
+            )
+        if not self.is_authentic and self.authenticity_score is not None and self.authenticity_score > 90:
+            errors['authenticity_score'] = (
+                "is_authentic=False is inconsistent with authenticity_score > 90."
+            )
+        # fraud_prediction should align with fraud_risk_score
+        if self.fraud_prediction == 'fraudulent' and self.fraud_risk_score is not None and self.fraud_risk_score < 30:
+            errors['fraud_risk_score'] = (
+                "fraud_prediction='fraudulent' is inconsistent with fraud_risk_score < 30."
+            )
+        if self.fraud_prediction == 'legitimate' and self.fraud_risk_score is not None and self.fraud_risk_score > 70:
+            errors['fraud_risk_score'] = (
+                "fraud_prediction='legitimate' is inconsistent with fraud_risk_score > 70."
+            )
+        if errors:
+            raise DjangoValidationError(errors)
+
     def __str__(self):
         return f"Results: {self.document}"
     
@@ -725,31 +749,57 @@ class InterrogationFlag(models.Model):
             models.Index(fields=['severity', 'status']),
             models.Index(fields=['flag_type']),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['case', 'title'],
+                name='uniq_flag_case_title',
+            )
+        ]
         verbose_name = 'Interrogation Flag'
         verbose_name_plural = 'Interrogation Flags'
-    
+
     def __str__(self):
         return f"{self.get_flag_type_display()} - {self.case.case_id}"
-    
-    def mark_addressed(self):
+
+    # Valid state machine transitions
+    _VALID_TRANSITIONS: dict[str, set[str]] = {
+        'pending':    {'addressed', 'resolved', 'unresolved', 'dismissed'},
+        'addressed':  {'resolved', 'unresolved', 'dismissed'},
+        'resolved':   {'unresolved'},          # allow re-opening
+        'unresolved': {'resolved', 'dismissed'},
+        'dismissed':  set(),                   # terminal
+    }
+
+    def _transition_to(self, new_status: str) -> None:
+        allowed = self._VALID_TRANSITIONS.get(self.status, set())
+        if new_status not in allowed:
+            raise ValueError(
+                f"Cannot transition flag from '{self.status}' to '{new_status}'. "
+                f"Allowed: {sorted(allowed) or 'none (terminal state)'}."
+            )
+        self.status = new_status
+
+    def mark_addressed(self) -> None:
         """Mark flag as addressed in interview."""
-        self.status = 'addressed'
+        self._transition_to('addressed')
         self.addressed_at = timezone.now()
-        self.save()
-    
-    def mark_resolved(self, summary, confidence):
+        self.save(update_fields=['status', 'addressed_at'])
+
+    def mark_resolved(self, summary: str, confidence: float, resolved_by=None) -> None:
         """Mark flag as resolved."""
-        self.status = 'resolved'
+        self._transition_to('resolved')
         self.resolved_at = timezone.now()
         self.resolution_summary = summary
         self.resolution_confidence = confidence
-        self.save()
-    
-    def mark_unresolved(self, summary):
-        """Mark flag as unresolved."""
-        self.status = 'unresolved'
+        if resolved_by is not None:
+            self.resolved_by = resolved_by
+        self.save(update_fields=['status', 'resolved_at', 'resolution_summary', 'resolution_confidence', 'resolved_by'])
+
+    def mark_unresolved(self, summary: str) -> None:
+        """Mark flag as unresolved (re-open)."""
+        self._transition_to('unresolved')
         self.resolution_summary = summary
-        self.save()
+        self.save(update_fields=['status', 'resolution_summary'])
 
 
 class VerificationSource(models.Model):

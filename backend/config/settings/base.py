@@ -107,14 +107,24 @@ def _redis_db_url(redis_url: str, db_index: int) -> str:
 # Application definition
 ENABLE_REALTIME = config("ENABLE_REALTIME", default=False, cast=bool)
 
-INSTALLED_APPS = [
-    # Django apps
-    "django.contrib.admin",
-    "django.contrib.auth",
-    "django.contrib.contenttypes",
-    "django.contrib.sessions",
-    "django.contrib.messages",
+SHARED_APPS = (
+    'django_tenants',  # mandatory
+    'apps.tenants', # you must list the app where your tenant model resides in
+
+    'django.contrib.contenttypes',
     "django.contrib.staticfiles",
+    # everything below here is optional
+    'django.contrib.auth',
+    'django.contrib.sessions',
+    'django.contrib.sites',
+    'django.contrib.messages',
+    'django.contrib.admin',
+    # Authentication must be shared so django.contrib.admin can resolve
+    # its FK to AUTH_USER_MODEL within the same (public) schema.
+    'apps.authentication',
+)
+
+TENANT_APPS = (
     # Custom apps
     "apps.core",
     "apps.admin_dashboard",
@@ -137,7 +147,20 @@ INSTALLED_APPS = [
     "apps.background_checks",
     "apps.ml_monitoring",
     "ai_ml_services.apps.AiMlServicesConfig",
-]
+    
+    "apps.tenants",
+)
+INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
+
+TENANT_MODEL = "tenants.Client" # app.Model
+
+TENANT_DOMAIN_MODEL = "tenants.Domain"  # app.Model
+
+# Fall back to the public schema when no tenant domain matches the request
+# hostname (e.g. during tests where the client uses 'testserver').
+SHOW_PUBLIC_IF_NO_TENANT_FOUND = True
+
+
 
 if ENABLE_REALTIME and _has_module("daphne"):
     INSTALLED_APPS.insert(0, "daphne")
@@ -170,6 +193,7 @@ MIDDLEWARE.append("apps.core.middleware.RequestIDMiddleware")
 if _has_module("redis") and USE_REDIS:
     MIDDLEWARE.append("ai_ml_services.middleware.rate_limit.DjangoRateLimitMiddleware")
 MIDDLEWARE += [
+    'django_tenants.middleware.main.TenantMainMiddleware',
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -541,6 +565,10 @@ LOGGING = {
         },
     },
 }
+
+DATABASE_ROUTERS = (
+    'django_tenants.routers.TenantSyncRouter',
+)
 
 # Create logs directory if it doesn't exist
 (BASE_DIR / 'logs').mkdir(exist_ok=True)

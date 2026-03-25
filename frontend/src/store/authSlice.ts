@@ -89,7 +89,7 @@ const resolveUserType = (
   }
 
   // 2. Resolve based on payload hint
-  const typeHint = payloadType || (user as any).user_type;
+  const typeHint = payloadType || (user as { user_type?: string }).user_type;
 
   // Normalize legacy "admin" alias to the canonical "platform_admin" value.
   if (typeHint === 'admin' || typeHint === 'platform_admin') {
@@ -529,7 +529,8 @@ const authSlice = createSlice({
           state.twoFactorMessage = action.payload.message;
           state.userType = resolveUserType({
             user_type: action.payload.user_type,
-            user: { is_superuser: false, is_staff: false } as any, // Limited info during 2FA challenge
+            // Only type hint is available during 2FA challenge — no full user object yet.
+            user: { is_superuser: false, is_staff: false } as unknown as AdminUser,
           });
           return;
         }
@@ -621,7 +622,9 @@ const authSlice = createSlice({
           user_type: action.payload.user_type,
           user: action.payload.user,
           active_organization: action.payload.active_organization,
-          is_platform_admin: (action.payload as any).actor?.is_platform_admin,
+        // `actor.is_platform_admin` is a future governance-summary field not yet in
+        // the ProfileResponse type — omit until the backend ships it.
+        is_platform_admin: undefined,
         });
         state.roles = resolveRoles(action.payload);
         state.capabilities = resolveCapabilities(action.payload);
@@ -646,7 +649,7 @@ const authSlice = createSlice({
           user_type: action.payload.user_type,
           user: action.payload.user,
           active_organization: action.payload.active_organization,
-          is_platform_admin: (action.payload as any).actor?.is_platform_admin,
+          is_platform_admin: undefined,
         });
         state.roles = resolveRoles(action.payload);
         state.capabilities = resolveCapabilities(action.payload);

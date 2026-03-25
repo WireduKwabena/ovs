@@ -145,8 +145,6 @@ export const Navbar: React.FC = () => {
   const canShowOrganizationContext = !hasAdminAccess && !isApplicantUser && resolvedOrganizations.length > 0;
   const activeOrganizationLabel = activeOrganization?.name || resolvedOrganizations[0]?.name || 'Default scope';
   const canManageOrganizationBilling = canManageActiveOrganizationGovernance;
-  const canViewReminderRuntime = false;
-
   const handleOrganizationSelection = async (rawValue: string) => {
     const nextValue = rawValue === '__default__' ? null : rawValue;
     try {
@@ -197,7 +195,7 @@ export const Navbar: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!isAuthenticated || !canViewReminderRuntime) {
+    if (!isAuthenticated) {
       return;
     }
 
@@ -228,7 +226,7 @@ export const Navbar: React.FC = () => {
       mounted = false;
       window.clearInterval(interval);
     };
-  }, [canViewReminderRuntime, isAuthenticated]);
+  }, [isAuthenticated]);
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (runtimePopoverRef.current && !runtimePopoverRef.current.contains(event.target as Node)) {
@@ -635,9 +633,8 @@ export const Navbar: React.FC = () => {
   );
 
   const renderRuntimePopover = () => {
-    if (!canViewReminderRuntime) {
-      return null;
-    }
+    return null;
+    // Reminder runtime feature is disabled — remove this guard when re-enabling.
 
     return (
       <div className="relative" ref={runtimePopoverRef}>
@@ -1025,30 +1022,7 @@ export const Navbar: React.FC = () => {
                     </Link>
                   ) : null}
 
-                  {canViewReminderRuntime ? (
-                    <button
-                      type="button"
-                      onClick={() => setRuntimePopoverOpen((previous) => !previous)}
-                      className={[
-                        'flex w-full items-center justify-between rounded-[1rem] px-3 py-2.5 text-left text-sm font-medium transition-all duration-200',
-                        runtimePopoverOpen
-                          ? 'bg-primary/10 text-primary ring-1 ring-primary/15'
-                          : 'text-foreground hover:bg-accent/80 hover:text-accent-foreground',
-                      ].join(' ')}
-                    >
-                      <span className="inline-flex items-center gap-2">
-                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                          <Cpu className="h-4 w-4" />
-                        </span>
-                        Reminder Runtime
-                      </span>
-                      <span className="text-xs font-semibold text-muted-foreground">{runtimeMeta.label}</span>
-                    </button>
-                  ) : null}
-
-                  {canViewReminderRuntime && runtimePopoverOpen ? (
-                    <div>{renderRuntimePanel(() => setMobileMenuOpen(false))}</div>
-                  ) : null}
+                  {/* Reminder Runtime button — feature disabled, hidden until re-enabled */}
 
                   <ThemeToggle className="w-full justify-between rounded-[1rem] border-0 bg-transparent px-3 py-2.5 font-medium text-foreground shadow-none hover:bg-accent/80 hover:text-accent-foreground" />
                 </div>
