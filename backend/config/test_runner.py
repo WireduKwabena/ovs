@@ -63,7 +63,11 @@ class AllSchemasTestRunner(DiscoverRunner):
         from django_tenants.utils import get_tenant_model
         TenantModel = get_tenant_model()
         try:
-            TenantModel.objects.filter(schema_name=self.TEST_TENANT_SCHEMA).first()
+            tenant = TenantModel.objects.filter(
+                schema_name=self.TEST_TENANT_SCHEMA
+            ).first()
+            if tenant is not None:
+                tenant.delete(force_drop=True)
         except Exception:
             pass
         super().teardown_databases(old_config, **kwargs)

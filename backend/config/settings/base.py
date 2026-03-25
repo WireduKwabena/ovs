@@ -147,8 +147,6 @@ TENANT_APPS = (
     "apps.background_checks",
     "apps.ml_monitoring",
     "ai_ml_services.apps.AiMlServicesConfig",
-    
-    "apps.tenants",
 )
 INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
 
