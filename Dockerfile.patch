@@ -1,0 +1,2 @@
+FROM ovs-redo-backend:latest
+RUN pip install django-tenants==3.10.1 --no-deps

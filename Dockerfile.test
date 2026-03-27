@@ -1,0 +1,32 @@
+FROM python:3.11-slim AS backend
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       build-essential \
+       gcc \
+       libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY backend/requirements ./requirements
+RUN pip install --upgrade pip \
+    && pip install \
+       --timeout 120 \
+       -r requirements/development.txt \
+       -c requirements/constraints.lock.txt \
+       --ignore-requires-python \
+       2>/dev/null || pip install \
+       --timeout 120 \
+       -r requirements/development.txt \
+       -c requirements/constraints.lock.txt
+
+COPY backend/ .
+
+EXPOSE 8001
+
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8001", "--noreload"]

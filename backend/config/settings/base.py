@@ -122,10 +122,13 @@ SHARED_APPS = (
     # Authentication must be shared so django.contrib.admin can resolve
     # its FK to AUTH_USER_MODEL within the same (public) schema.
     'apps.authentication',
+    # token_blacklist lives in the shared (public) schema so its FK to auth_user
+    # resolves correctly when there is no per-tenant schema (single-tenant / dev mode).
+    'rest_framework_simplejwt.token_blacklist',
 )
 
 TENANT_APPS = (
-    # Custom apps
+    # Custom apps (token_blacklist is now in SHARED_APPS for public-schema compatibility)
     "apps.core",
     "apps.admin_dashboard",
     "apps.authentication",
@@ -191,7 +194,7 @@ MIDDLEWARE.append("apps.core.middleware.RequestIDMiddleware")
 if _has_module("redis") and USE_REDIS:
     MIDDLEWARE.append("ai_ml_services.middleware.rate_limit.DjangoRateLimitMiddleware")
 MIDDLEWARE += [
-    'django_tenants.middleware.main.TenantMainMiddleware',
+    'apps.tenants.middleware.TenantMiddleware',  # subdomain + X-Institution-Slug + public fallback
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",

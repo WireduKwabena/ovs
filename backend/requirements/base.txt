@@ -13,7 +13,7 @@ channels
 stripe
 channels-redis
 django-filter
-
+django-tenants
 # Database
 psycopg2-binary
 dj-database-url
