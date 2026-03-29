@@ -1,78 +1,21 @@
-# backend/apps/authentication/views.py
+from rest_framework import generics, status
+from rest_framework.views import APIView
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.response import Response
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.exceptions import PermissionDenied
 
 import logging
 import secrets
-
 from django.conf import settings
+from django.contrib.auth import authenticate
 from django.contrib.auth.tokens import default_token_generator
 from django.core import signing
 from django.core.cache import cache
-from django.core.mail import send_mail
 from django.core.signing import BadSignature, SignatureExpired, Signer
-from django.db import IntegrityError, transaction
+from django.db import transaction
 from django.utils import timezone
-from django.utils.text import slugify
-from rest_framework import generics, status
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
-from rest_framework.exceptions import PermissionDenied
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework.response import Response
-from rest_framework_simplejwt.tokens import RefreshToken
-
-from apps.authentication.models import User, UserProfile
-from apps.authentication.permissions import RECENT_AUTH_SESSION_KEY, RECENT_AUTH_TOKEN_CLAIM
-from apps.authentication.serializers import (
-    ActiveOrganizationSelectionResponseSerializer,
-    ActiveOrganizationSelectionSerializer,
-    AdminAuthResponseSerializer,
-    AdminLoginSerializer,
-    AdminUserSerializer,
-    ChangePasswordSerializer,
-    ErrorResponseSerializer,
-    LoginSerializer,
-    LogoutRequestSerializer,
-    MessageResponseSerializer,
-    PasswordResetConfirmSerializer,
-    PasswordResetRequestSerializer,
-    ProfileResponseSerializer,
-    ProfileUpdateSerializer,
-    OrganizationAdminRegistrationResponseSerializer,
-    OrganizationAdminRegistrationSerializer,
-    RegisterResponseSerializer,
-    TwoFactorChallengeSerializer,
-    TwoFactorBackupCodesRegenerateSerializer,
-    TwoFactorBackupCodesResponseSerializer,
-    TwoFactorStatusResponseSerializer,
-    TwoFactorEnableRequestSerializer,
-    TwoFactorSetupResponseSerializer,
-    TwoFactorVerificationSerializer,
-    UserAuthResponseSerializer,
-    UserRegistrationSerializer,
-    UserSerializer,
-)
-from apps.authentication.throttles import (
-    LoginRateThrottle,
-    PasswordResetRateThrottle,
-    RegistrationRateThrottle,
-    TwoFactorRateThrottle,
-)
-from apps.core.authz import (
-    ROLE_ADMIN,
-    get_user_capabilities,
-    get_user_committees,
-    get_user_roles,
-    has_role,
-    requires_two_factor_for_user,
-)
-from apps.core.permissions import (
-    ACTIVE_ORGANIZATION_SESSION_KEY,
-    clear_request_tenant_context_cache,
-    get_request_tenant_context,
-)
-from apps.billing.models import BillingSubscription
-from apps.billing.quotas import enforce_organization_seat_quota
-from apps.billing.services import validate_organization_onboarding_token
-from apps.governance.models import Organization, OrganizationMembership
 
 try:
     from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema
@@ -91,8 +34,49 @@ try:
     import pyotp
 except ImportError:  # pragma: no cover - dependency may be optional in some setups
     pyotp = None
+from .serializers import (
+    UserRegistrationSerializer,
+    TokenPairSerializer,
+    LoginSerializer,
+    UserAuthResponseSerializer,
+    PasswordResetRequestSerializer,
+    PasswordResetConfirmSerializer,
+    AdminLoginSerializer,
+    AdminAuthResponseSerializer,
+    OrganizationAdminRegistrationSerializer,
+    OrganizationAdminRegistrationResponseSerializer,
+    MessageResponseSerializer,
+    ErrorResponseSerializer,
+    TwoFactorChallengeSerializer,
+    RegisterResponseSerializer,
+    OrganizationAdminRegistrationOrganizationSerializer,
+    OrganizationAdminRegistrationMembershipSerializer,
+    ChangePasswordSerializer,
+    TwoFactorVerificationSerializer,
+    TwoFactorEnableRequestSerializer,
+    TwoFactorSetupResponseSerializer,
+    TwoFactorBackupCodesRegenerateSerializer,
+    TwoFactorBackupCodesResponseSerializer,
+    TwoFactorStatusResponseSerializer,
+)
+from .throttles import (
+    LoginRateThrottle,
+    PasswordResetRateThrottle,
+    RegistrationRateThrottle,
+    TwoFactorRateThrottle,
+)
+
+from apps.users.models import User, UserProfile
+from apps.users.serializers import UserSerializer, AdminUserSerializer
+from apps.users.permissions import RECENT_AUTH_SESSION_KEY, RECENT_AUTH_TOKEN_CLAIM
+from apps.core.authz import ROLE_ADMIN, get_user_capabilities, get_user_roles, has_role, requires_two_factor_for_user
+from apps.billing.models import BillingSubscription
+from apps.billing.quotas import enforce_organization_seat_quota
+from apps.billing.services import validate_organization_onboarding_token
+from apps.governance.models import Organization, OrganizationMembership
 
 logger = logging.getLogger(__name__)
+
 TWO_FACTOR_CHALLENGE_SALT = 'auth.login.2fa.challenge'
 ONBOARDING_REGISTRATION_REASON_MESSAGES = {
     "missing_token": "Registration requires a valid organization onboarding token.",
@@ -108,6 +92,15 @@ ONBOARDING_REGISTRATION_REASON_MESSAGES = {
     "email_required": "Registration email is required for this onboarding token.",
     "email_domain_not_allowed": "Your email domain is not allowed for this onboarding token.",
 }
+
+
+def _consume_registration_onboarding_token(*, raw_token: str, email: str):
+    return validate_organization_onboarding_token(
+        raw_token=raw_token,
+        email=email,
+        consume=True,
+    )
+
 
 def _two_factor_challenge_ttl_seconds() -> int:
     ttl = int(getattr(settings, 'AUTH_TWO_FACTOR_CHALLENGE_TTL_SECONDS', 300))
@@ -128,21 +121,68 @@ def _mark_recent_auth(request, refresh_token: RefreshToken) -> int:
     return epoch
 
 
-def _profile_governance_context(*, request, user) -> dict:
-    resolved = get_request_tenant_context(request)
-    active_organization = resolved.get("active_organization")
-    committees = get_user_committees(
-        user,
-        organization_id=str(active_organization.get("id")) if isinstance(active_organization, dict) else None,
-    )
+def _registration_error_for_onboarding_reason(reason: str) -> dict:
+    normalized_reason = str(reason or "invalid").strip().lower() or "invalid"
     return {
-        "organizations": resolved.get("organizations", []),
-        "organization_memberships": resolved.get("organization_memberships", []),
-        "active_organization": active_organization,
-        "active_organization_source": resolved.get("active_organization_source", "none"),
-        "invalid_requested_organization_id": resolved.get("invalid_requested_organization_id", ""),
-        "committees": committees,
+        "error": ONBOARDING_REGISTRATION_REASON_MESSAGES.get(
+            normalized_reason,
+            "Registration requires a valid organization onboarding token.",
+        ),
+        "code": "ONBOARDING_TOKEN_INVALID",
+        "reason": normalized_reason,
     }
+
+def _build_two_factor_challenge(user: User):
+    """Builds a time-limited 2FA challenge payload for all non-applicant logins."""
+    if pyotp is None:
+        return Response(
+            {"error": "2FA dependency is not installed."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    setup_required = not user.is_two_factor_enabled
+
+    if not user.two_factor_secret:
+        user.two_factor_secret = pyotp.random_base32()
+        user.save(update_fields=["two_factor_secret", "updated_at"])
+        setup_required = True
+
+    nonce = secrets.token_urlsafe(16)
+    challenge_token = signing.dumps(
+        {"email": user.email, "nonce": nonce, "purpose": "login_2fa"},
+        salt=TWO_FACTOR_CHALLENGE_SALT,
+    )
+    ttl_seconds = _two_factor_challenge_ttl_seconds()
+
+    payload = {
+        "message": "Two-factor verification required.",
+        "token": challenge_token,
+        "user_type": user.user_type,
+        "setup_required": setup_required,
+        "expires_in_seconds": ttl_seconds,
+    }
+
+    if setup_required:
+        payload["provisioning_uri"] = user.get_totp_uri()
+
+    return Response(payload, status=status.HTTP_200_OK)
+
+
+
+def _resolve_public_bootstrap_organization_code(*, preferred_code: str, organization_name: str) -> str:
+    base_code = slugify(preferred_code or organization_name).strip("-")
+    if not base_code:
+        base_code = f"organization-{secrets.token_hex(4)}"
+    base_code = base_code[:80]
+    candidate = base_code
+    suffix = 2
+
+    while Organization.objects.filter(code=candidate).exists():
+        suffix_text = f"-{suffix}"
+        candidate = f"{base_code[: max(1, 80 - len(suffix_text))]}{suffix_text}"
+        suffix += 1
+    return candidate
+
 
 
 def _attach_registered_user_to_organization(
@@ -209,76 +249,6 @@ def _attach_registered_user_to_organization(
     if updated_fields:
         membership.save(update_fields=updated_fields + ["updated_at"])
 
-
-def _consume_registration_onboarding_token(*, raw_token: str, email: str):
-    return validate_organization_onboarding_token(
-        raw_token=raw_token,
-        email=email,
-        consume=True,
-    )
-
-
-def _registration_error_for_onboarding_reason(reason: str) -> dict:
-    normalized_reason = str(reason or "invalid").strip().lower() or "invalid"
-    return {
-        "error": ONBOARDING_REGISTRATION_REASON_MESSAGES.get(
-            normalized_reason,
-            "Registration requires a valid organization onboarding token.",
-        ),
-        "code": "ONBOARDING_TOKEN_INVALID",
-        "reason": normalized_reason,
-    }
-
-
-def _build_two_factor_challenge(user: User):
-    """Builds a time-limited 2FA challenge payload for all non-applicant logins."""
-    if pyotp is None:
-        return Response(
-            {"error": "2FA dependency is not installed."},
-            status=status.HTTP_503_SERVICE_UNAVAILABLE,
-        )
-
-    setup_required = not user.is_two_factor_enabled
-
-    if not user.two_factor_secret:
-        user.two_factor_secret = pyotp.random_base32()
-        user.save(update_fields=["two_factor_secret", "updated_at"])
-        setup_required = True
-
-    nonce = secrets.token_urlsafe(16)
-    challenge_token = signing.dumps(
-        {"email": user.email, "nonce": nonce, "purpose": "login_2fa"},
-        salt=TWO_FACTOR_CHALLENGE_SALT,
-    )
-    ttl_seconds = _two_factor_challenge_ttl_seconds()
-
-    payload = {
-        "message": "Two-factor verification required.",
-        "token": challenge_token,
-        "user_type": user.user_type,
-        "setup_required": setup_required,
-        "expires_in_seconds": ttl_seconds,
-    }
-
-    if setup_required:
-        payload["provisioning_uri"] = user.get_totp_uri()
-
-    return Response(payload, status=status.HTTP_200_OK)
-
-
-def _resolve_public_bootstrap_organization_code(*, preferred_code: str, organization_name: str) -> str:
-    base_code = slugify(preferred_code or organization_name).strip("-")
-    if not base_code:
-        base_code = f"organization-{secrets.token_hex(4)}"
-    base_code = base_code[:80]
-    candidate = base_code
-    suffix = 2
-
-    while Organization.objects.filter(code=candidate).exists():
-        suffix_text = f"-{suffix}"
-        candidate = f"{base_code[: max(1, 80 - len(suffix_text))]}{suffix_text}"
-        suffix += 1
-    return candidate
 
 
 class OrganizationAdminRegisterView(generics.CreateAPIView):
@@ -380,6 +350,8 @@ class OrganizationAdminRegisterView(generics.CreateAPIView):
             OrganizationAdminRegistrationResponseSerializer(payload).data,
             status=status.HTTP_201_CREATED,
         )
+
+
 
 class RegisterView(generics.CreateAPIView):
     """
@@ -504,6 +476,127 @@ def admin_login_view(request):
     user = serializer.validated_data['user']
     return _build_two_factor_challenge(user)
 
+
+
+
+@extend_schema(
+    request=LogoutRequestSerializer,
+    responses={200: MessageResponseSerializer, 400: ErrorResponseSerializer},
+)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def logout_view(request):
+    """
+    User logout endpoint
+    POST /api/auth/logout/
+    Body: {"refresh": "refresh_token"}
+    """
+    try:
+        refresh_token = request.data.get('refresh')
+        token = RefreshToken(refresh_token)
+        token.blacklist()
+        return Response({'message': 'Successfully logged out'})
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+@extend_schema(
+    request=PasswordResetRequestSerializer,
+    responses={200: MessageResponseSerializer, 400: ErrorResponseSerializer},
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@throttle_classes([PasswordResetRateThrottle])
+def password_reset_request_view(request):
+    """
+    Request password reset
+    POST /api/auth/password-reset/
+    Body: {"email": "user@example.com"}
+    """
+    serializer = PasswordResetRequestSerializer(data=request.data)
+    
+    if serializer.is_valid():
+        email = serializer.data.get('email')
+        
+        try:
+            user = User.objects.get(email=email)
+            
+            # Generate reset token
+            token = default_token_generator.make_token(user)
+            signed_token = Signer().sign(f"{user.pk}:{token}")
+            
+            # Send email
+            reset_link = f"{settings.FRONTEND_URL}/reset-password/{signed_token}/"
+            
+            send_mail(
+                subject='Password Reset Request',
+                message=f'Click the link to reset your password: {reset_link}',
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                fail_silently=False,
+            )
+            
+            logger.info(f"Password reset email sent to {email}")
+            
+        except User.DoesNotExist:
+            # Don't reveal that user doesn't exist
+            logger.info("Password reset requested for non-existent email: %s", email)
+        
+        return Response({
+            'message': 'If an account exists with this email, a password reset link has been sent.'
+        })
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@extend_schema(
+    request=PasswordResetConfirmSerializer,
+    responses={200: MessageResponseSerializer, 400: ErrorResponseSerializer},
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def password_reset_confirm_view(request):
+    """
+    Confirm password reset
+    POST /api/auth/password-reset-confirm/
+    Body: {
+        "token": "reset_token",
+        "new_password": "new_pass",
+        "new_password_confirm": "new_pass"
+    }
+    """
+    serializer = PasswordResetConfirmSerializer(data=request.data)
+    
+    if serializer.is_valid():
+        signed_token = serializer.validated_data['token']
+        signer = Signer()
+
+        try:
+            payload = signer.unsign(signed_token)
+            user_id_str, reset_token = payload.split(":", 1)
+            user = User.objects.get(pk=user_id_str)
+        except (BadSignature, User.DoesNotExist):
+            return Response(
+                {'error': 'Invalid or expired reset token.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not default_token_generator.check_token(user, reset_token):
+            return Response(
+                {'error': 'Invalid or expired reset token.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(serializer.validated_data['new_password'])
+        user.save(update_fields=['password', 'updated_at'])
+        return Response({'message': 'Password has been reset successfully'})
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 @extend_schema(
     request=TwoFactorVerificationSerializer,
     responses={
@@ -621,6 +714,8 @@ def two_factor_verification_view(request):
     if issued_backup_codes:
         payload["backup_codes"] = issued_backup_codes
     return Response(payload)
+
+
 @extend_schema(
     responses={
         200: TwoFactorSetupResponseSerializer,
@@ -793,201 +888,6 @@ def two_factor_status_view(request):
 
 
 @extend_schema(
-    request=LogoutRequestSerializer,
-    responses={200: MessageResponseSerializer, 400: ErrorResponseSerializer},
-)
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def logout_view(request):
-    """
-    User logout endpoint
-    POST /api/auth/logout/
-    Body: {"refresh": "refresh_token"}
-    """
-    try:
-        refresh_token = request.data.get('refresh')
-        token = RefreshToken(refresh_token)
-        token.blacklist()
-        return Response({'message': 'Successfully logged out'})
-    except Exception as e:
-        return Response(
-            {'error': str(e)},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-
-@extend_schema(responses={200: ProfileResponseSerializer})
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def profile_view(request):
-    """
-    Get current user profile
-    GET /api/auth/profile/
-    """
-    UserProfile.objects.get_or_create(user=request.user)
-
-    if has_role(request.user, ROLE_ADMIN):
-        serializer = AdminUserSerializer(request.user, context={"request": request})
-        user_type = request.user.user_type
-    else:
-        serializer = UserSerializer(request.user, context={"request": request})
-        user_type = request.user.user_type
-
-    governance_context = _profile_governance_context(request=request, user=request.user)
-    return Response(
-        {
-            "user": serializer.data,
-            "user_type": user_type,
-            "roles": sorted(get_user_roles(request.user)),
-            "capabilities": sorted(get_user_capabilities(request.user)),
-            "is_internal_operator": requires_two_factor_for_user(request.user),
-            **governance_context,
-        }
-    )
-
-
-@extend_schema(
-    request=ActiveOrganizationSelectionSerializer,
-    responses={
-        200: ActiveOrganizationSelectionResponseSerializer,
-        400: ErrorResponseSerializer,
-    },
-)
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def set_active_organization_view(request):
-    """
-    Persist selected active organization in session for subsequent requests.
-
-    POST /api/auth/profile/active-organization/
-    """
-    payload = ActiveOrganizationSelectionSerializer(data=request.data)
-    payload.is_valid(raise_exception=True)
-
-    session = getattr(request, "session", None)
-    if session is None:
-        return Response({"error": "Session context unavailable."}, status=status.HTTP_400_BAD_REQUEST)
-
-    clear = bool(payload.validated_data.get("clear", False))
-    organization_id = payload.validated_data.get("organization_id")
-
-    if clear or organization_id is None:
-        session.pop(ACTIVE_ORGANIZATION_SESSION_KEY, None)
-        session.modified = True
-        clear_request_tenant_context_cache(request)
-        context = _profile_governance_context(request=request, user=request.user)
-        return Response(
-            {
-                "message": "Active organization cleared.",
-                "active_organization": context.get("active_organization"),
-                "active_organization_source": context.get("active_organization_source", "none"),
-                "invalid_requested_organization_id": context.get("invalid_requested_organization_id", ""),
-            },
-            status=status.HTTP_200_OK,
-        )
-
-    requested_org_id = str(organization_id)
-    organization_context = get_request_tenant_context(request)
-    allowed_org_ids = {str(item.get("id")) for item in organization_context.get("organizations", [])}
-    if requested_org_id not in allowed_org_ids:
-        return Response(
-            {"error": "Selected organization is not available for the authenticated user."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    session[ACTIVE_ORGANIZATION_SESSION_KEY] = requested_org_id
-    session.modified = True
-    clear_request_tenant_context_cache(request)
-    context = _profile_governance_context(request=request, user=request.user)
-    return Response(
-        {
-            "message": "Active organization updated.",
-            "active_organization": context.get("active_organization"),
-            "active_organization_source": context.get("active_organization_source", "none"),
-            "invalid_requested_organization_id": context.get("invalid_requested_organization_id", ""),
-        },
-        status=status.HTTP_200_OK,
-    )
-
-
-@extend_schema(
-    request=ProfileUpdateSerializer,
-    responses={
-        200: PolymorphicProxySerializer(
-            component_name="ProfileUpdateResponse",
-            serializers=[UserSerializer, AdminUserSerializer],
-            resource_type_field_name=None,
-        ),
-        400: ErrorResponseSerializer,
-    },
-)
-@api_view(['PUT', 'PATCH'])
-@permission_classes([IsAuthenticated])
-def update_profile_view(request):
-    """
-    Update user profile
-    PUT/PATCH /api/auth/profile/
-    """
-    user = request.user
-    serializer = ProfileUpdateSerializer(data=request.data, partial=True)
-    serializer.is_valid(raise_exception=True)
-
-    validated = serializer.validated_data
-    user_fields = {
-        "email",
-        "first_name",
-        "last_name",
-        "phone_number",
-        "organization",
-        "department",
-    }
-    profile_fields = {
-        "date_of_birth",
-        "nationality",
-        "address",
-        "city",
-        "country",
-        "postal_code",
-        "current_job_title",
-        "years_of_experience",
-        "linkedin_url",
-        "bio",
-    }
-
-    update_user_fields = [field for field in user_fields if field in validated]
-    update_profile_fields = [field for field in profile_fields if field in validated]
-
-    with transaction.atomic():
-        if "email" in validated:
-            user.email = str(validated["email"]).strip().lower()
-        for field in update_user_fields:
-            if field == "email":
-                continue
-            setattr(user, field, validated[field])
-        if update_user_fields:
-            user.save(update_fields=sorted(set(update_user_fields + ["updated_at"])))
-
-        profile, _ = UserProfile.objects.get_or_create(user=user)
-        for field in update_profile_fields:
-            setattr(profile, field, validated[field])
-        if update_profile_fields:
-            profile.calculate_completion()
-            profile.save(
-                update_fields=sorted(
-                    set(update_profile_fields + ["profile_completion_percentage", "updated_at"])
-                )
-            )
-
-    user.refresh_from_db()
-
-    if has_role(request.user, ROLE_ADMIN):
-        response_serializer = AdminUserSerializer(user, context={"request": request})
-    else:
-        response_serializer = UserSerializer(user, context={"request": request})
-    return Response(response_serializer.data)
-
-
-@extend_schema(
     request=ChangePasswordSerializer,
     responses={200: MessageResponseSerializer, 400: ErrorResponseSerializer},
 )
@@ -1022,111 +922,3 @@ def change_password_view(request):
         return Response({'message': 'Password changed successfully'})
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-@extend_schema(
-    request=PasswordResetRequestSerializer,
-    responses={200: MessageResponseSerializer, 400: ErrorResponseSerializer},
-)
-@api_view(['POST'])
-@permission_classes([AllowAny])
-@throttle_classes([PasswordResetRateThrottle])
-def password_reset_request_view(request):
-    """
-    Request password reset
-    POST /api/auth/password-reset/
-    Body: {"email": "user@example.com"}
-    """
-    serializer = PasswordResetRequestSerializer(data=request.data)
-    
-    if serializer.is_valid():
-        email = serializer.data.get('email')
-        
-        try:
-            user = User.objects.get(email=email)
-            
-            # Generate reset token
-            token = default_token_generator.make_token(user)
-            signed_token = Signer().sign(f"{user.pk}:{token}")
-            
-            # Send email
-            reset_link = f"{settings.FRONTEND_URL}/reset-password/{signed_token}/"
-            
-            send_mail(
-                subject='Password Reset Request',
-                message=f'Click the link to reset your password: {reset_link}',
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email],
-                fail_silently=False,
-            )
-            
-            logger.info(f"Password reset email sent to {email}")
-            
-        except User.DoesNotExist:
-            # Don't reveal that user doesn't exist
-            logger.info("Password reset requested for non-existent email: %s", email)
-        
-        return Response({
-            'message': 'If an account exists with this email, a password reset link has been sent.'
-        })
-    
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-@extend_schema(
-    request=PasswordResetConfirmSerializer,
-    responses={200: MessageResponseSerializer, 400: ErrorResponseSerializer},
-)
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def password_reset_confirm_view(request):
-    """
-    Confirm password reset
-    POST /api/auth/password-reset-confirm/
-    Body: {
-        "token": "reset_token",
-        "new_password": "new_pass",
-        "new_password_confirm": "new_pass"
-    }
-    """
-    serializer = PasswordResetConfirmSerializer(data=request.data)
-    
-    if serializer.is_valid():
-        signed_token = serializer.validated_data['token']
-        signer = Signer()
-
-        try:
-            payload = signer.unsign(signed_token)
-            user_id_str, reset_token = payload.split(":", 1)
-            user = User.objects.get(pk=user_id_str)
-        except (BadSignature, User.DoesNotExist):
-            return Response(
-                {'error': 'Invalid or expired reset token.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if not default_token_generator.check_token(user, reset_token):
-            return Response(
-                {'error': 'Invalid or expired reset token.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        user.set_password(serializer.validated_data['new_password'])
-        user.save(update_fields=['password', 'updated_at'])
-        return Response({'message': 'Password has been reset successfully'})
-    
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -35,6 +35,7 @@ except ModuleNotFoundError:  # pragma: no cover - optional in some setups
 _v1_urlpatterns = [
     path("system/", include("apps.core.urls")),
     path("auth/", include("apps.authentication.urls")),
+    path("users/", include("apps.users.urls")),
     path("public/transparency/", include("apps.appointments.public_urls")),
     path("admin/", include("apps.admin_dashboard.urls")),
     path("campaigns/", include("apps.campaigns.urls")),

@@ -72,13 +72,6 @@ class VettingCase(models.Model):
     )
     
     # Relationships
-    organization = models.ForeignKey(
-        "governance.Organization",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="vetting_cases",
-    )
     applicant = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -200,7 +193,6 @@ class VettingCase(models.Model):
             models.Index(fields=['case_id', 'status']),
             models.Index(fields=['applicant', 'status']),
             models.Index(fields=['assigned_to', 'status']),
-            models.Index(fields=['organization', 'status']),
             models.Index(fields=['-created_at']),
             models.Index(fields=['status', 'priority']),
         ]
@@ -828,13 +820,6 @@ class VerificationSource(models.Model):
         ("batch", "Batch Import"),
     ]
 
-    organization = models.ForeignKey(
-        "governance.Organization",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="verification_sources",
-    )
     key = models.CharField(max_length=80, unique=True, db_index=True)
     name = models.CharField(max_length=200)
     source_category = models.CharField(max_length=40, choices=SOURCE_CATEGORY_CHOICES, default="other", db_index=True)
@@ -859,7 +844,6 @@ class VerificationSource(models.Model):
     class Meta:
         ordering = ["name"]
         indexes = [
-            models.Index(fields=["organization", "is_active"]),
             models.Index(fields=["source_category", "is_active"]),
         ]
         verbose_name = "Verification Source"
@@ -888,13 +872,6 @@ class VerificationRequest(models.Model):
         ("cancelled", "Cancelled"),
     ]
 
-    organization = models.ForeignKey(
-        "governance.Organization",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="verification_requests",
-    )
     case = models.ForeignKey(
         VettingCase,
         on_delete=models.CASCADE,
@@ -940,7 +917,6 @@ class VerificationRequest(models.Model):
         indexes = [
             models.Index(fields=["case", "status"]),
             models.Index(fields=["source", "status"]),
-            models.Index(fields=["organization", "status"]),
         ]
         verbose_name = "Verification Request"
         verbose_name_plural = "Verification Requests"
@@ -975,13 +951,6 @@ class ExternalVerificationResult(models.Model):
         ("unavailable", "Unavailable"),
     ]
 
-    organization = models.ForeignKey(
-        "governance.Organization",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="external_verification_results",
-    )
     case = models.ForeignKey(
         VettingCase,
         on_delete=models.CASCADE,
@@ -1027,7 +996,6 @@ class ExternalVerificationResult(models.Model):
         indexes = [
             models.Index(fields=["case", "result_status"]),
             models.Index(fields=["source", "result_status"]),
-            models.Index(fields=["organization", "result_status"]),
         ]
         verbose_name = "External Verification Result"
         verbose_name_plural = "External Verification Results"

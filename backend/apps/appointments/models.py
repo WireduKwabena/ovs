@@ -7,13 +7,6 @@ from django.db.models import Q
 
 class ApprovalStageTemplate(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.ForeignKey(
-        "governance.Organization",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="approval_stage_templates",
-    )
     name = models.CharField(max_length=200)
     exercise_type = models.CharField(max_length=50)
     created_by = models.ForeignKey(
@@ -29,7 +22,6 @@ class ApprovalStageTemplate(models.Model):
         ordering = ["name"]
         indexes = [
             models.Index(fields=["exercise_type", "name"]),
-            models.Index(fields=["organization", "exercise_type"]),
         ]
 
     def __str__(self):
@@ -83,13 +75,6 @@ class AppointmentRecord(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.ForeignKey(
-        "governance.Organization",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="appointment_records",
-    )
     position = models.ForeignKey(
         "positions.GovernmentPosition",
         on_delete=models.PROTECT,
@@ -190,7 +175,6 @@ class AppointmentRecord(models.Model):
             models.Index(fields=["position", "nominee"]),
             models.Index(fields=["nomination_date", "status"]),
             models.Index(fields=["position", "status", "created_at"], name="idx_appt_pos_status_created"),
-            models.Index(fields=["organization", "status"], name="idx_appt_org_status"),
             models.Index(fields=["committee", "status"], name="idx_appt_committee_status"),
         ]
 

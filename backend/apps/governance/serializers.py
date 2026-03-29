@@ -5,21 +5,6 @@ from rest_framework import serializers
 from .models import Committee, CommitteeMembership, Organization, OrganizationMembership
 
 
-class OrganizationSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Organization
-        fields = [
-            "id",
-            "code",
-            "name",
-            "organization_type",
-            "is_active",
-            "metadata",
-            "created_at",
-            "updated_at",
-        ]
-        read_only_fields = ["id", "created_at", "updated_at"]
-
 
 class OrganizationMembershipSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source="user.email", read_only=True)

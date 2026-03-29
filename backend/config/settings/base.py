@@ -119,19 +119,38 @@ SHARED_APPS = (
     'django.contrib.sites',
     'django.contrib.messages',
     'django.contrib.admin',
-    # Authentication must be shared so django.contrib.admin can resolve
-    # its FK to AUTH_USER_MODEL within the same (public) schema.
-    'apps.authentication',
+    
+)
+
+
+if ENABLE_REALTIME and _has_module("daphne"):
+    SHARED_APPS.insert(0, "daphne")
+if ENABLE_REALTIME and _has_module("channels"):
+    SHARED_APPS.insert(1 if "daphne" in SHARED_APPS else 0, "channels")
+
+SHARED_APPS.append("rest_framework")
+if _has_module("rest_framework_simplejwt"):
+    SHARED_APPS.append("rest_framework_simplejwt")
+if _has_module("corsheaders"):
+    SHARED_APPS.append("corsheaders")
+if _has_module("django_filters"):
+    SHARED_APPS.append("django_filters")
+if _has_module("django_celery_beat"):
+    SHARED_APPS.append("django_celery_beat")
+if _has_module("django_celery_results"):
+    SHARED_APPS.append("django_celery_results")
+if _has_module("drf_spectacular"):
+    SHARED_APPS.append("drf_spectacular")
+
+TENANT_APPS = (
     # token_blacklist lives in the shared (public) schema so its FK to auth_user
     # resolves correctly when there is no per-tenant schema (single-tenant / dev mode).
     'rest_framework_simplejwt.token_blacklist',
-)
-
-TENANT_APPS = (
     # Custom apps (token_blacklist is now in SHARED_APPS for public-schema compatibility)
     "apps.core",
     "apps.admin_dashboard",
     "apps.authentication",
+    "apps.users",
     "apps.governance",
     "apps.campaigns",
     "apps.positions",
@@ -153,7 +172,7 @@ TENANT_APPS = (
 )
 INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
 
-TENANT_MODEL = "tenants.Client" # app.Model
+TENANT_MODEL = "tenants.Organization" # app.Model
 
 TENANT_DOMAIN_MODEL = "tenants.Domain"  # app.Model
 
@@ -162,29 +181,12 @@ TENANT_DOMAIN_MODEL = "tenants.Domain"  # app.Model
 SHOW_PUBLIC_IF_NO_TENANT_FOUND = True
 
 
-
-if ENABLE_REALTIME and _has_module("daphne"):
-    INSTALLED_APPS.insert(0, "daphne")
-if ENABLE_REALTIME and _has_module("channels"):
-    INSTALLED_APPS.insert(1 if "daphne" in INSTALLED_APPS else 0, "channels")
-
-INSTALLED_APPS.append("rest_framework")
-if _has_module("rest_framework_simplejwt"):
-    INSTALLED_APPS.append("rest_framework_simplejwt")
-if _has_module("corsheaders"):
-    INSTALLED_APPS.append("corsheaders")
-if _has_module("django_filters"):
-    INSTALLED_APPS.append("django_filters")
-if _has_module("django_celery_beat"):
-    INSTALLED_APPS.append("django_celery_beat")
-if _has_module("django_celery_results"):
-    INSTALLED_APPS.append("django_celery_results")
-if _has_module("drf_spectacular"):
-    INSTALLED_APPS.append("drf_spectacular")
-
 USE_REDIS = config("USE_REDIS", default=True, cast=bool)
 
-MIDDLEWARE = ["django.middleware.security.SecurityMiddleware"]
+MIDDLEWARE = [
+    'apps.tenants.middleware.TenantMiddleware',  # subdomain + X-Institution-Slug + public fallback
+    "django.middleware.security.SecurityMiddleware"
+    ]
 if _has_module("whitenoise"):
     MIDDLEWARE.append("whitenoise.middleware.WhiteNoiseMiddleware")
 if _has_module("corsheaders"):
@@ -194,7 +196,6 @@ MIDDLEWARE.append("apps.core.middleware.RequestIDMiddleware")
 if _has_module("redis") and USE_REDIS:
     MIDDLEWARE.append("ai_ml_services.middleware.rate_limit.DjangoRateLimitMiddleware")
 MIDDLEWARE += [
-    'apps.tenants.middleware.TenantMiddleware',  # subdomain + X-Institution-Slug + public fallback
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -204,6 +205,7 @@ MIDDLEWARE += [
 ]
 
 ROOT_URLCONF = 'config.urls'
+PUBLIC_SCHEMA_URLCONF = 'config.public_urls'
 
 TEMPLATES = [
     {
@@ -233,7 +235,7 @@ except ImportError:  # pragma: no cover - optional in local/dev
 
 
 # Custom User Model
-AUTH_USER_MODEL = 'authentication.User'
+AUTH_USER_MODEL = 'users.User'
 AUTH_PUBLIC_REGISTRATION_ENABLED = env_bool('AUTH_PUBLIC_REGISTRATION_ENABLED', default=False)
 AUTH_TWO_FACTOR_CHALLENGE_TTL_SECONDS = config(
     'AUTH_TWO_FACTOR_CHALLENGE_TTL_SECONDS',

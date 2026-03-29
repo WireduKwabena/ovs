@@ -5,13 +5,6 @@ from django.db import models
 
 class PersonnelRecord(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.ForeignKey(
-        "governance.Organization",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="personnel_records",
-    )
     full_name = models.CharField(max_length=200)
     date_of_birth = models.DateField(null=True, blank=True)
     nationality = models.CharField(max_length=100, default="Ghanaian")
@@ -39,7 +32,6 @@ class PersonnelRecord(models.Model):
         ordering = ["full_name"]
         indexes = [
             models.Index(fields=["is_active_officeholder", "is_public"]),
-            models.Index(fields=["organization", "is_active_officeholder"]),
         ]
 
     def __str__(self):

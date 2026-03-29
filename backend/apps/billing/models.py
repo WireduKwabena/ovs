@@ -23,13 +23,6 @@ class BillingSubscription(models.Model):
     )
 
     provider = models.CharField(max_length=32, choices=PROVIDER_CHOICES, default="stripe")
-    organization = models.ForeignKey(
-        "governance.Organization",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="billing_subscriptions",
-    )
     session_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     payment_intent_id = models.CharField(max_length=255, blank=True, null=True)
     status = models.CharField(max_length=32, choices=STATUS_CHOICES, default="open")
@@ -105,11 +98,6 @@ class BillingWebhookEvent(models.Model):
 
 class OrganizationOnboardingToken(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.ForeignKey(
-        "governance.Organization",
-        on_delete=models.CASCADE,
-        related_name="onboarding_tokens",
-    )
     subscription = models.ForeignKey(
         BillingSubscription,
         null=True,
@@ -141,11 +129,6 @@ class OrganizationOnboardingToken(models.Model):
     class Meta:
         ordering = ["-created_at"]
         constraints = [
-            models.UniqueConstraint(
-                fields=["organization"],
-                condition=Q(is_active=True),
-                name="uniq_org_onboarding_token_active_org",
-            ),
             models.CheckConstraint(
                 condition=Q(max_uses__isnull=True) | Q(max_uses__gt=0),
                 name="chk_org_onboarding_token_max_uses_positive",
@@ -160,11 +143,9 @@ class OrganizationOnboardingToken(models.Model):
             ),
         ]
         indexes = [
-            models.Index(fields=["organization", "is_active"], name="bill_onboard_org_active_idx"),
-            models.Index(fields=["organization", "expires_at"], name="bill_onboard_org_expires_idx"),
             models.Index(fields=["subscription", "is_active"], name="bill_onboard_sub_active_idx"),
         ]
 
     def __str__(self) -> str:
-        return f"{self.organization_id}:{self.token_prefix}:{'active' if self.is_active else 'inactive'}"
+        return f"{self.token_prefix}:{'active' if self.is_active else 'inactive'}"
 

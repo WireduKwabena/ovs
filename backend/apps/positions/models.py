@@ -13,13 +13,6 @@ class GovernmentPosition(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.ForeignKey(
-        "governance.Organization",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="government_positions",
-    )
     title = models.CharField(max_length=200)
     branch = models.CharField(max_length=20, choices=BRANCH_CHOICES, db_index=True)
     institution = models.CharField(max_length=200)
@@ -52,7 +45,6 @@ class GovernmentPosition(models.Model):
         indexes = [
             models.Index(fields=["branch", "institution"]),
             models.Index(fields=["is_public", "is_vacant"]),
-            models.Index(fields=["organization", "branch"]),
         ]
 
     def __str__(self):
