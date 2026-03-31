@@ -138,16 +138,16 @@ export const useInterviewWebSocket = ({
           break;
 
         case 'captions':
-          // Handled by HeyGenAvatarPlayer, but logged for diagnostics.
+          // Handled by TavusAvatarPlayer, but logged for diagnostics.
           console.log('Caption:', message.text);
           break;
 
         case 'avatar_stream_start':
-          // Handled by HeyGenAvatarPlayer
+          // Handled by TavusAvatarPlayer
           break;
 
         case 'avatar_stream_end':
-          // Handled by HeyGenAvatarPlayer
+          // Handled by TavusAvatarPlayer
           break;
 
         case 'pong':

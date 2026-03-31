@@ -8,7 +8,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import Webcam from 'react-webcam';
 import RecordRTC from 'recordrtc';
-import { HeyGenAvatarPlayer } from './HeyGenAvatarPlayer';
+import { TavusAvatarPlayer } from './TavusAvatarPlayer';
 import { useInterviewWebSocket } from '../../hooks/useInterviewWebSocket';
 import type { InterviewSocketConnectionEvent } from '../../hooks/useInterviewWebSocket';
 import type { AppDispatch, RootState } from '../../app/store';
@@ -27,7 +27,7 @@ import type {
   WebSocketMessage,
 } from '../../types/interview.types';
 import { interviewService } from '@/services/interview.service';
-import type { HeyGenAvatarSdkConfig } from '@/services/interview.service';
+import type { LiveKitAvatarSessionConfig } from '@/services/interview.service';
 
 interface HeyGenInterrogationProps {
   applicationId: string;
@@ -87,8 +87,7 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
   const [localError, setLocalError] = useState<string | null>(null);
   const [binaryMessage, setBinaryMessage] = useState<Blob | null>(null);
   const [currentText, setCurrentText] = useState<string>('');
-  const [avatarSpeechText, setAvatarSpeechText] = useState<string>('');
-  const [avatarSdkConfig, setAvatarSdkConfig] = useState<HeyGenAvatarSdkConfig | null>(null);
+  const [avatarSessionConfig, setAvatarSessionConfig] = useState<LiveKitAvatarSessionConfig | null>(null);
   const [avatarTransportMode, setAvatarTransportMode] = useState<AvatarTransportMode>('server');
   const [lastWsEvent, setLastWsEvent] = useState<string>('idle');
   const [lastWsEventAt, setLastWsEventAt] = useState<string>('n/a');
@@ -122,7 +121,6 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
       markWsEvent(message.type);
       if (message.type === 'avatar_stream_start') {
         setCurrentText(message.text || '');
-        setAvatarSpeechText(message.text || '');
       } else if (message.type === 'avatar_stream_end') {
         setCurrentText('');
       }
@@ -209,7 +207,7 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
 
         const avatarConfig = await interviewService.getAvatarSessionConfig(data.session_id);
         if (mounted) {
-          setAvatarSdkConfig(avatarConfig);
+          setAvatarSessionConfig(avatarConfig);
         }
       } catch (initError) {
         console.error('Failed to initialize interview:', initError);
@@ -227,8 +225,7 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
         recorderRef.current.destroy();
       }
       recorderRef.current = null;
-      setAvatarSpeechText('');
-      setAvatarSdkConfig(null);
+      setAvatarSessionConfig(null);
       setAvatarTransportMode('server');
       setLastWsEvent('idle');
       setLastWsEventAt('n/a');
@@ -412,12 +409,7 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
     });
   };
 
-  const transportModeLabel =
-    avatarTransportMode === 'sdk'
-      ? 'SDK'
-      : avatarTransportMode === 'fallback'
-      ? 'FALLBACK'
-      : 'SERVER';
+  const transportModeLabel = avatarTransportMode === 'tavus' ? 'TAVUS' : 'SERVER';
   const websocketStatus = !websocketUrl
     ? 'idle'
     : wsConnected
@@ -433,7 +425,7 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
       websocketStatus,
       lastEvent: lastWsEvent,
       lastEventAt: lastWsEventAt,
-      hasSdkConfig: Boolean(avatarSdkConfig),
+      hasSessionConfig: Boolean(avatarSessionConfig),
       hasCurrentQuestion: Boolean(currentQuestion),
       questionNumber,
       isRecording,
@@ -458,7 +450,7 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
     websocketStatus,
     lastWsEvent,
     lastWsEventAt,
-    avatarSdkConfig,
+    avatarSessionConfig,
     currentQuestion,
     questionNumber,
     isRecording,
@@ -573,11 +565,10 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
                 )}
               </div>
 
-              <HeyGenAvatarPlayer
+              <TavusAvatarPlayer
                 binaryMessage={binaryMessage}
                 currentText={currentText}
-                speakText={avatarSpeechText}
-                sdkConfig={avatarSdkConfig}
+                sessionConfig={avatarSessionConfig}
                 onTransportChange={setAvatarTransportMode}
                 className="h-96"
               />

@@ -36,12 +36,11 @@ interface UploadResponsePayload {
 
 interface AvatarSessionResponse {
   enabled: boolean;
-  token?: string;
-  avatar_name?: string;
-  voice_id?: string;
-  quality?: 'low' | 'medium' | 'high';
-  language?: string;
-  activity_idle_timeout?: number;
+  livekit_url?: string;
+  livekit_token?: string;
+  room_name?: string;
+  conversation_id?: string;
+  conversation_url?: string;
 }
 
 interface InterviewQuestionRecord {
@@ -75,13 +74,12 @@ interface InterviewPlaybackPayload {
   [key: string]: unknown;
 }
 
-export interface HeyGenAvatarSdkConfig {
-  token: string;
-  avatarName: string;
-  voiceId?: string;
-  quality?: 'low' | 'medium' | 'high';
-  language?: string;
-  activityIdleTimeout?: number;
+export interface LiveKitAvatarSessionConfig {
+  livekitUrl: string;
+  livekitToken: string;
+  roomName: string;
+  conversationId: string;
+  conversationUrl: string;
 }
 
 const buildWsBaseUrl = (): string => {
@@ -238,7 +236,7 @@ export const interviewService = {
     return response.data;
   },
 
-  async getAvatarSessionConfig(sessionId: string): Promise<HeyGenAvatarSdkConfig | null> {
+  async getAvatarSessionConfig(sessionId: string): Promise<LiveKitAvatarSessionConfig | null> {
     try {
       const response = await api.post<AvatarSessionResponse>(
         `/interviews/sessions/${sessionId}/avatar-session/`,
@@ -246,19 +244,18 @@ export const interviewService = {
         candidateSessionConfig,
       );
       const payload = response.data;
-      if (!payload.enabled || !payload.token || !payload.avatar_name) {
+      if (!payload.enabled || !payload.conversation_url) {
         return null;
       }
       return {
-        token: payload.token,
-        avatarName: payload.avatar_name,
-        voiceId: payload.voice_id,
-        quality: payload.quality,
-        language: payload.language,
-        activityIdleTimeout: payload.activity_idle_timeout,
+        livekitUrl: payload.livekit_url || '',
+        livekitToken: payload.livekit_token || '',
+        roomName: payload.room_name || '',
+        conversationId: payload.conversation_id || '',
+        conversationUrl: payload.conversation_url,
       };
     } catch (error) {
-      console.warn('Unable to initialize HeyGen SDK session. Falling back to binary transport.', error);
+      console.warn('Avatar session unavailable. Falling back to server stream.', error);
       return null;
     }
   },

@@ -9,7 +9,7 @@ export type InterrogationFlagStatus =
   | 'resolved'
   | 'unresolved';
 
-export type AvatarTransportMode = 'sdk' | 'fallback' | 'server';
+export type AvatarTransportMode = 'tavus' | 'server';
 
 export interface InterrogationFlag {
   id: string;

@@ -38,10 +38,7 @@ export default defineConfig({
         manualChunks(id) {
           const normalizedId = id.replace(/\\/g, '/')
 
-          if (normalizedId.includes('@heygen/streaming-avatar') || normalizedId.includes('@heygen/liveavatar-web-sdk')) {
-            return 'heygen-sdk'
-          }
-          if (normalizedId.includes('livekit-client')) {
+          if (normalizedId.includes('livekit-client') || normalizedId.includes('@livekit/')) {
             return 'livekit-client'
           }
           if (normalizedId.includes('@protobufjs') || normalizedId.includes('protobufjs')) {
