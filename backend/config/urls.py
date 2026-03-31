@@ -66,6 +66,7 @@ urlpatterns = [
     # Legacy unversioned API (backward compatibility — do not add new endpoints here)
     path("api/system/", include("apps.core.urls")),
     path("api/auth/", include("apps.authentication.urls")),
+    path("api/users/", include("apps.users.urls")),
     path("api/public/transparency/", include("apps.appointments.public_urls")),
     path("api/admin/", include("apps.admin_dashboard.urls")),
     path("api/campaigns/", include("apps.campaigns.urls")),

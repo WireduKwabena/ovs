@@ -174,7 +174,7 @@ def set_active_organization_view(request):
 def update_profile_view(request):
     """
     Update user profile
-    PUT/PATCH /api/auth/profile/
+    PUT/PATCH /api/v1/auth/profile/update/  (also /api/v1/users/profile/update/)
     """
     user = request.user
     serializer = ProfileUpdateSerializer(data=request.data, partial=True)
