@@ -18,3 +18,8 @@ class PasswordResetRateThrottle(AnonRateThrottle):
 class RegistrationRateThrottle(AnonRateThrottle):
     """10 registration attempts per minute per IP."""
     scope = 'registration'
+
+
+class TwoFactorRateThrottle(AnonRateThrottle):
+    """5 two-factor verification attempts per minute per IP."""
+    scope = 'two_factor'

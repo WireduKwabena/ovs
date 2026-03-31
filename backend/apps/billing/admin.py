@@ -8,7 +8,6 @@ class BillingSubscriptionAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "provider",
-        "organization",
         "session_id",
         "plan_id",
         "billing_cycle",
@@ -17,7 +16,7 @@ class BillingSubscriptionAdmin(admin.ModelAdmin):
         "amount_usd",
         "updated_at",
     )
-    list_filter = ("provider", "organization", "status", "billing_cycle", "payment_status")
+    list_filter = ("provider", "status", "billing_cycle", "payment_status")
     search_fields = (
         "session_id",
         "payment_intent_id",
@@ -25,8 +24,6 @@ class BillingSubscriptionAdmin(admin.ModelAdmin):
         "plan_name",
         "reference",
         "registration_consumed_by_email",
-        "organization__name",
-        "organization__code",
     )
     readonly_fields = ("created_at", "updated_at")
 
@@ -51,7 +48,6 @@ class BillingWebhookEventAdmin(admin.ModelAdmin):
 class OrganizationOnboardingTokenAdmin(admin.ModelAdmin):
     list_display = (
         "id",
-        "organization",
         "subscription",
         "token_prefix",
         "is_active",
@@ -61,10 +57,8 @@ class OrganizationOnboardingTokenAdmin(admin.ModelAdmin):
         "revoked_at",
         "updated_at",
     )
-    list_filter = ("is_active", "organization", "allowed_email_domain")
+    list_filter = ("is_active", "allowed_email_domain")
     search_fields = (
-        "organization__name",
-        "organization__code",
         "subscription__reference",
         "token_prefix",
     )

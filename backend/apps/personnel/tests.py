@@ -11,9 +11,10 @@ from apps.audit.contracts import (
     PERSONNEL_RECORD_DELETED_EVENT,
     PERSONNEL_RECORD_UPDATED_EVENT,
 )
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.candidates.models import Candidate
-from apps.governance.models import Organization, OrganizationMembership
+from apps.tenants.models import Organization
+from apps.governance.models import OrganizationMembership
 from apps.positions.models import GovernmentPosition
 from apps.personnel.models import PersonnelRecord
 

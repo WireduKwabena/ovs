@@ -2,11 +2,12 @@ from rest_framework.test import APITestCase
 from django.test import override_settings
 from django.contrib.auth.models import Group
 
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.billing.models import BillingSubscription
 from apps.candidates.models import Candidate, CandidateEnrollment
 from apps.campaigns.models import CampaignRubricVersion, VettingCampaign
-from apps.governance.models import Organization, OrganizationMembership
+from apps.tenants.models import Organization
+from apps.governance.models import OrganizationMembership
 
 
 class CampaignAuthorizationTests(APITestCase):

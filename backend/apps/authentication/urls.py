@@ -6,6 +6,7 @@ try:
 except Exception:
     TokenRefreshView = None
 from apps.authentication import views
+from apps.users import views as users_views
 
 app_name = 'authentication'
 
@@ -18,11 +19,11 @@ urlpatterns = [
     path('admin/login/', views.admin_login_view, name='admin_login'),
     path('login/verify/', views.two_factor_verification_view, name='login_verify'),
     path('admin/login/verify/', views.two_factor_verification_view, name='admin_login_verify'),
-    
-    # Profile Management
-    path('profile/', views.profile_view, name='profile'),
-    path('profile/update/', views.update_profile_view, name='update_profile'),
-    path('profile/active-organization/', views.set_active_organization_view, name='set_active_organization'),
+
+    # Profile Management (served from users app)
+    path('profile/', users_views.profile_view, name='profile'),
+    path('profile/update/', users_views.update_profile_view, name='update_profile'),
+    path('profile/active-organization/', users_views.set_active_organization_view, name='set_active_organization'),
     
     # Password Management
     path('change-password/', views.change_password_view, name='change_password'),

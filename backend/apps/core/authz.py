@@ -169,16 +169,18 @@ def get_user_organization_ids(user) -> set[str]:
     if not _is_authenticated(user):
         return set()
     try:
+        from django.db import connection
         from apps.governance.models import OrganizationMembership
     except Exception:  # pragma: no cover - governance app may be unavailable
         return set()
 
-    return {
-        str(org_id)
-        for org_id in OrganizationMembership.objects.filter(user=user, is_active=True).values_list(
-            "organization_id", flat=True
-        )
-    }
+    has_membership = OrganizationMembership.objects.filter(user=user, is_active=True).exists()
+    if not has_membership:
+        return set()
+    try:
+        return {str(connection.tenant.id)}
+    except Exception:
+        return set()
 
 
 def get_user_organization_names(user) -> set[str]:
@@ -191,17 +193,19 @@ def get_user_organization_names(user) -> set[str]:
         names.add(legacy_name)
 
     try:
+        from django.db import connection
         from apps.governance.models import OrganizationMembership
     except Exception:  # pragma: no cover - governance app may be unavailable
         return names
 
-    names.update(
-        name
-        for name in OrganizationMembership.objects.filter(user=user, is_active=True).values_list(
-            "organization__name", flat=True
-        )
-        if name
-    )
+    has_membership = OrganizationMembership.objects.filter(user=user, is_active=True).exists()
+    if has_membership:
+        try:
+            tenant_name = str(connection.tenant.name or "").strip()
+            if tenant_name:
+                names.add(tenant_name)
+        except Exception:
+            pass
     return names
 
 
@@ -209,25 +213,37 @@ def get_user_organization_memberships(user) -> list[dict]:
     if not _is_authenticated(user):
         return []
     try:
+        from django.db import connection
         from apps.governance.models import OrganizationMembership
     except Exception:  # pragma: no cover - governance app may be unavailable
         return []
 
     memberships = (
-        OrganizationMembership.objects.select_related("organization")
-        .filter(user=user, is_active=True, organization__is_active=True)
-        .order_by("-is_default", "organization__name", "created_at")
+        OrganizationMembership.objects.filter(user=user, is_active=True)
+        .order_by("-is_default", "created_at")
     )
+
+    try:
+        tenant = connection.tenant
+        organization_id = str(tenant.id)
+        organization_code = str(tenant.code or "")
+        organization_name = str(tenant.name or "")
+        organization_type = str(getattr(tenant, "organization_type", "") or "")
+    except Exception:
+        organization_id = ""
+        organization_code = ""
+        organization_name = ""
+        organization_type = ""
+
     payload: list[dict] = []
     for membership in memberships:
-        organization = membership.organization
         payload.append(
             {
                 "id": str(membership.id),
-                "organization_id": str(organization.id),
-                "organization_code": str(organization.code),
-                "organization_name": str(organization.name),
-                "organization_type": str(organization.organization_type),
+                "organization_id": organization_id,
+                "organization_code": organization_code,
+                "organization_name": organization_name,
+                "organization_type": organization_type,
                 "title": str(membership.title or ""),
                 "membership_role": str(membership.membership_role or ""),
                 "is_default": bool(membership.is_default),
@@ -324,22 +340,30 @@ def get_user_committees(user, *, organization_id: str | None = None) -> list[dic
     if not _is_authenticated(user):
         return []
     try:
+        from django.db import connection
         from apps.governance.models import CommitteeMembership
     except Exception:  # pragma: no cover - governance app may be unavailable
         return []
 
     memberships = (
-        CommitteeMembership.objects.select_related("committee", "committee__organization", "organization_membership")
-        .filter(user=user, is_active=True, committee__is_active=True, committee__organization__is_active=True)
-        .order_by("committee__organization__name", "committee__name", "created_at")
+        CommitteeMembership.objects.select_related("committee", "organization_membership")
+        .filter(user=user, is_active=True, committee__is_active=True)
+        .order_by("committee__name", "created_at")
     )
-    if organization_id:
-        memberships = memberships.filter(committee__organization_id=organization_id)
+
+    try:
+        tenant = connection.tenant
+        tenant_org_id = str(tenant.id)
+        tenant_code = str(tenant.code or "")
+        tenant_name = str(tenant.name or "")
+    except Exception:
+        tenant_org_id = ""
+        tenant_code = ""
+        tenant_name = ""
 
     payload: list[dict] = []
     for membership in memberships:
         committee = membership.committee
-        organization = committee.organization
         payload.append(
             {
                 "id": str(membership.id),
@@ -347,9 +371,9 @@ def get_user_committees(user, *, organization_id: str | None = None) -> list[dic
                 "committee_code": str(committee.code),
                 "committee_name": str(committee.name),
                 "committee_type": str(committee.committee_type),
-                "organization_id": str(organization.id),
-                "organization_code": str(organization.code),
-                "organization_name": str(organization.name),
+                "organization_id": tenant_org_id,
+                "organization_code": tenant_code,
+                "organization_name": tenant_name,
                 "committee_role": str(membership.committee_role),
                 "can_vote": bool(membership.can_vote),
                 "joined_at": membership.joined_at.isoformat() if membership.joined_at else None,
@@ -376,10 +400,7 @@ def get_user_committee_ids(
         user=user,
         is_active=True,
         committee__is_active=True,
-        committee__organization__is_active=True,
     )
-    if organization_id:
-        memberships = memberships.filter(committee__organization_id=organization_id)
     if not include_observer:
         memberships = memberships.exclude(committee_role="observer")
     return {str(value) for value in memberships.values_list("committee_id", flat=True)}

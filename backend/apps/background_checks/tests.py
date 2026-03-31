@@ -8,9 +8,10 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.test import APITestCase
 
 from apps.applications.models import VettingCase
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.billing.models import BillingSubscription
-from apps.governance.models import Organization, OrganizationMembership
+from apps.tenants.models import Organization
+from apps.governance.models import OrganizationMembership
 
 from .services import refresh_background_check, submit_background_check
 

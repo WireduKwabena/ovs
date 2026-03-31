@@ -237,16 +237,22 @@ class InterviewGenerateFlagsResponseSerializer(serializers.Serializer):
 
 
 class InterviewAvatarSessionResponseSerializer(serializers.Serializer):
+    """
+    Payload returned to the frontend when joining a LiveKit + Tavus interview.
+
+    When enabled=False no other fields are present (provider not configured).
+    When enabled=True the frontend should:
+      1. Connect to the LiveKit room using livekit_url + livekit_token.
+      2. Open conversation_url in an iframe / video component for the Tavus avatar.
+    """
     enabled = serializers.BooleanField()
-    token = serializers.CharField(required=False)
-    avatar_name = serializers.CharField(required=False)
-    voice_id = serializers.CharField(required=False, allow_blank=True)
-    quality = serializers.ChoiceField(
-        required=False,
-        choices=["low", "medium", "high"],
-    )
-    language = serializers.CharField(required=False, allow_blank=True)
-    activity_idle_timeout = serializers.IntegerField(required=False)
+    # LiveKit
+    livekit_url = serializers.CharField(required=False, allow_blank=True)
+    livekit_token = serializers.CharField(required=False)
+    room_name = serializers.CharField(required=False, allow_blank=True)
+    # Tavus
+    conversation_id = serializers.CharField(required=False, allow_blank=True)
+    conversation_url = serializers.CharField(required=False, allow_blank=True)
 
 
 class LegacyInterviewStartRequestSerializer(serializers.Serializer):

@@ -1,14 +1,23 @@
 import re
 
+from django.db import connection
 from rest_framework import serializers
 
-from .models import Committee, CommitteeMembership, Organization, OrganizationMembership
+from apps.tenants.models import Organization
+from apps.tenants.serializers import OrganizationSerializer
+from .models import Committee, CommitteeMembership, OrganizationMembership
 
 
 
 class OrganizationMembershipSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source="user.email", read_only=True)
-    organization_name = serializers.CharField(source="organization.name", read_only=True)
+    organization_name = serializers.SerializerMethodField()
+
+    def get_organization_name(self, obj) -> str:
+        try:
+            return str(connection.tenant.name or "").strip()
+        except Exception:
+            return ""
 
     class Meta:
         model = OrganizationMembership
@@ -16,7 +25,6 @@ class OrganizationMembershipSerializer(serializers.ModelSerializer):
             "id",
             "user",
             "user_email",
-            "organization",
             "organization_name",
             "title",
             "membership_role",
@@ -32,14 +40,19 @@ class OrganizationMembershipSerializer(serializers.ModelSerializer):
 
 
 class CommitteeSerializer(serializers.ModelSerializer):
-    organization_name = serializers.CharField(source="organization.name", read_only=True)
+    organization_name = serializers.SerializerMethodField()
     created_by_email = serializers.EmailField(source="created_by.email", read_only=True)
+
+    def get_organization_name(self, obj) -> str:
+        try:
+            return str(connection.tenant.name or "").strip()
+        except Exception:
+            return ""
 
     class Meta:
         model = Committee
         fields = [
             "id",
-            "organization",
             "organization_name",
             "code",
             "name",
@@ -58,7 +71,13 @@ class CommitteeSerializer(serializers.ModelSerializer):
 class CommitteeMembershipSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source="user.email", read_only=True)
     committee_name = serializers.CharField(source="committee.name", read_only=True)
-    organization_name = serializers.CharField(source="committee.organization.name", read_only=True)
+    organization_name = serializers.SerializerMethodField()
+
+    def get_organization_name(self, obj) -> str:
+        try:
+            return str(connection.tenant.name or "").strip()
+        except Exception:
+            return ""
 
     class Meta:
         model = CommitteeMembership
@@ -126,14 +145,6 @@ class CommitteeMembershipSerializer(serializers.ModelSerializer):
                     {
                         "organization_membership": (
                             "Organization membership user must match committee membership user."
-                        )
-                    }
-                )
-            if committee is not None and organization_membership.organization_id != committee.organization_id:
-                raise serializers.ValidationError(
-                    {
-                        "organization_membership": (
-                            "Organization membership must belong to the same organization as the committee."
                         )
                     }
                 )
@@ -249,7 +260,6 @@ class CommitteeCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Committee
         fields = [
-            "organization",
             "code",
             "name",
             "committee_type",
@@ -257,9 +267,6 @@ class CommitteeCreateSerializer(serializers.ModelSerializer):
             "is_active",
             "metadata",
         ]
-        extra_kwargs = {
-            "organization": {"required": False},
-        }
         validators = []
 
 

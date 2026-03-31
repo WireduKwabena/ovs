@@ -3,7 +3,7 @@ from __future__ import annotations
 from django.contrib.auth.models import Group
 from django.test import TestCase
 
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.core.authz import get_user_capabilities, get_user_roles
 from apps.core.permissions import is_internal_or_admin_user
 from apps.core.policies.appointment_policy import (

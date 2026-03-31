@@ -5,9 +5,10 @@ from django.conf import settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.applications.models import VettingCase
-from apps.governance.models import Organization, OrganizationMembership
+from apps.tenants.models import Organization
+from apps.governance.models import OrganizationMembership
 
 
 APP_ENABLED = "apps.admin_dashboard" in settings.INSTALLED_APPS

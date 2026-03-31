@@ -78,7 +78,7 @@ def officer(django_user_model):
 
 @pytest.fixture()
 def org():
-    from apps.governance.models import Organization
+    from apps.tenants.models import Organization
     return Organization.objects.create(
         name="Broker Test Agency",
         code="broker-test-agency",
@@ -109,7 +109,6 @@ def membership(officer, org):
     from apps.governance.models import OrganizationMembership
     return OrganizationMembership.objects.create(
         user=officer,
-        organization=org,
         membership_role="vetting_officer",
         is_active=True,
         is_default=True,

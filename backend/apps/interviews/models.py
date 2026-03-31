@@ -18,7 +18,7 @@ Key components:
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.applications.models import VettingCase, InterrogationFlag
 import uuid
 

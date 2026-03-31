@@ -9,11 +9,13 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework.exceptions import ValidationError
 
-from apps.authentication.models import User
+from django.db import connection
+
+from apps.users.models import User
 from apps.candidates.models import CandidateEnrollment
 from apps.campaigns.models import VettingCampaign
 from apps.core.authz import get_user_default_organization, get_user_organization_ids
-from apps.governance.models import Organization, OrganizationMembership
+from apps.governance.models import OrganizationMembership
 
 from .models import BillingSubscription
 
@@ -97,23 +99,16 @@ def _is_platform_admin_like(user) -> bool:
 
 
 def _organization_name_for_id(organization_id: str | None) -> str:
-    normalized_org_id = str(organization_id or "").strip()
-    if not normalized_org_id:
-        return ""
-    organization = Organization.objects.filter(id=normalized_org_id).only("name").first()
-    return str(getattr(organization, "name", "") or "").strip().lower()
+    # In django-tenants the current tenant IS the organization.
+    return str(getattr(connection.tenant, "name", "") or "").strip().lower()
 
 
-def _active_org_member_emails(*, organization_id: str) -> set[str]:
-    normalized_org_id = str(organization_id or "").strip()
-    if not normalized_org_id:
-        return set()
+def _active_org_member_emails() -> set[str]:
+    # All membership records in this schema belong to the current tenant.
     return {
         _normalized_email(email)
         for email in User.objects.filter(
-            organization_memberships__organization_id=normalized_org_id,
             organization_memberships__is_active=True,
-            organization_memberships__organization__is_active=True,
         ).values_list("email", flat=True)
         if _normalized_email(email)
     }
@@ -126,11 +121,8 @@ def _active_membership_org_ids_for_user(user, *, cache: dict[str, set[str]]) -> 
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
-    org_ids = {
-        str(value)
-        for value in OrganizationMembership.objects.filter(user=user, is_active=True).values_list("organization_id", flat=True)
-        if value
-    }
+    has_membership = OrganizationMembership.objects.filter(user=user, is_active=True).exists()
+    org_ids = {str(connection.tenant.id)} if has_membership else set()
     cache[cache_key] = org_ids
     return org_ids
 
@@ -144,9 +136,10 @@ def _user_is_unambiguously_scoped_to_org(
 ) -> bool:
     if user is None:
         return False
+    # In django-tenants any user with an active membership belongs to this tenant's org.
     user_memberships = _active_membership_org_ids_for_user(user, cache=membership_cache)
     if user_memberships:
-        return user_memberships == {organization_id}
+        return True
     legacy_organization_name = str(getattr(user, "organization", "") or "").strip().lower()
     return bool(legacy_organization_name and organization_name and legacy_organization_name == organization_name)
 
@@ -164,7 +157,6 @@ def _legacy_subscription_ids_for_organization(*, organization_id: str, emails: l
     safe_subscription_ids: list[str] = []
     candidates = (
         BillingSubscription.objects.filter(
-            organization_id__isnull=True,
             registration_consumed_by_email__in=normalized_emails,
         )
         .order_by("-updated_at", "-created_at")
@@ -234,55 +226,6 @@ def _legacy_candidate_usage_count_for_organization(
     return count
 
 
-def _scope_for_user(user, *, organization_id: str | None = None) -> tuple[str, list[str], str, str | None]:
-    requested_org_id = str(organization_id or "").strip()
-    allowed_org_ids = set(get_user_organization_ids(user))
-    default_organization = get_user_default_organization(user)
-    default_org_id = str(default_organization.get("id", "")).strip() if isinstance(default_organization, dict) else ""
-    selected_org_id = None
-    if requested_org_id and (requested_org_id in allowed_org_ids or _is_platform_admin_like(user)):
-        selected_org_id = requested_org_id
-    elif requested_org_id and default_org_id:
-        selected_org_id = default_org_id
-    elif default_org_id:
-        selected_org_id = default_org_id
-
-    if selected_org_id:
-        org_member_emails = _active_org_member_emails(organization_id=selected_org_id)
-        return f"organization:{selected_org_id}", sorted(org_member_emails), "", selected_org_id
-
-    fallback_emails: set[str] = set()
-    current_email = _normalized_email(getattr(user, "email", ""))
-    if current_email:
-        fallback_emails.add(current_email)
-
-    legacy_organization_name = str(getattr(user, "organization", "") or "").strip()
-    if legacy_organization_name:
-        matched_org = Organization.objects.filter(name__iexact=legacy_organization_name).only("id").first()
-        matched_org_id = str(getattr(matched_org, "id", "") or "").strip() or None
-        if matched_org_id:
-            org_member_emails = _active_org_member_emails(organization_id=matched_org_id)
-            fallback_emails.update(org_member_emails)
-        org_users = User.objects.filter(organization__iexact=legacy_organization_name).only("email")
-        fallback_emails.update(
-            _normalized_email(member.email)
-            for member in org_users
-            if getattr(member, "email", "")
-        )
-        if not fallback_emails and current_email:
-            fallback_emails.add(current_email)
-        scope_label = f"organization:{matched_org_id}" if matched_org_id else f"organization:{legacy_organization_name.lower()}"
-        return (
-            scope_label,
-            sorted(value for value in fallback_emails if value),
-            legacy_organization_name,
-            matched_org_id,
-        )
-
-    fallback_scope = current_email or f"user:{getattr(user, 'pk', 'unknown')}"
-    return f"user:{fallback_scope}", sorted(value for value in fallback_emails if value), "", None
-
-
 def _is_subscription_effectively_active(subscription: BillingSubscription | None) -> bool:
     if subscription is None:
         return False
@@ -313,27 +256,14 @@ def _active_subscription_for_queryset(queryset) -> BillingSubscription | None:
 
 
 def _active_subscription_for_scope(*, emails: list[str], organization_id: str | None = None) -> BillingSubscription | None:
-    if organization_id:
-        organization_scope = BillingSubscription.objects.filter(organization_id=organization_id)
-        if organization_scope.exists():
-            return _active_subscription_for_queryset(organization_scope)
-        # Legacy fallback during migration: allow null-org subscriptions only when they map
-        # unambiguously to the selected organization context.
-        scoped_emails = emails or sorted(_active_org_member_emails(organization_id=str(organization_id)))
-        legacy_ids = _legacy_subscription_ids_for_organization(
-            organization_id=str(organization_id),
-            emails=scoped_emails,
-        )
-        if legacy_ids:
-            return _active_subscription_for_queryset(BillingSubscription.objects.filter(id__in=legacy_ids))
-        return None
-
+    # In django-tenants all subscriptions in this schema belong to the current tenant.
+    qs = BillingSubscription.objects.all()
+    if qs.exists():
+        return _active_subscription_for_queryset(qs)
     if not emails:
         return None
     return _active_subscription_for_queryset(
-        BillingSubscription.objects.filter(
-            registration_consumed_by_email__in=emails,
-        )
+        BillingSubscription.objects.filter(registration_consumed_by_email__in=emails)
     )
 
 
@@ -429,14 +359,9 @@ def _plan_organization_seat_limit(plan_id: str | None) -> int | None:
     return raw_limit
 
 
-def _organization_active_membership_count(*, organization_id: str) -> int:
-    normalized_org_id = str(organization_id or "").strip()
-    if not normalized_org_id:
-        return 0
-    return OrganizationMembership.objects.filter(
-        organization_id=normalized_org_id,
-        is_active=True,
-    ).count()
+def _organization_active_membership_count() -> int:
+    # All memberships in this schema belong to the current tenant.
+    return OrganizationMembership.objects.filter(is_active=True).count()
 
 
 def _candidate_usage_count(
@@ -447,32 +372,19 @@ def _candidate_usage_count(
     period_start,
     period_end,
 ) -> int:
-    campaign_scope = VettingCampaign.objects.all()
-    if organization_id:
-        org_scoped_count = CandidateEnrollment.objects.filter(
-            campaign__organization_id=organization_id,
-            created_at__gte=period_start,
-            created_at__lt=period_end,
-        ).count()
-        legacy_scoped_count = _legacy_candidate_usage_count_for_organization(
-            organization_id=organization_id,
-            period_start=period_start,
-            period_end=period_end,
-        )
-        return org_scoped_count + legacy_scoped_count
-    elif legacy_organization_name:
-        campaign_scope = campaign_scope.filter(
-            Q(organization__name__iexact=legacy_organization_name)
-            | Q(organization_id__isnull=True, initiated_by__organization__iexact=legacy_organization_name)
-        )
-    else:
-        campaign_scope = campaign_scope.filter(initiated_by=user)
-
+    # In django-tenants all campaigns/enrollments are scoped to this tenant.
     return CandidateEnrollment.objects.filter(
-        campaign__in=campaign_scope,
         created_at__gte=period_start,
         created_at__lt=period_end,
     ).count()
+
+
+def _scope_for_user(user, *, organization_id: str | None = None) -> tuple[str, list[str], str, str | None]:
+    # In django-tenants the scope is always the current tenant.
+    tenant = connection.tenant
+    org_id = str(tenant.id)
+    org_member_emails = _active_org_member_emails()
+    return f"organization:{org_id}", sorted(org_member_emails), str(getattr(tenant, "name", "") or ""), org_id
 
 
 def resolve_subscription_scope(user, *, organization_id: str | None = None) -> tuple[str, list[str], str, str | None]:
@@ -488,31 +400,11 @@ def get_latest_subscription_for_user(user, *, organization_id: str | None = None
     _, emails, _, resolved_org_id = _scope_for_user(user, organization_id=organization_id)
     subscription = None
 
-    if resolved_org_id:
-        subscription = (
-            BillingSubscription.objects.filter(organization_id=resolved_org_id)
-            .order_by("-updated_at", "-created_at")
-            .first()
-        )
-        if subscription is None:
-            legacy_ids = _legacy_subscription_ids_for_organization(
-                organization_id=str(resolved_org_id),
-                emails=emails,
-            )
-            if legacy_ids:
-                subscription = (
-                    BillingSubscription.objects.filter(id__in=legacy_ids)
-                    .order_by("-updated_at", "-created_at")
-                    .first()
-                )
-    elif emails:
-        subscription = (
-            BillingSubscription.objects.filter(
-                registration_consumed_by_email__in=emails,
-            )
-            .order_by("-updated_at", "-created_at")
-            .first()
-        )
+    subscription = (
+        BillingSubscription.objects.all()
+        .order_by("-updated_at", "-created_at")
+        .first()
+    )
 
     if subscription is None:
         return None

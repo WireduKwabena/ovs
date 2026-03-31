@@ -15,8 +15,8 @@ from apps.users.serializers import (
     UserSerializer,
     ActiveOrganizationSelectionSerializer,
     ActiveOrganizationSelectionResponseSerializer,
-    ErrorResponseSerializer,
 )
+from apps.authentication.serializers import ErrorResponseSerializer
 from apps.core.authz import (
     ROLE_ADMIN,
     get_user_capabilities,

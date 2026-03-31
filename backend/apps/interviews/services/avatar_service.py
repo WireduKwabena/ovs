@@ -1,10 +1,14 @@
-"""Avatar service compatibility wrapper for interview flows."""
+"""Avatar service compatibility wrapper for interview flows.
+
+Thin wrapper around LiveKitTavusService so existing call-sites that import
+AIAvatarService continue to work without modification.
+"""
 
 from __future__ import annotations
 
 from typing import Optional, Protocol
 
-from ai_ml_services.interview.heygen_service import HeyGenAvatarService
+from ai_ml_services.interview.livekit_tavus_service import LiveKitTavusService
 
 
 class WebSocketProtocol(Protocol):
@@ -14,44 +18,43 @@ class WebSocketProtocol(Protocol):
 
 class AIAvatarService:
     """
-    Backward-compatible wrapper around HeyGen avatar streaming.
+    Backward-compatible wrapper around the LiveKit + Tavus avatar stack.
 
-    This keeps historical imports stable while centralizing runtime behavior in
-    `ai_ml_services.interview.heygen_service.HeyGenAvatarService`.
+    Mirrors the interface of the former HeyGen-based AIAvatarService so that
+    code importing this class does not need to change.
     """
 
     def __init__(
         self,
-        provider: str = "heygen",
-        api_key: Optional[str] = None,
-        avatar_id: Optional[str] = None,
-        voice_id: Optional[str] = None,
+        session_id: str,
+        provider: str = "livekit_tavus",
+        **kwargs,
     ):
-        if provider != "heygen":
-            raise ValueError("Only provider='heygen' is supported in the Django runtime.")
-        self.provider = provider
-        self._service = HeyGenAvatarService(
-            api_key=api_key,
-            avatar_id=avatar_id,
-            voice_id=voice_id,
-        )
+        if provider not in ("livekit_tavus", "heygen"):
+            raise ValueError(f"Unknown avatar provider: {provider!r}")
+        self.provider = "livekit_tavus"
+        self._service = LiveKitTavusService(session_id)
 
     @property
     def session_id(self) -> Optional[str]:
         return self._service.session_id
 
-    async def create_streaming_session(self, *args, **kwargs):
-        return await self._service.create_streaming_session(*args, **kwargs)
+    @property
+    def conversation_id(self) -> Optional[str]:
+        return self._service.conversation_id
 
-    async def stream_avatar_response(self, text: str, websocket: WebSocketProtocol):
-        await self._service.stream_avatar_speech(text=text, websocket=websocket)
+    @property
+    def conversation_url(self) -> Optional[str]:
+        return self._service.conversation_url
 
-    async def stream_avatar_speech(self, text: str, websocket: WebSocketProtocol, **kwargs):
-        await self._service.stream_avatar_speech(text=text, websocket=websocket, **kwargs)
+    async def create_streaming_session(self, **kwargs) -> dict:
+        return await self._service.create_session(**kwargs)
 
-    async def send_ice_candidate(self, candidate: dict):
-        await self._service.send_ice_candidate(candidate)
+    async def stream_avatar_response(self, text: str, websocket: WebSocketProtocol) -> None:
+        await self._service.deliver_interviewer_text(text=text, websocket=websocket)
 
-    async def close_session(self):
+    async def stream_avatar_speech(self, text: str, websocket: WebSocketProtocol, **kwargs) -> None:
+        await self._service.deliver_interviewer_text(text=text, websocket=websocket)
+
+    async def close_session(self) -> None:
         await self._service.close_session()
-

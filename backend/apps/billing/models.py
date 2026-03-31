@@ -49,12 +49,7 @@ class BillingSubscription(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
-        indexes = [
-            models.Index(
-                fields=["organization", "status", "payment_status"],
-                name="billing_bil_organiz_8d35d4_idx",
-            ),
-        ]
+        indexes = []
 
     def __str__(self) -> str:
         base = self.session_id or self.reference or str(self.pk)

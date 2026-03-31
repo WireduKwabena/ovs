@@ -11,7 +11,7 @@ from rest_framework.test import APITestCase
 
 from apps.appointments.models import AppointmentRecord, ApprovalStage, ApprovalStageTemplate
 from apps.applications.models import VettingCase
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.campaigns.models import VettingCampaign
 from apps.candidates.models import Candidate
 from apps.governance.models import Committee, CommitteeMembership, Organization, OrganizationMembership

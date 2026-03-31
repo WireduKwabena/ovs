@@ -11,7 +11,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from apps.appointments.models import AppointmentRecord
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.billing.models import BillingSubscription, OrganizationOnboardingToken
 from apps.campaigns.models import VettingCampaign
 from apps.core.management.commands.setup_demo import APPOINTMENT_ROLE_GROUPS

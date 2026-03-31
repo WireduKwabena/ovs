@@ -24,23 +24,23 @@ class TenantMiddleware(TenantMainMiddleware):
         # Try X-Institution-Slug header
         slug = request.headers.get('X-Institution-Slug')
         if slug:
-            from apps.tenants.models import Client
+            from apps.tenants.models import Organization
             try:
-                institution = Client.objects.get(slug=slug, is_active=True)
+                institution = Organization.objects.get(code=slug, is_active=True)
                 request.tenant = institution
                 connection.set_tenant(institution)
                 return
-            except Client.DoesNotExist:
+            except Organization.DoesNotExist:
                 pass
 
         # Fall back to public schema (for /admin/, /api/health/, etc.)
         from django_tenants.utils import get_public_schema_name
-        from apps.tenants.models import Client
+        from apps.tenants.models import Organization
         try:
-            public = Client.objects.get(schema_name=get_public_schema_name())
+            public = Organization.objects.get(schema_name=get_public_schema_name())
             request.tenant = public
             connection.set_tenant(public)
-        except Client.DoesNotExist:
+        except Organization.DoesNotExist:
             # No public tenant row yet (first migration) — set schema directly
             connection.set_schema_to_public()
 

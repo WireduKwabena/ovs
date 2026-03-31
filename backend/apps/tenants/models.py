@@ -1,7 +1,7 @@
 import uuid
 
 from django.db import models
-from django_tenants.models import TenantMixin, DomainMixin
+from django_tenants.models import DomainMixin, TenantMixin
 
 class Organization(TenantMixin):
     ORGANIZATION_TYPE_CHOICES = [
@@ -49,6 +49,7 @@ class Organization(TenantMixin):
 
 
 class Domain(DomainMixin):
-    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     class Meta:
         app_label = 'tenants'

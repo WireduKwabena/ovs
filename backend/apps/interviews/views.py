@@ -28,7 +28,7 @@ from apps.core.permissions import (
     is_government_workflow_operator,
     is_platform_admin_user,
 )
-from apps.governance.models import Organization
+from apps.tenants.models import Organization
 
 try:
     from drf_spectacular.utils import extend_schema
@@ -63,7 +63,7 @@ from .serializers import (
 from .services.analytics_service import InterviewAnalytics
 from .services.comparison_service import ApplicantComparisonService
 from .services.flag_generator import InterrogationFlagGenerator
-from .services.heygen_sdk import build_avatar_session_payload
+from .services.livekit_sdk import build_interview_session_payload
 from .services.playback_service import InterviewPlaybackService
 from .tasks import analyze_response_task, generate_session_summary_task
 
@@ -447,9 +447,14 @@ class InterviewSessionViewSet(viewsets.ModelViewSet):
         }
     )
     def avatar_session(self, request, pk=None):
-        self.get_object()
+        session = self.get_object()
         try:
-            payload = build_avatar_session_payload()
+            case = getattr(session, "case", None)
+            case_title = str(getattr(case, "title", "") or "").strip()
+            payload = build_interview_session_payload(
+                session_id=str(session.session_id),
+                case_title=case_title,
+            )
         except RuntimeError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         return Response(payload, status=status.HTTP_200_OK)

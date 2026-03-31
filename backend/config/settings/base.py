@@ -107,7 +107,7 @@ def _redis_db_url(redis_url: str, db_index: int) -> str:
 # Application definition
 ENABLE_REALTIME = config("ENABLE_REALTIME", default=False, cast=bool)
 
-SHARED_APPS = (
+SHARED_APPS = [
     'django_tenants',  # mandatory
     'apps.tenants', # you must list the app where your tenant model resides in
 
@@ -119,8 +119,7 @@ SHARED_APPS = (
     'django.contrib.sites',
     'django.contrib.messages',
     'django.contrib.admin',
-    
-)
+]
 
 
 if ENABLE_REALTIME and _has_module("daphne"):
@@ -894,7 +893,9 @@ AI_INTERVIEW_SETTINGS = {
 
 # OpenAI Configuration
 OPENAI_API_KEY = config("OPENAI_API_KEY", default="")
-OPENAI_MODEL = 'gpt-4'  # or 'gpt-3.5-turbo' for cost savings
+# NOTE: OpenAI is retained ONLY for audio transcription via openai-whisper.
+# All interview question generation uses Anthropic Claude (see ANTHROPIC_API_KEY).
+# OPENAI_MODEL is not used for LLM chat — Whisper does not require a model setting here.
 
 # Google Cloud Configuration  
 GOOGLE_APPLICATION_CREDENTIALS = config("GOOGLE_APPLICATION_CREDENTIALS", default="")
@@ -902,17 +903,23 @@ GOOGLE_APPLICATION_CREDENTIALS = config("GOOGLE_APPLICATION_CREDENTIALS", defaul
 
 # backend/config/settings/base.py
 
-HEYGEN_API_KEY = config("HEYGEN_API_KEY", default="")
-HEYGEN_AVATAR_ID = config('HEYGEN_AVATAR_ID', default='default_professional_avatar')
-HEYGEN_VOICE_ID = config('HEYGEN_VOICE_ID', default='40532bc2b15c49f2b0f4deee08ce674d')  # Professional male
-HEYGEN_FRONTEND_SDK_ENABLED = config("HEYGEN_FRONTEND_SDK_ENABLED", default=False, cast=bool)
-HEYGEN_AVATAR_QUALITY = config("HEYGEN_AVATAR_QUALITY", default="medium")
-HEYGEN_AVATAR_ACTIVITY_IDLE_TIMEOUT = config(
-    "HEYGEN_AVATAR_ACTIVITY_IDLE_TIMEOUT",
-    default=300,
-    cast=int,
-)
-HEYGEN_AVATAR_LANGUAGE = config("HEYGEN_AVATAR_LANGUAGE", default="en")
+# ---------------------------------------------------------------------------
+# Anthropic — Claude powers interview question generation & response analysis
+# ---------------------------------------------------------------------------
+ANTHROPIC_API_KEY = config("ANTHROPIC_API_KEY", default="")
+ANTHROPIC_INTERVIEW_MODEL = config("ANTHROPIC_INTERVIEW_MODEL", default="claude-sonnet-4-6")
+ANTHROPIC_INTERVIEW_MAX_TOKENS = config("ANTHROPIC_INTERVIEW_MAX_TOKENS", default=1024, cast=int)
+
+# ---------------------------------------------------------------------------
+# Tavus — AI video avatar for conducting interviews
+# ---------------------------------------------------------------------------
+TAVUS_API_KEY = config("TAVUS_API_KEY", default="")
+TAVUS_REPLICA_ID = config("TAVUS_REPLICA_ID", default="")   # visual avatar
+TAVUS_PERSONA_ID = config("TAVUS_PERSONA_ID", default="")   # personality config
+TAVUS_MAX_CALL_DURATION = config("TAVUS_MAX_CALL_DURATION", default=3600, cast=int)
+TAVUS_PARTICIPANT_LEFT_TIMEOUT = config("TAVUS_PARTICIPANT_LEFT_TIMEOUT", default=60, cast=int)
+TAVUS_LANGUAGE = config("TAVUS_LANGUAGE", default="english")
+TAVUS_ENABLE_RECORDING = config("TAVUS_ENABLE_RECORDING", default=False, cast=bool)
 LIVEKIT_URL = config("LIVEKIT_URL", default="")
 LIVEKIT_API_KEY = config("LIVEKIT_API_KEY", default="")
 LIVEKIT_API_SECRET = config("LIVEKIT_API_SECRET", default="")

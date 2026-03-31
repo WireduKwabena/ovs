@@ -18,11 +18,12 @@ from apps.applications.verification_gateway import (
     create_verification_request,
     record_verification_result,
 )
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.billing.models import BillingSubscription
 from apps.campaigns.models import VettingCampaign
 from apps.candidates.models import Candidate, CandidateEnrollment, CandidateSocialProfile
-from apps.governance.models import Organization, OrganizationMembership
+from apps.tenants.models import Organization
+from apps.governance.models import OrganizationMembership
 from apps.interviews.models import InterviewSession
 from apps.rubrics.decision_engine import VettingDecisionEngine
 from apps.rubrics.engine import RubricEvaluationEngine

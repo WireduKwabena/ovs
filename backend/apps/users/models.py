@@ -14,7 +14,7 @@ Implements role-based access control (RBAC) with three user types:
 from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.models import AbstractUser, BaseUserManager
-from django.db import models
+from django.db import connection, models
 from django.core.validators import RegexValidator
 from django.utils import timezone
 from django.utils.text import slugify
@@ -169,9 +169,8 @@ class User(AbstractUser):
         except Exception:  # pragma: no cover - governance app may be unavailable in slim installs
             return None
         return (
-            OrganizationMembership.objects.select_related("organization")
-            .filter(user=self, is_active=True)
-            .order_by("-is_default", "organization__name", "created_at")
+            OrganizationMembership.objects.filter(user=self, is_active=True)
+            .order_by("-is_default", "created_at")
         )
 
     def get_primary_organization_membership(self):
@@ -184,18 +183,31 @@ class User(AbstractUser):
     def effective_organization_name(self) -> str:
         """
         Governance-first organization label with legacy fallback.
+
+        In the django-tenants setup, connection.tenant IS the organization for
+        this request's schema context.
         """
         membership = self.get_primary_organization_membership()
-        if membership is not None and getattr(membership, "organization", None) is not None:
-            return str(membership.organization.name or "").strip()
+        if membership is not None:
+            try:
+                tenant = connection.tenant
+                tenant_name = str(getattr(tenant, "name", "") or "").strip()
+                if tenant_name:
+                    return tenant_name
+            except Exception:
+                pass
         return str(self.organization or "").strip()
 
     @property
     def primary_organization_code(self) -> str:
         membership = self.get_primary_organization_membership()
-        if membership is None or getattr(membership, "organization", None) is None:
+        if membership is None:
             return ""
-        return str(membership.organization.code or "").strip()
+        try:
+            tenant = connection.tenant
+            return str(getattr(tenant, "code", "") or "").strip()
+        except Exception:
+            return ""
 
     def get_totp_uri(self, issuer_name="OVS-Redo"):
         if not self.two_factor_secret or pyotp is None:

@@ -77,26 +77,26 @@ class InterrogationFlagAdmin(admin.ModelAdmin):
 
 @admin.register(VerificationSource)
 class VerificationSourceAdmin(admin.ModelAdmin):
-    list_display = ("key", "name", "source_category", "integration_mode", "organization", "is_active", "advisory_only")
-    list_filter = ("source_category", "integration_mode", "is_active", "advisory_only", "organization")
-    search_fields = ("key", "name", "description", "organization__name")
+    list_display = ("key", "name", "source_category", "integration_mode", "is_active", "advisory_only")
+    list_filter = ("source_category", "integration_mode", "is_active", "advisory_only")
+    search_fields = ("key", "name", "description")
     readonly_fields = ("created_at", "updated_at")
-    list_select_related = ("organization", "created_by")
+    list_select_related = ("created_by",)
 
 
 @admin.register(VerificationRequest)
 class VerificationRequestAdmin(admin.ModelAdmin):
-    list_display = ("id", "case", "source", "status", "organization", "requested_by", "requested_at")
-    list_filter = ("status", "source", "organization", "requested_at")
+    list_display = ("id", "case", "source", "status", "requested_by", "requested_at")
+    list_filter = ("status", "source", "requested_at")
     search_fields = ("case__case_id", "source__key", "external_reference", "idempotency_key")
     readonly_fields = ("requested_at", "updated_at")
-    list_select_related = ("case", "source", "organization", "requested_by")
+    list_select_related = ("case", "source", "requested_by")
 
 
 @admin.register(ExternalVerificationResult)
 class ExternalVerificationResultAdmin(admin.ModelAdmin):
     list_display = ("id", "case", "source", "result_status", "recommendation", "confidence_score", "received_at")
-    list_filter = ("result_status", "recommendation", "source", "organization")
+    list_filter = ("result_status", "recommendation", "source")
     search_fields = ("case__case_id", "source__key", "provider_reference")
     readonly_fields = ("received_at", "updated_at")
-    list_select_related = ("case", "source", "organization", "verification_request")
+    list_select_related = ("case", "source", "verification_request")

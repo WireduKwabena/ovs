@@ -7,8 +7,8 @@ from django.core.management import call_command
 from django.test import TestCase
 
 from apps.applications.models import VettingCase
-from apps.authentication.models import User
-from apps.governance.models import Organization
+from apps.users.models import User
+from apps.tenants.models import Organization
 from apps.rubrics.models import VettingRubric
 
 

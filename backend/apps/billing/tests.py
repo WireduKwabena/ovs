@@ -15,7 +15,8 @@ from rest_framework.test import APITestCase
 from apps.audit.models import AuditLog
 from apps.campaigns.models import VettingCampaign
 from apps.candidates.models import Candidate, CandidateEnrollment
-from apps.governance.models import Organization, OrganizationMembership
+from apps.tenants.models import Organization
+from apps.governance.models import OrganizationMembership
 from apps.notifications.models import Notification
 
 from .models import BillingSubscription, BillingWebhookEvent, OrganizationOnboardingToken

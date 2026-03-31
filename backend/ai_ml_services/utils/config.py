@@ -14,9 +14,17 @@ class AIMLRuntimeConfig:
     media_dir: Path
     redis_url: str
     openai_model: str
-    heygen_api_key: str
-    heygen_avatar_id: str
-    heygen_voice_id: str
+    # Anthropic (Claude) — interview question generation
+    anthropic_api_key: str
+    anthropic_interview_model: str
+    # LiveKit — WebRTC room management
+    livekit_url: str
+    livekit_api_key: str
+    livekit_api_secret: str
+    # Tavus — AI video avatar
+    tavus_api_key: str
+    tavus_replica_id: str
+    tavus_persona_id: str
 
 
 def get_runtime_config() -> AIMLRuntimeConfig:
@@ -29,9 +37,12 @@ def get_runtime_config() -> AIMLRuntimeConfig:
         media_dir=media_dir,
         redis_url=getattr(settings, "REDIS_URL", "redis://localhost:6379/0"),
         openai_model=getattr(settings, "OPENAI_MODEL", "gpt-4"),
-        heygen_api_key=getattr(settings, "HEYGEN_API_KEY", ""),
-        heygen_avatar_id=getattr(
-            settings, "HEYGEN_AVATAR_ID", "default_professional_avatar"
-        ),
-        heygen_voice_id=getattr(settings, "HEYGEN_VOICE_ID", ""),
+        anthropic_api_key=getattr(settings, "ANTHROPIC_API_KEY", ""),
+        anthropic_interview_model=getattr(settings, "ANTHROPIC_INTERVIEW_MODEL", "claude-sonnet-4-6"),
+        livekit_url=getattr(settings, "LIVEKIT_URL", ""),
+        livekit_api_key=getattr(settings, "LIVEKIT_API_KEY", ""),
+        livekit_api_secret=getattr(settings, "LIVEKIT_API_SECRET", ""),
+        tavus_api_key=getattr(settings, "TAVUS_API_KEY", ""),
+        tavus_replica_id=getattr(settings, "TAVUS_REPLICA_ID", ""),
+        tavus_persona_id=getattr(settings, "TAVUS_PERSONA_ID", ""),
     )

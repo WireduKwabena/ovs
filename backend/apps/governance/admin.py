@@ -1,40 +1,32 @@
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 
-from .models import Committee, CommitteeMembership, Organization, OrganizationMembership
-
-
-@admin.register(Organization)
-class OrganizationAdmin(admin.ModelAdmin):
-    list_display = ("name", "code", "organization_type", "is_active", "updated_at")
-    list_filter = ("organization_type", "is_active")
-    search_fields = ("name", "code")
-    ordering = ("name",)
+from .models import Committee, CommitteeMembership, OrganizationMembership
 
 
 @admin.register(OrganizationMembership)
 class OrganizationMembershipAdmin(admin.ModelAdmin):
-    list_display = ("user", "organization", "membership_role", "is_active", "is_default", "updated_at")
+    list_display = ("user", "membership_role", "is_active", "is_default", "updated_at")
     list_filter = ("is_active", "is_default", "membership_role")
-    search_fields = ("user__email", "organization__name", "title")
-    autocomplete_fields = ("user", "organization")
-    ordering = ("organization__name", "user__email")
+    search_fields = ("user__email", "title")
+    autocomplete_fields = ("user",)
+    ordering = ("user__email",)
 
 
 @admin.register(Committee)
 class CommitteeAdmin(admin.ModelAdmin):
-    list_display = ("name", "code", "organization", "committee_type", "is_active", "updated_at")
-    list_filter = ("committee_type", "is_active", "organization")
-    search_fields = ("name", "code", "organization__name")
-    autocomplete_fields = ("organization", "created_by")
-    ordering = ("organization__name", "name")
+    list_display = ("name", "code", "committee_type", "is_active", "updated_at")
+    list_filter = ("committee_type", "is_active")
+    search_fields = ("name", "code")
+    autocomplete_fields = ("created_by",)
+    ordering = ("name",)
 
 
 @admin.register(CommitteeMembership)
 class CommitteeMembershipAdmin(admin.ModelAdmin):
     list_display = ("user", "committee", "committee_role", "can_vote", "is_active", "updated_at")
     list_filter = ("committee_role", "can_vote", "is_active")
-    search_fields = ("user__email", "committee__name", "committee__organization__name")
+    search_fields = ("user__email", "committee__name")
     autocomplete_fields = ("committee", "user", "organization_membership")
     ordering = ("committee__name", "user__email")
     actions = ("promote_selected_to_chair",)
@@ -44,11 +36,7 @@ class CommitteeMembershipAdmin(admin.ModelAdmin):
         promoted_count = 0
         failures: list[str] = []
 
-        memberships = queryset.select_related(
-            "committee",
-            "user",
-            "organization_membership",
-        )
+        memberships = queryset.select_related("committee", "user", "organization_membership")
         for membership in memberships:
             try:
                 CommitteeMembership.assign_active_chair(
@@ -59,9 +47,7 @@ class CommitteeMembershipAdmin(admin.ModelAdmin):
                 )
                 promoted_count += 1
             except ValidationError as exc:
-                failures.append(
-                    f"{membership.user} @ {membership.committee}: {exc}"
-                )
+                failures.append(f"{membership.user} @ {membership.committee}: {exc}")
 
         if promoted_count:
             self.message_user(

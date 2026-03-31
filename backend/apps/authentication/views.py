@@ -14,8 +14,9 @@ from django.contrib.auth.tokens import default_token_generator
 from django.core import signing
 from django.core.cache import cache
 from django.core.signing import BadSignature, SignatureExpired, Signer
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
+from django.utils.text import slugify
 
 try:
     from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema
@@ -58,6 +59,7 @@ from .serializers import (
     TwoFactorBackupCodesRegenerateSerializer,
     TwoFactorBackupCodesResponseSerializer,
     TwoFactorStatusResponseSerializer,
+    LogoutRequestSerializer,
 )
 from .throttles import (
     LoginRateThrottle,
@@ -73,7 +75,9 @@ from apps.core.authz import ROLE_ADMIN, get_user_capabilities, get_user_roles, h
 from apps.billing.models import BillingSubscription
 from apps.billing.quotas import enforce_organization_seat_quota
 from apps.billing.services import validate_organization_onboarding_token
-from apps.governance.models import Organization, OrganizationMembership
+from apps.governance.models import OrganizationMembership
+from apps.tenants.models import Organization
+from django_tenants.utils import schema_context
 
 logger = logging.getLogger(__name__)
 
@@ -217,7 +221,6 @@ def _attach_registered_user_to_organization(
 
     membership, _created = OrganizationMembership.objects.get_or_create(
         user=user,
-        organization=locked_organization,
         defaults={
             "membership_role": membership_role,
             "is_active": True,
@@ -294,34 +297,42 @@ class OrganizationAdminRegisterView(generics.CreateAPIView):
 
         try:
             with transaction.atomic():
-                user = User.objects.create_user(
-                    email=validated["email"],
-                    password=validated["password"],
-                    first_name=str(validated.get("first_name", "")).strip(),
-                    last_name=str(validated.get("last_name", "")).strip(),
-                    phone_number=str(validated.get("phone_number", "")).strip(),
-                    department=str(validated.get("department", "")).strip(),
-                    user_type="internal",
-                )
+                # Step 1: create the Organization in the public schema.
+                # TenantMixin.save() provisions the tenant schema automatically
+                # (auto_create_schema = True) so the tenant tables are ready
+                # before we switch into it below.
                 organization = Organization.objects.create(
                     name=organization_name,
                     code=organization_code,
                     organization_type=str(validated.get("organization_type", "agency") or "agency"),
                     is_active=True,
                 )
-                membership = OrganizationMembership.objects.create(
-                    user=user,
-                    organization=organization,
-                    membership_role="registry_admin",
-                    title=str(validated.get("department", "")).strip()[:120],
-                    is_active=True,
-                    is_default=True,
-                    joined_at=timezone.now(),
-                )
 
-                if str(user.organization or "").strip().lower() != organization_name.lower():
-                    user.organization = organization_name
-                    user.save(update_fields=["organization", "updated_at"])
+                # Step 2: create the admin User and OrganizationMembership inside
+                # the new tenant's schema.  apps.users and apps.governance are
+                # TENANT_APPS so their tables only exist per-schema.
+                with schema_context(organization.schema_name):
+                    user = User.objects.create_user(
+                        email=validated["email"],
+                        password=validated["password"],
+                        first_name=str(validated.get("first_name", "")).strip(),
+                        last_name=str(validated.get("last_name", "")).strip(),
+                        phone_number=str(validated.get("phone_number", "")).strip(),
+                        department=str(validated.get("department", "")).strip(),
+                        user_type="internal",
+                    )
+                    membership = OrganizationMembership.objects.create(
+                        user=user,
+                        membership_role="registry_admin",
+                        title=str(validated.get("department", "")).strip()[:120],
+                        is_active=True,
+                        is_default=True,
+                        joined_at=timezone.now(),
+                    )
+
+                    if str(user.organization or "").strip().lower() != organization_name.lower():
+                        user.organization = organization_name
+                        user.save(update_fields=["organization", "updated_at"])
         except IntegrityError:
             return Response(
                 {"error": "Organization bootstrap failed due to a conflicting record. Retry with different values."},

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 
@@ -16,15 +16,10 @@ def _membership_activation_consumes_seat(instance: OrganizationMembership) -> bo
 
     previous = (
         OrganizationMembership.objects.filter(pk=instance.pk)
-        .values("organization_id", "is_active")
+        .values("is_active")
         .first()
     )
     if previous is None:
-        return True
-
-    previous_org_id = str(previous.get("organization_id") or "")
-    current_org_id = str(getattr(instance, "organization_id", "") or "")
-    if previous_org_id != current_org_id:
         return True
 
     return not bool(previous.get("is_active", False))
@@ -32,7 +27,12 @@ def _membership_activation_consumes_seat(instance: OrganizationMembership) -> bo
 
 @receiver(pre_save, sender=OrganizationMembership)
 def enforce_membership_seat_quota(sender, instance: OrganizationMembership, **kwargs):
-    organization_id = str(getattr(instance, "organization_id", "") or "")
+    # In the django-tenants setup, the organization is the current tenant schema.
+    try:
+        organization_id = str(connection.tenant.id)
+    except Exception:
+        return
+
     if not organization_id:
         return
 

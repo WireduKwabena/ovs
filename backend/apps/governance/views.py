@@ -14,14 +14,17 @@ from rest_framework.exceptions import NotFound, PermissionDenied, ValidationErro
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.authentication.models import User
+from django.db import connection
+
+from apps.users.models import User
 from apps.billing.models import BillingSubscription
 from apps.billing.services import is_subscription_active
 from apps.core.authz import get_user_organization_by_id
 from apps.core.permissions import get_request_active_organization_id, get_request_tenant_context, is_platform_admin_user
 from apps.core.policies.registry_policy import can_manage_registry_governance
+from apps.tenants.models import Organization
 
-from .models import Committee, CommitteeMembership, Organization, OrganizationMembership
+from .models import Committee, CommitteeMembership, OrganizationMembership
 from .serializers import (
     CommitteeChairReassignSerializer,
     CommitteeCreateSerializer,
@@ -89,11 +92,15 @@ class GovernanceScopeMixin:
         return organization
 
     def _resolve_non_admin_active_organization(self) -> Organization:
-        active_org_id = get_request_active_organization_id(self.request)
-        if not active_org_id:
+        # In the django-tenants setup, the current tenant IS the organization.
+        try:
+            organization = connection.tenant
+        except Exception:
+            organization = None
+
+        if organization is None or not getattr(organization, "is_active", False):
             raise ValidationError("Select an active organization before accessing governance resources.")
 
-        organization = self._resolve_organization_by_id(active_org_id, require_active=True)
         if not can_manage_registry_governance(
             self.request.user,
             organization_id=organization.id,
@@ -262,7 +269,6 @@ class OrganizationBootstrapAPIView(APIView):
         has_active_membership = OrganizationMembership.objects.filter(
             user_id=user.id,
             is_active=True,
-            organization__is_active=True,
         ).exists()
         if has_active_membership and not is_platform_admin_user(user):
             raise ValidationError(
@@ -335,22 +341,12 @@ class OrganizationSummaryAPIView(GovernanceScopeMixin, APIView):
 
         membership_context = get_user_organization_by_id(request.user, organization.id) or {}
         stats = {
-            "members_total": OrganizationMembership.objects.filter(organization_id=organization.id).count(),
-            "members_active": OrganizationMembership.objects.filter(
-                organization_id=organization.id,
-                is_active=True,
-            ).count(),
-            "committees_total": Committee.objects.filter(organization_id=organization.id).count(),
-            "committees_active": Committee.objects.filter(
-                organization_id=organization.id,
-                is_active=True,
-            ).count(),
-            "committee_memberships_active": CommitteeMembership.objects.filter(
-                committee__organization_id=organization.id,
-                is_active=True,
-            ).count(),
+            "members_total": OrganizationMembership.objects.count(),
+            "members_active": OrganizationMembership.objects.filter(is_active=True).count(),
+            "committees_total": Committee.objects.count(),
+            "committees_active": Committee.objects.filter(is_active=True).count(),
+            "committee_memberships_active": CommitteeMembership.objects.filter(is_active=True).count(),
             "active_chairs": CommitteeMembership.objects.filter(
-                committee__organization_id=organization.id,
                 committee_role="chair",
                 is_active=True,
             ).count(),
@@ -451,7 +447,7 @@ class OrganizationMembershipViewSet(
     mixins.UpdateModelMixin,
     viewsets.GenericViewSet,
 ):
-    queryset = OrganizationMembership.objects.select_related("organization", "user").all()
+    queryset = OrganizationMembership.objects.select_related("user").all()
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = OrganizationMembershipDetailSerializer
     http_method_names = ["get", "patch", "head", "options"]
@@ -484,8 +480,8 @@ class OrganizationMembershipViewSet(
         if raw_is_default is not None:
             queryset = queryset.filter(is_default=_parse_bool_param(raw_is_default))
 
-        scoped_org = self._resolve_non_admin_active_organization()
-        return queryset.filter(organization_id=scoped_org.id).order_by("-is_default", "created_at")
+        self._resolve_non_admin_active_organization()
+        return queryset.order_by("-is_default", "created_at")
 
     def _enforce_reactivation_seat_quota(self, *, instance: OrganizationMembership, validated_data: dict) -> None:
         requested_is_active = validated_data.get("is_active")
@@ -508,7 +504,7 @@ class OrganizationMembershipViewSet(
         instance = self.get_object()
         instance = (
             OrganizationMembership.objects.select_for_update()
-            .select_related("organization", "user")
+            .select_related("user")
             .get(pk=instance.pk)
         )
         serializer = self.get_serializer(instance, data=request.data, partial=True)
@@ -553,7 +549,7 @@ class CommitteeViewSet(
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
-    queryset = Committee.objects.select_related("organization", "created_by").all()
+    queryset = Committee.objects.select_related("created_by").all()
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = CommitteeSerializer
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
@@ -578,8 +574,8 @@ class CommitteeViewSet(
         if raw_is_active is not None:
             queryset = queryset.filter(is_active=_parse_bool_param(raw_is_active))
 
-        scoped_org = self._resolve_non_admin_active_organization()
-        return queryset.filter(organization_id=scoped_org.id).order_by("name")
+        self._resolve_non_admin_active_organization()
+        return queryset.order_by("name")
 
     @transaction.atomic
     def create(self, request, *args, **kwargs):
@@ -588,19 +584,16 @@ class CommitteeViewSet(
         serializer.is_valid(raise_exception=True)
         user = request.user
 
-        organization = self._resolve_non_admin_active_organization()
-        requested_org = serializer.validated_data.get("organization")
-        if requested_org is not None and requested_org.id != organization.id:
-            raise PermissionDenied("You cannot create committees for another organization.")
+        self._resolve_non_admin_active_organization()
 
         code = str(serializer.validated_data.get("code", "") or "").strip()
         name = str(serializer.validated_data.get("name", "") or "").strip()
-        if Committee.objects.filter(organization_id=organization.id, code=code).exists():
+        if Committee.objects.filter(code=code).exists():
             raise ValidationError({"code": "Committee code must be unique within the organization."})
-        if Committee.objects.filter(organization_id=organization.id, name=name).exists():
+        if Committee.objects.filter(name=name).exists():
             raise ValidationError({"name": "Committee name must be unique within the organization."})
 
-        committee = serializer.save(organization=organization, created_by=user)
+        committee = serializer.save(created_by=user)
         output = CommitteeSerializer(committee, context=self.get_serializer_context())
         headers = self.get_success_headers(output.data)
         return Response(output.data, status=status.HTTP_201_CREATED, headers=headers)
@@ -683,7 +676,6 @@ class CommitteeViewSet(
                     .filter(
                         id=org_membership_id,
                         user_id=target_user.id,
-                        organization_id=committee.organization_id,
                         is_active=True,
                     )
                     .first()
@@ -734,7 +726,6 @@ class CommitteeMembershipViewSet(
 ):
     queryset = CommitteeMembership.objects.select_related(
         "committee",
-        "committee__organization",
         "user",
         "organization_membership",
     ).all()
@@ -764,8 +755,8 @@ class CommitteeMembershipViewSet(
         if raw_is_active is not None:
             queryset = queryset.filter(is_active=_parse_bool_param(raw_is_active))
 
-        scoped_org = self._resolve_non_admin_active_organization()
-        return queryset.filter(committee__organization_id=scoped_org.id).order_by(
+        self._resolve_non_admin_active_organization()
+        return queryset.order_by(
             "committee__name",
             "committee_role",
             "created_at",
@@ -779,9 +770,7 @@ class CommitteeMembershipViewSet(
         validated = serializer.validated_data
         committee: Committee = validated["committee"]
 
-        scoped_org = self._resolve_non_admin_active_organization()
-        if str(committee.organization_id) != str(scoped_org.id):
-            raise PermissionDenied("You cannot manage committee memberships outside your active organization.")
+        self._resolve_non_admin_active_organization()
 
         user = validated["user"]
         organization_membership = validated.get("organization_membership")
@@ -790,7 +779,6 @@ class CommitteeMembershipViewSet(
                 OrganizationMembership.objects.select_for_update()
                 .filter(
                     user_id=user.id,
-                    organization_id=committee.organization_id,
                     is_active=True,
                 )
                 .order_by("-is_default", "created_at")
@@ -849,7 +837,7 @@ class GovernanceMemberOptionsAPIView(GovernanceScopeMixin, APIView):
             raise ValidationError("Organization context is required.")
 
         active_only = _parse_bool_param(request.query_params.get("active_only"), default=True)
-        queryset = OrganizationMembership.objects.select_related("user").filter(organization_id=organization.id)
+        queryset = OrganizationMembership.objects.select_related("user").all()
         if active_only:
             queryset = queryset.filter(is_active=True)
         queryset = queryset.order_by("-is_default", "user__email")

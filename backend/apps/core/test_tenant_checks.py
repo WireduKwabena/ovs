@@ -8,10 +8,10 @@ from django.test import TestCase, override_settings
 
 from apps.appointments.models import AppointmentRecord
 from apps.applications.models import VettingCase
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.campaigns.models import VettingCampaign
 from apps.core.checks import enforce_tenant_internal_org_integrity
-from apps.governance.models import Organization
+from apps.tenants.models import Organization
 from apps.personnel.models import PersonnelRecord
 from apps.positions.models import GovernmentPosition
 

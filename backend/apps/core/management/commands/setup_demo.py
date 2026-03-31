@@ -8,11 +8,12 @@ from django.db import connection, transaction
 from django.utils import timezone
 
 from apps.appointments.models import AppointmentPublication, AppointmentRecord, ApprovalStage, ApprovalStageTemplate
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.billing.models import BillingSubscription, OrganizationOnboardingToken
 from apps.billing.services import create_organization_onboarding_token, get_active_onboarding_token_for_organization
 from apps.campaigns.models import VettingCampaign
-from apps.governance.models import Committee, CommitteeMembership, Organization, OrganizationMembership
+from apps.governance.models import Committee, CommitteeMembership, OrganizationMembership
+from apps.tenants.models import Organization
 from apps.personnel.models import PersonnelRecord
 from apps.positions.models import GovernmentPosition
 
@@ -242,19 +243,18 @@ class Command(BaseCommand):
             "auditor":     "auditor",
         }.items():
             self._upsert_org_membership(
-                user=users[key], organization=workflow_org, membership_role=role, is_default=True,
+                user=users[key], membership_role=role, is_default=True,
             )
 
         # Capture these two for committee membership assignment below.
         committee_membership = self._upsert_org_membership(
-            user=users["committee"], organization=workflow_org, membership_role="committee_member", is_default=True,
+            user=users["committee"], membership_role="committee_member", is_default=True,
         )
         chair_membership = self._upsert_org_membership(
-            user=users["committee_chair"], organization=workflow_org, membership_role="committee_chair", is_default=True,
+            user=users["committee_chair"], membership_role="committee_chair", is_default=True,
         )
 
         committee = self._upsert_committee(
-            organization=workflow_org,
             code="parliamentary-appointments-main",
             name="Parliamentary Appointments Main Committee",
             committee_type="approval",
@@ -751,11 +751,10 @@ class Command(BaseCommand):
         return organization
 
     def _upsert_org_membership(
-        self, *, user: User, organization: Organization, membership_role: str, is_default: bool
+        self, *, user: User, membership_role: str, is_default: bool
     ) -> OrganizationMembership:
         membership, _ = OrganizationMembership.objects.get_or_create(
             user=user,
-            organization=organization,
             defaults={
                 "membership_role": membership_role, "is_active": True,
                 "is_default": is_default, "joined_at": timezone.now(),
@@ -776,7 +775,6 @@ class Command(BaseCommand):
     def _upsert_committee(
         self,
         *,
-        organization: Organization,
         code: str,
         name: str,
         committee_type: str,
@@ -784,7 +782,6 @@ class Command(BaseCommand):
         description: str,
     ) -> Committee:
         committee, _ = Committee.objects.get_or_create(
-            organization=organization,
             code=code,
             defaults={
                 "name": name, "committee_type": committee_type,

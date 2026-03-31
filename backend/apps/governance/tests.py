@@ -8,7 +8,7 @@ from django.test import override_settings
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.test import APITestCase
 
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.billing.models import BillingSubscription
 from apps.core.authz import ROLE_COMMITTEE_CHAIR, ROLE_COMMITTEE_MEMBER, get_user_roles
 

@@ -8,13 +8,14 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.test import APITestCase
 
 from apps.applications.models import VettingCase
-from apps.authentication.models import User
-from apps.authentication.permissions import (
+from apps.users.models import User
+from apps.users.permissions import (
     RECENT_AUTH_REQUIRED_CODE,
     RECENT_AUTH_SESSION_KEY,
 )
 from apps.billing.models import BillingSubscription
-from apps.governance.models import Organization, OrganizationMembership
+from apps.tenants.models import Organization
+from apps.governance.models import OrganizationMembership
 from apps.rubrics.models import RubricEvaluation, VettingDecisionOverride, VettingDecisionRecommendation, VettingRubric
 from apps.rubrics.tasks import auto_assign_rubric, evaluate_case_with_rubric
 

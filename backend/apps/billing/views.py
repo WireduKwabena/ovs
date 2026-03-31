@@ -884,10 +884,7 @@ def _raise_org_setup_required(*, action_label: str) -> None:
 
 
 def _resolve_onboarding_management_organization(request):
-    try:
-        from apps.governance.models import Organization
-    except Exception as exc:
-        raise ValidationError("Organization governance module is unavailable.") from exc
+    from apps.tenants.models import Organization
 
     user = getattr(request, "user", None)
     tenant_context = get_request_tenant_context(request)
@@ -932,12 +929,9 @@ def _resolve_checkout_organization_id(request) -> str:
     if not organization_id:
         _raise_org_setup_required(action_label="starting checkout")
 
-    try:
-        from apps.governance.models import Organization
+    from apps.tenants.models import Organization
 
-        selected_organization = Organization.objects.filter(id=organization_id, is_active=True).first()
-    except Exception as exc:
-        raise ValidationError("Organization governance module is unavailable.") from exc
+    selected_organization = Organization.objects.filter(id=organization_id, is_active=True).first()
 
     if selected_organization is None:
         raise NotFound("Selected organization was not found or is inactive.")
@@ -1063,7 +1057,7 @@ def _resolve_billing_alert_organization_id(
 
 def _billing_alert_recipients(*, organization_id: str | None = None):
     try:
-        from apps.authentication.models import User
+        from apps.users.models import User
     except Exception:
         return []
 

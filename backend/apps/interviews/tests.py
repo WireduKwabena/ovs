@@ -3,9 +3,10 @@ from django.test import override_settings
 from unittest.mock import Mock, patch
 
 from apps.applications.models import InterrogationFlag, VettingCase
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.billing.models import BillingSubscription
-from apps.governance.models import Organization, OrganizationMembership
+from apps.tenants.models import Organization
+from apps.governance.models import OrganizationMembership
 from apps.interviews.models import (
     InterviewQuestion,
     InterviewResponse,
@@ -347,15 +348,11 @@ class InterviewsApiTests(APITestCase):
         )
         self.assertEqual(invalid_save.status_code, 400)
 
-    @override_settings(HEYGEN_FRONTEND_SDK_ENABLED=False)
-    def test_avatar_session_returns_disabled_payload_when_sdk_is_off(self):
+    @override_settings(LIVEKIT_API_KEY="", LIVEKIT_API_SECRET="", TAVUS_API_KEY="")
+    def test_avatar_session_returns_disabled_when_provider_not_configured(self):
         create_session = self.client.post(
             "/api/interviews/sessions/",
-            {
-                "case": self.case.id,
-                "use_dynamic_questions": True,
-                "max_questions": 5,
-            },
+            {"case": self.case.id, "use_dynamic_questions": True, "max_questions": 5},
             format="json",
         )
         self.assertEqual(create_session.status_code, 201)
@@ -366,32 +363,34 @@ class InterviewsApiTests(APITestCase):
         self.assertEqual(response.json(), {"enabled": False})
 
     @override_settings(
-        HEYGEN_FRONTEND_SDK_ENABLED=True,
-        HEYGEN_API_KEY="test-api-key",
-        HEYGEN_AVATAR_ID="avatar_test",
-        HEYGEN_VOICE_ID="voice_test",
-        HEYGEN_AVATAR_QUALITY="high",
-        HEYGEN_AVATAR_ACTIVITY_IDLE_TIMEOUT=240,
-        HEYGEN_AVATAR_LANGUAGE="en",
+        LIVEKIT_URL="wss://test.livekit.cloud",
+        LIVEKIT_API_KEY="lk-key",
+        LIVEKIT_API_SECRET="lk-secret",
+        LIVEKIT_TOKEN_TTL_SECONDS=3600,
+        TAVUS_API_KEY="tv-key",
+        TAVUS_REPLICA_ID="r_test",
+        TAVUS_PERSONA_ID="p_test",
+        TAVUS_MAX_CALL_DURATION=3600,
+        TAVUS_PARTICIPANT_LEFT_TIMEOUT=60,
+        TAVUS_LANGUAGE="english",
+        TAVUS_ENABLE_RECORDING=False,
     )
-    @patch("apps.interviews.services.heygen_sdk.httpx.post")
-    def test_avatar_session_returns_sdk_payload(self, mock_post):
+    @patch("apps.interviews.services.livekit_sdk.httpx.post")
+    @patch("apps.interviews.services.livekit_sdk._create_livekit_token")
+    def test_avatar_session_returns_livekit_tavus_payload(self, mock_token, mock_post):
+        mock_token.return_value = "lk-jwt-token"
         mocked_response = Mock()
-        mocked_response.status_code = 200
+        mocked_response.status_code = 201
         mocked_response.json.return_value = {
-            "data": {
-                "token": "token-123",
-            }
+            "conversation_id": "conv-abc",
+            "conversation_url": "https://tavus.daily.co/conv-abc",
+            "status": "active",
         }
         mock_post.return_value = mocked_response
 
         create_session = self.client.post(
             "/api/interviews/sessions/",
-            {
-                "case": self.case.id,
-                "use_dynamic_questions": True,
-                "max_questions": 5,
-            },
+            {"case": self.case.id, "use_dynamic_questions": True, "max_questions": 5},
             format="json",
         )
         self.assertEqual(create_session.status_code, 201)
@@ -401,12 +400,11 @@ class InterviewsApiTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertTrue(payload["enabled"])
-        self.assertEqual(payload["token"], "token-123")
-        self.assertEqual(payload["avatar_name"], "avatar_test")
-        self.assertEqual(payload["voice_id"], "voice_test")
-        self.assertEqual(payload["quality"], "high")
-        self.assertEqual(payload["language"], "en")
-        self.assertEqual(payload["activity_idle_timeout"], 240)
+        self.assertEqual(payload["livekit_url"], "wss://test.livekit.cloud")
+        self.assertEqual(payload["livekit_token"], "lk-jwt-token")
+        self.assertIn("room_name", payload)
+        self.assertEqual(payload["conversation_id"], "conv-abc")
+        self.assertEqual(payload["conversation_url"], "https://tavus.daily.co/conv-abc")
 
     def test_save_exchange_same_sequence_does_not_double_increment_question_usage(self):
         create_session = self.client.post(

@@ -9,8 +9,9 @@ from django.test import RequestFactory
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.authentication.models import User
-from apps.governance.models import Organization, OrganizationMembership
+from apps.users.models import User
+from apps.tenants.models import Organization
+from apps.governance.models import OrganizationMembership
 
 from .contracts import (
     APPOINTMENT_FINAL_DECISION_RECORDED_EVENT,

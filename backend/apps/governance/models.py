@@ -7,19 +7,12 @@ from django.db.models import Q
 from django.utils import timezone
 
 
-
-
 class OrganizationMembership(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="organization_memberships",
-    )
-    organization = models.ForeignKey(
-        Organization,
-        on_delete=models.CASCADE,
-        related_name="memberships",
     )
     title = models.CharField(max_length=120, blank=True)
     membership_role = models.CharField(max_length=80, blank=True)
@@ -32,12 +25,8 @@ class OrganizationMembership(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-is_default", "organization__name", "created_at"]
+        ordering = ["-is_default", "created_at"]
         constraints = [
-            models.UniqueConstraint(
-                fields=["user", "organization"],
-                name="uniq_org_membership_user_org",
-            ),
             models.UniqueConstraint(
                 fields=["user"],
                 condition=Q(is_default=True, is_active=True),
@@ -54,11 +43,10 @@ class OrganizationMembership(models.Model):
         ]
         indexes = [
             models.Index(fields=["user", "is_active"]),
-            models.Index(fields=["organization", "is_active"]),
         ]
 
     def __str__(self):
-        return f"{self.user_id} @ {self.organization.name}"
+        return f"{self.user_id} (membership)"
 
 
 class Committee(models.Model):
@@ -72,13 +60,8 @@ class Committee(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.ForeignKey(
-        Organization,
-        on_delete=models.CASCADE,
-        related_name="committees",
-    )
-    code = models.SlugField(max_length=80)
-    name = models.CharField(max_length=200)
+    code = models.SlugField(max_length=80, unique=True)
+    name = models.CharField(max_length=200, unique=True)
     committee_type = models.CharField(max_length=30, choices=COMMITTEE_TYPE_CHOICES, default="other")
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True, db_index=True)
@@ -94,24 +77,13 @@ class Committee(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["organization__name", "name"]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["organization", "code"],
-                name="uniq_committee_org_code",
-            ),
-            models.UniqueConstraint(
-                fields=["organization", "name"],
-                name="uniq_committee_org_name",
-            ),
-        ]
+        ordering = ["name"]
         indexes = [
-            models.Index(fields=["organization", "is_active"]),
             models.Index(fields=["committee_type", "is_active"]),
         ]
 
     def __str__(self):
-        return f"{self.organization.name} :: {self.name}"
+        return self.name
 
 
 class CommitteeMembership(models.Model):
@@ -197,13 +169,6 @@ class CommitteeMembership(models.Model):
                     raise ValidationError(
                         "Organization membership user must match committee membership user."
                     )
-                if (
-                    getattr(organization_membership, "organization_id", None)
-                    != getattr(committee_locked, "organization_id", None)
-                ):
-                    raise ValidationError(
-                        "Organization membership must belong to the committee organization."
-                    )
                 if not bool(getattr(organization_membership, "is_active", False)):
                     raise ValidationError("Organization membership must be active.")
             else:
@@ -211,16 +176,11 @@ class CommitteeMembership(models.Model):
                     OrganizationMembership.objects.select_for_update()
                     .filter(
                         user=user,
-                        organization_id=committee_locked.organization_id,
                         is_active=True,
                     )
                     .order_by("-is_default", "created_at")
                     .first()
                 )
-                if organization_membership is None:
-                    raise ValidationError(
-                        "Active organization membership is required to assign committee chair."
-                    )
 
             # Demote any other active chair memberships first, then promote target.
             cls.objects.select_for_update().filter(

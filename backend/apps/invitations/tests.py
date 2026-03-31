@@ -8,11 +8,12 @@ from django.utils import timezone
 from rest_framework.test import APITestCase, APIRequestFactory
 
 from apps.applications.models import VettingCase
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.billing.models import BillingSubscription
 from apps.campaigns.models import VettingCampaign
 from apps.candidates.models import Candidate, CandidateEnrollment
-from apps.governance.models import Organization, OrganizationMembership
+from apps.tenants.models import Organization
+from apps.governance.models import OrganizationMembership
 from apps.interviews.models import InterviewQuestion, InterviewSession
 from apps.invitations.models import CandidateAccessPass, Invitation
 from apps.invitations.permissions import IsAuthenticatedOrCandidateAccessSession

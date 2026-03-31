@@ -85,8 +85,9 @@ librosa
 soundfile
 
 # LLM Integration
-openai
-# anthropic  # Uncomment if using Claude
+openai  # kept for openai-whisper audio transcription
+anthropic  # Claude — interview question generation & response analysis
+livekit  # LiveKit token generation & room management (package: livekit, import: livekit.api)
 
 # Data Processing
 numpy==1.26.4

@@ -10,8 +10,9 @@ from apps.audit.contracts import (
     GOVERNMENT_POSITION_UPDATED_EVENT,
 )
 from apps.appointments.models import AppointmentRecord
-from apps.authentication.models import User
-from apps.governance.models import Organization, OrganizationMembership
+from apps.users.models import User
+from apps.tenants.models import Organization
+from apps.governance.models import OrganizationMembership
 from apps.personnel.models import PersonnelRecord
 from apps.positions.models import GovernmentPosition
 
