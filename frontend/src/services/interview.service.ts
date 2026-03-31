@@ -1,5 +1,6 @@
 import axios from 'axios';
 import api from './api';
+import { store } from '@/app/store';
 import type { InterrogationFlag } from '@/types/interview.types';
 
 interface StartInterviewResponse {
@@ -105,8 +106,11 @@ const buildWsBaseUrl = (): string => {
   return apiOrigin.replace(/^https?/, wsProtocol);
 };
 
-const buildSessionWebsocketUrl = (sessionId: string): string =>
-  `${buildWsBaseUrl()}/ws/interview/${sessionId}/`;
+const buildSessionWebsocketUrl = (sessionId: string): string => {
+  const base = `${buildWsBaseUrl()}/ws/interview/${sessionId}/`;
+  const accessToken = (store.getState() as { auth?: { tokens?: { access?: string } } }).auth?.tokens?.access;
+  return accessToken ? `${base}?token=${encodeURIComponent(accessToken)}` : base;
+};
 
 const normalizeSeverity = (severity?: string): InterrogationFlag['severity'] => {
   if (severity === 'critical' || severity === 'high' || severity === 'medium') {

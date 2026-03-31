@@ -1,6 +1,7 @@
 import json
 import logging
 import time
+from urllib.parse import parse_qs, unquote_plus
 
 from django.conf import settings
 from channels.generic.websocket import AsyncWebsocketConsumer
@@ -26,6 +27,35 @@ except ImportError:
 
 
 class InterviewConsumer(AsyncWebsocketConsumer):
+    def _validate_ws_token(self) -> bool:
+        """
+        Validate the JWT access token passed as ?token=<access_token> in the
+        WebSocket URL.  Only signature and expiry are checked (no DB blacklist
+        lookup) — sufficient for a short-lived (1 h) access token.
+        """
+        try:
+            from rest_framework_simplejwt.tokens import UntypedToken
+            from rest_framework_simplejwt.exceptions import TokenError
+
+            query_string = self.scope.get("query_string", b"").decode("utf-8", errors="replace")
+            params = parse_qs(query_string)
+            token_list = params.get("token", [])
+            if not token_list:
+                logger.warning(
+                    "WebSocket connection rejected: missing token for session %s",
+                    self.session_id,
+                )
+                return False
+            UntypedToken(unquote_plus(token_list[0]))
+            return True
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "WebSocket auth failed for session %s: %s",
+                self.session_id,
+                exc,
+            )
+            return False
+
     async def connect(self):
         self.session_id = str(self.scope["url_route"]["kwargs"]["session_id"])
         self._chunk_index = 0
@@ -33,6 +63,13 @@ class InterviewConsumer(AsyncWebsocketConsumer):
         self._message_timestamps: list[float] = []
         # Redis connection for distributed rate limiting across load-balanced nodes.
         self._redis = None
+
+        # Reject unauthenticated connections before doing any real work.
+        if not self._validate_ws_token():
+            await self.accept()
+            await self.close(code=4401)
+            return
+
         if _REDIS_AVAILABLE:
             try:
                 redis_url: str = getattr(settings, "REDIS_URL", "redis://localhost:6379/0")
