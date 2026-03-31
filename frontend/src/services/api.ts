@@ -12,6 +12,7 @@ const AUTH_ENDPOINTS = [
   '/auth/admin/login/',
   '/auth/admin/login/verify/',
   '/auth/register/',
+  '/auth/register/organization-admin/',
   '/auth/logout/',
   '/auth/token/refresh/',
   '/auth/password-reset/',
@@ -81,18 +82,16 @@ api.interceptors.request.use(
 // independent refresh call (race condition → multiple /token/refresh/ calls,
 // all but the first invalidate each other's new tokens).
 let _isRefreshing = false;
-let _refreshQueue: Array<(token: string) => void> = [];
+interface _QueueEntry { resolve: (token: string) => void; reject: (err: unknown) => void }
+let _refreshQueue: _QueueEntry[] = [];
 
 function _processRefreshQueue(newAccessToken: string) {
-  _refreshQueue.forEach((resolve) => resolve(newAccessToken));
+  _refreshQueue.forEach(({ resolve }) => resolve(newAccessToken));
   _refreshQueue = [];
 }
 
-function _drainRefreshQueueWithError() {
-  _refreshQueue.forEach((_, idx, arr) => {
-    // Reject queued requests — they will fall through to the 401 handler.
-    arr[idx] = () => {};
-  });
+function _drainRefreshQueueWithError(err: unknown) {
+  _refreshQueue.forEach(({ reject }) => reject(err));
   _refreshQueue = [];
 }
 // ---------------------------------------------------------------------------
@@ -115,8 +114,8 @@ api.interceptors.response.use(
       if (_isRefreshing) {
         // Another request already started the refresh — queue this one and
         // retry it once the refresh resolves.
-        return new Promise<string>((resolve) => {
-          _refreshQueue.push(resolve);
+        return new Promise<string>((resolve, reject) => {
+          _refreshQueue.push({ resolve, reject });
         }).then((newToken) => {
           if (originalRequest.headers) {
             originalRequest.headers.Authorization = `Bearer ${newToken}`;
@@ -133,8 +132,8 @@ api.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${refreshResult.access}`;
         }
         return api(originalRequest);
-      } catch {
-        _drainRefreshQueueWithError();
+      } catch (refreshErr) {
+        _drainRefreshQueueWithError(refreshErr);
         await store.dispatch(logout());
         store.dispatch(
           setError({
