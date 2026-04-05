@@ -105,25 +105,17 @@ def _scope_internal_interview_queryset(
     organization_field: str,
     assigned_field: str,
 ):
+    # In django-tenants, schema isolation already scopes all rows to the current
+    # tenant.  No organization_id filter is needed.
     user = getattr(request, "user", None)
     if is_platform_admin_user(user):
         return queryset
     membership_org_ids = get_user_allowed_organization_ids(user)
     if membership_org_ids:
-        explicit_active_org_id = str(
-            getattr(request, "META", {}).get("HTTP_X_ACTIVE_ORGANIZATION_ID", "")
-            or getattr(request, "query_params", {}).get("active_organization_id", "")
-            or ""
-        ).strip()
-        if explicit_active_org_id and explicit_active_org_id in membership_org_ids:
-            return queryset.filter(**{organization_field: explicit_active_org_id})
-        return queryset.filter(**{f"{organization_field}__in": list(membership_org_ids)})
-    return queryset.filter(
-        **{
-            assigned_field: user,
-            f"{organization_field}__isnull": True,
-        }
-    )
+        # Schema already scoped — return as-is.
+        return queryset
+    # Legacy fallback: user has no org memberships; show only assigned records.
+    return queryset.filter(**{assigned_field: user})
 
 
 def _assert_case_interview_access(request, case: VettingCase) -> None:

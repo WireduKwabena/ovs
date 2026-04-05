@@ -21,7 +21,7 @@ import uuid
 
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.applications.models import VettingCase
 
 
@@ -154,7 +154,6 @@ class VettingRubric(models.Model):
         ordering = ['name']
         indexes = [
             models.Index(fields=['is_active', 'is_default']),
-            models.Index(fields=['organization', 'is_active']),
         ]
         verbose_name = 'Vetting Rubric'
         verbose_name_plural = 'Vetting Rubrics'

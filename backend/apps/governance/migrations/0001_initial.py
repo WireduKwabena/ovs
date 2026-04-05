@@ -163,11 +163,6 @@ class Migration(migrations.Migration):
                         fields=("committee", "user"),
                         name="uniq_committee_membership_committee_user",
                     ),
-                    models.UniqueConstraint(
-                        fields=("committee",),
-                        condition=models.Q(committee_role="chair", is_active=True),
-                        name="uniq_active_committee_chair_per_committee",
-                    ),
                     models.CheckConstraint(
                         condition=models.Q(left_at__isnull=True) | models.Q(is_active=False),
                         name="chk_committee_membership_left_at_requires_inactive",

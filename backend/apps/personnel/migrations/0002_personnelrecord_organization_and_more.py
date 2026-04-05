@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('candidates', '0002_candidatesocialprofile'),
-        ('governance', '0001_initial'),
+        ('tenants', '0001_initial'),
         ('personnel', '0001_initial'),
     ]
 
@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='personnelrecord',
             name='organization',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='personnel_records', to='governance.organization'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='personnel_records', to='tenants.organization'),
         ),
         migrations.AddIndex(
             model_name='personnelrecord',

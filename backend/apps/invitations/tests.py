@@ -305,7 +305,6 @@ class CandidateAccessVettingEndpointsTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.hr,
-            organization=self.organization,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
@@ -319,7 +318,6 @@ class CandidateAccessVettingEndpointsTests(APITestCase):
         )
         BillingSubscription.objects.create(
             provider="sandbox",
-            organization=self.organization,
             status="complete",
             payment_status="paid",
             plan_id="starter",
@@ -332,7 +330,6 @@ class CandidateAccessVettingEndpointsTests(APITestCase):
         campaign = VettingCampaign.objects.create(
             name="Portal Campaign",
             initiated_by=self.hr,
-            organization=self.organization,
         )
         self.candidate = Candidate.objects.create(
             first_name="Portal",
@@ -354,7 +351,6 @@ class CandidateAccessVettingEndpointsTests(APITestCase):
             created_by=self.hr,
         )
         self.case = VettingCase.objects.create(
-            organization=self.organization,
             applicant=self.applicant,
             candidate_enrollment=self.enrollment,
             assigned_to=self.hr,
@@ -479,7 +475,6 @@ class CandidateAccessVettingEndpointsTests(APITestCase):
             registered_at=timezone.now(),
         )
         other_case = VettingCase.objects.create(
-            organization=self.organization,
             applicant=other_applicant,
             candidate_enrollment=other_enrollment,
             assigned_to=self.hr,

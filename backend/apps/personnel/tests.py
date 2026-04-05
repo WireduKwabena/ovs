@@ -142,7 +142,6 @@ class PersonnelApiTests(APITestCase):
         create_org = Organization.objects.create(code="personnel-create-org", name="Personnel Create Org")
         OrganizationMembership.objects.create(
             user=self.internal_user,
-            organization=create_org,
             is_active=True,
             is_default=True,
         )
@@ -324,18 +323,15 @@ class PersonnelOrganizationScopeTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.internal_a,
-            organization=self.org_a,
             is_active=True,
             is_default=True,
         )
 
         self.record_org_a = PersonnelRecord.objects.create(
-            organization=self.org_a,
             full_name="Scoped Personnel A",
             is_public=True,
         )
         self.record_org_b = PersonnelRecord.objects.create(
-            organization=self.org_b,
             full_name="Scoped Personnel B",
             is_public=False,
         )

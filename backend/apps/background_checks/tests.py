@@ -36,13 +36,11 @@ class BackgroundCheckServiceTests(TestCase):
         )
         OrganizationMembership.objects.create(
             user=self.user,
-            organization=self.organization,
             membership_role="nominee",
             is_active=True,
             is_default=True,
         )
         self.case = VettingCase.objects.create(
-            organization=self.organization,
             applicant=self.user,
             position_applied="Risk Analyst",
             department="Compliance",
@@ -54,7 +52,6 @@ class BackgroundCheckServiceTests(TestCase):
     def _create_org_subscription(self, organization, *, status="complete", payment_status="paid", plan_id="starter"):
         BillingSubscription.objects.create(
             provider="sandbox",
-            organization=organization,
             status=status,
             payment_status=payment_status,
             plan_id=plan_id,
@@ -85,7 +82,6 @@ class BackgroundCheckServiceTests(TestCase):
         )
         OrganizationMembership.objects.create(
             user=self.user,
-            organization=organization,
             membership_role="nominee",
             is_active=True,
             is_default=False,
@@ -96,9 +92,6 @@ class BackgroundCheckServiceTests(TestCase):
             payment_status="unpaid",
             plan_id="starter",
         )
-        self.case.organization = organization
-        self.case.save(update_fields=["organization", "updated_at"])
-
         with self.assertRaises(DRFValidationError) as context:
             submit_background_check(
                 case=self.case,
@@ -274,28 +267,24 @@ class BackgroundCheckApiTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.internal_user,
-            organization=self.organization,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
         )
         OrganizationMembership.objects.create(
             user=self.user,
-            organization=self.organization,
             membership_role="nominee",
             is_active=True,
             is_default=True,
         )
         OrganizationMembership.objects.create(
             user=self.other_user,
-            organization=self.organization,
             membership_role="nominee",
             is_active=True,
             is_default=True,
         )
 
         self.case = VettingCase.objects.create(
-            organization=self.organization,
             applicant=self.user,
             position_applied="Risk Analyst",
             department="Compliance",
@@ -303,7 +292,6 @@ class BackgroundCheckApiTests(APITestCase):
             status="under_review",
         )
         self.other_case = VettingCase.objects.create(
-            organization=self.organization,
             applicant=self.other_user,
             position_applied="Security Analyst",
             department="Operations",
@@ -315,7 +303,6 @@ class BackgroundCheckApiTests(APITestCase):
     def _create_org_subscription(self, organization, *, status="complete", payment_status="paid", plan_id="starter"):
         BillingSubscription.objects.create(
             provider="sandbox",
-            organization=organization,
             status=status,
             payment_status=payment_status,
             plan_id=plan_id,
@@ -383,7 +370,6 @@ class BackgroundCheckApiTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.internal_user,
-            organization=organization,
             membership_role="registry_admin",
             is_active=True,
             is_default=False,
@@ -394,9 +380,6 @@ class BackgroundCheckApiTests(APITestCase):
             payment_status="unpaid",
             plan_id="starter",
         )
-        self.case.organization = organization
-        self.case.save(update_fields=["organization", "updated_at"])
-
         self.client.force_authenticate(self.internal_user)
         response = self.client.post(
             "/api/background-checks/checks/",

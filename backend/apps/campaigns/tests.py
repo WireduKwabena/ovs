@@ -146,7 +146,6 @@ class CampaignAuthorizationTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.internal_one,
-            organization=organization,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
@@ -362,25 +361,21 @@ class CampaignOrganizationScopeTests(APITestCase):
         self.internal_b.groups.add(vetting_officer_group)
         OrganizationMembership.objects.create(
             user=self.internal_a,
-            organization=self.org_a,
             is_active=True,
             is_default=True,
         )
         OrganizationMembership.objects.create(
             user=self.internal_b,
-            organization=self.org_b,
             is_active=True,
             is_default=True,
         )
 
         self.same_org_foreign_owner_campaign = VettingCampaign.objects.create(
             name="Org A Campaign (Owned by B)",
-            organization=self.org_a,
             initiated_by=self.internal_b,
         )
         self.other_org_campaign = VettingCampaign.objects.create(
             name="Org B Campaign",
-            organization=self.org_b,
             initiated_by=self.internal_b,
         )
 

@@ -5,15 +5,11 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from apps.applications.models import VettingCase
-from apps.authentication.permissions import RequiresRecentAuth
+from apps.users.permissions import RequiresRecentAuth
 from apps.billing.quotas import (
     VETTING_OPERATION_RUBRIC_EVALUATION,
     enforce_vetting_operation_quota,
     resolve_case_organization_id,
-)
-from apps.core.permissions import (
-    get_request_active_organization_id,
-    scope_internal_queryset_to_tenant,
 )
 from apps.core.policies.appointment_policy import can_view_internal_record
 from apps.core.policies.registry_policy import can_manage_registry, is_platform_admin_actor
@@ -62,32 +58,19 @@ class VettingRubricViewSet(viewsets.ModelViewSet):
     serializer_class = VettingRubricSerializer
     permission_classes = [IsInternalRubricOperator]
 
-    def _resolve_target_org_id(self, *, requested_org=None, fallback_org_id=None):
-        requested_org_id = str(getattr(requested_org, "id", "") or "").strip()
-        if requested_org_id:
-            return requested_org_id
-        fallback = str(fallback_org_id or "").strip()
-        return fallback or None
-
-    def _require_registry_manage(self, *, organization_id=None, detail: str):
+    def _require_registry_manage(self, *, detail: str):
         user = self.request.user
         if is_platform_admin_actor(user):
             return
-        if can_manage_registry(
-            user,
-            organization_id=organization_id,
-            allow_membershipless_fallback=False,
-        ):
+        if can_manage_registry(user, allow_membershipless_fallback=False):
             return
         raise PermissionDenied(detail)
 
     def get_queryset(self):
+        user = getattr(self.request, "user", None)
+        if user is None or not getattr(user, "is_authenticated", False):
+            return VettingRubric.objects.none()
         queryset = VettingRubric.objects.prefetch_related("criteria").all()
-        queryset = scope_internal_queryset_to_tenant(
-            queryset,
-            request=self.request,
-            organization_field="organization_id",
-        )
         rubric_type = self.request.query_params.get("rubric_type")
         is_active = self.request.query_params.get("is_active")
         if rubric_type:
@@ -97,52 +80,21 @@ class VettingRubricViewSet(viewsets.ModelViewSet):
         return queryset.order_by("name")
 
     def perform_create(self, serializer):
-        user = self.request.user
-        requested_org = serializer.validated_data.get("organization")
-        active_org_id = get_request_active_organization_id(self.request)
-        target_org_id = self._resolve_target_org_id(
-            requested_org=requested_org,
-            fallback_org_id=active_org_id,
-        )
-        if not is_platform_admin_actor(user):
-            if target_org_id is None:
-                raise PermissionDenied("Active organization context is required to create rubrics.")
-            self._require_registry_manage(
-                organization_id=target_org_id,
-                detail="You do not have permission to create rubrics.",
-            )
-            if requested_org is None and active_org_id:
-                serializer.save(created_by=self.request.user, organization_id=active_org_id)
-                return
+        self._require_registry_manage(detail="You do not have permission to create rubrics.")
         serializer.save(created_by=self.request.user)
 
     def perform_update(self, serializer):
-        instance = serializer.instance
-        requested_org = serializer.validated_data.get("organization")
-        target_org_id = self._resolve_target_org_id(
-            requested_org=requested_org,
-            fallback_org_id=instance.organization_id,
-        )
-        self._require_registry_manage(
-            organization_id=target_org_id,
-            detail="You do not have permission to update rubrics.",
-        )
+        self._require_registry_manage(detail="You do not have permission to update rubrics.")
         serializer.save()
 
     def perform_destroy(self, instance):
-        self._require_registry_manage(
-            organization_id=instance.organization_id,
-            detail="You do not have permission to delete rubrics.",
-        )
+        self._require_registry_manage(detail="You do not have permission to delete rubrics.")
         super().perform_destroy(instance)
 
     @action(detail=True, methods=["post"], url_path="activate")
     def activate(self, request, pk=None):
         rubric = self.get_object()
-        self._require_registry_manage(
-            organization_id=rubric.organization_id,
-            detail="You do not have permission to activate rubrics.",
-        )
+        self._require_registry_manage(detail="You do not have permission to activate rubrics.")
         rubric.is_active = True
         rubric.save(update_fields=["is_active", "updated_at"])
         data = self.get_serializer(rubric).data
@@ -151,10 +103,7 @@ class VettingRubricViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="duplicate")
     def duplicate(self, request, pk=None):
         source = self.get_object()
-        self._require_registry_manage(
-            organization_id=source.organization_id,
-            detail="You do not have permission to duplicate rubrics.",
-        )
+        self._require_registry_manage(detail="You do not have permission to duplicate rubrics.")
         copy_name = f"{source.name} (Copy)"
         copy_index = 2
         while VettingRubric.objects.filter(name=copy_name).exists():
@@ -163,7 +112,6 @@ class VettingRubricViewSet(viewsets.ModelViewSet):
 
         with transaction.atomic():
             cloned = VettingRubric.objects.create(
-                organization=source.organization,
                 name=copy_name,
                 description=source.description,
                 rubric_type=source.rubric_type,
@@ -228,47 +176,24 @@ class VettingRubricViewSet(viewsets.ModelViewSet):
         if not isinstance(overrides, dict):
             return Response({"error": "overrides must be an object"}, status=status.HTTP_400_BAD_REQUEST)
 
-        active_org_id = get_request_active_organization_id(request)
-        if not is_platform_admin_actor(request.user) and not active_org_id:
-            return Response(
-                {"error": "Active organization context is required to create rubrics from templates."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        self._require_registry_manage(
-            organization_id=active_org_id,
-            detail="You do not have permission to create rubrics from templates.",
-        )
+        if not is_platform_admin_actor(request.user):
+            if not can_manage_registry(request.user, allow_membershipless_fallback=False):
+                return Response(
+                    {"error": "You do not have permission to create rubrics from templates."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         try:
             rubric = create_rubric_from_template(template_key, created_by=request.user, **overrides)
         except ValueError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not is_platform_admin_actor(request.user):
-            if not can_manage_registry(
-                request.user,
-                organization_id=rubric.organization_id,
-                allow_membershipless_fallback=False,
-            ):
-                rubric.delete()
-                return Response(
-                    {"error": "You cannot create rubrics for another organization."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-            if rubric.organization_id is None:
-                if active_org_id:
-                    rubric.organization_id = active_org_id
-                    rubric.save(update_fields=["organization", "updated_at"])
-
         return Response(self.get_serializer(rubric).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], url_path="criteria")
     def add_criteria(self, request, pk=None):
         rubric = self.get_object()
-        self._require_registry_manage(
-            organization_id=rubric.organization_id,
-            detail="You do not have permission to manage rubric criteria.",
-        )
+        self._require_registry_manage(detail="You do not have permission to manage rubric criteria.")
         payload = request.data.copy()
         payload["rubric"] = rubric.id
         serializer = RubricCriteriaSerializer(data=payload)
@@ -291,20 +216,13 @@ class VettingRubricViewSet(viewsets.ModelViewSet):
             case = VettingCase.objects.get(id=case_id)
         except VettingCase.DoesNotExist:
             return Response({"error": "Case not found"}, status=status.HTTP_404_NOT_FOUND)
-        if not is_platform_admin_actor(request.user) and not can_view_internal_record(
-            request.user,
-            organization_id=case.organization_id,
-            allow_membershipless_fallback=False,
-            enforce_org_scope_for_null=True,
-        ):
+        if not is_platform_admin_actor(request.user) and not can_view_internal_record(request.user):
             raise PermissionDenied("You cannot evaluate cases outside your organization scope.")
 
         existing_evaluation = RubricEvaluation.objects.filter(case=case).exists()
         resolved_org_id = resolve_case_organization_id(case, actor=request.user)
-        quota_actor = None if resolved_org_id else request.user
         enforce_vetting_operation_quota(
             operation=VETTING_OPERATION_RUBRIC_EVALUATION,
-            user=quota_actor,
             organization_id=resolved_org_id,
             additional=0 if existing_evaluation else 1,
         )
@@ -355,20 +273,13 @@ class VettingRubricViewSet(viewsets.ModelViewSet):
                 case = VettingCase.objects.get(id=case_ref)
             except (VettingCase.DoesNotExist, ValueError, TypeError):
                 return Response({"error": "Case not found"}, status=status.HTTP_404_NOT_FOUND)
-        if not is_platform_admin_actor(request.user) and not can_view_internal_record(
-            request.user,
-            organization_id=case.organization_id,
-            allow_membershipless_fallback=False,
-            enforce_org_scope_for_null=True,
-        ):
+        if not is_platform_admin_actor(request.user) and not can_view_internal_record(request.user):
             raise PermissionDenied("You cannot evaluate cases outside your organization scope.")
 
         existing_evaluation = RubricEvaluation.objects.filter(case=case).exists()
         resolved_org_id = resolve_case_organization_id(case, actor=request.user)
-        quota_actor = None if resolved_org_id else request.user
         enforce_vetting_operation_quota(
             operation=VETTING_OPERATION_RUBRIC_EVALUATION,
-            user=quota_actor,
             organization_id=resolved_org_id,
             additional=0 if existing_evaluation else 1,
         )
@@ -400,12 +311,10 @@ class RubricCriteriaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsInternalRubricOperator]
 
     def get_queryset(self):
+        user = getattr(self.request, "user", None)
+        if user is None or not getattr(user, "is_authenticated", False):
+            return RubricCriteria.objects.none()
         queryset = RubricCriteria.objects.select_related("rubric").all()
-        queryset = scope_internal_queryset_to_tenant(
-            queryset,
-            request=self.request,
-            organization_field="rubric__organization_id",
-        )
         rubric_id = self.request.query_params.get("rubric")
         if rubric_id:
             queryset = queryset.filter(rubric_id=rubric_id)
@@ -415,11 +324,7 @@ class RubricCriteriaViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if is_platform_admin_actor(user):
             return
-        if can_manage_registry(
-            user,
-            organization_id=getattr(rubric, "organization_id", None),
-            allow_membershipless_fallback=False,
-        ):
+        if can_manage_registry(user, allow_membershipless_fallback=False):
             return
         raise PermissionDenied("You do not have permission to manage rubric criteria.")
 
@@ -447,15 +352,13 @@ class RubricEvaluationViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsInternalRubricOperator]
 
     def get_queryset(self):
+        user = getattr(self.request, "user", None)
+        if user is None or not getattr(user, "is_authenticated", False):
+            return RubricEvaluation.objects.none()
         queryset = RubricEvaluation.objects.select_related("case", "rubric", "evaluated_by").prefetch_related(
             "overrides",
             "decision_recommendations__generated_by",
             "decision_recommendations__overrides__overridden_by",
-        )
-        queryset = scope_internal_queryset_to_tenant(
-            queryset,
-            request=self.request,
-            organization_field="case__organization_id",
         )
         case_id = self.request.query_params.get("case")
         rubric_id = self.request.query_params.get("rubric")
@@ -472,10 +375,8 @@ class RubricEvaluationViewSet(viewsets.ReadOnlyModelViewSet):
         if ai_error is not None:
             return ai_error
         resolved_org_id = resolve_case_organization_id(evaluation.case, actor=request.user)
-        quota_actor = None if resolved_org_id else request.user
         enforce_vetting_operation_quota(
             operation=VETTING_OPERATION_RUBRIC_EVALUATION,
-            user=quota_actor,
             organization_id=resolved_org_id,
             additional=0,
         )

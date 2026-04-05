@@ -68,7 +68,6 @@ class TenantIntegrityChecksTests(TestCase):
         org_b = Organization.objects.create(code="tenant-check-b", name="Tenant Check Org B")
 
         position = GovernmentPosition.objects.create(
-            organization=org_b,
             title="Tenant Mismatch Position",
             branch="executive",
             institution="Org B Office",
@@ -76,17 +75,14 @@ class TenantIntegrityChecksTests(TestCase):
             is_vacant=True,
         )
         nominee = PersonnelRecord.objects.create(
-            organization=org_b,
             full_name="Tenant Mismatch Nominee",
         )
         exercise = VettingCampaign.objects.create(
-            organization=org_b,
             name="Tenant Mismatch Campaign",
             initiated_by=self.user,
             status="active",
         )
         case = VettingCase.objects.create(
-            organization=org_b,
             applicant=self.user,
             assigned_to=self.user,
             position_applied="Tenant Mismatch Position",
@@ -96,7 +92,6 @@ class TenantIntegrityChecksTests(TestCase):
         )
 
         AppointmentRecord.objects.create(
-            organization=org_a,
             position=position,
             nominee=nominee,
             appointment_exercise=exercise,

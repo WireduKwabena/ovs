@@ -23,7 +23,6 @@ class PolicyEngineTests(TestCase):
         self.org_a = Organization.objects.create(code="policy-org-a", name="Policy Org A")
         self.org_b = Organization.objects.create(code="policy-org-b", name="Policy Org B")
         self.committee_a = Committee.objects.create(
-            organization=self.org_a,
             code="policy-committee-a",
             name="Policy Committee A",
             committee_type="approval",
@@ -92,31 +91,26 @@ class PolicyEngineTests(TestCase):
 
         self.internal_membership = OrganizationMembership.objects.create(
             user=self.hr,
-            organization=self.org_a,
             is_active=True,
             is_default=True,
         )
         self.authority_membership = OrganizationMembership.objects.create(
             user=self.authority,
-            organization=self.org_a,
             is_active=True,
             is_default=True,
         )
         self.registry_admin_membership = OrganizationMembership.objects.create(
             user=self.registry_admin,
-            organization=self.org_a,
             is_active=True,
             is_default=True,
         )
         self.publisher_membership = OrganizationMembership.objects.create(
             user=self.publisher,
-            organization=self.org_a,
             is_active=True,
             is_default=True,
         )
         self.committee_membership = OrganizationMembership.objects.create(
             user=self.committee_member,
-            organization=self.org_a,
             is_active=True,
             is_default=True,
         )
@@ -227,7 +221,6 @@ class PolicyEngineTests(TestCase):
         )
         OrganizationMembership.objects.create(
             user=membership_role_user,
-            organization=self.org_a,
             membership_role="vetting_officer",
             is_active=True,
             is_default=True,

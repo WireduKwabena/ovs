@@ -16,7 +16,7 @@ Central models for the document vetting pipeline. Implements:
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator, FileExtensionValidator
 from django.utils import timezone
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.candidates.models import CandidateEnrollment
 import uuid
 import os

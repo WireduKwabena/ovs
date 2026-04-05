@@ -110,7 +110,7 @@ ENABLE_REALTIME = config("ENABLE_REALTIME", default=False, cast=bool)
 SHARED_APPS = [
     'django_tenants',  # mandatory
     'apps.tenants', # you must list the app where your tenant model resides in
-
+    "apps.users",
     'django.contrib.contenttypes',
     "django.contrib.staticfiles",
     # everything below here is optional
@@ -149,7 +149,6 @@ TENANT_APPS = (
     "apps.core",
     "apps.admin_dashboard",
     "apps.authentication",
-    "apps.users",
     "apps.governance",
     "apps.campaigns",
     "apps.positions",

@@ -6,7 +6,7 @@ from django.db import transaction
 from apps.appointments.models import AppointmentRecord, ApprovalStageTemplate
 from apps.applications.models import VettingCase
 from apps.campaigns.models import VettingCampaign
-from apps.governance.models import Organization
+from apps.tenants.models import Organization
 from apps.personnel.models import PersonnelRecord
 from apps.positions.models import GovernmentPosition
 from apps.rubrics.models import VettingRubric

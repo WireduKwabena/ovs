@@ -91,15 +91,13 @@ def is_subscription_active(subscription: BillingSubscription | None, *, now=None
     return True
 
 
-def get_active_subscription_for_organization(*, organization_id: str | None) -> BillingSubscription | None:
-    normalized_org_id = str(organization_id or "").strip()
-    if not normalized_org_id:
-        return None
-
-    candidates = (
-        BillingSubscription.objects.filter(organization_id=normalized_org_id)
-        .order_by("-updated_at", "-created_at")
-    )
+def get_active_subscription_for_organization(*, organization_id: str | None = None) -> BillingSubscription | None:
+    qs = BillingSubscription.objects.all()
+    if organization_id:
+        # Filter by FK when provided so that tests (which share a single schema)
+        # and multi-org edge-cases return the correct subscription.
+        qs = qs.filter(organization_id=organization_id)
+    candidates = qs.order_by("-updated_at", "-created_at")
     for subscription in candidates.iterator(chunk_size=100):
         if is_subscription_active(subscription):
             return subscription
@@ -108,14 +106,12 @@ def get_active_subscription_for_organization(*, organization_id: str | None) -> 
 
 def deactivate_active_onboarding_tokens(
     *,
-    organization_id: str,
+    organization_id: str | None = None,
     reason: str,
     revoked_by=None,
     when=None,
 ) -> int:
-    normalized_org_id = str(organization_id or "").strip()
-    if not normalized_org_id:
-        return 0
+    # In django-tenants all queries are automatically schema-scoped; org_id param kept for API compatibility.
     now = when or timezone.now()
     update_kwargs = {
         "is_active": False,
@@ -126,17 +122,14 @@ def deactivate_active_onboarding_tokens(
     if revoked_by is not None:
         update_kwargs["created_by"] = revoked_by
     return (
-        OrganizationOnboardingToken.objects.filter(
-            organization_id=normalized_org_id,
-            is_active=True,
-        )
+        OrganizationOnboardingToken.objects.filter(is_active=True)
         .update(**update_kwargs)
     )
 
 
 def create_organization_onboarding_token(
     *,
-    organization,
+    organization=None,
     subscription: BillingSubscription,
     created_by=None,
     expires_at=None,
@@ -145,19 +138,15 @@ def create_organization_onboarding_token(
     rotate: bool = True,
     metadata: dict | None = None,
 ) -> tuple[OrganizationOnboardingToken, str]:
-    if organization is None:
-        raise ValueError("organization is required")
+    # organization param kept for API compatibility but not used — schema isolation handles scoping.
     if subscription is None:
         raise ValueError("subscription is required")
-    if str(getattr(subscription, "organization_id", "") or "") != str(getattr(organization, "id", "") or ""):
-        raise ValueError("subscription does not belong to organization")
     if not is_subscription_active(subscription):
         raise ValueError("organization subscription is not active")
 
     now = timezone.now()
     if rotate:
         deactivate_active_onboarding_tokens(
-            organization_id=str(organization.id),
             reason="rotated",
             revoked_by=created_by,
             when=now,
@@ -184,7 +173,6 @@ def create_organization_onboarding_token(
         preview = token_preview(raw_token)
         try:
             token_record = OrganizationOnboardingToken.objects.create(
-                organization=organization,
                 subscription=subscription,
                 token_hash=hashed,
                 token_prefix=preview,
@@ -203,15 +191,10 @@ def create_organization_onboarding_token(
     raise RuntimeError("Unable to generate a unique onboarding token")
 
 
-def get_active_onboarding_token_for_organization(*, organization_id: str | None) -> OrganizationOnboardingToken | None:
-    normalized_org_id = str(organization_id or "").strip()
-    if not normalized_org_id:
-        return None
+def get_active_onboarding_token_for_organization(*, organization_id: str | None = None) -> OrganizationOnboardingToken | None:
+    # In django-tenants all queries are automatically schema-scoped; org_id param kept for API compatibility.
     return (
-        OrganizationOnboardingToken.objects.filter(
-            organization_id=normalized_org_id,
-            is_active=True,
-        )
+        OrganizationOnboardingToken.objects.filter(is_active=True)
         .order_by("-created_at")
         .first()
     )
@@ -240,10 +223,10 @@ def validate_organization_onboarding_token(
         return OnboardingTokenValidationResult(valid=False, reason="not_found")
 
     moment = now or timezone.now()
+    # Organization scope is enforced by schema isolation (django-tenants);
+    # no per-token org FK check needed.
     expected_org_id = str(expected_organization_id or "").strip()
-    token_org_id = str(token_record.organization_id or "")
-    if expected_org_id and token_org_id != expected_org_id:
-        return OnboardingTokenValidationResult(valid=False, reason="organization_mismatch", token_record=token_record)
+    _ = expected_org_id  # kept for API compatibility
 
     if not token_record.is_active:
         return OnboardingTokenValidationResult(valid=False, reason="inactive", token_record=token_record)
@@ -269,7 +252,7 @@ def validate_organization_onboarding_token(
         if not hmac.compare_digest(submitted_domain, normalized_allowed_domain):
             return OnboardingTokenValidationResult(valid=False, reason="email_domain_not_allowed", token_record=token_record)
 
-    active_subscription = get_active_subscription_for_organization(organization_id=token_org_id)
+    active_subscription = get_active_subscription_for_organization()
     if active_subscription is None:
         return OnboardingTokenValidationResult(valid=False, reason="subscription_inactive", token_record=token_record)
 
@@ -302,12 +285,6 @@ def validate_organization_onboarding_token(
 def sync_onboarding_tokens_for_subscription(subscription: BillingSubscription | None) -> None:
     if subscription is None:
         return
-    organization_id = str(getattr(subscription, "organization_id", "") or "")
-    if not organization_id:
-        return
     if is_subscription_active(subscription):
         return
-    deactivate_active_onboarding_tokens(
-        organization_id=organization_id,
-        reason="subscription_inactive",
-    )
+    deactivate_active_onboarding_tokens(reason="subscription_inactive")

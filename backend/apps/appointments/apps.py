@@ -1,5 +1,6 @@
 from django.apps import AppConfig
 from django.db.models.signals import post_migrate
+import os
 
 
 class AppointmentsConfig(AppConfig):
@@ -8,7 +9,9 @@ class AppointmentsConfig(AppConfig):
     verbose_name = "Government Appointments"
 
     def ready(self):
-        post_migrate.connect(_ensure_appointment_role_groups, sender=self)
+        # Only connect signal if not in initialization mode (env var set by entrypoint)
+        if not os.environ.get("DJANGO_SKIP_POST_MIGRATE_SIGNALS"):
+            post_migrate.connect(_ensure_appointment_role_groups, sender=self)
 
 
 def _ensure_appointment_role_groups(sender, **kwargs):

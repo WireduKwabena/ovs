@@ -75,12 +75,9 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
             model = mappings.get(entity_type)
             if model is None:
                 continue
-            values = (
-                model.objects.filter(
-                    organization_id__in=list(allowed_org_ids)
-                )
-                .values_list("id", flat=True)
-            )
+            # In django-tenants, schema isolation already scopes all rows to the
+            # current tenant; no organization_id filter is needed.
+            values = model.objects.values_list("id", flat=True)
             scoped[entity_type] = [str(value) for value in values]
         return scoped
 

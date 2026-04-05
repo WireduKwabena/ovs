@@ -11,7 +11,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.applications.models import VettingCase
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.notifications.models import Notification
 from apps.video_calls.models import VideoMeeting, VideoMeetingEvent, VideoMeetingParticipant
 from apps.video_calls.services import (

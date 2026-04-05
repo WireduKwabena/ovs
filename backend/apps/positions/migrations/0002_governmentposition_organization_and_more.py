@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('governance', '0001_initial'),
+        ('tenants', '0001_initial'),
         ('personnel', '0002_personnelrecord_organization_and_more'),
         ('positions', '0001_initial'),
         ('rubrics', '0002_vetting_decision_engine'),
@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='governmentposition',
             name='organization',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='government_positions', to='governance.organization'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='government_positions', to='tenants.organization'),
         ),
         migrations.AddIndex(
             model_name='governmentposition',

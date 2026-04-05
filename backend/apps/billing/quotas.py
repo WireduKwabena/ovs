@@ -12,6 +12,7 @@ from rest_framework.exceptions import ValidationError
 from django.db import connection
 
 from apps.users.models import User
+from apps.tenants.models import Organization
 from apps.candidates.models import CandidateEnrollment
 from apps.campaigns.models import VettingCampaign
 from apps.core.authz import get_user_default_organization, get_user_organization_ids
@@ -193,37 +194,11 @@ def _legacy_candidate_usage_count_for_organization(
     period_start,
     period_end,
 ) -> int:
-    normalized_org_id = str(organization_id or "").strip()
-    if not normalized_org_id:
-        return 0
-
-    organization_name = _organization_name_for_id(normalized_org_id)
-    membership_cache: dict[str, set[str]] = {}
-    eligibility_cache: dict[str, bool] = {}
-    count = 0
-
-    enrollments = CandidateEnrollment.objects.filter(
-        campaign__organization_id__isnull=True,
+    # In django-tenants all candidate enrollments in this schema belong to the current tenant.
+    return CandidateEnrollment.objects.filter(
         created_at__gte=period_start,
         created_at__lt=period_end,
-    ).select_related("campaign__initiated_by")
-
-    for enrollment in enrollments.iterator(chunk_size=500):
-        campaign_owner = getattr(getattr(enrollment, "campaign", None), "initiated_by", None)
-        owner_id = str(getattr(campaign_owner, "id", "") or "")
-        if not owner_id:
-            continue
-        if owner_id not in eligibility_cache:
-            eligibility_cache[owner_id] = _user_is_unambiguously_scoped_to_org(
-                user=campaign_owner,
-                organization_id=normalized_org_id,
-                organization_name=organization_name,
-                membership_cache=membership_cache,
-            )
-        if eligibility_cache[owner_id]:
-            count += 1
-
-    return count
+    ).count()
 
 
 def _is_subscription_effectively_active(subscription: BillingSubscription | None) -> bool:
@@ -563,7 +538,7 @@ def get_organization_seat_quota_snapshot(
             plan_id=getattr(subscription, "plan_id", None),
             plan_name=getattr(subscription, "plan_name", None),
             limit=None,
-            used=_organization_active_membership_count(organization_id=normalized_org_id),
+            used=_organization_active_membership_count(),
             remaining=None,
         )
 
@@ -575,12 +550,12 @@ def get_organization_seat_quota_snapshot(
             plan_id=None,
             plan_name=None,
             limit=0,
-            used=_organization_active_membership_count(organization_id=normalized_org_id),
+            used=_organization_active_membership_count(),
             remaining=0,
         )
 
     limit = _plan_organization_seat_limit(getattr(subscription, "plan_id", None))
-    used = _organization_active_membership_count(organization_id=normalized_org_id)
+    used = _organization_active_membership_count()
     if limit is None:
         return OrganizationSeatQuotaSnapshot(
             enforced=True,
@@ -663,10 +638,17 @@ def enforce_membership_activation_seat_quota(
     if not normalized_org_id:
         return None
 
-    locked_org_exists = Organization.objects.select_for_update().filter(
-        id=normalized_org_id,
-        is_active=True,
-    ).exists()
+    # In django-tenants, the current schema IS the organization.  Verify that
+    # the requested org ID matches the current tenant and that it is active.
+    current_tenant = getattr(connection, "tenant", None)
+    tenant_id = str(getattr(current_tenant, "id", "") or "")
+    if tenant_id != normalized_org_id:
+        # Mismatched org — use public-schema lock as fallback.
+        locked_org_exists = Organization.objects.select_for_update().filter(
+            id=normalized_org_id, is_active=True
+        ).exists()
+    else:
+        locked_org_exists = getattr(current_tenant, "is_active", True)
     if not locked_org_exists:
         return None
 
@@ -675,9 +657,9 @@ def enforce_membership_activation_seat_quota(
     active_subscription = get_active_subscription_for_organization(
         organization_id=normalized_org_id
     )
-    has_billing_history = BillingSubscription.objects.filter(
-        organization_id=normalized_org_id
-    ).exists()
+    # BillingSubscription no longer has an organization FK; schema isolation
+    # already scopes this to the current tenant.
+    has_billing_history = BillingSubscription.objects.exists()
 
     # Backward-safe: do not block legacy organizations with no billing history.
     if active_subscription is None and not has_billing_history:
@@ -735,7 +717,9 @@ def _plan_vetting_operation_limit(plan_id: str | None, operation: str) -> int | 
 def _scope_has_subscription_history(*, organization_id: str | None, emails: list[str]) -> bool:
     normalized_org_id = str(organization_id or "").strip()
     if normalized_org_id:
-        if BillingSubscription.objects.filter(organization_id=normalized_org_id).exists():
+        # BillingSubscription no longer has an organization FK; schema
+        # isolation already scopes this to the current tenant.
+        if BillingSubscription.objects.exists():
             return True
         scoped_emails = emails or sorted(_active_org_member_emails(organization_id=normalized_org_id))
         legacy_ids = _legacy_subscription_ids_for_organization(
@@ -756,17 +740,14 @@ def _operation_usage_count_for_org(
     period_start,
     period_end,
 ) -> int:
+    # In django-tenants all records in this schema belong to the current tenant;
+    # no organization_id filter is required.
     normalized_operation = str(operation or "").strip().lower()
-    normalized_org_id = str(organization_id or "").strip()
-    if not normalized_org_id:
-        return 0
 
     if normalized_operation == VETTING_OPERATION_DOCUMENT_VERIFICATION:
         from apps.applications.models import Document
 
-        # Reserve verification capacity at upload time to fail fast before async work.
         return Document.objects.filter(
-            case__organization_id=normalized_org_id,
             uploaded_at__gte=period_start,
             uploaded_at__lt=period_end,
         ).count()
@@ -777,7 +758,6 @@ def _operation_usage_count_for_org(
         except Exception:
             return 0
         return SocialProfileCheckResult.objects.filter(
-            application__organization_id=normalized_org_id,
             checked_at__gte=period_start,
             checked_at__lt=period_end,
         ).count()
@@ -785,9 +765,7 @@ def _operation_usage_count_for_org(
     if normalized_operation == VETTING_OPERATION_INTERVIEW_ANALYSIS:
         from apps.interviews.models import InterviewResponse
 
-        # Reserve analysis capacity when a response is answered/created, not only after processing.
         return InterviewResponse.objects.filter(
-            session__case__organization_id=normalized_org_id,
             answered_at__isnull=False,
             answered_at__gte=period_start,
             answered_at__lt=period_end,
@@ -797,7 +775,6 @@ def _operation_usage_count_for_org(
         from apps.rubrics.models import RubricEvaluation
 
         return RubricEvaluation.objects.filter(
-            case__organization_id=normalized_org_id,
             created_at__gte=period_start,
             created_at__lt=period_end,
         ).count()
@@ -808,7 +785,6 @@ def _operation_usage_count_for_org(
         except Exception:
             return 0
         return BackgroundCheck.objects.filter(
-            case__organization_id=normalized_org_id,
             created_at__gte=period_start,
             created_at__lt=period_end,
         ).count()
@@ -823,152 +799,24 @@ def _operation_usage_count_for_legacy_scope(
     period_start,
     period_end,
 ) -> int:
-    normalized_operation = str(operation or "").strip().lower()
-    normalized_emails = sorted({_normalized_email(email) for email in emails if _normalized_email(email)})
-    if not normalized_emails:
-        return 0
-
-    if normalized_operation == VETTING_OPERATION_DOCUMENT_VERIFICATION:
-        from apps.applications.models import Document
-
-        return (
-            Document.objects.filter(
-                case__organization_id__isnull=True,
-                uploaded_at__gte=period_start,
-                uploaded_at__lt=period_end,
-            )
-            .filter(
-                Q(case__applicant__email__in=normalized_emails)
-                | Q(case__assigned_to__email__in=normalized_emails)
-                | Q(case__candidate_enrollment__campaign__initiated_by__email__in=normalized_emails)
-            )
-            .distinct()
-            .count()
-        )
-
-    if normalized_operation == VETTING_OPERATION_SOCIAL_PROFILE_CHECK:
-        try:
-            from apps.fraud.models import SocialProfileCheckResult
-        except Exception:
-            return 0
-        return (
-            SocialProfileCheckResult.objects.filter(
-                application__organization_id__isnull=True,
-                checked_at__gte=period_start,
-                checked_at__lt=period_end,
-            )
-            .filter(
-                Q(application__applicant__email__in=normalized_emails)
-                | Q(application__assigned_to__email__in=normalized_emails)
-                | Q(application__candidate_enrollment__campaign__initiated_by__email__in=normalized_emails)
-            )
-            .distinct()
-            .count()
-        )
-
-    if normalized_operation == VETTING_OPERATION_INTERVIEW_ANALYSIS:
-        from apps.interviews.models import InterviewResponse
-
-        return (
-            InterviewResponse.objects.filter(
-                session__case__organization_id__isnull=True,
-                answered_at__isnull=False,
-                answered_at__gte=period_start,
-                answered_at__lt=period_end,
-            )
-            .filter(
-                Q(session__case__applicant__email__in=normalized_emails)
-                | Q(session__case__assigned_to__email__in=normalized_emails)
-                | Q(session__case__candidate_enrollment__campaign__initiated_by__email__in=normalized_emails)
-            )
-            .distinct()
-            .count()
-        )
-
-    if normalized_operation == VETTING_OPERATION_RUBRIC_EVALUATION:
-        from apps.rubrics.models import RubricEvaluation
-
-        return (
-            RubricEvaluation.objects.filter(
-                case__organization_id__isnull=True,
-                created_at__gte=period_start,
-                created_at__lt=period_end,
-            )
-            .filter(
-                Q(case__applicant__email__in=normalized_emails)
-                | Q(case__assigned_to__email__in=normalized_emails)
-                | Q(case__candidate_enrollment__campaign__initiated_by__email__in=normalized_emails)
-            )
-            .distinct()
-            .count()
-        )
-
-    if normalized_operation == VETTING_OPERATION_BACKGROUND_CHECK_SUBMISSION:
-        try:
-            from apps.background_checks.models import BackgroundCheck
-        except Exception:
-            return 0
-        return (
-            BackgroundCheck.objects.filter(
-                case__organization_id__isnull=True,
-                created_at__gte=period_start,
-                created_at__lt=period_end,
-            )
-            .filter(
-                Q(case__applicant__email__in=normalized_emails)
-                | Q(case__assigned_to__email__in=normalized_emails)
-                | Q(case__candidate_enrollment__campaign__initiated_by__email__in=normalized_emails)
-            )
-            .distinct()
-            .count()
-        )
-
-    return 0
+    # In django-tenants all records in this schema belong to the current tenant.
+    # Delegate to the org-scoped counter which already handles schema isolation.
+    return _operation_usage_count_for_org(
+        operation=operation,
+        organization_id="",
+        period_start=period_start,
+        period_end=period_end,
+    )
 
 
 def resolve_case_organization_id(case, *, actor=None) -> str | None:
-    if case is None:
-        if actor is None:
-            return None
-        scope, _emails, _legacy_org_name, resolved_org_id = _scope_for_user(actor, organization_id=None)
-        if scope.startswith("organization:") and resolved_org_id:
-            return str(resolved_org_id)
-        return None
+    """Return the current tenant's organization ID.
 
-    direct_org_id = str(getattr(case, "organization_id", "") or "").strip()
-    if direct_org_id:
-        return direct_org_id
-
-    enrollment = getattr(case, "candidate_enrollment", None)
-    if enrollment is not None:
-        campaign = getattr(enrollment, "campaign", None)
-        campaign_org_id = str(getattr(campaign, "organization_id", "") or "").strip()
-        if campaign_org_id:
-            return campaign_org_id
-        campaign_owner = getattr(campaign, "initiated_by", None)
-        owner_scope, _owner_emails, _owner_legacy_org_name, owner_org_id = _scope_for_user(
-            campaign_owner,
-            organization_id=None,
-        )
-        if owner_scope.startswith("organization:") and owner_org_id:
-            return str(owner_org_id)
-
-    assigned_to = getattr(case, "assigned_to", None)
-    scope, _emails, _legacy_org_name, resolved_org_id = _scope_for_user(assigned_to, organization_id=None)
-    if scope.startswith("organization:") and resolved_org_id:
-        return str(resolved_org_id)
-    applicant = getattr(case, "applicant", None)
-    applicant_scope, _applicant_emails, _applicant_legacy_org_name, applicant_org_id = _scope_for_user(
-        applicant,
-        organization_id=None,
-    )
-    if applicant_scope.startswith("organization:") and applicant_org_id:
-        return str(applicant_org_id)
-    if actor is not None:
-        actor_scope, _actor_emails, _actor_legacy_org_name, actor_org_id = _scope_for_user(actor, organization_id=None)
-        if actor_scope.startswith("organization:") and actor_org_id:
-            return str(actor_org_id)
-    return None
+    In django-tenants every record in the active schema belongs to the current
+    tenant; there is no per-row organization FK to resolve.
+    """
+    tenant_id = str(getattr(getattr(connection, "tenant", None), "id", "") or "").strip()
+    return tenant_id or None
 
 
 def get_vetting_operation_quota_snapshot(

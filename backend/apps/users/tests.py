@@ -16,7 +16,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase, APIClient, APITransactionTestCase
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
-from apps.authentication.models import User, UserProfile
+from apps.users.models import User, UserProfile
 from apps.billing.models import BillingSubscription
 from apps.billing.services import create_organization_onboarding_token
 from apps.governance.models import Committee, CommitteeMembership, Organization, OrganizationMembership
@@ -51,14 +51,12 @@ class EmailAuthEndpointTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.user,
-            organization=organization,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
         )
         subscription = BillingSubscription.objects.create(
             provider="sandbox",
-            organization=organization,
             status="complete",
             payment_status="paid",
             plan_id=plan_id,
@@ -71,7 +69,6 @@ class EmailAuthEndpointTests(APITestCase):
             ticket_expires_at=timezone.now() + timedelta(hours=12),
         )
         token_record, raw_token = create_organization_onboarding_token(
-            organization=organization,
             subscription=subscription,
             created_by=self.user,
             max_uses=max_uses,
@@ -243,7 +240,6 @@ class EmailAuthEndpointTests(APITestCase):
         self.assertTrue(
             OrganizationMembership.objects.filter(
                 user=created_user,
-                organization=organization,
                 is_active=True,
             ).exists()
         )
@@ -432,7 +428,6 @@ class EmailAuthEndpointTests(APITestCase):
         self.assertTrue(
             OrganizationMembership.objects.filter(
                 user=created_user,
-                organization=organization,
                 is_active=True,
             ).exists()
         )
@@ -453,7 +448,6 @@ class EmailAuthEndpointTests(APITestCase):
         )
         existing_membership_count = OrganizationMembership.objects.filter(
             user=existing_user,
-            organization=organization,
         ).count()
 
         response = self.client.post(
@@ -477,7 +471,6 @@ class EmailAuthEndpointTests(APITestCase):
         self.assertEqual(
             OrganizationMembership.objects.filter(
                 user=existing_user,
-                organization=organization,
             ).count(),
             existing_membership_count,
         )
@@ -1170,7 +1163,6 @@ class EmailAuthEndpointTests(APITestCase):
         )
         membership = OrganizationMembership.objects.create(
             user=self.user,
-            organization=organization,
             is_active=True,
             is_default=True,
             membership_role="vetting_officer",
@@ -1195,20 +1187,17 @@ class EmailAuthEndpointTests(APITestCase):
         org_two = Organization.objects.create(code="org-two", name="Organization Two", organization_type="agency")
         OrganizationMembership.objects.create(
             user=self.user,
-            organization=org_one,
             is_active=True,
             is_default=True,
             membership_role="member",
         )
         second_membership = OrganizationMembership.objects.create(
             user=self.user,
-            organization=org_two,
             is_active=True,
             is_default=False,
             membership_role="member",
         )
         committee = Committee.objects.create(
-            organization=org_two,
             code="org-two-committee",
             name="Org Two Committee",
             committee_type="approval",
@@ -1294,14 +1283,12 @@ class EmailAuthRegistrationConcurrencyTests(APITransactionTestCase):
         )
         OrganizationMembership.objects.create(
             user=self.inviter,
-            organization=organization,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
         )
         subscription = BillingSubscription.objects.create(
             provider="sandbox",
-            organization=organization,
             status="complete",
             payment_status="paid",
             plan_id=plan_id,
@@ -1314,7 +1301,6 @@ class EmailAuthRegistrationConcurrencyTests(APITransactionTestCase):
             ticket_expires_at=timezone.now() + timedelta(hours=12),
         )
         token_record, raw_token = create_organization_onboarding_token(
-            organization=organization,
             subscription=subscription,
             created_by=self.inviter,
             max_uses=max_uses,
@@ -1398,7 +1384,6 @@ class EmailAuthRegistrationConcurrencyTests(APITransactionTestCase):
         self.assertEqual(status_codes.count(status.HTTP_400_BAD_REQUEST), 1)
         self.assertEqual(
             OrganizationMembership.objects.filter(
-                organization=organization,
                 is_active=True,
             ).count(),
             2,  # inviter + one successful onboarded user
@@ -1442,7 +1427,6 @@ class EmailAuthRegistrationConcurrencyTests(APITransactionTestCase):
         self.assertFalse(token_record.is_active)
         self.assertEqual(
             OrganizationMembership.objects.filter(
-                organization=organization,
                 is_active=True,
             ).count(),
             2,  # inviter + one successful onboarded user

@@ -92,7 +92,6 @@ def subscription(org):
     from apps.billing.models import BillingSubscription
     return BillingSubscription.objects.create(
         provider="sandbox",
-        organization=org,
         status="complete",
         payment_status="paid",
         plan_id="starter",
@@ -139,7 +138,6 @@ def vetting_case(officer, org, subscription, membership):
     return VettingCase.objects.create(
         applicant=officer,
         candidate_enrollment=enrollment,
-        organization=org,
         assigned_to=officer,
         position_applied="Broker Test Position",
         priority="medium",

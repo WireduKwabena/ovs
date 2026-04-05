@@ -10,7 +10,7 @@ from django.test import RequestFactory, SimpleTestCase
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.authentication.models import User
+from apps.users.models import User
 from .middleware import PerformanceMonitoringMiddleware, RequestLoggingMiddleware
 from .models import MLModelMetrics
 

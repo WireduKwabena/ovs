@@ -7,7 +7,7 @@ import random
 from django.core.management.base import BaseCommand
 
 from apps.applications.models import VettingCase
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.rubrics.models import RubricCriteria, VettingRubric
 
 

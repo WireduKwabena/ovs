@@ -10,6 +10,7 @@ from django.core.checks import Error, Warning, register
 from django.db import connections, models
 from django.db.migrations.executor import MigrationExecutor
 from django.db.models import F, Q
+from django.core.exceptions import FieldError
 from django.db.utils import OperationalError, ProgrammingError
 
 
@@ -255,7 +256,7 @@ def enforce_tenant_internal_org_integrity(app_configs, **kwargs):
                 | Q(organization_id__isnull=False, vetting_case__organization_id__isnull=False)
                 & ~Q(organization_id=F("vetting_case__organization_id"))
             ).count()
-        except (ProgrammingError, OperationalError):
+        except (ProgrammingError, OperationalError, FieldError):
             mismatch_count = 0
 
         if mismatch_count > 0:

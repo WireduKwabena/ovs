@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from apps.applications.models import VettingCase
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.core.authz import GOVERNMENT_ROLE_GROUPS
 
 

@@ -29,7 +29,6 @@ class CampaignRubricVersionSerializer(serializers.ModelSerializer):
 
 class VettingCampaignSerializer(serializers.ModelSerializer):
     initiated_by_email = serializers.CharField(source="initiated_by.email", read_only=True)
-    organization_name = serializers.CharField(source="organization.name", read_only=True)
     appointment_exercise_name = serializers.CharField(source="name", read_only=True)
     appointment_exercise_status = serializers.CharField(source="status", read_only=True)
     position_ids = serializers.PrimaryKeyRelatedField(source="positions", many=True, read_only=True)
@@ -50,18 +49,7 @@ class VettingCampaignSerializer(serializers.ModelSerializer):
         return normalized
 
     def validate(self, attrs):
-        attrs = super().validate(attrs)
-        instance = getattr(self, "instance", None)
-        organization = attrs.get("organization") or getattr(instance, "organization", None)
-        approval_template = attrs.get("approval_template") if "approval_template" in attrs else getattr(
-            instance, "approval_template", None
-        )
-        if organization is not None and approval_template is not None and approval_template.organization_id:
-            if str(approval_template.organization_id) != str(organization.id):
-                raise serializers.ValidationError(
-                    {"approval_template": "Approval template organization must match campaign organization."}
-                )
-        return attrs
+        return super().validate(attrs)
 
     def _merge_required_document_types(self, validated_data, required_document_types):
         if required_document_types is None:
@@ -112,8 +100,6 @@ class VettingCampaignSerializer(serializers.ModelSerializer):
         model = VettingCampaign
         fields = [
             "id",
-            "organization",
-            "organization_name",
             "name",
             "appointment_exercise_name",
             "description",
@@ -138,7 +124,7 @@ class VettingCampaignSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "initiated_by", "initiated_by_email", "organization_name", "created_at", "updated_at"]
+        read_only_fields = ["id", "initiated_by", "initiated_by_email", "created_at", "updated_at"]
 
 
 class CampaignDashboardSerializer(serializers.Serializer):

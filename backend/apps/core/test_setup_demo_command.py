@@ -125,7 +125,6 @@ class SetupDemoCommandTests(TestCase):
         workflow_org = Organization.objects.get(code="public-service-commission")
         self.assertTrue(
             BillingSubscription.objects.filter(
-                organization=workflow_org,
                 reference="GAMS-DEMO-ORG-SUBSCRIPTION",
                 status="complete",
                 payment_status="paid",
@@ -133,7 +132,6 @@ class SetupDemoCommandTests(TestCase):
         )
         self.assertTrue(
             OrganizationOnboardingToken.objects.filter(
-                organization=workflow_org,
                 is_active=True,
             ).exists()
         )

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import api from './api';
 import { store } from '@/app/store';
+import { WS_BASE_URL } from '@/config/env';
 import type { InterrogationFlag } from '@/types/interview.types';
 
 interface StartInterviewResponse {
@@ -69,7 +70,12 @@ interface InterviewFeedbackRecord {
   notes: string;
 }
 
-const candidateSessionConfig = { withCredentials: true };
+// Authentication for all endpoints (including candidate-session ones) is
+// JWT Bearer token via the Authorization header, set by the api.ts request
+// interceptor.  withCredentials:true is not needed and would require
+// Access-Control-Allow-Credentials:true on every CORS preflight response —
+// which is not configured and would silently break requests in production.
+const candidateSessionConfig = {};
 
 interface InterviewPlaybackPayload {
   [key: string]: unknown;
@@ -83,33 +89,14 @@ export interface LiveKitAvatarSessionConfig {
   conversationUrl: string;
 }
 
-const buildWsBaseUrl = (): string => {
-  const explicitBase =
-    (import.meta as { env?: Record<string, string> }).env?.VITE_INTERVIEW_WS_URL ||
-    (import.meta as { env?: Record<string, string> }).env?.VITE_FASTAPI_WS;
-
-  if (explicitBase) {
-    return explicitBase.replace(/\/$/, '');
-  }
-
-  const apiUrl =
-    (import.meta as { env?: Record<string, string> }).env?.VITE_API_URL || '/api';
-
-  let apiOrigin = 'http://localhost:8000';
-  if (/^https?:\/\//i.test(apiUrl)) {
-    apiOrigin = new URL(apiUrl).origin;
-  } else if (typeof window !== 'undefined' && window.location?.origin) {
-    apiOrigin = window.location.origin;
-  }
-
-  const wsProtocol = apiOrigin.startsWith('https') ? 'wss' : 'ws';
-  return apiOrigin.replace(/^https?/, wsProtocol);
-};
+const buildWsBaseUrl = (): string => WS_BASE_URL;
 
 const buildSessionWebsocketUrl = (sessionId: string): string => {
-  const base = `${buildWsBaseUrl()}/ws/interview/${sessionId}/`;
-  const accessToken = (store.getState() as { auth?: { tokens?: { access?: string } } }).auth?.tokens?.access;
-  return accessToken ? `${base}?token=${encodeURIComponent(accessToken)}` : base;
+  // Token is intentionally NOT included in the URL. Putting a JWT in the URL
+  // exposes it in server access logs, browser history, and Referer headers.
+  // Authentication is performed via a JSON message sent immediately after the
+  // connection opens (see connectInterviewWebSocket).
+  return `${buildWsBaseUrl()}/ws/interview/${sessionId}/`;
 };
 
 const normalizeSeverity = (severity?: string): InterrogationFlag['severity'] => {
@@ -394,7 +381,28 @@ export const interviewService = {
   },
 };
 
-export const connectInterviewWebSocket = (sessionId: string) => {
+export const connectInterviewWebSocket = (sessionId: string): WebSocket => {
   const wsUrl = buildSessionWebsocketUrl(sessionId);
-  return new WebSocket(wsUrl);
+  const ws = new WebSocket(wsUrl);
+
+  // Send the JWT access token as the first message once the socket is open.
+  // The backend (InterviewConsumer) will reject the connection if this auth
+  // frame is missing, malformed, or carries an invalid/expired token.
+  ws.addEventListener(
+    'open',
+    () => {
+      const accessToken = (
+        store.getState() as { auth?: { tokens?: { access?: string } } }
+      ).auth?.tokens?.access;
+      if (accessToken) {
+        ws.send(JSON.stringify({ type: 'auth', token: accessToken }));
+      } else {
+        // No token available — server will close with 4401.
+        ws.close(4401, 'No access token available');
+      }
+    },
+    { once: true },
+  );
+
+  return ws;
 };

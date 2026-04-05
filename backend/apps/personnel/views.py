@@ -7,8 +7,6 @@ from apps.candidates.models import Candidate
 from apps.core.permissions import (
     BlockPlatformAdminOrgWorkflowMixin,
     IsRegistryOperatorOrAdmin,
-    get_request_active_organization_id,
-    scope_internal_queryset_to_tenant,
 )
 from apps.core.policies.appointment_policy import can_view_internal_record
 from apps.core.policies.registry_policy import (
@@ -33,40 +31,22 @@ from .serializers import PersonnelRecordSerializer, PublicPersonnelRecordSeriali
 
 
 class PersonnelRecordViewSet(BlockPlatformAdminOrgWorkflowMixin, viewsets.ModelViewSet):
-    queryset = PersonnelRecord.objects.select_related("organization", "linked_candidate").all()
+    queryset = PersonnelRecord.objects.select_related("linked_candidate").all()
     serializer_class = PersonnelRecordSerializer
     permission_classes = [IsRegistryOperatorOrAdmin]
-    filterset_fields = ["organization", "nationality", "is_active_officeholder", "is_public"]
+    filterset_fields = ["nationality", "is_active_officeholder", "is_public"]
     search_fields = ["full_name", "contact_email", "contact_phone", "bio_summary"]
     ordering_fields = ["full_name", "created_at", "updated_at"]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
-        return scope_internal_queryset_to_tenant(
-            queryset,
-            request=self.request,
-            organization_field="organization_id",
-        )
+        return super().get_queryset()
 
     def perform_create(self, serializer):
         user = self.request.user
-        requested_org = serializer.validated_data.get("organization")
         if not is_platform_admin_actor(user):
-            if requested_org is not None and not can_manage_registry(
-                user,
-                organization_id=requested_org.id,
-                allow_membershipless_fallback=False,
-            ):
-                raise PermissionDenied("You cannot create personnel records for another organization.")
-            active_org_id = get_request_active_organization_id(self.request)
-            if requested_org is None and not active_org_id:
-                raise PermissionDenied("Active organization context is required to create personnel records.")
-            if requested_org is None and active_org_id:
-                record = serializer.save(organization_id=active_org_id)
-            else:
-                record = serializer.save()
-        else:
-            record = serializer.save()
+            if not can_manage_registry(user, allow_membershipless_fallback=False):
+                raise PermissionDenied("You do not have permission to create personnel records.")
+        record = serializer.save()
         log_event(
             request=self.request,
             action="create",
@@ -74,7 +54,6 @@ class PersonnelRecordViewSet(BlockPlatformAdminOrgWorkflowMixin, viewsets.ModelV
             entity_id=str(record.id),
             changes={
                 "event": PERSONNEL_RECORD_CREATED_EVENT,
-                "organization_id": str(record.organization_id or ""),
                 "full_name": record.full_name,
                 "is_public": record.is_public,
                 "is_active_officeholder": record.is_active_officeholder,
@@ -90,30 +69,10 @@ class PersonnelRecordViewSet(BlockPlatformAdminOrgWorkflowMixin, viewsets.ModelV
             allow_membershipless_fallback=False,
         ):
             raise PermissionDenied("You cannot update personnel records outside your organization scope.")
-        requested_org = serializer.validated_data.get("organization")
-        if (
-            not is_platform_admin_actor(user)
-            and requested_org is not None
-            and not can_manage_registry(
-                user,
-                organization_id=requested_org.id,
-                allow_membershipless_fallback=False,
-            )
-        ):
-            raise PermissionDenied("You cannot move this personnel record to another organization.")
 
         changed_fields = list(serializer.validated_data.keys())
         before = {field: getattr(instance, field, None) for field in changed_fields}
-        save_kwargs = {}
-        if (
-            not is_platform_admin_actor(user)
-            and instance.organization_id is None
-            and "organization" not in serializer.validated_data
-        ):
-            active_org_id = get_request_active_organization_id(self.request)
-            if active_org_id:
-                save_kwargs["organization_id"] = active_org_id
-        record = serializer.save(**save_kwargs)
+        record = serializer.save()
         after = {field: getattr(record, field, None) for field in changed_fields}
         log_event(
             request=self.request,
@@ -122,7 +81,6 @@ class PersonnelRecordViewSet(BlockPlatformAdminOrgWorkflowMixin, viewsets.ModelV
             entity_id=str(record.id),
             changes={
                 "event": PERSONNEL_RECORD_UPDATED_EVENT,
-                "organization_id": str(record.organization_id or ""),
                 "changed_fields": changed_fields,
                 "before": before,
                 "after": after,
@@ -141,7 +99,6 @@ class PersonnelRecordViewSet(BlockPlatformAdminOrgWorkflowMixin, viewsets.ModelV
             "full_name": instance.full_name,
             "is_public": instance.is_public,
             "is_active_officeholder": instance.is_active_officeholder,
-            "organization_id": str(instance.organization_id) if instance.organization_id else "",
         }
         entity_id = str(instance.id)
         super().perform_destroy(instance)
@@ -152,14 +109,13 @@ class PersonnelRecordViewSet(BlockPlatformAdminOrgWorkflowMixin, viewsets.ModelV
             entity_id=entity_id,
             changes={
                 "event": PERSONNEL_RECORD_DELETED_EVENT,
-                "organization_id": str(snapshot.get("organization_id") or ""),
                 "snapshot": snapshot,
             },
         )
 
     @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny], url_path="officeholders")
     def officeholders(self, request):
-        queryset = PersonnelRecord.objects.select_related("organization", "linked_candidate").filter(
+        queryset = PersonnelRecord.objects.select_related("linked_candidate").filter(
             is_active_officeholder=True,
             is_public=True,
         )
@@ -193,7 +149,6 @@ class PersonnelRecordViewSet(BlockPlatformAdminOrgWorkflowMixin, viewsets.ModelV
             entity_id=str(personnel.id),
             changes={
                 "event": PERSONNEL_LINKED_CANDIDATE_EVENT,
-                "organization_id": str(personnel.organization_id or ""),
                 "linked_candidate_id": str(candidate.id),
                 "linked_candidate_email": candidate.email,
             },
@@ -205,10 +160,7 @@ class PersonnelRecordViewSet(BlockPlatformAdminOrgWorkflowMixin, viewsets.ModelV
     def appointment_history(self, request, pk=None):
         personnel = self.get_object()
         rows = personnel.appointment_records.select_related("position").order_by("-created_at")
-        if not can_view_internal_record(
-            request.user,
-            organization_id=getattr(personnel, "organization_id", None),
-        ):
+        if not can_view_internal_record(request.user):
             rows = rows.filter(is_public=True)
         data = [
             {

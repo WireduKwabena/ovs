@@ -47,7 +47,6 @@ def _make_org():
 def _make_subscription(org):
     return BillingSubscription.objects.create(
         provider="sandbox",
-        organization=org,
         status="complete",
         payment_status="paid",
         plan_id="starter",
@@ -78,7 +77,6 @@ def _make_case(officer, org):
     return VettingCase.objects.create(
         applicant=officer,
         candidate_enrollment=enrollment,
-        organization=org,
         assigned_to=officer,
         position_applied="Test Position",
         priority="medium",
@@ -110,7 +108,6 @@ class VerifyDocumentIdempotencyTests(TestCase):
         _make_subscription(self.org)
         OrganizationMembership.objects.create(
             user=self.officer,
-            organization=self.org,
             membership_role="vetting_officer",
             is_active=True,
             is_default=True,
@@ -180,7 +177,6 @@ class PlaceholderAnalysisTests(TestCase):
         _make_subscription(self.org)
         OrganizationMembership.objects.create(
             user=self.officer,
-            organization=self.org,
             membership_role="vetting_officer",
             is_active=True,
             is_default=True,
@@ -275,7 +271,6 @@ class RunDocumentAnalysisTests(TestCase):
         from apps.governance.models import OrganizationMembership
         OrganizationMembership.objects.create(
             user=self.officer,
-            organization=self.org,
             membership_role="vetting_officer",
             is_active=True,
             is_default=True,
@@ -361,7 +356,6 @@ class VerifyDocumentAsyncAiMlIntegrationTests(TestCase):
         from apps.governance.models import OrganizationMembership
         OrganizationMembership.objects.create(
             user=self.officer,
-            organization=self.org,
             membership_role="vetting_officer",
             is_active=True,
             is_default=True,

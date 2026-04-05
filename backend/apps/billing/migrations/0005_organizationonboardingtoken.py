@@ -100,8 +100,15 @@ def normalize_legacy_billingsubscription_uuid_pk(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("governance", "0001_initial"),
-        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+        # NOTE: "tenants.0001_initial" and the AUTH_USER_MODEL dependency are
+        # intentionally omitted.  Both are SHARED_APP migrations that run only
+        # in the public schema.  Including them here would prevent this
+        # TENANT_APP migration from running in per-tenant schemas (django-tenants
+        # doesn't propagate the public schema's migration history to tenant
+        # schemas, so the dependency appears unsatisfied and the migration is
+        # skipped — leaving tables absent in every tenant).
+        # The FK constraints still resolve correctly at runtime because
+        # search_path includes the public schema.
         ("billing", "0004_billingsubscription_organization_and_backfill"),
     ]
 
@@ -142,7 +149,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="onboarding_tokens",
-                        to="governance.organization",
+                        to="tenants.organization",
                     ),
                 ),
                 (

@@ -45,7 +45,7 @@ python-dateutil
 pytz
 attrs
 Pillow==10.2.0
-
+twilio
 # Production Server
 gunicorn
 whitenoise
@@ -88,7 +88,16 @@ soundfile
 openai  # kept for openai-whisper audio transcription
 anthropic  # Claude — interview question generation & response analysis
 livekit  # LiveKit token generation & room management (package: livekit, import: livekit.api)
+livekit-agents
+livekit-api
+livekit-blingfire
+livekit-plugins-anthropic
+livekit-plugins-deepgram
+livekit-plugins-silero
+livekit-plugins-tavus
+livekit-protocol
 
+python-decouple
 # Data Processing
 numpy==1.26.4
 pandas

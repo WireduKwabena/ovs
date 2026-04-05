@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from decimal import Decimal
 
 from django.contrib.auth.models import Group
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection, transaction
 from django.utils import timezone
+
+from django_tenants.utils import schema_context
 
 from apps.appointments.models import AppointmentPublication, AppointmentRecord, ApprovalStage, ApprovalStageTemplate
 from apps.users.models import User
@@ -61,29 +64,71 @@ class Command(BaseCommand):
             action="store_true",
             help="Create role accounts/groups only; skip campaign/position/personnel/appointment demo records.",
         )
+        parser.add_argument(
+            "--org-slug",
+            default="public-service-commission",
+            help=(
+                "Code/slug of the primary demo organisation tenant that owns all workflow data. "
+                "The PostgreSQL schema is created automatically if it does not exist yet. "
+                "Defaults to 'public-service-commission'."
+            ),
+        )
 
     def handle(self, *args, **options):
-        self._ensure_schema_ready(
-            {Organization, OrganizationMembership, Committee, CommitteeMembership},
-            "governance",
+        # ── Step 1: verify public-schema tables (Organisation lives in the shared schema) ──
+        self._ensure_schema_ready({Organization}, "tenant registry")
+
+        # ── Step 2: ensure ALL demo organisations exist in the public schema.
+        #    Organisation is a TenantMixin model that lives in the *public* schema.
+        #    It must never be created inside a schema_context() block — doing so
+        #    causes django-tenants to raise "Can't create tenant outside the public schema".
+        primary_org = self._upsert_organization(
+            name="Public Service Commission",
+            code=options["org_slug"],
+            organization_type="agency",
         )
-        if not options["skip_sample_data"]:
+        secondary_org_specs = {
+            "vetting":   ("Appointments Secretariat",             "appointments-secretariat",            "agency"),
+            "committee": ("Parliamentary Appointments Committee", "parliamentary-appointments-committee", "committee_secretariat"),
+            "authority": ("Office of the President",              "office-of-the-president",             "executive_office"),
+            "registry":  ("Gazette and Records Office",           "gazette-and-records-office",          "agency"),
+            "auditor":   ("Audit Service",                        "audit-service",                       "audit"),
+        }
+        organizations: dict[str, Organization] = {
+            key: self._upsert_organization(name=name, code=code, organization_type=org_type)
+            for key, (name, code, org_type) in secondary_org_specs.items()
+        }
+        organizations["admin"] = primary_org
+        organizations["publication"] = organizations["registry"]
+
+        # ── Step 3: all tenant-app operations must run inside the org's schema context.
+        #    Management commands have no HTTP request, so TenantMiddleware never fires;
+        #    without schema_context the connection stays in the public schema where
+        #    TENANT_APP tables (Committee, VettingCampaign, …) do not exist.
+        with schema_context(primary_org.schema_name):
             self._ensure_schema_ready(
-                {
-                    ApprovalStageTemplate, ApprovalStage, AppointmentRecord, AppointmentPublication,
-                    VettingCampaign, GovernmentPosition, PersonnelRecord,
-                    BillingSubscription, OrganizationOnboardingToken,
-                },
-                "sample data",
+                {Committee, CommitteeMembership, OrganizationMembership},
+                "governance",
             )
-
-        with transaction.atomic():
-            groups = self._ensure_groups()
-            users = self._ensure_users(options=options, groups=groups)
-            organizations = self._ensure_governance_foundation(users=users)
-
             if not options["skip_sample_data"]:
-                self._ensure_sample_data(users=users, organizations=organizations)
+                self._ensure_schema_ready(
+                    {
+                        ApprovalStageTemplate, ApprovalStage, AppointmentRecord, AppointmentPublication,
+                        VettingCampaign, GovernmentPosition, PersonnelRecord,
+                        BillingSubscription, OrganizationOnboardingToken,
+                    },
+                    "sample data",
+                )
+
+            with transaction.atomic():
+                groups = self._ensure_groups()
+                users = self._ensure_users(options=options, groups=groups)
+                organizations = self._ensure_governance_foundation(
+                    users=users, primary_org=primary_org, organizations=organizations,
+                )
+
+                if not options["skip_sample_data"]:
+                    self._ensure_sample_data(users=users, organizations=organizations)
 
         self.stdout.write(self.style.SUCCESS("GAMS demo setup completed."))
         self.stdout.write("Demo sign-in accounts:")
@@ -215,22 +260,16 @@ class Command(BaseCommand):
 
     # ── Governance foundation ──────────────────────────────────────────────────
 
-    def _ensure_governance_foundation(self, *, users: dict[str, User]) -> dict[str, Organization]:
-        # "registry" and "publication" users share the same physical organization.
-        organization_specs = {
-            "admin":     ("Public Service Commission",            "public-service-commission",           "agency"),
-            "vetting":   ("Appointments Secretariat",             "appointments-secretariat",            "agency"),
-            "committee": ("Parliamentary Appointments Committee", "parliamentary-appointments-committee", "committee_secretariat"),
-            "authority": ("Office of the President",              "office-of-the-president",             "executive_office"),
-            "registry":  ("Gazette and Records Office",           "gazette-and-records-office",          "agency"),
-            "auditor":   ("Audit Service",                        "audit-service",                       "audit"),
-        }
-        organizations: dict[str, Organization] = {
-            key: self._upsert_organization(name=name, code=code, organization_type=org_type)
-            for key, (name, code, org_type) in organization_specs.items()
-        }
-        organizations["publication"] = organizations["registry"]
-
+    def _ensure_governance_foundation(
+        self,
+        *,
+        users: dict[str, User],
+        primary_org: Organization,
+        organizations: dict[str, Organization],
+    ) -> dict[str, Organization]:
+        # All Organisation objects were created in the public schema (in handle())
+        # before schema_context was entered.  This method only creates tenant-app
+        # records (OrganizationMembership, Committee, CommitteeMembership).
         workflow_org = organizations["admin"]
 
         # Memberships for roles that don't participate in committee setup.
@@ -287,21 +326,24 @@ class Command(BaseCommand):
         committee_for_records = (
             Committee.objects.filter(
                 code="parliamentary-appointments-main",
-                organization=workflow_org,
                 is_active=True,
             )
             .order_by("-updated_at")
             .first()
         )
+        if committee_for_records is None:
+            raise CommandError(
+                "Committee 'parliamentary-appointments-main' was not found in the current tenant schema. "
+                "Run setup_demo without --skip-sample-data at least once first, or check that "
+                "_ensure_governance_foundation completed successfully."
+            )
 
         stage_template = self._ensure_stage_template(
             created_by=users["admin"],
             committee=committee_for_records,
-            organization=workflow_org,
         )
 
         minister_position = self._ensure_position(
-            organization=workflow_org,
             title="GAMS Demo Minister of Health",
             branch="executive",
             institution="Ministry of Health",
@@ -310,7 +352,6 @@ class Command(BaseCommand):
             is_public=True,
         )
         justice_position = self._ensure_position(
-            organization=workflow_org,
             title="GAMS Demo Chief Justice",
             branch="judicial",
             institution="Judiciary",
@@ -320,14 +361,12 @@ class Command(BaseCommand):
         )
 
         nominee_pending = self._ensure_personnel(
-            organization=workflow_org,
             full_name="GAMS Demo Dr. Ama Mensah",
             contact_email="ama.mensah@demo.local",
             is_active_officeholder=False,
             is_public=True,
         )
         nominee_serving = self._ensure_personnel(
-            organization=workflow_org,
             full_name="GAMS Demo Hon. Kojo Asante",
             contact_email="kojo.asante@demo.local",
             is_active_officeholder=True,
@@ -335,14 +374,12 @@ class Command(BaseCommand):
         )
 
         campaign = self._ensure_campaign(
-            organization=workflow_org,
             initiated_by=users["admin"],
             stage_template=stage_template,
             positions=[minister_position, justice_position],
         )
 
         nomination_record = self._ensure_nomination_record(
-            organization=workflow_org,
             position=minister_position,
             nominee=nominee_pending,
             campaign=campaign,
@@ -352,7 +389,6 @@ class Command(BaseCommand):
         self._ensure_draft_publication(nomination_record)
 
         serving_record = self._ensure_serving_record(
-            organization=workflow_org,
             position=justice_position,
             nominee=nominee_serving,
             campaign=campaign,
@@ -366,7 +402,6 @@ class Command(BaseCommand):
     def _ensure_billing_demo_state(self, *, organization: Organization, org_admin_user: User) -> None:
         normalized_email = str(org_admin_user.email or "").strip().lower()
         subscription, _ = BillingSubscription.objects.get_or_create(
-            organization=organization,
             reference="GAMS-DEMO-ORG-SUBSCRIPTION",
             defaults={
                 "provider": "sandbox",
@@ -376,7 +411,7 @@ class Command(BaseCommand):
                 "plan_name": "Growth",
                 "billing_cycle": "annual",
                 "payment_method": "card",
-                "amount_usd": "3990.00",
+                "amount_usd": Decimal("3990.00"),
                 "registration_consumed_at": timezone.now(),
                 "registration_consumed_by_email": normalized_email,
                 "metadata": {"seeded_by": "setup_demo", "organization_id": str(organization.id)},
@@ -391,7 +426,7 @@ class Command(BaseCommand):
             "plan_name": "Growth",
             "billing_cycle": "annual",
             "payment_method": "card",
-            "amount_usd": "3990.00",
+            "amount_usd": Decimal("3990.00"),
             "registration_consumed_by_email": normalized_email,
         })
         if not subscription.registration_consumed_at:
@@ -441,27 +476,18 @@ class Command(BaseCommand):
         *,
         created_by: User,
         committee: Committee | None = None,
-        organization: Organization | None = None,
     ) -> ApprovalStageTemplate:
         template, _ = ApprovalStageTemplate.objects.get_or_create(
             name="GAMS Demo Ministerial Chain",
             exercise_type="ministerial",
-            defaults={"created_by": created_by, "organization": organization},
+            defaults={"created_by": created_by},
         )
         changed: list[str] = []
         if template.created_by_id is None:
             template.created_by = created_by
             changed.append("created_by")
-        changed += self._update_fields(template, {"organization": organization})
         if changed:
             template.save(update_fields=changed + ["updated_at"])
-
-        if committee is not None and organization is not None and committee.organization_id != organization.id:
-            self.stderr.write(
-                f"Warning: committee {committee.code!r} belongs to a different organization; "
-                "omitting from stage template."
-            )
-            committee = None
 
         stage_specs = [
             (1, "Intake Check",              "vetting_officer",      "under_vetting",        None),
@@ -493,7 +519,6 @@ class Command(BaseCommand):
     def _ensure_position(
         self,
         *,
-        organization: Organization | None,
         title: str,
         branch: str,
         institution: str,
@@ -504,12 +529,12 @@ class Command(BaseCommand):
         position = GovernmentPosition.objects.filter(title=title, institution=institution).order_by("created_at").first()
         if position is None:
             return GovernmentPosition.objects.create(
-                organization=organization, title=title, branch=branch, institution=institution,
+                title=title, branch=branch, institution=institution,
                 appointment_authority=appointment_authority, confirmation_required=confirmation_required,
                 is_public=is_public, is_vacant=True, constitutional_basis="Demo constitutional reference",
             )
         changed = self._update_fields(position, {
-            "organization": organization, "branch": branch,
+            "branch": branch,
             "appointment_authority": appointment_authority,
             "confirmation_required": confirmation_required, "is_public": is_public,
         })
@@ -520,7 +545,6 @@ class Command(BaseCommand):
     def _ensure_personnel(
         self,
         *,
-        organization: Organization | None,
         full_name: str,
         contact_email: str,
         is_active_officeholder: bool,
@@ -529,12 +553,12 @@ class Command(BaseCommand):
         record = PersonnelRecord.objects.filter(full_name=full_name, contact_email=contact_email).order_by("created_at").first()
         if record is None:
             return PersonnelRecord.objects.create(
-                organization=organization, full_name=full_name, contact_email=contact_email,
+                full_name=full_name, contact_email=contact_email,
                 nationality="Ghanaian", is_active_officeholder=is_active_officeholder, is_public=is_public,
                 bio_summary="Demo personnel profile for government appointment walkthrough.",
             )
         changed = self._update_fields(record, {
-            "organization": organization, "is_active_officeholder": is_active_officeholder,
+            "is_active_officeholder": is_active_officeholder,
             "is_public": is_public, "nationality": "Ghanaian",
         })
         if changed:
@@ -546,13 +570,11 @@ class Command(BaseCommand):
     def _ensure_campaign(
         self,
         *,
-        organization: Organization | None,
         initiated_by: User,
         stage_template: ApprovalStageTemplate,
         positions: list[GovernmentPosition],
     ) -> VettingCampaign:
         desired = {
-            "organization": organization,
             "description": "Demo campaign linking appointments to vetting and approval-chain governance.",
             "status": "active",
             "exercise_type": "ministerial",
@@ -581,7 +603,6 @@ class Command(BaseCommand):
     def _ensure_nomination_record(
         self,
         *,
-        organization: Organization | None,
         position: GovernmentPosition,
         nominee: PersonnelRecord,
         campaign: VettingCampaign,
@@ -597,14 +618,13 @@ class Command(BaseCommand):
         )
         if record is None:
             record = AppointmentRecord.objects.create(
-                organization=organization, position=position, nominee=nominee,
+                position=position, nominee=nominee,
                 appointment_exercise=campaign, nominated_by_user=nominated_by,
                 nominated_by_display="H.E. President", nominated_by_org="Office of the President",
                 nomination_date=date.today(), status="nominated", is_public=False, committee=committee,
             )
         else:
             changed = self._update_fields(record, {
-                "organization": organization,
                 "appointment_exercise": campaign,
                 "status": "nominated",
                 "nominated_by_user": nominated_by,
@@ -633,7 +653,6 @@ class Command(BaseCommand):
     def _ensure_serving_record(
         self,
         *,
-        organization: Organization | None,
         position: GovernmentPosition,
         nominee: PersonnelRecord,
         campaign: VettingCampaign,
@@ -652,7 +671,7 @@ class Command(BaseCommand):
 
         if record is None:
             record = AppointmentRecord.objects.create(
-                organization=organization, position=position, nominee=nominee,
+                position=position, nominee=nominee,
                 appointment_exercise=campaign, nominated_by_user=decided_by,
                 nominated_by_display="H.E. President", nominated_by_org="Office of the President",
                 nomination_date=date.today(), status="serving", appointment_date=date.today(),
@@ -663,7 +682,6 @@ class Command(BaseCommand):
             )
         else:
             changed = self._update_fields(record, {
-                "organization": organization,
                 "status": "serving",
                 "appointment_exercise": campaign,
                 "nominee": nominee,
@@ -741,9 +759,17 @@ class Command(BaseCommand):
     # ── Low-level upsert helpers ───────────────────────────────────────────────
 
     def _upsert_organization(self, *, code: str, name: str, organization_type: str) -> Organization:
+        # schema_name is required by TenantMixin (maps to the PostgreSQL schema name).
+        # Derive it from the slug: hyphens are not valid in PG identifiers.
+        schema_name = code.replace("-", "_")
         organization, _ = Organization.objects.get_or_create(
             code=code,
-            defaults={"name": name, "organization_type": organization_type, "is_active": True},
+            defaults={
+                "name": name,
+                "schema_name": schema_name,
+                "organization_type": organization_type,
+                "is_active": True,
+            },
         )
         changed = self._update_fields(organization, {"name": name, "organization_type": organization_type, "is_active": True})
         if changed:
@@ -788,9 +814,12 @@ class Command(BaseCommand):
                 "description": description, "is_active": True, "created_by": created_by,
             },
         )
+        # `created_by` is intentionally excluded from the update dict: it is an
+        # immutable audit field that should only be set on first creation.
+        # Including it here would overwrite the original creator on every re-run.
         changed = self._update_fields(committee, {
             "name": name, "committee_type": committee_type,
-            "description": description, "is_active": True, "created_by": created_by,
+            "description": description, "is_active": True,
         })
         if changed:
             committee.save(update_fields=changed + ["updated_at"])

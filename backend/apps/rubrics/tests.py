@@ -62,20 +62,17 @@ class RubricsApiTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.hr,
-            organization=self.org,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
         )
         OrganizationMembership.objects.create(
             user=self.vetting_officer,
-            organization=self.org,
             membership_role="vetting_officer",
             is_active=True,
             is_default=False,
         )
         self.case = VettingCase.objects.create(
-            organization=self.org,
             applicant=self.applicant,
             assigned_to=self.hr,
             position_applied="Risk Analyst",
@@ -106,7 +103,6 @@ class RubricsApiTests(APITestCase):
     def _create_org_subscription(self, organization, *, status="complete", payment_status="paid", plan_id="starter"):
         BillingSubscription.objects.create(
             provider="sandbox",
-            organization=organization,
             status=status,
             payment_status=payment_status,
             plan_id=plan_id,
@@ -324,7 +320,6 @@ class RubricsApiTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.hr,
-            organization=organization,
             membership_role="registry_admin",
             is_active=True,
             is_default=False,
@@ -340,7 +335,6 @@ class RubricsApiTests(APITestCase):
         used_case = VettingCase.objects.create(
             applicant=self.applicant,
             assigned_to=self.hr,
-            organization=organization,
             position_applied="Analyst",
             department="Compliance",
             priority="medium",
@@ -359,7 +353,6 @@ class RubricsApiTests(APITestCase):
         target_case = VettingCase.objects.create(
             applicant=self.applicant,
             assigned_to=self.hr,
-            organization=organization,
             position_applied="Investigator",
             department="Compliance",
             priority="medium",
@@ -381,7 +374,6 @@ class RubricsApiTests(APITestCase):
     def test_ai_signals_are_advisory_only_and_do_not_auto_approve(self):
         rubric_id = self._create_rubric("Advisory AI Rubric")
         low_case = VettingCase.objects.create(
-            organization=self.org,
             applicant=self.applicant,
             assigned_to=self.hr,
             position_applied="Assistant Analyst",
@@ -749,7 +741,6 @@ class RubricTaskTests(TestCase):
         )
         OrganizationMembership.objects.create(
             user=self.hr,
-            organization=self.org,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
@@ -762,7 +753,6 @@ class RubricTaskTests(TestCase):
             user_type="applicant",
         )
         self.case = VettingCase.objects.create(
-            organization=self.org,
             applicant=self.applicant,
             assigned_to=self.hr,
             position_applied="Risk Analyst",
@@ -791,7 +781,6 @@ class RubricTaskTests(TestCase):
     def _create_org_subscription(self, organization, *, status="complete", payment_status="paid", plan_id="starter"):
         BillingSubscription.objects.create(
             provider="sandbox",
-            organization=organization,
             status=status,
             payment_status=payment_status,
             plan_id=plan_id,
@@ -839,16 +828,12 @@ class RubricTaskTests(TestCase):
             is_active=False,
             is_default=False,
         )
-        self.hr.organization = legacy_org.name
-        self.hr.save(update_fields=["organization", "updated_at"])
         self._create_org_subscription(
             legacy_org,
             status="canceled",
             payment_status="unpaid",
             plan_id="starter",
         )
-        self.case.organization = None
-        self.case.save(update_fields=["organization", "updated_at"])
 
         with self.assertRaises(DRFValidationError) as context:
             evaluate_case_with_rubric.run(self.case.id, self.default_rubric.id, evaluator_id=None)
@@ -856,7 +841,6 @@ class RubricTaskTests(TestCase):
         detail = context.exception.detail if isinstance(context.exception.detail, dict) else {}
         self.assertEqual(detail.get("code"), "subscription_required")
         self.assertEqual((detail.get("quota") or {}).get("operation"), "rubric_evaluation")
-        self.assertIn(str(legacy_org.id), str((detail.get("quota") or {}).get("scope", "")))
 
 
 class RubricsOrganizationScopeTests(APITestCase):
@@ -887,27 +871,23 @@ class RubricsOrganizationScopeTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.internal_a,
-            organization=self.org_a,
             membership_role="vetting_officer",
             is_active=True,
             is_default=True,
         )
         OrganizationMembership.objects.create(
             user=self.internal_b,
-            organization=self.org_b,
             membership_role="vetting_officer",
             is_active=True,
             is_default=True,
         )
 
         self.rubric_org_a = VettingRubric.objects.create(
-            organization=self.org_a,
             name="Scope Rubric A",
             is_active=True,
             created_by=self.internal_a,
         )
         self.rubric_org_b = VettingRubric.objects.create(
-            organization=self.org_b,
             name="Scope Rubric B",
             is_active=True,
             created_by=self.internal_b,
@@ -918,7 +898,6 @@ class RubricsOrganizationScopeTests(APITestCase):
             created_by=self.internal_a,
         )
         self.case_org_b = VettingCase.objects.create(
-            organization=self.org_b,
             applicant=self.applicant,
             assigned_to=self.internal_b,
             position_applied="Compliance Officer",

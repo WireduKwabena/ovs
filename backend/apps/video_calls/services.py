@@ -9,7 +9,7 @@ from urllib.parse import urlencode
 from django.conf import settings
 from django.utils import timezone
 
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.notifications.services import NotificationService
 from apps.video_calls.models import VideoMeeting
 

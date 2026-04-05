@@ -72,21 +72,18 @@ class AdminDashboardAPITests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.org_admin_user,
-            organization=self.organization_one,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
         )
         OrganizationMembership.objects.create(
             user=self.org_internal_user,
-            organization=self.organization_one,
             membership_role="member",
             is_active=True,
             is_default=True,
         )
         OrganizationMembership.objects.create(
             user=self.other_org_user,
-            organization=self.organization_two,
             membership_role="member",
             is_active=True,
             is_default=True,
@@ -97,7 +94,6 @@ class AdminDashboardAPITests(APITestCase):
             department="General",
             status="pending",
             priority="medium",
-            organization=self.organization_one,
         )
         VettingCase.objects.create(
             applicant=self.regular_user,
@@ -105,7 +101,6 @@ class AdminDashboardAPITests(APITestCase):
             department="General",
             status="approved",
             priority="medium",
-            organization=self.organization_two,
         )
 
     def test_dashboard_as_admin(self):

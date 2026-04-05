@@ -106,3 +106,17 @@ export const getApiErrorMessage = (error: unknown, fallback: string): string => 
 
   return fallback;
 };
+
+/**
+ * Converts a caught value into a standard Error with a human-readable message
+ * extracted from the Axios response payload (if present).
+ * Use this as the single `toServiceError` helper across service files.
+ */
+export const toServiceError = (error: unknown, fallback: string): Error => {
+  const message = getApiErrorMessage(error, fallback);
+  if (error instanceof Error) {
+    error.message = message;
+    return error;
+  }
+  return new Error(message);
+};

@@ -296,7 +296,6 @@ class OrganizationBootstrapAPIView(APIView):
         )
         membership = OrganizationMembership.objects.create(
             user=user,
-            organization=organization,
             membership_role="registry_admin",
             title=str(getattr(user, "department", "") or "").strip()[:120],
             is_active=True,
@@ -492,10 +491,11 @@ class OrganizationMembershipViewSet(
         if bool(instance.is_active):
             return
 
+        from django.db import connection as _db_conn
         from apps.billing.quotas import enforce_membership_activation_seat_quota
 
         enforce_membership_activation_seat_quota(
-            organization_id=str(instance.organization_id or ""),
+            organization_id=str(getattr(getattr(_db_conn, "tenant", None), "id", "") or ""),
             additional=1,
         )
 

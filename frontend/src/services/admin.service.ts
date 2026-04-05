@@ -5,9 +5,9 @@ import type {
   AdminManagedUser,
   AdminUsersResponse,
   AdminUserUpdatePayload,
-  ApiError,
   DashboardStats,
 } from '@/types';
+import { toServiceError } from '@/utils/apiError';
 
 type AdminCaseQuery = {
   status?: string;
@@ -44,8 +44,8 @@ const getDashboard = async (): Promise<DashboardStats> => {
   try {
     const response = await api.get<DashboardStats>('/admin/dashboard/');
     return response.data;
-  } catch (error: any) {
-    throw new Error((error.response?.data as ApiError)?.message || 'Dashboard fetch failed');
+  } catch (error) {
+    throw toServiceError(error, 'Dashboard fetch failed');
   }
 };
 
@@ -53,8 +53,8 @@ const getAnalytics = async (params?: { months?: number }): Promise<any> => {
   try {
     const response = await api.get('/admin/analytics/', { params });
     return response.data;
-  } catch (error: any) {
-    throw new Error((error.response?.data as ApiError)?.message || 'Analytics fetch failed');
+  } catch (error) {
+    throw toServiceError(error, 'Analytics fetch failed');
   }
 };
 
@@ -62,8 +62,8 @@ const getInterviewAnalytics = async (params?: { days?: number }): Promise<any> =
   try {
     const response = await api.get('/interviews/sessions/analytics-dashboard/', { params });
     return response.data;
-  } catch (error: any) {
-    throw new Error((error.response?.data as ApiError)?.message || 'Interview analytics fetch failed');
+  } catch (error) {
+    throw toServiceError(error, 'Interview analytics fetch failed');
   }
 };
 
@@ -71,8 +71,8 @@ const getCases = async (params?: AdminCaseQuery): Promise<AdminCasesResponse> =>
   try {
     const response = await api.get<AdminCasesResponse>('/admin/cases/', { params });
     return response.data;
-  } catch (error: any) {
-    throw new Error((error.response?.data as ApiError)?.message || 'Cases fetch failed');
+  } catch (error) {
+    throw toServiceError(error, 'Cases fetch failed');
   }
 };
 
@@ -86,8 +86,8 @@ const getOrgCases = async (
       ...withOrganizationHeader(organizationId),
     });
     return response.data;
-  } catch (error: any) {
-    throw new Error((error.response?.data as ApiError)?.message || 'Organization cases fetch failed');
+  } catch (error) {
+    throw toServiceError(error, 'Organization cases fetch failed');
   }
 };
 
@@ -97,8 +97,8 @@ const updateCaseStatus = async (
 ): Promise<void> => {
   try {
     await api.patch(`/applications/cases/${caseIdentifier}/`, { status });
-  } catch (error: any) {
-    throw new Error((error.response?.data as ApiError)?.message || 'Case status update failed');
+  } catch (error) {
+    throw toServiceError(error, 'Case status update failed');
   }
 };
 
@@ -113,8 +113,8 @@ const updateOrgCaseStatus = async (
       { status },
       withOrganizationHeader(organizationId),
     );
-  } catch (error: any) {
-    throw new Error((error.response?.data as ApiError)?.message || 'Organization case status update failed');
+  } catch (error) {
+    throw toServiceError(error, 'Organization case status update failed');
   }
 };
 
@@ -122,8 +122,8 @@ const getUsers = async (params?: AdminUserQuery): Promise<AdminUsersResponse> =>
   try {
     const response = await api.get<AdminUsersResponse>('/admin/users/', { params });
     return response.data;
-  } catch (error: any) {
-    throw new Error((error.response?.data as ApiError)?.message || 'Users fetch failed');
+  } catch (error) {
+    throw toServiceError(error, 'Users fetch failed');
   }
 };
 
@@ -137,8 +137,8 @@ const getOrgUsers = async (
       ...withOrganizationHeader(organizationId),
     });
     return response.data;
-  } catch (error: any) {
-    throw new Error((error.response?.data as ApiError)?.message || 'Organization users fetch failed');
+  } catch (error) {
+    throw toServiceError(error, 'Organization users fetch failed');
   }
 };
 
@@ -149,8 +149,8 @@ const updateUser = async (
   try {
     const response = await api.patch<AdminManagedUser>(`/admin/users/${userId}/`, payload);
     return response.data;
-  } catch (error: any) {
-    throw new Error((error.response?.data as ApiError)?.message || 'User update failed');
+  } catch (error) {
+    throw toServiceError(error, 'User update failed');
   }
 };
 
@@ -166,8 +166,8 @@ const updateOrgUser = async (
       withOrganizationHeader(organizationId),
     );
     return response.data;
-  } catch (error: any) {
-    throw new Error((error.response?.data as ApiError)?.message || 'Organization user update failed');
+  } catch (error) {
+    throw toServiceError(error, 'Organization user update failed');
   }
 };
 

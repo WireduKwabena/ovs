@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('governance', '0001_initial'),
+        ('tenants', '0001_initial'),
         ('rubrics', '0002_vetting_decision_engine'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='vettingrubric',
             name='organization',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='vetting_rubrics', to='governance.organization'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='vetting_rubrics', to='tenants.organization'),
         ),
         migrations.AddIndex(
             model_name='vettingrubric',

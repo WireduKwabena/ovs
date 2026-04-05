@@ -12,13 +12,11 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from apps.applications.models import Document, VettingCase
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.core.authz import GOVERNMENT_ROLE_GROUPS
 from apps.core.permissions import (
     IsRegistryGovernanceAdmin,
-    get_request_tenant_context,
     is_platform_admin_user,
-    scope_internal_queryset_to_tenant,
 )
 from apps.fraud.models import FraudDetectionResult
 from apps.rubrics.models import RubricEvaluation
@@ -120,14 +118,10 @@ def _parse_admin_user_ordering(value: str | None, *, default: str = "-created_at
 
 def _scoped_admin_cases_queryset(request):
     queryset = VettingCase.objects.select_related("applicant", "assigned_to").all()
-    if is_platform_admin_user(getattr(request, "user", None)):
-        return queryset
-    return scope_internal_queryset_to_tenant(
-        queryset,
-        request=request,
-        organization_field="organization_id",
-        include_null_legacy=False,
-    )
+    user = getattr(request, "user", None)
+    if not getattr(user, "is_authenticated", False):
+        return queryset.none()
+    return queryset
 
 
 def _scoped_admin_users_queryset(request):
@@ -135,28 +129,13 @@ def _scoped_admin_users_queryset(request):
     user = getattr(request, "user", None)
     if is_platform_admin_user(user):
         return queryset
-
-    tenant_context = get_request_tenant_context(request)
-    allowed_org_ids = {
-        str(value).strip()
-        for value in (tenant_context.get("allowed_organization_ids") or set())
-        if str(value).strip()
-    }
-    active_org_id = str(tenant_context.get("active_organization_id") or "").strip()
-
-    if active_org_id and active_org_id in allowed_org_ids:
-        return queryset.filter(
-            organization_memberships__organization_id=active_org_id,
-            organization_memberships__is_active=True,
-        ).distinct()
-
-    if allowed_org_ids:
-        return queryset.filter(
-            organization_memberships__organization_id__in=list(allowed_org_ids),
-            organization_memberships__is_active=True,
-        ).distinct()
-
-    return queryset.none()
+    if not getattr(user, "is_authenticated", False):
+        return queryset.none()
+    # In django-tenants, OrganizationMembership is schema-scoped; filter users
+    # who have an active membership in the current tenant schema.
+    return queryset.filter(
+        organization_memberships__is_active=True,
+    ).distinct()
 
 
 def _platform_admin_org_management_forbidden(request):

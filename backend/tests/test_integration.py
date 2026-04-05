@@ -2,7 +2,7 @@
 from django.test import TransactionTestCase, override_settings
 from rest_framework.test import APIClient
 from apps.applications.models import VettingCase
-from apps.authentication.models import User
+from apps.users.models import User
 import os
 import unittest
 

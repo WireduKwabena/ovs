@@ -33,12 +33,10 @@ class GovernanceModelTests(TestCase):
         )
         self.membership = OrganizationMembership.objects.create(
             user=self.user,
-            organization=self.organization,
             membership_role="officer",
             is_default=True,
         )
         self.committee = Committee.objects.create(
-            organization=self.organization,
             code="vetting-main",
             name="Main Vetting Committee",
             committee_type="vetting",
@@ -61,7 +59,6 @@ class GovernanceModelTests(TestCase):
         with self.assertRaises(IntegrityError):
             OrganizationMembership.objects.create(
                 user=self.user,
-                organization=second_org,
                 is_active=True,
                 is_default=True,
             )
@@ -70,7 +67,6 @@ class GovernanceModelTests(TestCase):
         with self.assertRaises(IntegrityError):
             OrganizationMembership.objects.create(
                 user=self.user,
-                organization=self.organization,
                 membership_role="officer",
                 is_active=True,
                 is_default=False,
@@ -154,7 +150,6 @@ class GovernanceModelTests(TestCase):
         )
         second_membership = OrganizationMembership.objects.create(
             user=second_user,
-            organization=self.organization,
             membership_role="officer",
             is_default=False,
         )
@@ -187,7 +182,6 @@ class GovernanceModelTests(TestCase):
         )
         next_org_membership = OrganizationMembership.objects.create(
             user=next_user,
-            organization=self.organization,
             membership_role="officer",
             is_default=False,
         )
@@ -224,7 +218,6 @@ class GovernanceModelTests(TestCase):
         alternate_org = Organization.objects.create(code="alt-chair-org", name="Alt Chair Org")
         mismatch_membership = OrganizationMembership.objects.create(
             user=self.user,
-            organization=alternate_org,
             membership_role="officer",
             is_default=False,
         )
@@ -241,7 +234,6 @@ class GovernanceModelTests(TestCase):
         foreign_org = Organization.objects.create(code="foreign-org", name="Foreign Org")
         foreign_membership = OrganizationMembership.objects.create(
             user=self.user,
-            organization=foreign_org,
             membership_role="officer",
             is_default=False,
         )
@@ -267,7 +259,6 @@ class GovernanceModelTests(TestCase):
     def test_membership_create_respects_org_seat_quota_when_org_has_active_subscription(self):
         BillingSubscription.objects.create(
             provider="sandbox",
-            organization=self.organization,
             status="complete",
             payment_status="paid",
             plan_id="starter",
@@ -288,7 +279,6 @@ class GovernanceModelTests(TestCase):
         with self.assertRaises(DRFValidationError) as exc:
             OrganizationMembership.objects.create(
                 user=second_user,
-                organization=self.organization,
                 membership_role="officer",
                 is_active=True,
                 is_default=False,
@@ -298,7 +288,6 @@ class GovernanceModelTests(TestCase):
         self.assertFalse(
             OrganizationMembership.objects.filter(
                 user=second_user,
-                organization=self.organization,
                 is_active=True,
             ).exists()
         )
@@ -310,7 +299,6 @@ class GovernanceModelTests(TestCase):
     def test_membership_activation_respects_org_seat_quota_when_org_has_active_subscription(self):
         BillingSubscription.objects.create(
             provider="sandbox",
-            organization=self.organization,
             status="complete",
             payment_status="paid",
             plan_id="starter",
@@ -329,7 +317,6 @@ class GovernanceModelTests(TestCase):
         )
         inactive_membership = OrganizationMembership.objects.create(
             user=inactive_user,
-            organization=self.organization,
             membership_role="officer",
             is_active=False,
             is_default=False,
@@ -388,35 +375,30 @@ class GovernanceApiTests(APITestCase):
 
         self.membership_a_admin = OrganizationMembership.objects.create(
             user=self.org_admin,
-            organization=self.org_a,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
         )
         self.membership_b_operator = OrganizationMembership.objects.create(
             user=self.org_b_operator,
-            organization=self.org_b,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
         )
         self.membership_a_candidate = OrganizationMembership.objects.create(
             user=self.candidate_user,
-            organization=self.org_a,
             membership_role="member",
             is_active=True,
             is_default=True,
         )
 
         self.committee_a = Committee.objects.create(
-            organization=self.org_a,
             code="api-org-a-main",
             name="API Org A Main Committee",
             committee_type="vetting",
             created_by=self.org_admin,
         )
         self.committee_b = Committee.objects.create(
-            organization=self.org_b,
             code="api-org-b-main",
             name="API Org B Main Committee",
             committee_type="approval",
@@ -556,7 +538,6 @@ class GovernanceApiTests(APITestCase):
         vetting_officer.groups.add(vetting_group)
         OrganizationMembership.objects.create(
             user=vetting_officer,
-            organization=self.org_a,
             membership_role="vetting_officer",
             is_active=True,
             is_default=True,
@@ -615,7 +596,6 @@ class GovernanceApiTests(APITestCase):
     def test_member_reactivation_allowed_within_org_seat_limit(self):
         BillingSubscription.objects.create(
             provider="sandbox",
-            organization=self.org_a,
             status="complete",
             payment_status="paid",
             plan_id="starter",
@@ -634,7 +614,6 @@ class GovernanceApiTests(APITestCase):
         )
         inactive_membership = OrganizationMembership.objects.create(
             user=inactive_user,
-            organization=self.org_a,
             membership_role="member",
             is_active=False,
             is_default=False,
@@ -657,7 +636,6 @@ class GovernanceApiTests(APITestCase):
     def test_member_reactivation_blocked_when_org_seat_limit_exceeded(self):
         BillingSubscription.objects.create(
             provider="sandbox",
-            organization=self.org_a,
             status="complete",
             payment_status="paid",
             plan_id="starter",
@@ -676,7 +654,6 @@ class GovernanceApiTests(APITestCase):
         )
         inactive_membership = OrganizationMembership.objects.create(
             user=inactive_user,
-            organization=self.org_a,
             membership_role="member",
             is_active=False,
             is_default=False,
@@ -700,7 +677,6 @@ class GovernanceApiTests(APITestCase):
     def test_member_reactivation_is_idempotent_for_already_active_membership(self):
         BillingSubscription.objects.create(
             provider="sandbox",
-            organization=self.org_a,
             status="complete",
             payment_status="paid",
             plan_id="starter",
@@ -731,7 +707,6 @@ class GovernanceApiTests(APITestCase):
         )
         cross_org_inactive_membership = OrganizationMembership.objects.create(
             user=inactive_user,
-            organization=self.org_b,
             membership_role="member",
             is_active=False,
             is_default=False,
@@ -769,7 +744,6 @@ class GovernanceApiTests(APITestCase):
         self.assertEqual(create_response.status_code, 201)
         created_id = create_response.json()["id"]
         created = Committee.objects.get(id=created_id)
-        self.assertEqual(created.organization_id, self.org_a.id)
         self.assertTrue(created.is_active)
 
         denied_detail = self.client.get(f"/api/governance/organization/committees/{self.committee_b.id}/")
@@ -871,14 +845,12 @@ class GovernanceApiTests(APITestCase):
         )
         org_membership_one = OrganizationMembership.objects.create(
             user=user_one,
-            organization=self.org_a,
             membership_role="member",
             is_active=True,
             is_default=True,
         )
         org_membership_two = OrganizationMembership.objects.create(
             user=user_two,
-            organization=self.org_a,
             membership_role="member",
             is_active=True,
             is_default=True,
@@ -973,7 +945,6 @@ class GovernanceApiTests(APITestCase):
     def test_platform_admin_can_list_organization_subscription_oversight(self):
         BillingSubscription.objects.create(
             provider="sandbox",
-            organization=self.org_a,
             status="complete",
             payment_status="paid",
             plan_id="growth",
@@ -985,7 +956,6 @@ class GovernanceApiTests(APITestCase):
         )
         BillingSubscription.objects.create(
             provider="paystack",
-            organization=self.org_b,
             status="failed",
             payment_status="unpaid",
             plan_id="starter",
@@ -1011,7 +981,6 @@ class GovernanceApiTests(APITestCase):
     def test_platform_oversight_prefers_active_subscription_over_newer_failed_attempt(self):
         BillingSubscription.objects.create(
             provider="sandbox",
-            organization=self.org_a,
             status="complete",
             payment_status="paid",
             plan_id="growth",
@@ -1023,7 +992,6 @@ class GovernanceApiTests(APITestCase):
         )
         BillingSubscription.objects.create(
             provider="paystack",
-            organization=self.org_a,
             status="failed",
             payment_status="unpaid",
             plan_id="starter",

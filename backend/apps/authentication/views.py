@@ -301,9 +301,13 @@ class OrganizationAdminRegisterView(generics.CreateAPIView):
                 # TenantMixin.save() provisions the tenant schema automatically
                 # (auto_create_schema = True) so the tenant tables are ready
                 # before we switch into it below.
+                # schema_name is required by TenantMixin — derive it from the
+                # code slug, replacing hyphens with underscores (hyphens are not
+                # valid in PostgreSQL schema identifiers).
                 organization = Organization.objects.create(
                     name=organization_name,
                     code=organization_code,
+                    schema_name=organization_code.replace("-", "_"),
                     organization_type=str(validated.get("organization_type", "agency") or "agency"),
                     is_active=True,
                 )
@@ -396,7 +400,10 @@ class RegisterView(generics.CreateAPIView):
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
-            consumed_org = getattr(onboarding_result.token_record, "organization", None)
+            # In django-tenants, the onboarding token lives in the tenant's schema;
+            # the current connection.tenant IS the organization.
+            from django.db import connection as _db_conn
+            consumed_org = getattr(_db_conn, "tenant", None)
             consumed_subscription = onboarding_result.subscription
             if consumed_org is None:
                 return Response(

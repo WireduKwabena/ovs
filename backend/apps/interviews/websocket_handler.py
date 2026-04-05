@@ -1,7 +1,6 @@
 import json
 import logging
 import time
-from urllib.parse import parse_qs, unquote_plus
 
 from django.conf import settings
 from channels.generic.websocket import AsyncWebsocketConsumer
@@ -27,26 +26,18 @@ except ImportError:
 
 
 class InterviewConsumer(AsyncWebsocketConsumer):
-    def _validate_ws_token(self) -> bool:
+    def _validate_token_string(self, token_str: str) -> bool:
         """
-        Validate the JWT access token passed as ?token=<access_token> in the
-        WebSocket URL.  Only signature and expiry are checked (no DB blacklist
+        Validate a JWT access token string received in the first WebSocket
+        message.  Only signature and expiry are checked (no DB blacklist
         lookup) — sufficient for a short-lived (1 h) access token.
+
+        The token is received via a JSON auth frame, not the URL query string,
+        so it never appears in server access logs or browser history.
         """
         try:
-            from rest_framework_simplejwt.tokens import UntypedToken
-            from rest_framework_simplejwt.exceptions import TokenError
-
-            query_string = self.scope.get("query_string", b"").decode("utf-8", errors="replace")
-            params = parse_qs(query_string)
-            token_list = params.get("token", [])
-            if not token_list:
-                logger.warning(
-                    "WebSocket connection rejected: missing token for session %s",
-                    self.session_id,
-                )
-                return False
-            UntypedToken(unquote_plus(token_list[0]))
+            from rest_framework_simplejwt.tokens import UntypedToken  # noqa: PLC0415
+            UntypedToken(token_str)
             return True
         except Exception as exc:  # noqa: BLE001
             logger.warning(
@@ -59,16 +50,16 @@ class InterviewConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.session_id = str(self.scope["url_route"]["kwargs"]["session_id"])
         self._chunk_index = 0
+        self._authenticated = False
         # Fallback per-connection sliding-window used when Redis is unavailable.
         self._message_timestamps: list[float] = []
         # Redis connection for distributed rate limiting across load-balanced nodes.
         self._redis = None
 
-        # Reject unauthenticated connections before doing any real work.
-        if not self._validate_ws_token():
-            await self.accept()
-            await self.close(code=4401)
-            return
+        # Accept the connection immediately so the client can send the auth
+        # frame.  Session initialisation is deferred until after authentication
+        # succeeds (see receive()).
+        await self.accept()
 
         if _REDIS_AVAILABLE:
             try:
@@ -77,10 +68,9 @@ class InterviewConsumer(AsyncWebsocketConsumer):
             except Exception as exc:  # noqa: BLE001
                 logger.warning("WebSocket Redis connection failed; using per-connection rate limit: %s", exc)
 
+        # Register with the manager early so disconnect() can clean up even if
+        # authentication never completes.
         await manager.connect(self.session_id, self)
-        initialized = await initialize_interview_session(self.session_id, self)
-        if not initialized:
-            await self.close(code=4400)
 
     async def _is_rate_limited(self) -> bool:
         """
@@ -109,6 +99,41 @@ class InterviewConsumer(AsyncWebsocketConsumer):
         return len(self._message_timestamps) > _WS_RATE_LIMIT_PER_MINUTE
 
     async def receive(self, text_data=None, bytes_data=None):
+        # ── Authentication gate ───────────────────────────────────────────────
+        # The first message from the client MUST be an auth frame:
+        #   {"type": "auth", "token": "<JWT access token>"}
+        # This keeps the token out of the URL (and therefore out of server
+        # access logs and browser history).
+        if not self._authenticated:
+            if not text_data:
+                logger.warning(
+                    "WebSocket connection rejected: binary data received before auth for session %s",
+                    self.session_id,
+                )
+                await self.close(code=4401)
+                return
+            try:
+                auth_msg = json.loads(text_data)
+            except json.JSONDecodeError:
+                await self.close(code=4401)
+                return
+            if auth_msg.get("type") != "auth" or not isinstance(auth_msg.get("token"), str):
+                logger.warning(
+                    "WebSocket connection rejected: first message was not a valid auth frame for session %s",
+                    self.session_id,
+                )
+                await self.close(code=4401)
+                return
+            if not self._validate_token_string(auth_msg["token"]):
+                await self.close(code=4401)
+                return
+            self._authenticated = True
+            initialized = await initialize_interview_session(self.session_id, self)
+            if not initialized:
+                await self.close(code=4400)
+            return
+
+        # ── Rate limit ────────────────────────────────────────────────────────
         if await self._is_rate_limited():
             logger.warning(
                 "WebSocket rate limit exceeded for session %s. Dropping message.",

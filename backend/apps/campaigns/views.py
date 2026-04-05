@@ -7,14 +7,10 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
-from apps.billing.quotas import enforce_candidate_quota
+from apps.billing.quotas import enforce_candidate_quota, resolve_case_organization_id
 from apps.candidates.models import Candidate, CandidateEnrollment
 from apps.core.permissions import (
-    can_access_organization_id,
-    get_request_active_organization_id,
-    get_user_allowed_organization_ids,
     is_platform_admin_user,
-    scope_internal_queryset_to_tenant,
 )
 from apps.core.policies.registry_policy import can_manage_registry
 from apps.invitations.models import Invitation
@@ -59,15 +55,11 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
     serializer_class = VettingCampaignSerializer
     permission_classes = [IsInternalWorkflowOperator]
 
-    def _require_registry_manage(self, *, organization_id=None, detail: str):
+    def _require_registry_manage(self, *, detail: str):
         user = self.request.user
         if is_platform_admin_user(user):
             return
-        if can_manage_registry(
-            user,
-            organization_id=organization_id,
-            allow_membershipless_fallback=False,
-        ):
+        if can_manage_registry(user, allow_membershipless_fallback=False):
             return
         raise PermissionDenied(detail)
 
@@ -75,90 +67,20 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
         if getattr(self, "swagger_fake_view", False):
             return VettingCampaign.objects.none()
         user = self.request.user
-        queryset = VettingCampaign.objects.all()
-        if is_platform_admin_user(user):
-            return VettingCampaign.objects.all().order_by("-created_at")
-
-        membership_org_ids = get_user_allowed_organization_ids(user)
-        if membership_org_ids:
-            queryset = scope_internal_queryset_to_tenant(
-                queryset,
-                request=self.request,
-                organization_field="organization_id",
-            )
-            return queryset.order_by("-created_at")
-        return VettingCampaign.objects.filter(initiated_by=user).order_by("-created_at")
+        if not getattr(user, "is_authenticated", False):
+            return VettingCampaign.objects.none()
+        return VettingCampaign.objects.all().order_by("-created_at")
 
     def perform_create(self, serializer):
-        user = self.request.user
-        requested_org = serializer.validated_data.get("organization")
-        active_org_id = get_request_active_organization_id(self.request)
-        target_org_id = str(getattr(requested_org, "id", "") or "").strip() or str(active_org_id or "").strip() or None
-
-        if not is_platform_admin_user(user) and not can_manage_registry(
-            user,
-            organization_id=target_org_id,
-            allow_membershipless_fallback=False,
-        ):
-            raise PermissionDenied("You do not have permission to create campaigns.")
-
-        if not is_platform_admin_user(user):
-            if requested_org is not None and not can_access_organization_id(
-                user,
-                requested_org.id,
-                allow_membershipless_fallback=False,
-            ):
-                raise PermissionDenied("You cannot create campaigns for another organization.")
-            if requested_org is None and not active_org_id:
-                raise PermissionDenied("Active organization context is required to create campaigns.")
-            if requested_org is None and active_org_id:
-                serializer.save(initiated_by=self.request.user, organization_id=active_org_id)
-                return
+        self._require_registry_manage(detail="You do not have permission to create campaigns.")
         serializer.save(initiated_by=self.request.user)
 
     def perform_update(self, serializer):
-        instance = serializer.instance
-        user = self.request.user
-        self._require_registry_manage(
-            organization_id=instance.organization_id,
-            detail="You do not have permission to update campaigns.",
-        )
-        if not is_platform_admin_user(user) and not can_access_organization_id(
-            user,
-            instance.organization_id,
-            allow_membershipless_fallback=False,
-        ):
-            raise PermissionDenied("You cannot update campaigns outside your organization scope.")
-        requested_org = serializer.validated_data.get("organization")
-        if not is_platform_admin_user(user) and requested_org is not None and not can_access_organization_id(
-            user,
-            requested_org.id,
-            allow_membershipless_fallback=False,
-        ):
-            raise PermissionDenied("You cannot move this campaign to another organization.")
-        save_kwargs = {}
-        if (
-            not is_platform_admin_user(user)
-            and instance.organization_id is None
-            and "organization" not in serializer.validated_data
-        ):
-            active_org_id = get_request_active_organization_id(self.request)
-            if active_org_id:
-                save_kwargs["organization_id"] = active_org_id
-        serializer.save(**save_kwargs)
+        self._require_registry_manage(detail="You do not have permission to update campaigns.")
+        serializer.save()
 
     def perform_destroy(self, instance):
-        user = self.request.user
-        self._require_registry_manage(
-            organization_id=instance.organization_id,
-            detail="You do not have permission to delete campaigns.",
-        )
-        if not is_platform_admin_user(user) and not can_access_organization_id(
-            user,
-            instance.organization_id,
-            allow_membershipless_fallback=False,
-        ):
-            raise PermissionDenied("You cannot delete campaigns outside your organization scope.")
+        self._require_registry_manage(detail="You do not have permission to delete campaigns.")
         super().perform_destroy(instance)
 
     @action(detail=True, methods=["get", "post"], url_path="rubrics/versions")
@@ -169,10 +91,7 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
             serializer = CampaignRubricVersionSerializer(versions, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
-        self._require_registry_manage(
-            organization_id=campaign.organization_id,
-            detail="You do not have permission to manage campaign rubric versions.",
-        )
+        self._require_registry_manage(detail="You do not have permission to manage campaign rubric versions.")
 
         next_version = (campaign.rubric_versions.aggregate(max_v=Max("version"))["max_v"] or 0) + 1
 
@@ -185,10 +104,7 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="rubrics/versions/activate")
     def activate_rubric_version(self, request, pk=None):
         campaign = self.get_object()
-        self._require_registry_manage(
-            organization_id=campaign.organization_id,
-            detail="You do not have permission to activate campaign rubric versions.",
-        )
+        self._require_registry_manage(detail="You do not have permission to activate campaign rubric versions.")
         version_id = request.data.get("version_id")
         if not version_id:
             return Response({"error": "version_id is required"}, status=status.HTTP_400_BAD_REQUEST)
@@ -224,10 +140,7 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="candidates/import")
     def import_candidates(self, request, pk=None):
         campaign = self.get_object()
-        self._require_registry_manage(
-            organization_id=campaign.organization_id,
-            detail="You do not have permission to import candidates for this campaign.",
-        )
+        self._require_registry_manage(detail="You do not have permission to import candidates for this campaign.")
         candidates_data = request.data.get("candidates", [])
         send_invites = bool(request.data.get("send_invites", False))
 
@@ -242,14 +155,12 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
         if not is_admin:
             projected_new_enrollments = _project_new_enrollment_count(campaign, candidates_data)
             if projected_new_enrollments > 0:
+                from django.db import connection as _conn
+                org_id = str(getattr(getattr(_conn, "tenant", None), "id", "") or "").strip() or None
                 enforce_candidate_quota(
                     user=user,
                     additional=projected_new_enrollments,
-                    organization_id=(
-                        str(getattr(campaign, "organization_id", "") or "").strip()
-                        or str(get_request_active_organization_id(self.request) or "").strip()
-                        or None
-                    ),
+                    organization_id=org_id,
                 )
 
         created_candidates = 0

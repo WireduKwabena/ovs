@@ -400,13 +400,8 @@ class NotificationService:
 
     @staticmethod
     def _appointment_governance_context(*, appointment, stage=None) -> tuple[str, str]:
-        organization_id = (
-            str(getattr(appointment, "organization_id", "") or "")
-            or str(getattr(getattr(appointment, "appointment_exercise", None), "organization_id", "") or "")
-            or str(getattr(getattr(appointment, "position", None), "organization_id", "") or "")
-            or str(getattr(getattr(appointment, "nominee", None), "organization_id", "") or "")
-            or str(getattr(getattr(appointment, "vetting_case", None), "organization_id", "") or "")
-        )
+        from django.db import connection as _db_connection
+        organization_id = str(getattr(getattr(_db_connection, "tenant", None), "id", "") or "")
         committee_id = (
             str(getattr(stage, "committee_id", "") or "")
             or str(getattr(appointment, "committee_id", "") or "")
@@ -415,9 +410,9 @@ class NotificationService:
 
     @staticmethod
     def _organization_group_recipient_ids(*, organization_id: str, group_names: set[str]) -> set:
-        if not organization_id or not group_names:
+        if not group_names:
             return set()
-        from apps.authentication.models import User
+        from apps.users.models import User
 
         try:
             return set(
@@ -425,8 +420,6 @@ class NotificationService:
                     is_active=True,
                     groups__name__in=group_names,
                     organization_memberships__is_active=True,
-                    organization_memberships__organization_id=organization_id,
-                    organization_memberships__organization__is_active=True,
                 ).values_list("id", flat=True)
             )
         except Exception:
@@ -446,14 +439,13 @@ class NotificationService:
                 committee_id=committee_id,
                 is_active=True,
                 committee__is_active=True,
-                committee__organization__is_active=True,
                 user__is_active=True,
             ).values_list("user_id", flat=True)
         )
 
     @staticmethod
     def _appointment_notification_recipients(*, appointment, event_type: str, actor=None, stage=None, stage_role: str = ""):
-        from apps.authentication.models import User
+        from apps.users.models import User
 
         recipient_ids = set()
         for candidate_user in (

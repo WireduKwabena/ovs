@@ -398,7 +398,7 @@ class PasswordResetToken(models.Model):
         User, on_delete=models.CASCADE, related_name="password_reset_tokens", null=True
     )
     admin_user = models.ForeignKey(
-        UserProfile, on_delete=models.CASCADE, related_name="password_reset_tokens", null=True
+        User, on_delete=models.CASCADE, related_name="admin_password_reset_tokens", null=True
     )
     token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)

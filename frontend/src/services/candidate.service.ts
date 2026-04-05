@@ -5,7 +5,7 @@ import type {
   CandidateSocialProfile,
   PaginatedResponse,
 } from "@/types";
-import { getApiErrorMessage } from "@/utils/apiError";
+import { toServiceError } from "@/utils/apiError";
 
 const extractResults = <T>(payload: PaginatedResponse<T> | T[]): T[] => {
   if (Array.isArray(payload)) {
@@ -14,16 +14,13 @@ const extractResults = <T>(payload: PaginatedResponse<T> | T[]): T[] => {
   return Array.isArray(payload.results) ? payload.results : [];
 };
 
-const toErrorMessage = (error: unknown, fallback: string): string =>
-  getApiErrorMessage(error, fallback);
-
 export const candidateService = {
   async listCandidates(): Promise<CandidateProfile[]> {
     try {
       const response = await api.get<PaginatedResponse<CandidateProfile> | CandidateProfile[]>("/candidates/");
       return extractResults(response.data);
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to fetch candidates"));
+      throw toServiceError(error, "Failed to fetch candidates");
     }
   },
 
@@ -32,7 +29,7 @@ export const candidateService = {
       const response = await api.get<CandidateProfile>(`/candidates/${candidateId}/`);
       return response.data;
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to fetch candidate detail"));
+      throw toServiceError(error, "Failed to fetch candidate detail");
     }
   },
 
@@ -41,7 +38,7 @@ export const candidateService = {
       const response = await api.post<CandidateProfile>("/candidates/", payload);
       return response.data;
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to create candidate"));
+      throw toServiceError(error, "Failed to create candidate");
     }
   },
 
@@ -50,7 +47,7 @@ export const candidateService = {
       const response = await api.patch<CandidateProfile>(`/candidates/${candidateId}/`, payload);
       return response.data;
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to update candidate"));
+      throw toServiceError(error, "Failed to update candidate");
     }
   },
 
@@ -58,7 +55,7 @@ export const candidateService = {
     try {
       await api.delete(`/candidates/${candidateId}/`);
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to delete candidate"));
+      throw toServiceError(error, "Failed to delete candidate");
     }
   },
 
@@ -73,7 +70,7 @@ export const candidateService = {
       );
       return extractResults(response.data);
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to fetch social profiles"));
+      throw toServiceError(error, "Failed to fetch social profiles");
     }
   },
 
@@ -82,7 +79,7 @@ export const candidateService = {
       const response = await api.get<CandidateSocialProfile>(`/social-profiles/${profileId}/`);
       return response.data;
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to fetch social profile detail"));
+      throw toServiceError(error, "Failed to fetch social profile detail");
     }
   },
 
@@ -91,7 +88,7 @@ export const candidateService = {
       const response = await api.post<CandidateSocialProfile>("/social-profiles/", payload);
       return response.data;
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to create social profile"));
+      throw toServiceError(error, "Failed to create social profile");
     }
   },
 
@@ -103,7 +100,7 @@ export const candidateService = {
       const response = await api.patch<CandidateSocialProfile>(`/social-profiles/${profileId}/`, payload);
       return response.data;
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to update social profile"));
+      throw toServiceError(error, "Failed to update social profile");
     }
   },
 
@@ -111,7 +108,7 @@ export const candidateService = {
     try {
       await api.delete(`/social-profiles/${profileId}/`);
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to delete social profile"));
+      throw toServiceError(error, "Failed to delete social profile");
     }
   },
 
@@ -126,7 +123,7 @@ export const candidateService = {
       );
       return extractResults(response.data);
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to fetch enrollments"));
+      throw toServiceError(error, "Failed to fetch enrollments");
     }
   },
 
@@ -135,7 +132,7 @@ export const candidateService = {
       const response = await api.get<CandidateEnrollment>(`/enrollments/${enrollmentId}/`);
       return response.data;
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to fetch enrollment detail"));
+      throw toServiceError(error, "Failed to fetch enrollment detail");
     }
   },
 
@@ -144,7 +141,7 @@ export const candidateService = {
       const response = await api.post<CandidateEnrollment>("/enrollments/", payload);
       return response.data;
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to create enrollment"));
+      throw toServiceError(error, "Failed to create enrollment");
     }
   },
 
@@ -153,7 +150,7 @@ export const candidateService = {
       const response = await api.post<CandidateEnrollment>(`/enrollments/${enrollmentId}/mark-complete/`, {});
       return response.data;
     } catch (error) {
-      throw new Error(toErrorMessage(error, "Failed to mark enrollment complete"));
+      throw toServiceError(error, "Failed to mark enrollment complete");
     }
   },
 };

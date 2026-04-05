@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('applications', '0002_vettingcase_candidate_enrollment'),
         ('candidates', '0002_candidatesocialprofile'),
-        ('governance', '0001_initial'),
+        ('tenants', '0001_initial'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='vettingcase',
             name='organization',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='vetting_cases', to='governance.organization'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='vetting_cases', to='tenants.organization'),
         ),
         migrations.AddIndex(
             model_name='vettingcase',

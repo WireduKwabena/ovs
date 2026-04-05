@@ -73,7 +73,6 @@ class BillingApiTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=user,
-            organization=organization,
             membership_role=membership_role,
             is_active=True,
             is_default=is_default,
@@ -89,8 +88,8 @@ class BillingApiTests(APITestCase):
         plan_name: str = "Growth",
     ) -> BillingSubscription:
         return BillingSubscription.objects.create(
-            provider="sandbox",
             organization=organization,
+            provider="sandbox",
             status="complete",
             payment_status="paid",
             plan_id=plan_id,
@@ -173,7 +172,6 @@ class BillingApiTests(APITestCase):
         )
         BillingSubscription.objects.create(
             provider="sandbox",
-            organization=organization,
             status="complete",
             payment_status="paid",
             plan_id="growth",
@@ -512,7 +510,6 @@ class BillingApiTests(APITestCase):
 
         BillingSubscription.objects.create(
             provider="sandbox",
-            organization=scoped_org,
             status="complete",
             payment_status="paid",
             plan_id="starter",
@@ -537,14 +534,12 @@ class BillingApiTests(APITestCase):
 
         other_owner = self._create_internal_user(email="other-owner@example.com")
         scoped_campaign = VettingCampaign.objects.create(
-            organization=scoped_org,
             name="Scoped Quota Campaign",
             description="Org scoped quota visibility",
             status="active",
             initiated_by=other_owner,
         )
         offscope_campaign = VettingCampaign.objects.create(
-            organization=other_org,
             name="Offscope Quota Campaign",
             description="Should not count in scoped org usage",
             status="active",
@@ -618,14 +613,12 @@ class BillingApiTests(APITestCase):
         )
 
         campaign_a = VettingCampaign.objects.create(
-            organization=org_a,
             name="Org A Campaign",
             description="Org A usage scope",
             status="active",
             initiated_by=internal_user,
         )
         campaign_b = VettingCampaign.objects.create(
-            organization=org_b,
             name="Org B Campaign",
             description="Org B usage scope",
             status="active",
@@ -764,7 +757,6 @@ class BillingApiTests(APITestCase):
         )
 
         legacy_scoped_campaign = VettingCampaign.objects.create(
-            organization=None,
             name="Legacy Scoped Campaign",
             description="Legacy null-org campaign for scoped owner",
             status="active",
@@ -783,13 +775,11 @@ class BillingApiTests(APITestCase):
         outsider = self._create_internal_user(email="hr-org-legacy-outsider@example.com")
         OrganizationMembership.objects.create(
             user=outsider,
-            organization=other_org,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
         )
         legacy_offscope_campaign = VettingCampaign.objects.create(
-            organization=None,
             name="Legacy Offscope Campaign",
             description="Legacy null-org campaign for outsider",
             status="active",
@@ -1101,7 +1091,7 @@ class BillingApiTests(APITestCase):
         self.assertEqual(issue_response.status_code, status.HTTP_200_OK)
         raw_token = issue_response.data["token"]
 
-        token_record = OrganizationOnboardingToken.objects.get(organization=organization, is_active=True)
+        token_record = OrganizationOnboardingToken.objects.get(is_active=True)
         token_record.expires_at = timezone.now() - timedelta(minutes=1)
         token_record.save(update_fields=["expires_at", "updated_at"])
 
@@ -1136,7 +1126,7 @@ class BillingApiTests(APITestCase):
         self.assertEqual(issue_response.status_code, status.HTTP_200_OK)
         raw_token = issue_response.data["token"]
 
-        token_record = OrganizationOnboardingToken.objects.get(organization=organization, is_active=True)
+        token_record = OrganizationOnboardingToken.objects.get(is_active=True)
         token_record.uses = 1
         token_record.save(update_fields=["uses", "updated_at"])
 
@@ -1171,7 +1161,7 @@ class BillingApiTests(APITestCase):
         self.assertEqual(issue_response.status_code, status.HTTP_200_OK)
         raw_token = issue_response.data["token"]
 
-        token_record = OrganizationOnboardingToken.objects.get(organization=organization, is_active=True)
+        token_record = OrganizationOnboardingToken.objects.get(is_active=True)
         token_record.is_active = False
         token_record.revoked_at = timezone.now()
         token_record.revoked_reason = "manual_test_revoke"
@@ -1243,7 +1233,6 @@ class BillingApiTests(APITestCase):
         )
         self.assertEqual(first_response.status_code, status.HTTP_200_OK)
         first_token = OrganizationOnboardingToken.objects.get(
-            organization=organization,
             is_active=True,
         )
         self.assertTrue(first_token.is_active)
@@ -1260,7 +1249,6 @@ class BillingApiTests(APITestCase):
         self.assertFalse(first_token.is_active)
         self.assertTrue(
             OrganizationOnboardingToken.objects.filter(
-                organization=organization,
                 is_active=True,
             ).exists()
         )
@@ -1335,7 +1323,6 @@ class BillingApiTests(APITestCase):
         self.assertEqual(revoke_response.data["has_active_token"], False)
         self.assertFalse(
             OrganizationOnboardingToken.objects.filter(
-                organization=organization,
                 is_active=True,
             ).exists()
         )
@@ -1578,7 +1565,6 @@ class BillingApiTests(APITestCase):
         persisted = BillingSubscription.objects.get(provider="sandbox", reference=ticket["reference"])
         self.assertEqual(persisted.registration_consumed_by_email, internal_user.email)
         self.assertIsNotNone(persisted.registration_consumed_at)
-        self.assertEqual(persisted.organization_id, organization.id)
 
     def test_confirm_subscription_validates_payment_method(self):
         _user, organization = self._authenticate_checkout_actor(
@@ -2231,7 +2217,6 @@ class BillingApiTests(APITestCase):
             provider="paystack",
             session_id="OVS-PAYSTACK-VERIFY-META-ORG-123",
         )
-        self.assertEqual(persisted.organization_id, metadata_org.id)
 
     @override_settings(PAYSTACK_SECRET_KEY="sk_test_paystack")
     @patch("apps.billing.views._paystack_verify_transaction")
@@ -2527,7 +2512,6 @@ class BillingApiTests(APITestCase):
 
         BillingSubscription.objects.create(
             provider="paystack",
-            organization=organization,
             status="open",
             payment_status="pending",
             session_id="OVS-PAYSTACK-WEBHOOK-FAILED-ORG-123",
@@ -2894,7 +2878,6 @@ class BillingApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         persisted = BillingSubscription.objects.get(provider="stripe", session_id="cs_test_metadata_org_123")
-        self.assertEqual(persisted.organization_id, metadata_org.id)
 
     @override_settings(STRIPE_SECRET_KEY="sk_test_123")
     @patch("apps.billing.views._ensure_stripe_ready")

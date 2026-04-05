@@ -74,7 +74,6 @@ class AuditApiTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.auditor_user,
-            organization=self.org_a,
             is_active=True,
             is_default=True,
         )
@@ -377,12 +376,10 @@ class AuditApiTests(APITestCase):
             email="legacy.audit.candidate@example.com",
         )
         nominee = PersonnelRecord.objects.create(
-            organization=self.org_a,
             full_name="Legacy Audit Nominee",
             linked_candidate=candidate,
         )
         position = GovernmentPosition.objects.create(
-            organization=self.org_a,
             title="Legacy Audit Position",
             branch="executive",
             institution="Audit Org A",
@@ -390,13 +387,11 @@ class AuditApiTests(APITestCase):
             is_vacant=True,
         )
         campaign = VettingCampaign.objects.create(
-            organization=self.org_a,
             name="Legacy Audit Campaign",
             initiated_by=self.admin_user,
             status="active",
         )
         appointment = AppointmentRecord.objects.create(
-            organization=self.org_a,
             position=position,
             nominee=nominee,
             appointment_exercise=campaign,

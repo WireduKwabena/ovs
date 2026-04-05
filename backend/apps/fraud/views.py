@@ -34,11 +34,7 @@ class FraudDetectionResultViewSet(viewsets.ReadOnlyModelViewSet):
             return FraudDetectionResult.objects.none()
 
         queryset = super().get_queryset()
-        queryset = scope_internal_queryset_to_tenant(
-            queryset,
-            request=self.request,
-            organization_field="application__organization_id",
-        )
+        queryset = scope_internal_queryset_to_tenant(queryset, request=self.request)
 
         case_id = self.request.query_params.get("case_id")
         if case_id:
@@ -89,11 +85,7 @@ class ConsistencyCheckResultViewSet(viewsets.ReadOnlyModelViewSet):
             return ConsistencyCheckResult.objects.none()
 
         queryset = super().get_queryset()
-        queryset = scope_internal_queryset_to_tenant(
-            queryset,
-            request=self.request,
-            organization_field="application__organization_id",
-        )
+        queryset = scope_internal_queryset_to_tenant(queryset, request=self.request)
 
         case_id = self.request.query_params.get("case_id")
         if case_id:
@@ -163,11 +155,7 @@ class SocialProfileCheckResultViewSet(viewsets.ReadOnlyModelViewSet):
             return SocialProfileCheckResult.objects.none()
 
         queryset = super().get_queryset()
-        queryset = scope_internal_queryset_to_tenant(
-            queryset,
-            request=self.request,
-            organization_field="application__organization_id",
-        )
+        queryset = scope_internal_queryset_to_tenant(queryset, request=self.request)
 
         case_id = self.request.query_params.get("case_id")
         if case_id:

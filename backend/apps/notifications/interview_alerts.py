@@ -338,21 +338,15 @@ def get_internal_emails(*, organization_id=None):
 
     Legacy function name retained for compatibility with existing imports.
     """
-    from apps.authentication.models import User
+    from apps.users.models import User
     from apps.core.permissions import is_government_workflow_operator, is_platform_admin_user
 
-    users = User.objects.filter(is_active=True)
-    if organization_id:
-        users = users.filter(
-            Q(
-                organization_memberships__organization_id=organization_id,
-                organization_memberships__is_active=True,
-                organization_memberships__organization__is_active=True,
-            )
-            | Q(user_type="admin")
-            | Q(is_superuser=True)
-        )
-    users = users.distinct().only("id", "email", "user_type", "is_superuser")
+    # organization_id param kept for API compatibility; schema isolation handles tenant scoping.
+    users = User.objects.filter(is_active=True).filter(
+        Q(organization_memberships__is_active=True)
+        | Q(user_type="admin")
+        | Q(is_superuser=True)
+    ).distinct().only("id", "email", "user_type", "is_superuser")
 
     recipients: list[str] = []
     for user in users:

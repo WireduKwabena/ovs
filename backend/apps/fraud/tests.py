@@ -8,7 +8,7 @@ import unittest
 APP_ENABLED = "apps.fraud" in settings.INSTALLED_APPS
 
 from apps.applications.models import VettingCase
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.fraud.models import ConsistencyCheckResult, FraudDetectionResult, SocialProfileCheckResult
 
 

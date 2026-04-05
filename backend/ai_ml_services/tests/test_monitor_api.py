@@ -16,7 +16,7 @@ from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.authentication.models import User
+from apps.users.models import User
 
 
 _HAS_CV2_NUMPY = bool(cv2 is not None and np is not None)

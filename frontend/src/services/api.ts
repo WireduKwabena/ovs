@@ -4,8 +4,9 @@ import { store } from '../app/store'; // Import store for dispatch
 import type { ApiError } from '@/types';
 import { logout, refreshToken } from '@/store/authSlice';
 import { setError } from '@/store/errorSlice';
+import { API_URL } from '@/config/env';
+import { getApiErrorMessage as _getApiErrorMessage } from '@/utils/apiError';
 
-const API_URL = ((import.meta as any).env?.VITE_API_URL) || 'http://localhost:8000/api';
 const AUTH_ENDPOINTS = [
   '/auth/login/',
   '/auth/login/verify/',
@@ -38,10 +39,6 @@ const isCandidateSessionEndpoint = (url?: string) => {
     return false;
   }
   return CANDIDATE_SESSION_ENDPOINT_PREFIXES.some((prefix) => url.includes(prefix));
-};
-
-const getApiErrorMessage = (error: AxiosError<ApiError>): string => {
-  return error.response?.data?.message || error.message || 'An error occurred';
 };
 
 const api = axios.create({
@@ -155,7 +152,7 @@ api.interceptors.response.use(
     } else {
       // For other errors, dispatch the setError action
       const errorData = {
-        message: getApiErrorMessage(error),
+        message: _getApiErrorMessage(error, 'An error occurred'),
         status: statusCode || 500,
       };
       store.dispatch(setError(errorData));

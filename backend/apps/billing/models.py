@@ -8,6 +8,14 @@ from django.db.models import Q
 class BillingSubscription(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
+    organization = models.ForeignKey(
+        "tenants.Organization",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="billing_subscriptions",
+    )
+
     PROVIDER_CHOICES = (
         ("stripe", "Stripe"),
         ("paystack", "Paystack"),

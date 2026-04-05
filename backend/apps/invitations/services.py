@@ -193,7 +193,7 @@ def consume_candidate_access_token(
 
 
 def _resolve_case_applicant_user(enrollment):
-    from apps.authentication.models import User
+    from apps.users.models import User
 
     candidate = enrollment.candidate
     existing_user = User.objects.filter(email__iexact=candidate.email).first()

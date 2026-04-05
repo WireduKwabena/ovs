@@ -99,9 +99,6 @@ def can_take_committee_action(
         return False
 
     if committee is not None:
-        committee_org_id = getattr(committee, "organization_id", None)
-        if appointment_organization_id and committee_org_id and str(appointment_organization_id) != str(committee_org_id):
-            return False
         return has_active_committee_membership(
             user=user,
             committee=committee,

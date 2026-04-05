@@ -383,6 +383,17 @@ export const logout = createAsyncThunk<
   // user's in-memory data (notifications, applications, rubrics, etc.).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (dispatch as any)({ type: "store/reset" });
+
+  // Flush redux-persist storage so the next page load does not rehydrate
+  // stale profile data or any tokens that may have been written before the
+  // authStorageTransform was in place. Imported dynamically to avoid a
+  // circular dependency (store → authSlice → store).
+  try {
+    const { persistor } = await import("@/app/store");
+    await persistor.purge();
+  } catch {
+    // Non-fatal — in-memory session is already cleared above.
+  }
 });
 
 export const fetchProfile = createAsyncThunk<

@@ -1,5 +1,6 @@
 import api from "./api";
-import type { ApiError, Notification, PaginatedResponse } from "@/types";
+import type { Notification, PaginatedResponse } from "@/types";
+import { toServiceError } from "@/utils/apiError";
 
 type NotificationApiRecord = {
   id: string;
@@ -57,18 +58,6 @@ const normalizeNotification = (record: NotificationApiRecord): Notification => {
   };
 };
 
-const getErrorMessage = (error: any, fallback: string): string => {
-  const payload = error?.response?.data as ApiError | { detail?: string } | undefined;
-  if (payload && typeof payload === "object") {
-    if ("message" in payload && typeof payload.message === "string" && payload.message.trim()) {
-      return payload.message;
-    }
-    if ("detail" in payload && typeof payload.detail === "string" && payload.detail.trim()) {
-      return payload.detail;
-    }
-  }
-  return fallback;
-};
 
 export const notificationService = {
   async getAll(params?: {
@@ -95,8 +84,8 @@ export const notificationService = {
         params: { channel: "in_app", archived: archivedParam, ...restParams },
       });
       return extractResults(response.data).map(normalizeNotification);
-    } catch (error: any) {
-      throw new Error(getErrorMessage(error, "Failed to fetch notifications"));
+    } catch (error) {
+      throw toServiceError(error, "Failed to fetch notifications");
     }
   },
 
@@ -106,8 +95,8 @@ export const notificationService = {
         params: { channel: "all", archived: "all" },
       });
       return normalizeNotification(response.data);
-    } catch (error: any) {
-      throw new Error(getErrorMessage(error, "Failed to fetch notification detail"));
+    } catch (error) {
+      throw toServiceError(error, "Failed to fetch notification detail");
     }
   },
 
@@ -115,8 +104,8 @@ export const notificationService = {
     try {
       const response = await api.get<{ unread_count: number }>("/notifications/unread-count/");
       return response.data;
-    } catch (error: any) {
-      throw new Error(getErrorMessage(error, "Failed to fetch count"));
+    } catch (error) {
+      throw toServiceError(error, "Failed to fetch count");
     }
   },
 
@@ -125,40 +114,40 @@ export const notificationService = {
       await api.post("/notifications/mark-as-read/", {
         notification_ids: notificationIds,
       });
-    } catch (error: any) {
-      throw new Error(getErrorMessage(error, "Failed to mark notifications as read"));
+    } catch (error) {
+      throw toServiceError(error, "Failed to mark notifications as read");
     }
   },
 
   async markAllAsRead(): Promise<void> {
     try {
       await api.post("/notifications/mark-all-as-read/");
-    } catch (error: any) {
-      throw new Error(getErrorMessage(error, "Failed to mark all notifications as read"));
+    } catch (error) {
+      throw toServiceError(error, "Failed to mark all notifications as read");
     }
   },
 
   async markSingleAsRead(id: string): Promise<void> {
     try {
       await api.post(`/notifications/${id}/mark_read/`);
-    } catch (error: any) {
-      throw new Error(getErrorMessage(error, "Failed to mark notification as read"));
+    } catch (error) {
+      throw toServiceError(error, "Failed to mark notification as read");
     }
   },
 
   async archive(id: string): Promise<void> {
     try {
       await api.delete(`/notifications/${id}/archive/`);
-    } catch (error: any) {
-      throw new Error(getErrorMessage(error, "Failed to archive notification"));
+    } catch (error) {
+      throw toServiceError(error, "Failed to archive notification");
     }
   },
 
   async restore(id: string): Promise<void> {
     try {
       await api.post(`/notifications/${id}/restore/`);
-    } catch (error: any) {
-      throw new Error(getErrorMessage(error, "Failed to restore notification"));
+    } catch (error) {
+      throw toServiceError(error, "Failed to restore notification");
     }
   },
 };

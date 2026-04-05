@@ -48,7 +48,6 @@ class ApplicationsApiTests(APITestCase):
     def _create_org_subscription(self, organization, *, status="complete", payment_status="paid", plan_id="starter"):
         BillingSubscription.objects.create(
             provider="sandbox",
-            organization=organization,
             status=status,
             payment_status=payment_status,
             plan_id=plan_id,
@@ -89,7 +88,6 @@ class ApplicationsApiTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.hr,
-            organization=org,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
@@ -126,7 +124,6 @@ class ApplicationsApiTests(APITestCase):
 
         case = VettingCase.objects.get(id=case_id)
         self.assertTrue(case.documents_uploaded)
-        self.assertEqual(case.organization_id, org.id)
 
         status_response = self.client.get(
             f"/api/applications/cases/{case_id}/verification-status/",
@@ -226,7 +223,6 @@ class ApplicationsApiTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=internal_without_subscription,
-            organization=organization,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
@@ -274,7 +270,6 @@ class ApplicationsApiTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.hr,
-            organization=organization,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
@@ -282,7 +277,6 @@ class ApplicationsApiTests(APITestCase):
 
         BillingSubscription.objects.create(
             provider="sandbox",
-            organization=organization,
             status="complete",
             payment_status="paid",
             plan_id="starter",
@@ -294,7 +288,6 @@ class ApplicationsApiTests(APITestCase):
         )
 
         scoped_campaign = VettingCampaign.objects.create(
-            organization=organization,
             name="Apps Scoped Campaign",
             initiated_by=self.hr,
         )
@@ -389,7 +382,6 @@ class ApplicationsApiTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.hr,
-            organization=organization,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
@@ -399,7 +391,6 @@ class ApplicationsApiTests(APITestCase):
         exhausted_case = VettingCase.objects.create(
             applicant=self.applicant,
             assigned_to=self.hr,
-            organization=organization,
             position_applied="Analyst",
             department="Operations",
             priority="medium",
@@ -439,7 +430,6 @@ class ApplicationsApiTests(APITestCase):
         target_case = VettingCase.objects.create(
             applicant=self.applicant,
             assigned_to=self.hr,
-            organization=organization,
             position_applied="Analyst",
             department="Operations",
             priority="medium",
@@ -477,13 +467,11 @@ class ApplicationsApiTests(APITestCase):
             first_name="Legacy",
             last_name="Org",
             user_type="internal",
-            organization=legacy_org.name,
         )
         vetting_officer_group, _ = Group.objects.get_or_create(name="vetting_officer")
         legacy_internal_user.groups.add(vetting_officer_group)
         BillingSubscription.objects.create(
             provider="sandbox",
-            organization=legacy_org,
             status="canceled",
             payment_status="unpaid",
             plan_id="starter",
@@ -529,7 +517,6 @@ class ApplicationsApiTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.hr,
-            organization=organization,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
@@ -544,7 +531,6 @@ class ApplicationsApiTests(APITestCase):
         case = VettingCase.objects.create(
             applicant=self.applicant,
             assigned_to=self.hr,
-            organization=organization,
             position_applied="Analyst",
             department="Operations",
             priority="medium",
@@ -582,7 +568,6 @@ class ApplicationsApiTests(APITestCase):
             first_name="Legacy",
             last_name="TaskHR",
             user_type="internal",
-            organization=legacy_org.name,
         )
         vetting_officer_group, _ = Group.objects.get_or_create(name="vetting_officer")
         legacy_internal_user.groups.add(vetting_officer_group)
@@ -1092,14 +1077,12 @@ class ApplicationsOrganizationScopeTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.internal_a,
-            organization=self.org_a,
             membership_role="vetting_officer",
             is_active=True,
             is_default=True,
         )
         OrganizationMembership.objects.create(
             user=self.internal_b,
-            organization=self.org_b,
             membership_role="vetting_officer",
             is_active=True,
             is_default=True,
@@ -1107,13 +1090,11 @@ class ApplicationsOrganizationScopeTests(APITestCase):
 
         self.campaign_org_a = VettingCampaign.objects.create(
             name="Applications Campaign A",
-            organization=self.org_a,
             initiated_by=self.internal_b,
             status="active",
         )
         self.campaign_org_b = VettingCampaign.objects.create(
             name="Applications Campaign B",
-            organization=self.org_b,
             initiated_by=self.internal_b,
             status="active",
         )
@@ -1138,7 +1119,6 @@ class ApplicationsOrganizationScopeTests(APITestCase):
             status="in_progress",
         )
         self.case_org_a = VettingCase.objects.create(
-            organization=self.org_a,
             applicant=self.applicant,
             candidate_enrollment=self.enrollment_org_a,
             assigned_to=self.internal_a,
@@ -1148,7 +1128,6 @@ class ApplicationsOrganizationScopeTests(APITestCase):
             status="under_review",
         )
         self.case_org_b = VettingCase.objects.create(
-            organization=self.org_b,
             applicant=self.applicant,
             candidate_enrollment=self.enrollment_org_b,
             assigned_to=self.internal_b,
@@ -1187,8 +1166,6 @@ class ApplicationsOrganizationScopeTests(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 201)
-        created = VettingCase.objects.get(id=response.json()["id"])
-        self.assertEqual(created.organization_id, self.org_a.id)
 
     def test_internal_cannot_create_case_for_other_org(self):
         self.client.force_authenticate(self.internal_a)
@@ -1225,7 +1202,6 @@ class ApplicationsOrganizationScopeTests(APITestCase):
             status="under_review",
         )
         org_case = VettingCase.objects.create(
-            organization=self.org_a,
             applicant=self.applicant,
             assigned_to=membershipless_internal,
             position_applied="Scoped Analyst",
@@ -1293,13 +1269,11 @@ class VerificationGatewayFoundationTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.hr,
-            organization=self.org,
             membership_role="vetting_officer",
             is_active=True,
             is_default=True,
         )
         self.case = VettingCase.objects.create(
-            organization=self.org,
             applicant=self.applicant,
             assigned_to=self.hr,
             position_applied="Policy Officer",
@@ -1315,7 +1289,6 @@ class VerificationGatewayFoundationTests(APITestCase):
             interview_completed=True,
         )
         self.identity_source = VerificationSource.objects.create(
-            organization=self.org,
             key="national-id-registry",
             name="National Identity Registry",
             source_category="national_identity",
@@ -1346,7 +1319,6 @@ class VerificationGatewayFoundationTests(APITestCase):
         self.assertTrue(created_a)
         self.assertFalse(created_b)
         self.assertEqual(request_a.id, request_b.id)
-        self.assertEqual(str(request_a.organization_id), str(self.org.id))
         self.assertEqual(VerificationRequest.objects.filter(case=self.case, source=self.identity_source).count(), 1)
 
     def test_record_verification_result_normalizes_and_updates_request_status(self):
@@ -1457,7 +1429,6 @@ class VerificationGatewayFoundationTests(APITestCase):
         )
 
         rubric = VettingRubric.objects.create(
-            organization=self.org,
             name="Gateway Decision Rubric",
             description="Rubric for gateway decision snapshot test",
             rubric_type="general",

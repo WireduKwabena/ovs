@@ -489,10 +489,7 @@ class VideoMeetingViewSet(viewsets.ModelViewSet):
         if (
             participant is None
             and meeting.organizer_id != user.id
-            and not is_government_workflow_operator(
-                user,
-                organization_id=getattr(getattr(meeting, "case", None), "organization_id", None),
-            )
+            and not is_government_workflow_operator(user)
         ):
             return Response({"error": "You are not allowed to join this meeting."}, status=status.HTTP_403_FORBIDDEN)
 

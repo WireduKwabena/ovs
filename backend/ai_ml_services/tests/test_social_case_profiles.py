@@ -6,7 +6,7 @@ from django.test import TestCase
 
 from ai_ml_services.social.case_profiles import extract_case_social_profiles
 from apps.applications.models import VettingCase
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.campaigns.models import VettingCampaign
 from apps.candidates.models import Candidate, CandidateEnrollment, CandidateSocialProfile
 

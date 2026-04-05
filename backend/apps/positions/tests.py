@@ -114,7 +114,6 @@ class GovernmentPositionApiTests(APITestCase):
         create_org = Organization.objects.create(code="positions-create-admin-guard", name="Positions Create Admin Guard")
         OrganizationMembership.objects.create(
             user=self.internal_user,
-            organization=create_org,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
@@ -159,7 +158,6 @@ class GovernmentPositionApiTests(APITestCase):
         create_org = Organization.objects.create(code="positions-create-org", name="Positions Create Org")
         OrganizationMembership.objects.create(
             user=self.internal_user,
-            organization=create_org,
             is_active=True,
             is_default=True,
         )
@@ -362,26 +360,22 @@ class GovernmentPositionOrganizationScopeTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.internal_a,
-            organization=self.org_a,
             is_active=True,
             is_default=True,
         )
         OrganizationMembership.objects.create(
             user=self.internal_b,
-            organization=self.org_b,
             is_active=True,
             is_default=True,
         )
 
         self.position_org_a = GovernmentPosition.objects.create(
-            organization=self.org_a,
             title="Scoped Position A",
             branch="executive",
             institution="Org A Office",
             appointment_authority="President",
         )
         self.position_org_b = GovernmentPosition.objects.create(
-            organization=self.org_b,
             title="Scoped Position B",
             branch="executive",
             institution="Org B Office",

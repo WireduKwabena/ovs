@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
         ('applications', '0003_vettingcase_organization_and_more'),
         ('appointments', '0005_appointmentpublication_lifecycle'),
         ('campaigns', '0002_vettingcampaign_appointment_authority_and_more'),
-        ('governance', '0001_initial'),
+        ('tenants', '0001_initial'),
         ('personnel', '0001_initial'),
         ('positions', '0001_initial'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
@@ -21,12 +21,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='appointmentrecord',
             name='organization',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='appointment_records', to='governance.organization'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='appointment_records', to='tenants.organization'),
         ),
         migrations.AddField(
             model_name='approvalstagetemplate',
             name='organization',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='approval_stage_templates', to='governance.organization'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='approval_stage_templates', to='tenants.organization'),
         ),
         migrations.AddIndex(
             model_name='appointmentrecord',

@@ -737,13 +737,11 @@ class NotificationGovernanceScopeTests(TestCase):
         self.org_a = Organization.objects.create(code="notif-org-a", name="Notification Org A")
         self.org_b = Organization.objects.create(code="notif-org-b", name="Notification Org B")
         self.committee_a = Committee.objects.create(
-            organization=self.org_a,
             code="notif-committee-a",
             name="Notification Committee A",
             committee_type="vetting",
         )
         self.committee_b = Committee.objects.create(
-            organization=self.org_b,
             code="notif-committee-b",
             name="Notification Committee B",
             committee_type="vetting",
@@ -815,43 +813,36 @@ class NotificationGovernanceScopeTests(TestCase):
 
         OrganizationMembership.objects.create(
             user=self.actor,
-            organization=self.org_a,
             is_active=True,
             is_default=True,
         )
         OrganizationMembership.objects.create(
             user=self.user_org_a_vetting,
-            organization=self.org_a,
             is_active=True,
             is_default=True,
         )
         OrganizationMembership.objects.create(
             user=self.committee_group_only,
-            organization=self.org_a,
             is_active=True,
             is_default=True,
         )
         OrganizationMembership.objects.create(
             user=self.plain_internal,
-            organization=self.org_a,
             is_active=True,
             is_default=True,
         )
         OrganizationMembership.objects.create(
             user=self.user_org_b_vetting,
-            organization=self.org_b,
             is_active=True,
             is_default=True,
         )
         committee_membership_a = OrganizationMembership.objects.create(
             user=self.committee_member_a,
-            organization=self.org_a,
             is_active=True,
             is_default=True,
         )
         committee_membership_b = OrganizationMembership.objects.create(
             user=self.committee_member_b,
-            organization=self.org_b,
             is_active=True,
             is_default=True,
         )
@@ -878,12 +869,10 @@ class NotificationGovernanceScopeTests(TestCase):
             email="notif.nominee@example.com",
         )
         nominee = PersonnelRecord.objects.create(
-            organization=self.org_a,
             full_name="Notification Nominee",
             linked_candidate=candidate,
         )
         position = GovernmentPosition.objects.create(
-            organization=self.org_a,
             title="Notification Scoped Position",
             branch="executive",
             institution="Notification Org A",
@@ -891,13 +880,11 @@ class NotificationGovernanceScopeTests(TestCase):
             is_vacant=True,
         )
         campaign = VettingCampaign.objects.create(
-            organization=self.org_a,
             name="Notification Scoped Campaign",
             initiated_by=self.actor,
             status="active",
         )
         self.record = AppointmentRecord.objects.create(
-            organization=self.org_a,
             committee=self.committee_a,
             position=position,
             nominee=nominee,
@@ -908,7 +895,6 @@ class NotificationGovernanceScopeTests(TestCase):
             status="nominated",
         )
         self.stage_template = ApprovalStageTemplate.objects.create(
-            organization=self.org_a,
             name="Notification Stage Template",
             exercise_type="ministerial",
             created_by=self.actor,

@@ -21,8 +21,8 @@ from apps.audit.contracts import (
     APPOINTMENT_STAGE_TRANSITION_EVENT,
     APPOINTMENT_VETTING_LINKAGE_ENSURED_EVENT,
 )
-from apps.authentication.models import User
-from apps.authentication.permissions import (
+from apps.users.models import User
+from apps.users.permissions import (
     RECENT_AUTH_REQUIRED_CODE,
     RECENT_AUTH_SESSION_KEY,
 )
@@ -666,7 +666,6 @@ class AppointmentPublicApiTests(APITestCase):
 
         OrganizationMembership.objects.create(
             user=self.vetting_user,
-            organization=self.organization,
             membership_role="vetting_officer",
             is_active=True,
             is_default=True,
@@ -680,7 +679,6 @@ class AppointmentPublicApiTests(APITestCase):
         ):
             OrganizationMembership.objects.create(
                 user=user,
-                organization=self.organization,
                 membership_role="",
                 is_active=True,
                 is_default=False,
@@ -692,13 +690,11 @@ class AppointmentPublicApiTests(APITestCase):
             email="nominee_two@example.com",
         )
         nominee = PersonnelRecord.objects.create(
-            organization=self.organization,
             full_name="Nominee Two",
             linked_candidate=candidate,
             is_public=True,
         )
         position = GovernmentPosition.objects.create(
-            organization=self.organization,
             title="Minister of Education",
             branch="executive",
             institution="Ministry of Education",
@@ -707,13 +703,11 @@ class AppointmentPublicApiTests(APITestCase):
             is_public=True,
         )
         campaign = VettingCampaign.objects.create(
-            organization=self.organization,
             name="Ministerial Appointments 2027",
             initiated_by=self.vetting_user,
             status="active",
         )
         self.record = AppointmentRecord.objects.create(
-            organization=self.organization,
             position=position,
             nominee=nominee,
             appointment_exercise=campaign,
@@ -896,7 +890,6 @@ class AppointmentPublicApiTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.vetting_user,
-            organization=internal_org,
             is_active=True,
             is_default=True,
         )
@@ -1713,50 +1706,42 @@ class AppointmentCommitteeBindingApiTests(APITestCase):
 
         self.org_membership_member = OrganizationMembership.objects.create(
             user=self.member_user,
-            organization=self.org_a,
             is_active=True,
             is_default=True,
         )
         self.org_membership_chair = OrganizationMembership.objects.create(
             user=self.chair_user,
-            organization=self.org_a,
             is_active=True,
             is_default=True,
         )
         self.org_membership_secretary = OrganizationMembership.objects.create(
             user=self.secretary_user,
-            organization=self.org_a,
             is_active=True,
             is_default=True,
         )
         self.org_membership_observer = OrganizationMembership.objects.create(
             user=self.observer_user,
-            organization=self.org_a,
             is_active=True,
             is_default=True,
         )
         self.org_membership_non_member_group = OrganizationMembership.objects.create(
             user=self.non_member_group_user,
-            organization=self.org_a,
             is_active=True,
             is_default=True,
         )
         self.org_membership_cross = OrganizationMembership.objects.create(
             user=self.cross_org_member_user,
-            organization=self.org_b,
             is_active=True,
             is_default=True,
         )
 
         self.committee_a = Committee.objects.create(
-            organization=self.org_a,
             code="committee-a-main",
             name="Committee A Main",
             committee_type="approval",
             is_active=True,
         )
         self.committee_b = Committee.objects.create(
-            organization=self.org_b,
             code="committee-b-main",
             name="Committee B Main",
             committee_type="approval",
@@ -1805,7 +1790,6 @@ class AppointmentCommitteeBindingApiTests(APITestCase):
         )
 
         self.position = GovernmentPosition.objects.create(
-            organization=self.org_a,
             title="Committee Binding Position",
             branch="executive",
             institution="Committee Secretariat",
@@ -1814,13 +1798,11 @@ class AppointmentCommitteeBindingApiTests(APITestCase):
             is_public=True,
         )
         self.nominee = PersonnelRecord.objects.create(
-            organization=self.org_a,
             full_name="Committee Binding Nominee",
             is_public=True,
         )
 
         self.template = ApprovalStageTemplate.objects.create(
-            organization=self.org_a,
             name="Committee Binding Template",
             exercise_type="ministerial",
             created_by=self.admin_user,
@@ -1854,14 +1836,12 @@ class AppointmentCommitteeBindingApiTests(APITestCase):
         )
 
         self.campaign = VettingCampaign.objects.create(
-            organization=self.org_a,
             name="Committee Binding Campaign",
             initiated_by=self.admin_user,
             status="active",
             approval_template=self.template,
         )
         self.appointment = AppointmentRecord.objects.create(
-            organization=self.org_a,
             committee=self.committee_a,
             position=self.position,
             nominee=self.nominee,
@@ -1873,10 +1853,8 @@ class AppointmentCommitteeBindingApiTests(APITestCase):
             is_public=False,
         )
         self.legacy_appointment = AppointmentRecord.objects.create(
-            organization=self.org_a,
             committee=None,
             position=GovernmentPosition.objects.create(
-                organization=self.org_a,
                 title="Legacy Committee Position",
                 branch="executive",
                 institution="Legacy Secretariat",
@@ -1885,7 +1863,6 @@ class AppointmentCommitteeBindingApiTests(APITestCase):
                 is_public=True,
             ),
             nominee=PersonnelRecord.objects.create(
-                organization=self.org_a,
                 full_name="Legacy Committee Nominee",
                 is_public=True,
             ),
@@ -1957,7 +1934,6 @@ class AppointmentCommitteeBindingApiTests(APITestCase):
 
     def test_legacy_stage_without_committee_keeps_group_based_fallback(self):
         legacy_template = ApprovalStageTemplate.objects.create(
-            organization=self.org_a,
             name="Legacy Committee Fallback Template",
             exercise_type="ministerial",
             created_by=self.admin_user,
@@ -1972,17 +1948,14 @@ class AppointmentCommitteeBindingApiTests(APITestCase):
             committee=None,
         )
         legacy_campaign = VettingCampaign.objects.create(
-            organization=self.org_a,
             name="Legacy Committee Campaign",
             initiated_by=self.admin_user,
             status="active",
             approval_template=legacy_template,
         )
         legacy_appointment = AppointmentRecord.objects.create(
-            organization=self.org_a,
             committee=None,
             position=GovernmentPosition.objects.create(
-                organization=self.org_a,
                 title="Legacy Committee Position Two",
                 branch="executive",
                 institution="Legacy Secretariat",
@@ -1991,7 +1964,6 @@ class AppointmentCommitteeBindingApiTests(APITestCase):
                 is_public=True,
             ),
             nominee=PersonnelRecord.objects.create(
-                organization=self.org_a,
                 full_name="Legacy Committee Nominee Two",
                 is_public=True,
             ),
@@ -2035,15 +2007,12 @@ class AppointmentCommitteeBindingApiTests(APITestCase):
         )
         self.assertIsNotNone(transition_event)
         payload = transition_event.changes or {}
-        self.assertEqual(payload.get("organization_id"), str(self.org_a.id))
         self.assertEqual(payload.get("committee_id"), str(self.committee_a.id))
 
     def test_stage_actions_history_denies_non_member_when_record_has_no_bound_committee(self):
         appointment = AppointmentRecord.objects.create(
-            organization=self.org_a,
             committee=None,
             position=GovernmentPosition.objects.create(
-                organization=self.org_a,
                 title="Legacy History Position",
                 branch="executive",
                 institution="Legacy Secretariat",
@@ -2052,7 +2021,6 @@ class AppointmentCommitteeBindingApiTests(APITestCase):
                 is_public=True,
             ),
             nominee=PersonnelRecord.objects.create(
-                organization=self.org_a,
                 full_name="Legacy History Nominee",
                 is_public=True,
             ),
@@ -2079,10 +2047,8 @@ class AppointmentCommitteeBindingApiTests(APITestCase):
 
     def test_stage_actions_history_allows_member_when_record_has_no_bound_committee(self):
         appointment = AppointmentRecord.objects.create(
-            organization=self.org_a,
             committee=None,
             position=GovernmentPosition.objects.create(
-                organization=self.org_a,
                 title="Legacy History Position Allowed",
                 branch="executive",
                 institution="Legacy Secretariat",
@@ -2091,7 +2057,6 @@ class AppointmentCommitteeBindingApiTests(APITestCase):
                 is_public=True,
             ),
             nominee=PersonnelRecord.objects.create(
-                organization=self.org_a,
                 full_name="Legacy History Nominee Allowed",
                 is_public=True,
             ),
@@ -2143,21 +2108,17 @@ class AppointmentOrganizationScopeTests(APITestCase):
         self.internal_a.groups.add(self.vetting_group)
         OrganizationMembership.objects.create(
             user=self.internal_a,
-            organization=self.org_a,
             is_active=True,
             is_default=True,
         )
 
         self.nominee_a = PersonnelRecord.objects.create(
-            organization=self.org_a,
             full_name="Scope Nominee A",
         )
         self.nominee_b = PersonnelRecord.objects.create(
-            organization=self.org_b,
             full_name="Scope Nominee B",
         )
         self.position_a = GovernmentPosition.objects.create(
-            organization=self.org_a,
             title="Scoped Appointment Position A",
             branch="executive",
             institution="Appointments Org A Office",
@@ -2165,7 +2126,6 @@ class AppointmentOrganizationScopeTests(APITestCase):
             is_vacant=True,
         )
         self.position_b = GovernmentPosition.objects.create(
-            organization=self.org_b,
             title="Scoped Appointment Position B",
             branch="executive",
             institution="Appointments Org B Office",
@@ -2181,18 +2141,15 @@ class AppointmentOrganizationScopeTests(APITestCase):
         )
         self.campaign_a = VettingCampaign.objects.create(
             name="Scoped Appointments Campaign A",
-            organization=self.org_a,
             initiated_by=self.admin_user,
             status="active",
         )
         self.campaign_b = VettingCampaign.objects.create(
             name="Scoped Appointments Campaign B",
-            organization=self.org_b,
             initiated_by=self.admin_user,
             status="active",
         )
         self.appointment_org_a = AppointmentRecord.objects.create(
-            organization=self.org_a,
             position=self.position_a,
             nominee=self.nominee_a,
             appointment_exercise=self.campaign_a,
@@ -2202,7 +2159,6 @@ class AppointmentOrganizationScopeTests(APITestCase):
             status="nominated",
         )
         self.appointment_org_b = AppointmentRecord.objects.create(
-            organization=self.org_b,
             position=self.position_b,
             nominee=self.nominee_b,
             appointment_exercise=self.campaign_b,
@@ -2273,13 +2229,11 @@ class AppointmentAliasContractTests(APITestCase):
         self.registry_user.groups.add(registry_group)
         OrganizationMembership.objects.create(
             user=self.registry_user,
-            organization=self.organization,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
         )
         self.position = GovernmentPosition.objects.create(
-            organization=self.organization,
             title="Cabinet Office - Infrastructure",
             branch="executive",
             institution="Cabinet Office",
@@ -2288,18 +2242,15 @@ class AppointmentAliasContractTests(APITestCase):
             is_public=True,
         )
         self.nominee = PersonnelRecord.objects.create(
-            organization=self.organization,
             full_name="Nominee Alias Record",
             is_public=True,
         )
         self.exercise = VettingCampaign.objects.create(
-            organization=self.organization,
             name="Infrastructure Appointment Exercise",
             status="active",
             initiated_by=self.registry_user,
         )
         self.record = AppointmentRecord.objects.create(
-            organization=self.organization,
             position=self.position,
             nominee=self.nominee,
             appointment_exercise=self.exercise,

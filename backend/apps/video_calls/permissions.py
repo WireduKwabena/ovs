@@ -20,15 +20,13 @@ class IsMeetingCreatorOrReadOnly(BasePermission):
 
     def has_object_permission(self, request, view, obj):
         user = getattr(request, "user", None)
-        case = getattr(obj, "case", None)
-        organization_id = getattr(case, "organization_id", None)
         if request.method in {"GET", "HEAD", "OPTIONS"}:
             return (
-                is_government_workflow_operator(user, organization_id=organization_id)
+                is_government_workflow_operator(user)
                 or obj.organizer_id == getattr(user, "id", None)
                 or obj.has_participant(user)
             )
 
-        return is_government_workflow_operator(user, organization_id=organization_id) and (
+        return is_government_workflow_operator(user) and (
             obj.organizer_id == getattr(user, "id", None) or getattr(user, "is_superuser", False)
         )

@@ -180,7 +180,6 @@ class InterrogationFlagSerializer(serializers.ModelSerializer):
 
 
 class VettingCaseSerializer(serializers.ModelSerializer):
-    organization_name = serializers.CharField(source="organization.name", read_only=True)
     applicant_email = serializers.EmailField(source="applicant.email", read_only=True)
     candidate_email = serializers.EmailField(source="candidate_enrollment.candidate.email", read_only=True)
     assigned_to_email = serializers.EmailField(source="assigned_to.email", read_only=True)
@@ -211,8 +210,6 @@ class VettingCaseSerializer(serializers.ModelSerializer):
             "id",
             "case_id",
             "vetting_dossier_id",
-            "organization",
-            "organization_name",
             "applicant",
             "applicant_email",
             "candidate_enrollment",
@@ -260,7 +257,6 @@ class VettingCaseSerializer(serializers.ModelSerializer):
             "id",
             "case_id",
             "vetting_dossier_id",
-            "organization_name",
             "applicant_email",
             "candidate_email",
             "appointment_exercise_id",
@@ -346,15 +342,12 @@ class DocumentUploadSerializer(serializers.Serializer):
 
 
 class VerificationSourceSerializer(serializers.ModelSerializer):
-    organization_name = serializers.CharField(source="organization.name", read_only=True)
     created_by_email = serializers.EmailField(source="created_by.email", read_only=True)
 
     class Meta:
         model = VerificationSource
         fields = [
             "id",
-            "organization",
-            "organization_name",
             "key",
             "name",
             "source_category",
@@ -368,7 +361,7 @@ class VerificationSourceSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "organization_name", "created_by", "created_by_email", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_by", "created_by_email", "created_at", "updated_at"]
 
 
 class ExternalVerificationResultSerializer(serializers.ModelSerializer):
@@ -379,7 +372,6 @@ class ExternalVerificationResultSerializer(serializers.ModelSerializer):
         model = ExternalVerificationResult
         fields = [
             "id",
-            "organization",
             "case",
             "source",
             "source_key",
@@ -413,7 +405,6 @@ class VerificationRequestSerializer(serializers.ModelSerializer):
         model = VerificationRequest
         fields = [
             "id",
-            "organization",
             "case",
             "source",
             "source_id",

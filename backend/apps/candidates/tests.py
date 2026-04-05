@@ -235,18 +235,13 @@ class CandidateEnrollmentAuthorizationTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.internal_one,
-            organization=organization,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
         )
 
-        self.campaign_one.organization = organization
-        self.campaign_one.save(update_fields=["organization", "updated_at"])
-
         BillingSubscription.objects.create(
             provider="sandbox",
-            organization=organization,
             status="complete",
             payment_status="paid",
             plan_id="starter",

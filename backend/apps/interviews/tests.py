@@ -34,7 +34,6 @@ class InterviewsApiTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.hr,
-            organization=self.organization,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
@@ -47,7 +46,6 @@ class InterviewsApiTests(APITestCase):
             user_type="applicant",
         )
         self.case = VettingCase.objects.create(
-            organization=self.organization,
             applicant=self.applicant,
             assigned_to=self.hr,
             position_applied="QA Engineer",
@@ -79,7 +77,6 @@ class InterviewsApiTests(APITestCase):
     def _create_org_subscription(self, organization, *, status="complete", payment_status="paid", plan_id="starter"):
         BillingSubscription.objects.create(
             provider="sandbox",
-            organization=organization,
             status=status,
             payment_status=payment_status,
             plan_id=plan_id,
@@ -145,7 +142,6 @@ class InterviewsApiTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.hr,
-            organization=organization,
             membership_role="registry_admin",
             is_active=True,
             is_default=False,
@@ -160,7 +156,6 @@ class InterviewsApiTests(APITestCase):
         scoped_case = VettingCase.objects.create(
             applicant=self.applicant,
             assigned_to=self.hr,
-            organization=organization,
             position_applied="QA Engineer",
             department="Quality",
             priority="medium",
@@ -195,7 +190,6 @@ class InterviewsApiTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.hr,
-            organization=organization,
             membership_role="registry_admin",
             is_active=True,
             is_default=False,
@@ -210,7 +204,6 @@ class InterviewsApiTests(APITestCase):
         scoped_case = VettingCase.objects.create(
             applicant=self.applicant,
             assigned_to=self.hr,
-            organization=organization,
             position_applied="QA Engineer",
             department="Quality",
             priority="medium",
@@ -646,7 +639,6 @@ class InterviewServiceTokenApiTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.hr,
-            organization=self.organization,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
@@ -659,7 +651,6 @@ class InterviewServiceTokenApiTests(APITestCase):
             user_type="applicant",
         )
         self.case = VettingCase.objects.create(
-            organization=self.organization,
             applicant=self.applicant,
             assigned_to=self.hr,
             position_applied="Security Analyst",
@@ -669,7 +660,6 @@ class InterviewServiceTokenApiTests(APITestCase):
         )
         BillingSubscription.objects.create(
             provider="sandbox",
-            organization=self.organization,
             status="complete",
             payment_status="paid",
             plan_id="starter",
@@ -762,7 +752,6 @@ class InterviewTaskIdentityMatchTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.hr,
-            organization=self.organization,
             membership_role="registry_admin",
             is_active=True,
             is_default=True,
@@ -775,7 +764,6 @@ class InterviewTaskIdentityMatchTests(APITestCase):
             user_type="applicant",
         )
         self.case = VettingCase.objects.create(
-            organization=self.organization,
             applicant=self.applicant,
             assigned_to=self.hr,
             position_applied="Risk Analyst",
@@ -808,7 +796,6 @@ class InterviewTaskIdentityMatchTests(APITestCase):
     def _create_org_subscription(self, organization, *, status="complete", payment_status="paid", plan_id="starter"):
         BillingSubscription.objects.create(
             provider="sandbox",
-            organization=organization,
             status=status,
             payment_status=payment_status,
             plan_id=plan_id,
@@ -855,7 +842,6 @@ class InterviewTaskIdentityMatchTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=self.hr,
-            organization=organization,
             membership_role="registry_admin",
             is_active=True,
             is_default=False,
@@ -866,8 +852,6 @@ class InterviewTaskIdentityMatchTests(APITestCase):
             payment_status="unpaid",
             plan_id="starter",
         )
-        self.case.organization = organization
-        self.case.save(update_fields=["organization", "updated_at"])
         self.response.processed_at = None
         self.response.save(update_fields=["processed_at"])
 
@@ -889,16 +873,12 @@ class InterviewTaskIdentityMatchTests(APITestCase):
             is_active=False,
             is_default=False,
         )
-        self.hr.organization = legacy_org.name
-        self.hr.save(update_fields=["organization", "updated_at"])
         self._create_org_subscription(
             legacy_org,
             status="canceled",
             payment_status="unpaid",
             plan_id="starter",
         )
-        self.case.organization = None
-        self.case.save(update_fields=["organization", "updated_at"])
         self.response.processed_at = None
         self.response.save(update_fields=["processed_at"])
 
@@ -907,6 +887,5 @@ class InterviewTaskIdentityMatchTests(APITestCase):
         self.assertFalse(result["success"])
         self.assertEqual(result.get("code"), "subscription_required")
         self.assertEqual((result.get("quota") or {}).get("operation"), "interview_analysis")
-        self.assertIn(str(legacy_org.id), str((result.get("quota") or {}).get("scope", "")))
 
 

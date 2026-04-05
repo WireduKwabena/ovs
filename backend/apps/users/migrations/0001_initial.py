@@ -177,8 +177,8 @@ class Migration(migrations.Migration):
                 ('admin_user', models.ForeignKey(
                     null=True,
                     on_delete=django.db.models.deletion.CASCADE,
-                    related_name='password_reset_tokens',
-                    to='users.userprofile',
+                    related_name='admin_password_reset_tokens',
+                    to='users.user',
                 )),
             ],
             options={

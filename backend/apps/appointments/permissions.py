@@ -68,7 +68,6 @@ class IsCommitteeMemberOrAdmin(BasePermission):
         return can_take_committee_action(
             user=user,
             committee=committee,
-            appointment_organization_id=getattr(obj, "organization_id", None),
             allow_history_fallback=False,
         )
 

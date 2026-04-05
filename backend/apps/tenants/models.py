@@ -26,16 +26,16 @@ class Organization(TenantMixin):
     tier = models.CharField(
         max_length=20,
         choices=[
-            ('pilot', 'Pilot — free'),
-            ('standard', 'Standard'),
-            ('premium', 'Premium — dedicated infra'),
+            ('starter', 'Starter — free'),
+            ('growth', 'Growth'),
+            ('enterprise', 'Enterprise'),
         ],
-        default='pilot',
+        default='starter',
     )
     subscription_expires_at = models.DateTimeField(null=True, blank=True)
 
     auto_create_schema = True
-    auto_drop_schema = False  # keep data even if institution is deleted
+    auto_drop_schema = True  
     class Meta:
         ordering = ["name"]
         indexes = [

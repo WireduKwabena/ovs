@@ -1,6 +1,6 @@
 import api from "./api";
+import { toServiceError } from "@/utils/apiError";
 import type {
-  ApiError,
   ApplicationStatus,
   ApplicationType,
   ApplicationWithDocuments,
@@ -81,8 +81,6 @@ const DOCUMENT_STATUSES = new Set<VerificationStatusType>([
   "rejected",
 ]);
 
-const toApiErrorMessage = (error: any, fallback: string): string =>
-  (error?.response?.data as ApiError | undefined)?.message || fallback;
 
 const asObject = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" ? (value as Record<string, unknown>) : {};
@@ -340,8 +338,8 @@ export const applicationService = {
     try {
       const response = await api.post<VettingCase>("/applications/cases/", data);
       return normalizeCase(response.data);
-    } catch (error: any) {
-      throw new Error(toApiErrorMessage(error, "Creation failed"));
+    } catch (error) {
+      throw toServiceError(error, "Creation failed");
     }
   },
 
@@ -354,8 +352,8 @@ export const applicationService = {
         },
       );
       return extractResults(response.data).map((row) => normalizeCase(row));
-    } catch (error: any) {
-      throw new Error(toApiErrorMessage(error, "Fetch failed"));
+    } catch (error) {
+      throw toServiceError(error, "Fetch failed");
     }
   },
 
@@ -363,8 +361,8 @@ export const applicationService = {
     try {
       const response = await api.get<ApplicationWithDocuments>(`/applications/cases/${caseId}/`);
       return normalizeCase(response.data);
-    } catch (error: any) {
-      throw new Error(toApiErrorMessage(error, "Detail fetch failed"));
+    } catch (error) {
+      throw toServiceError(error, "Detail fetch failed");
     }
   },
 
@@ -372,16 +370,16 @@ export const applicationService = {
     try {
       const response = await api.patch<VettingCase>(`/applications/cases/${caseId}/`, data);
       return normalizeCase(response.data);
-    } catch (error: any) {
-      throw new Error(toApiErrorMessage(error, "Update failed"));
+    } catch (error) {
+      throw toServiceError(error, "Update failed");
     }
   },
 
   async delete(caseId: string): Promise<void> {
     try {
       await api.delete(`/applications/cases/${caseId}/`);
-    } catch (error: any) {
-      throw new Error(toApiErrorMessage(error, "Deletion failed"));
+    } catch (error) {
+      throw toServiceError(error, "Deletion failed");
     }
   },
 
@@ -422,8 +420,8 @@ export const applicationService = {
       return {
         document: normalizeDocument(response.data),
       };
-    } catch (error: any) {
-      throw new Error(toApiErrorMessage(error, "Upload failed"));
+    } catch (error) {
+      throw toServiceError(error, "Upload failed");
     }
   },
 
@@ -431,8 +429,8 @@ export const applicationService = {
     try {
       const response = await api.get<VerificationStatusResponse>(`/applications/cases/${caseId}/verification-status/`);
       return response.data;
-    } catch (error: any) {
-      throw new Error(toApiErrorMessage(error, "Status fetch failed"));
+    } catch (error) {
+      throw toServiceError(error, "Status fetch failed");
     }
   },
 
@@ -443,8 +441,8 @@ export const applicationService = {
         {},
       );
       return response.data;
-    } catch (error: any) {
-      throw new Error(toApiErrorMessage(error, "Social profile recheck failed"));
+    } catch (error) {
+      throw toServiceError(error, "Social profile recheck failed");
     }
   },
 
@@ -452,8 +450,8 @@ export const applicationService = {
     try {
       const response = await api.get<PaginatedResponse<Document> | Document[]>("/applications/documents/");
       return extractResults(response.data).map((row) => normalizeDocument(row));
-    } catch (error: any) {
-      throw new Error(toApiErrorMessage(error, "Document list fetch failed"));
+    } catch (error) {
+      throw toServiceError(error, "Document list fetch failed");
     }
   },
 
@@ -461,8 +459,8 @@ export const applicationService = {
     try {
       const response = await api.get<Document>(`/applications/documents/${documentId}/`);
       return normalizeDocument(response.data);
-    } catch (error: any) {
-      throw new Error(toApiErrorMessage(error, "Document detail fetch failed"));
+    } catch (error) {
+      throw toServiceError(error, "Document detail fetch failed");
     }
   },
 };

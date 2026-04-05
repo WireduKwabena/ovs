@@ -689,6 +689,8 @@ def _stripe_payment_method_summary(stripe_subscription: dict, fallback_type: str
 
 
 def _build_subscription_summary(subscription: BillingSubscription) -> dict:
+    from django.db import connection as _db_conn
+    _tenant = getattr(_db_conn, "tenant", None)
     metadata = dict(subscription.metadata or {})
     payment_method = subscription.payment_method
 
@@ -760,10 +762,8 @@ def _build_subscription_summary(subscription: BillingSubscription) -> dict:
 
     return {
         "id": subscription.id,
-        "organization_id": str(getattr(subscription, "organization_id", "") or "") or None,
-        "organization_name": (
-            str(getattr(getattr(subscription, "organization", None), "name", "") or "") or None
-        ),
+        "organization_id": str(getattr(_tenant, "id", "") or "") or None,
+        "organization_name": str(getattr(_tenant, "name", "") or "") or None,
         "provider": subscription.provider,
         "status": subscription.status,
         "payment_status": subscription.payment_status,
@@ -967,6 +967,7 @@ def _serialize_onboarding_token_state(token_record):
 
 
 def _onboarding_token_validation_payload(*, validation_result):
+    from django.db import connection as _db_conn
     payload = {
         "valid": bool(validation_result.valid),
         "reason": str(validation_result.reason),
@@ -974,10 +975,11 @@ def _onboarding_token_validation_payload(*, validation_result):
     token_record = validation_result.token_record
     if token_record is None:
         return payload
+    _tenant = getattr(_db_conn, "tenant", None)
     payload.update(
         {
-            "organization_id": token_record.organization_id,
-            "organization_name": str(getattr(token_record.organization, "name", "") or ""),
+            "organization_id": str(getattr(_tenant, "id", "") or "") or None,
+            "organization_name": str(getattr(_tenant, "name", "") or ""),
             "subscription_id": validation_result.subscription.id if validation_result.subscription else None,
             "remaining_uses": validation_result.remaining_uses,
             "expires_at": token_record.expires_at,
@@ -1056,17 +1058,14 @@ def _resolve_billing_alert_organization_id(
 
 
 def _billing_alert_recipients(*, organization_id: str | None = None):
+    # organization_id param kept for API compatibility; schema isolation handles tenant scoping.
     try:
         from apps.users.models import User
     except Exception:
         return []
 
     platform_alert_filter = Q(user_type="admin") | Q(is_staff=True) | Q(is_superuser=True)
-    if not organization_id:
-        return User.objects.filter(is_active=True).filter(platform_alert_filter).distinct()
-
     governance_alert_filter = Q(
-        organization_memberships__organization_id=organization_id,
         organization_memberships__is_active=True,
         organization_memberships__membership_role__in=tuple(ORG_GOVERNANCE_ADMIN_MEMBERSHIP_ROLES),
     )
@@ -1349,7 +1348,6 @@ def _persist_sandbox_ticket(
     consumed_at = timezone.now() if normalized_email else None
     subscription = BillingSubscription.objects.create(
         provider="sandbox",
-        organization_id=normalized_org_id,
         status="complete",
         payment_status="paid",
         plan_id=ticket["planId"],
@@ -1467,9 +1465,6 @@ def _persist_stripe_session(
         "metadata": metadata,
         "raw_last_payload": session_data,
     }
-    if resolved_org_id:
-        defaults["organization_id"] = resolved_org_id
-
     workspace_email = str(metadata.get("workspace_email") or "").strip().lower()
     if workspace_email:
         defaults["registration_consumed_at"] = timezone.now()
@@ -1602,9 +1597,6 @@ def _persist_paystack_transaction(
         "metadata": metadata,
         "raw_last_payload": transaction_data,
     }
-    if resolved_org_id:
-        defaults["organization_id"] = resolved_org_id
-
     if customer_email:
         defaults["registration_consumed_at"] = timezone.now()
         defaults["registration_consumed_by_email"] = customer_email

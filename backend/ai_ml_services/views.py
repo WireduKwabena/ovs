@@ -307,6 +307,14 @@ from rest_framework.decorators import api_view, permission_classes as _permissio
 from rest_framework.permissions import AllowAny
 
 
+class _TavusLLMRequestSerializer(serializers.Serializer):
+    messages = serializers.ListField(child=serializers.DictField(), help_text="OpenAI-format message list")
+
+
+class _TavusLLMResponseSerializer(serializers.Serializer):
+    content = serializers.CharField()
+
+
 class TavusLLMRequestView(APIView):
     """
     OpenAI-compatible endpoint called by Tavus when using the custom LLM layer.
@@ -320,6 +328,7 @@ class TavusLLMRequestView(APIView):
 
     permission_classes = [AllowAny]
     authentication_classes = []
+    serializer_class = _TavusLLMRequestSerializer
 
     def post(self, request):
         from ai_ml_services.interview.anthropic_interview_engine import handle_tavus_llm_request
@@ -359,6 +368,12 @@ class TavusLLMRequestView(APIView):
         )
 
 
+class _TavusEventCallbackSerializer(serializers.Serializer):
+    event_type = serializers.CharField(required=False)
+    type = serializers.CharField(required=False)
+    conversation_id = serializers.CharField(required=False)
+
+
 class TavusEventCallbackView(APIView):
     """
     Receives lifecycle event notifications from Tavus (conversation started,
@@ -369,6 +384,7 @@ class TavusEventCallbackView(APIView):
 
     permission_classes = [AllowAny]
     authentication_classes = []
+    serializer_class = _TavusEventCallbackSerializer
 
     def post(self, request):
         event_type = str(request.data.get("event_type") or request.data.get("type") or "")

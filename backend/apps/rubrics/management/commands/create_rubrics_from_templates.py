@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from django.core.management.base import BaseCommand
 
-from apps.authentication.models import User
+from apps.users.models import User
 from apps.rubrics.templates import RUBRIC_TEMPLATES, create_rubric_from_template
 
 

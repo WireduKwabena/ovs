@@ -361,28 +361,18 @@ def scope_queryset_to_user_organizations(
     allow_membershipless_fallback: bool = False,
 ):
     """
-    Scope queryset by active org (preferred) or membership org set, with null legacy fallback.
+    Scope queryset to the current tenant.
+
+    In django-tenants, schema isolation already guarantees that all queryset rows
+    belong to the current tenant — no organization_id filter is required.  The
+    parameters are retained for call-site compatibility but are intentionally
+    unused; the function simply returns the queryset as-is after an authentication
+    guard.
     """
     user = getattr(request, "user", None)
     if user is None or not getattr(user, "is_authenticated", False):
-        return queryset
-    if is_platform_admin_user(user):
-        return queryset
-
-    tenant_context = get_request_tenant_context(request)
-    allowed_org_ids = set(tenant_context.get("allowed_organization_ids") or set())
-    if not allowed_org_ids:
-        if allow_membershipless_fallback:
-            return queryset
-        if include_null_legacy:
-            return queryset.filter(**{f"{organization_field}__isnull": True})
         return queryset.none()
-
-    active_org_id = str(tenant_context.get("active_organization_id") or "").strip()
-    if active_org_id and active_org_id in allowed_org_ids:
-        return queryset.filter(**{organization_field: active_org_id})
-
-    return queryset.filter(**{f"{organization_field}__in": list(allowed_org_ids)})
+    return queryset
 
 
 def scope_internal_queryset_to_tenant(
@@ -395,13 +385,12 @@ def scope_internal_queryset_to_tenant(
     """
     Strict tenant scoping for internal workflows.
 
-    Unlike compatibility scoping, membership-less internal users are denied queryset access.
+    In django-tenants, schema isolation already scopes data to the current tenant.
+    Authentication is enforced; membership checks are handled by permission classes
+    (IsGovernmentWorkflowOperator etc.) before the queryset is built.
     """
-    return scope_queryset_to_user_organizations(
-        queryset,
-        request=request,
-        organization_field=organization_field,
-        include_null_legacy=include_null_legacy,
-        allow_membershipless_fallback=False,
-    )
+    user = getattr(request, "user", None)
+    if user is None or not getattr(user, "is_authenticated", False):
+        return queryset.none()
+    return queryset
 

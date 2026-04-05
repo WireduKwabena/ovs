@@ -8,7 +8,7 @@ from django.db import models
 from django.utils import timezone
 
 from apps.applications.models import VettingCase
-from apps.authentication.models import User
+from apps.users.models import User
 
 
 class VideoMeeting(models.Model):

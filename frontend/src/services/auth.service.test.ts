@@ -20,7 +20,19 @@ describe("authService organization-context endpoints", () => {
   it("requests profile with active organization query context", async () => {
     apiGetMock.mockResolvedValueOnce({
       data: {
-        user: { id: "1", email: "ops@example.com" },
+        user: {
+          id: "1",
+          email: "ops@example.com",
+          full_name: "Operations User",
+          first_name: "Ops",
+          last_name: "User",
+          phone_number: "+1234567890",
+          profile_picture_url: "",
+          avatar_url: "",
+          date_of_birth: "1990-01-01",
+          is_active: true,
+          created_at: "2026-01-01T00:00:00Z",
+        },
         user_type: "internal",
         organizations: [],
       },
@@ -36,7 +48,19 @@ describe("authService organization-context endpoints", () => {
   it("requests profile without organization query params when none are provided", async () => {
     apiGetMock.mockResolvedValueOnce({
       data: {
-        user: { id: "1", email: "ops@example.com" },
+        user: {
+          id: "1",
+          email: "ops@example.com",
+          full_name: "Operations User",
+          first_name: "Ops",
+          last_name: "User",
+          phone_number: "+1234567890",
+          profile_picture_url: "",
+          avatar_url: "",
+          date_of_birth: "1990-01-01",
+          is_active: true,
+          created_at: "2026-01-01T00:00:00Z",
+        },
         user_type: "internal",
       },
     });

@@ -109,7 +109,9 @@ class CandidateSocialProfileViewSet(viewsets.ModelViewSet):
         if not _is_admin(user):
             membership_org_ids = get_user_allowed_organization_ids(user)
             if membership_org_ids:
-                has_access = candidate.enrollments.filter(campaign__organization_id__in=membership_org_ids).exists()
+                # Schema isolation already scopes campaigns to the current tenant;
+                # any enrollment in the current schema is accessible.
+                has_access = candidate.enrollments.exists()
             else:
                 has_access = candidate.enrollments.filter(campaign__initiated_by=user).exists()
             if not has_access:

@@ -76,14 +76,8 @@ def _normalize_list(value: Any) -> list[Any]:
 
 
 def _resolve_request_organization_id(*, case, source: VerificationSource | None = None, actor=None) -> str | None:
-    direct_case_org = str(getattr(case, "organization_id", "") or "").strip()
-    if direct_case_org:
-        return direct_case_org
-    source_org = str(getattr(source, "organization_id", "") or "").strip()
-    if source_org:
-        return source_org
-    resolved = resolve_case_organization_id(case, actor=actor)
-    return str(resolved or "").strip() or None
+    # In django-tenants the org ID is always the current tenant's ID.
+    return resolve_case_organization_id(case, actor=actor)
 
 
 def create_verification_request(
@@ -129,7 +123,6 @@ def create_verification_request(
                 return existing, False
 
         verification_request = VerificationRequest.objects.create(
-            organization_id=resolved_org_id,
             case=locked_case,
             source=source,
             requested_by=requested_by if getattr(requested_by, "is_authenticated", False) else None,
@@ -151,7 +144,7 @@ def create_verification_request(
             "case_id": str(verification_request.case_id),
             "source_id": str(verification_request.source_id),
             "source_key": verification_request.source.key,
-            "organization_id": str(verification_request.organization_id or ""),
+            "organization_id": str(resolved_org_id or ""),
             "status": verification_request.status,
             "has_subject_identifiers": bool(verification_request.subject_identifiers),
         },
@@ -220,7 +213,6 @@ def record_verification_result(
         result, _ = ExternalVerificationResult.objects.update_or_create(
             verification_request=locked_request,
             defaults={
-                "organization_id": locked_request.organization_id,
                 "case": locked_request.case,
                 "source": locked_request.source,
                 "result_status": normalized_status,
@@ -247,7 +239,6 @@ def record_verification_result(
             "case_id": str(result.case_id),
             "source_id": str(result.source_id),
             "source_key": result.source.key,
-            "organization_id": str(result.organization_id or ""),
             "result_status": result.result_status,
             "recommendation": result.recommendation,
             "advisory_flags_count": len(result.advisory_flags or []),

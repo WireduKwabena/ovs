@@ -92,13 +92,15 @@ if not dj_database_url:
         "dj-database-url is required in production to parse DATABASE_URL."
     )
 
-DATABASES = {
-    "default": dj_database_url.config(
-        default=database_url,
-        conn_max_age=600,
-        ssl_require=True,
-    )
-}
+_db_config = dj_database_url.config(
+    default=database_url,
+    conn_max_age=600,
+    ssl_require=True,
+)
+# django-tenants requires its own database backend for schema-switching to work.
+# dj_database_url always returns the vanilla PostgreSQL backend, so we override it.
+_db_config["ENGINE"] = "django_tenants.postgresql_backend"
+DATABASES = {"default": _db_config}
 
 # Require a strong explicit secret key in production.
 if not SECRET_KEY or SECRET_KEY.startswith("django-insecure-"):

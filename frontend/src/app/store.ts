@@ -1,6 +1,6 @@
 // src/store/store.ts (Tweaked)
 import { configureStore, combineReducers, type Action } from '@reduxjs/toolkit';
-import {  persistStore, persistReducer, FLUSH,REHYDRATE,PAUSE,PERSIST,PURGE,REGISTER, } from 'redux-persist';
+import { persistStore, persistReducer, createTransform, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
 import storage from 'redux-persist/lib/storage';
 import authReducer from '@/store/authSlice';  // Absolute or relative fix
 import applicationReducer from '@/store/applicationSlice';
@@ -16,10 +16,38 @@ import interviewReducer from '@/store/interviewSlice';
  */
 export const STORE_RESET = 'store/reset' as const;
 
+/**
+ * Strip security-sensitive fields before writing auth state to localStorage.
+ * JWT tokens (access + refresh) must never be stored in localStorage because
+ * any XSS payload on the page can read localStorage and exfiltrate them.
+ * Non-sensitive context (user profile, org memberships, roles) is preserved so
+ * the UI can render correctly while a silent re-auth is attempted on page load.
+ * `isAuthenticated` is also cleared so the app always verifies the session on
+ * rehydration rather than trusting stale storage state.
+ */
+const authStorageTransform = createTransform(
+  // outbound: what gets written to localStorage
+  (state: Record<string, unknown>) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { tokens, isAuthenticated, loading, switchingActiveOrganization, ...safeState } = state;
+    return safeState;
+  },
+  // inbound: what the store receives when rehydrating from localStorage
+  (state: Record<string, unknown>) => ({
+    ...state,
+    tokens: null,
+    isAuthenticated: false,
+    loading: false,
+    switchingActiveOrganization: false,
+  }),
+  { whitelist: ['auth'] },
+);
+
 const persistConfig = {
   key: 'root',
   storage,
-  whitelist: ['auth'], // Persist only auth (avoids bloat)
+  whitelist: ['auth'],
+  transforms: [authStorageTransform],
 };
 
 const rootReducer = combineReducers({

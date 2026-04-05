@@ -90,13 +90,8 @@ def _safe_str_id(value) -> str:
 
 
 def _appointment_governance_context(*, appointment: AppointmentRecord, stage=None, committee_membership=None) -> dict:
-    organization_id = (
-        _safe_str_id(getattr(appointment, "organization_id", None))
-        or _safe_str_id(getattr(getattr(appointment, "appointment_exercise", None), "organization_id", None))
-        or _safe_str_id(getattr(getattr(appointment, "position", None), "organization_id", None))
-        or _safe_str_id(getattr(getattr(appointment, "nominee", None), "organization_id", None))
-        or _safe_str_id(getattr(getattr(appointment, "vetting_case", None), "organization_id", None))
-    )
+    from django.db import connection as _db_connection
+    organization_id = _safe_str_id(getattr(getattr(_db_connection, "tenant", None), "id", None))
     committee_id = (
         _safe_str_id(getattr(stage, "committee_id", None))
         or _safe_str_id(getattr(committee_membership, "committee_id", None))
@@ -207,12 +202,6 @@ def _enforce_committee_stage_authorization(*, appointment: AppointmentRecord, ac
     if not committee.is_active:
         raise StageAuthorizationError("Assigned committee is inactive and cannot take stage actions.")
 
-    if appointment.organization_id and committee.organization_id and appointment.organization_id != committee.organization_id:
-        raise StageAuthorizationError("Assigned committee does not belong to the appointment organization.")
-    exercise_org_id = getattr(getattr(appointment, "appointment_exercise", None), "organization_id", None)
-    if exercise_org_id and committee.organization_id and exercise_org_id != committee.organization_id:
-        raise StageAuthorizationError("Assigned committee does not belong to the appointment exercise organization.")
-
     membership = get_active_committee_membership(
         user=actor,
         committee=committee,
@@ -275,8 +264,6 @@ def _validate_campaign_position_and_rubric_alignment(appointment: AppointmentRec
             if source_rubric_id and str(source_rubric_id) != str(position.rubric_id):
                 raise LinkageValidationError("Position rubric does not match the active campaign rubric source.")
 
-    if exercise.organization_id and position.organization_id and exercise.organization_id != position.organization_id:
-        raise LinkageValidationError("Campaign organization does not match selected position organization.")
 
 
 def _validate_existing_vetting_case_linkage(appointment: AppointmentRecord) -> None:
@@ -300,8 +287,6 @@ def _validate_existing_vetting_case_linkage(appointment: AppointmentRecord) -> N
         if linked_case.candidate_enrollment.candidate_id != nominee.linked_candidate_id:
             raise LinkageValidationError("Provided vetting case candidate does not match nominee linked candidate.")
 
-    if appointment.organization_id and linked_case.organization_id and appointment.organization_id != linked_case.organization_id:
-        raise LinkageValidationError("Provided vetting case organization does not match appointment organization.")
 
 
 def _enforce_required_stage_context(*, appointment: AppointmentRecord, new_status: str, stage) -> None:
@@ -432,7 +417,7 @@ def _enforce_vetting_decision_gate(*, appointment: AppointmentRecord, new_status
 def _resolve_applicant_user(candidate: Candidate):
     from django.db import IntegrityError
 
-    from apps.authentication.models import User
+    from apps.users.models import User
 
     existing_user = User.objects.filter(email__iexact=candidate.email).first()
     if existing_user:
@@ -499,16 +484,6 @@ def ensure_vetting_linkage_for_appointment(*, appointment: AppointmentRecord, ac
 
     from apps.applications.models import VettingCase
 
-    if appointment.organization_id is None:
-        inferred_org_id = (
-            str(getattr(appointment.appointment_exercise, "organization_id", "") or "")
-            or str(getattr(appointment.position, "organization_id", "") or "")
-            or str(getattr(appointment.nominee, "organization_id", "") or "")
-        )
-        if inferred_org_id:
-            appointment.organization_id = inferred_org_id
-            appointment.save(update_fields=["organization", "updated_at"])
-
     _validate_campaign_position_and_rubric_alignment(appointment)
     _validate_existing_vetting_case_linkage(appointment)
 
@@ -522,17 +497,10 @@ def ensure_vetting_linkage_for_appointment(*, appointment: AppointmentRecord, ac
         existing_enrollment is None
         and getattr(actor, "is_authenticated", False)
         and not is_platform_admin_user(actor)
-        and is_government_workflow_operator(
-            actor,
-            organization_id=str(getattr(appointment, "organization_id", "") or "") or None,
-        )
+        and is_government_workflow_operator(actor)
     )
     if should_enforce_enrollment_quota:
-        enforce_candidate_quota(
-            user=actor,
-            additional=1,
-            organization_id=str(getattr(appointment, "organization_id", "") or "") or None,
-        )
+        enforce_candidate_quota(user=actor, additional=1)
 
     enrollment, _created = CandidateEnrollment.objects.get_or_create(
         campaign=appointment.appointment_exercise,
@@ -552,7 +520,6 @@ def ensure_vetting_linkage_for_appointment(*, appointment: AppointmentRecord, ac
 
     if linked_case is None:
         linked_case = VettingCase.objects.create(
-            organization_id=appointment.organization_id or getattr(appointment.appointment_exercise, "organization_id", None),
             applicant=_resolve_applicant_user(candidate),
             candidate_enrollment=enrollment,
             assigned_to=appointment.appointment_exercise.initiated_by,
@@ -568,11 +535,7 @@ def ensure_vetting_linkage_for_appointment(*, appointment: AppointmentRecord, ac
 
     if appointment.vetting_case_id != linked_case.id:
         appointment.vetting_case = linked_case
-        update_fields = ["vetting_case", "updated_at"]
-        if appointment.organization_id is None and linked_case.organization_id:
-            appointment.organization_id = linked_case.organization_id
-            update_fields.insert(0, "organization")
-        appointment.save(update_fields=update_fields)
+        appointment.save(update_fields=["vetting_case", "updated_at"])
 
     _ensure_nominee_invitation(enrollment=enrollment, actor=actor)
 
@@ -869,10 +832,7 @@ def advance_stage(
         if not _actor_matches_stage_role(actor, stage.required_role):
             raise StageAuthorizationError(f"Actor lacks required role '{stage.required_role}' for stage '{stage.name}'.")
 
-    if new_status in {"appointed", "rejected"} and not can_appoint(
-        actor,
-        organization_id=getattr(appointment, "organization_id", None),
-    ):
+    if new_status in {"appointed", "rejected"} and not can_appoint(actor):
         raise StageAuthorizationError("Only appointing authority/admin can finalize appointment decisions.")
 
     previous_status = appointment.status
