@@ -760,10 +760,16 @@ def _build_subscription_summary(subscription: BillingSubscription) -> dict:
         retry_available=retry_available,
     )
 
+    # Use the explicit subscription FK when available; fall back to the
+    # current tenant (schema-isolation path used in production).
+    _sub_org_id = str(getattr(subscription, "organization_id", "") or "").strip()
+    _tenant_id = str(getattr(_tenant, "id", "") or "").strip()
+    _org_id = _sub_org_id or _tenant_id or None
+    _org_name = str(getattr(_tenant, "name", "") or "").strip() or None
     return {
         "id": subscription.id,
-        "organization_id": str(getattr(_tenant, "id", "") or "") or None,
-        "organization_name": str(getattr(_tenant, "name", "") or "") or None,
+        "organization_id": _org_id,
+        "organization_name": _org_name,
         "provider": subscription.provider,
         "status": subscription.status,
         "payment_status": subscription.payment_status,

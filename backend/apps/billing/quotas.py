@@ -231,7 +231,19 @@ def _active_subscription_for_queryset(queryset) -> BillingSubscription | None:
 
 
 def _active_subscription_for_scope(*, emails: list[str], organization_id: str | None = None) -> BillingSubscription | None:
-    # In django-tenants all subscriptions in this schema belong to the current tenant.
+    # When an explicit organization_id is available, prefer subscriptions that
+    # are directly owned by that org (FK set).  This handles single-schema test
+    # environments and any multi-org edge-cases; in production schema-isolation
+    # ensures only the current tenant's rows are visible, so the FK filter is a
+    # no-op subset of all rows.
+    normalized_org_id = str(organization_id or "").strip()
+    if normalized_org_id:
+        org_qs = BillingSubscription.objects.filter(organization_id=normalized_org_id)
+        result = _active_subscription_for_queryset(org_qs)
+        if result is not None:
+            return result
+
+    # Fallback: all subscriptions in the current schema (schema-isolation path).
     qs = BillingSubscription.objects.all()
     if qs.exists():
         return _active_subscription_for_queryset(qs)
@@ -373,14 +385,22 @@ def get_active_subscription_for_user(user, *, organization_id: str | None = None
 
 def get_latest_subscription_for_user(user, *, organization_id: str | None = None) -> BillingSubscription | None:
     _, emails, _, resolved_org_id = _scope_for_user(user, organization_id=organization_id)
-    subscription = None
+
+    normalized_org_id = str(resolved_org_id or "").strip()
+    if normalized_org_id:
+        subscription = (
+            BillingSubscription.objects.filter(organization_id=normalized_org_id)
+            .order_by("-updated_at", "-created_at")
+            .first()
+        )
+        if subscription is not None:
+            return _normalize_subscription_runtime_state(subscription)
 
     subscription = (
         BillingSubscription.objects.all()
         .order_by("-updated_at", "-created_at")
         .first()
     )
-
     if subscription is None:
         return None
     return _normalize_subscription_runtime_state(subscription)
@@ -654,11 +674,14 @@ def enforce_membership_activation_seat_quota(
 
     from .services import get_active_subscription_for_organization
 
+    # First try org-FK-filtered lookup; fall back to schema-scoped (no filter)
+    # so legacy subscriptions without an explicit org FK are still honoured.
     active_subscription = get_active_subscription_for_organization(
         organization_id=normalized_org_id
     )
-    # BillingSubscription no longer has an organization FK; schema isolation
-    # already scopes this to the current tenant.
+    if active_subscription is None:
+        active_subscription = get_active_subscription_for_organization()
+
     has_billing_history = BillingSubscription.objects.exists()
 
     # Backward-safe: do not block legacy organizations with no billing history.

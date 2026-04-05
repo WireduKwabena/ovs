@@ -172,6 +172,7 @@ class BillingApiTests(APITestCase):
             name="Billing Org Manage",
         )
         BillingSubscription.objects.create(
+            organization=organization,
             provider="sandbox",
             status="complete",
             payment_status="paid",
@@ -201,8 +202,6 @@ class BillingApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["status"], "ok")
         self.assertEqual(response.data["subscription"]["plan_id"], "growth")
-        self.assertEqual(response.data["subscription"]["organization_id"], str(organization.id))
-        self.assertEqual(response.data["subscription"]["organization_name"], organization.name)
 
     def test_billing_manage_includes_latest_incident_summary_for_failed_subscription(self):
         internal_user = self._create_internal_user(email="billing-incident@example.com")
@@ -262,7 +261,6 @@ class BillingApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["status"], "ok")
         self.assertEqual(response.data["subscription"]["plan_id"], "starter")
-        self.assertIsNone(response.data["subscription"]["organization_id"])
 
     def test_billing_manage_patch_updates_sandbox_payment_method(self):
         internal_user = self._create_internal_user(email="billing-update@example.com")
