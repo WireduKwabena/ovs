@@ -174,9 +174,20 @@ def get_user_organization_ids(user) -> set[str]:
     except Exception:  # pragma: no cover - governance app may be unavailable
         return set()
 
-    has_membership = OrganizationMembership.objects.filter(user=user, is_active=True).exists()
-    if not has_membership:
+    memberships = OrganizationMembership.objects.filter(user=user, is_active=True)
+    if not memberships.exists():
         return set()
+
+    # Prefer explicit organization_id FK when set (single-schema / test environments).
+    explicit_ids = {
+        str(m.organization_id)
+        for m in memberships
+        if getattr(m, "organization_id", None) is not None
+    }
+    if explicit_ids:
+        return explicit_ids
+
+    # Fallback: schema-based isolation — all memberships belong to the current tenant.
     try:
         return {str(connection.tenant.id)}
     except Exception:
@@ -225,18 +236,31 @@ def get_user_organization_memberships(user) -> list[dict]:
 
     try:
         tenant = connection.tenant
-        organization_id = str(tenant.id)
-        organization_code = str(tenant.code or "")
-        organization_name = str(tenant.name or "")
-        organization_type = str(getattr(tenant, "organization_type", "") or "")
+        tenant_id = str(tenant.id)
+        tenant_code = str(tenant.code or "")
+        tenant_name = str(tenant.name or "")
+        tenant_org_type = str(getattr(tenant, "organization_type", "") or "")
     except Exception:
-        organization_id = ""
-        organization_code = ""
-        organization_name = ""
-        organization_type = ""
+        tenant_id = ""
+        tenant_code = ""
+        tenant_name = ""
+        tenant_org_type = ""
 
     payload: list[dict] = []
     for membership in memberships:
+        # Use the explicit organization FK when set (single-schema / test environments).
+        explicit_org = getattr(membership, "organization", None)
+        if explicit_org is not None:
+            organization_id = str(explicit_org.id)
+            organization_code = str(getattr(explicit_org, "code", "") or "")
+            organization_name = str(getattr(explicit_org, "name", "") or "")
+            organization_type = str(getattr(explicit_org, "organization_type", "") or "")
+        else:
+            # Schema-based isolation fallback: membership belongs to the current tenant.
+            organization_id = tenant_id
+            organization_code = tenant_code
+            organization_name = tenant_name
+            organization_type = tenant_org_type
         payload.append(
             {
                 "id": str(membership.id),

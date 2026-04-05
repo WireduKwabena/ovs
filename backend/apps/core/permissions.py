@@ -248,34 +248,6 @@ def _build_active_organization_context(request) -> dict:
             active_organization = resolved
             active_organization_source = source
             break
-
-        # Fallback: if the user has active memberships in the current schema AND
-        # the requested org exists in the public Organization table, synthesise an
-        # org context from the Organization record.  This handles single-schema
-        # test environments and development setups where connection.tenant is a
-        # "test_tenant" placeholder rather than the specific org being tested.
-        # In production each org runs in its own schema so connection.tenant.id
-        # always matches the requested org_id and this path is never taken.
-        if memberships:
-            try:
-                from apps.tenants.models import Organization as _Org
-                _org = _Org.objects.filter(id=requested_org_id, is_active=True).first()
-                if _org is not None:
-                    _first = memberships[0]
-                    active_organization = {
-                        "id": str(_org.id),
-                        "code": str(_org.code or ""),
-                        "name": str(_org.name or ""),
-                        "organization_type": str(getattr(_org, "organization_type", "") or ""),
-                        "membership_id": str(_first.get("id", "")),
-                        "membership_role": str(_first.get("membership_role", "")),
-                        "is_default_membership": bool(_first.get("is_default")),
-                    }
-                    active_organization_source = source
-                    break
-            except Exception:
-                pass
-
         if not invalid_requested_org_id and source in {"header", "query"}:
             invalid_requested_org_id = requested_org_id
 

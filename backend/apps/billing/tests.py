@@ -73,6 +73,7 @@ class BillingApiTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=user,
+            organization=organization,
             membership_role=membership_role,
             is_active=True,
             is_default=is_default,
