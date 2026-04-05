@@ -976,11 +976,24 @@ def _onboarding_token_validation_payload(*, validation_result):
     if token_record is None:
         return payload
     _tenant = getattr(_db_conn, "tenant", None)
+    # Prefer explicit org_id from the subscription FK; fall back to current tenant.
+    sub = validation_result.subscription
+    sub_org_id = str(getattr(sub, "organization_id", "") or "") if sub else ""
+    org_id = sub_org_id or str(getattr(_tenant, "id", "") or "") or None
+    org_name = str(getattr(_tenant, "name", "") or "")
+    if sub_org_id and _tenant and str(getattr(_tenant, "id", "")) != sub_org_id:
+        try:
+            from apps.tenants.models import Organization as _Org
+            _org = _Org.objects.filter(id=sub_org_id).first()
+            if _org is not None:
+                org_name = str(_org.name or "")
+        except Exception:
+            pass
     payload.update(
         {
-            "organization_id": str(getattr(_tenant, "id", "") or "") or None,
-            "organization_name": str(getattr(_tenant, "name", "") or ""),
-            "subscription_id": validation_result.subscription.id if validation_result.subscription else None,
+            "organization_id": org_id,
+            "organization_name": org_name,
+            "subscription_id": sub.id if sub else None,
             "remaining_uses": validation_result.remaining_uses,
             "expires_at": token_record.expires_at,
         }

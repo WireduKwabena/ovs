@@ -10,7 +10,7 @@ tmp_docs/
 docs/
 
 .env
-backend/.env
+**/.env
 
 .pytest_cache/
 .ruff_cache/
