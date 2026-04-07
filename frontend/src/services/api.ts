@@ -1,6 +1,6 @@
-// src/services/api.ts (Tweaked - Redux Migration)
+// src/services/api.ts
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
-import { store } from '../app/store'; // Import store for dispatch
+import { store } from '../app/store';
 import type { ApiError } from '@/types';
 import { logout, refreshToken } from '@/store/authSlice';
 import { setError } from '@/store/errorSlice';
@@ -18,7 +18,9 @@ const AUTH_ENDPOINTS = [
   '/auth/token/refresh/',
   '/auth/password-reset/',
   '/auth/password-reset-confirm/',
+  '/auth/resolve-tenant/',
 ];
+
 const CANDIDATE_SESSION_ENDPOINT_PREFIXES = [
   '/invitations/access/',
   '/applications/cases/',
@@ -27,38 +29,65 @@ const CANDIDATE_SESSION_ENDPOINT_PREFIXES = [
   '/interviews/responses/',
 ];
 
+// Endpoints that must NEVER receive X-Organization-Slug because they run
+// on the public schema unconditionally.
+const PUBLIC_SCHEMA_ENDPOINTS = [
+  '/auth/admin/login/',
+  '/auth/admin/login/verify/',
+  '/auth/admin/2fa/setup/',
+  '/auth/admin/2fa/enable/',
+  '/auth/register/organization-admin/',
+  '/auth/resolve-tenant/',
+  '/billing/onboarding-token/validate/',
+  '/billing/subscriptions/',
+  '/billing/health/',
+  '/billing/exchange-rate/',
+];
+
 const isAuthEndpoint = (url?: string) => {
-  if (!url) {
-    return false;
-  }
+  if (!url) return false;
   return AUTH_ENDPOINTS.some((endpoint) => url.includes(endpoint));
 };
 
 const isCandidateSessionEndpoint = (url?: string) => {
-  if (!url) {
-    return false;
-  }
+  if (!url) return false;
   return CANDIDATE_SESSION_ENDPOINT_PREFIXES.some((prefix) => url.includes(prefix));
+};
+
+const isPublicSchemaEndpoint = (url?: string) => {
+  if (!url) return false;
+  // Use exact match or check if it matches after removing optional baseURL prefix
+  const normalizedUrl = url.replace(API_URL, '');
+  const isPublic = PUBLIC_SCHEMA_ENDPOINTS.some((endpoint) => 
+    normalizedUrl === endpoint || url === endpoint
+  );
+  return isPublic;
 };
 
 const api = axios.create({
   baseURL: API_URL,
-  // JWT/Bearer auth is used for API requests; avoid session cookies to prevent CSRF coupling.
   withCredentials: false,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor - add auth token from Redux
+// ---------------------------------------------------------------------------
+// Request interceptor
+// ---------------------------------------------------------------------------
+
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const authState = store.getState().auth;
-    const token = authState.tokens?.access; // From Redux
+    const token = authState.tokens?.access;
     const activeOrganizationId = String(authState.activeOrganization?.id || "").trim();
+
+    // Attach Bearer token
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Attach active organization ID
     if (config.headers) {
       const explicitOrganizationId = String(config.headers["X-Active-Organization-ID"] || "").trim();
       if (explicitOrganizationId) {
@@ -69,15 +98,34 @@ api.interceptors.request.use(
         delete config.headers["X-Active-Organization-ID"];
       }
     }
+
+    // Attach X-Organization-Slug for tenant routing — skip public schema endpoints
+    if (config.headers && !isPublicSchemaEndpoint(config.url)) {
+      // Prefer Redux state, fall back to sessionStorage (survives page refresh)
+      const slugFromState = authState.organizationSlug || "";
+      const slugFromStorage = sessionStorage.getItem("organization_slug") || "";
+      const organizationSlug = (slugFromState || slugFromStorage).trim();
+
+      if (organizationSlug) {
+        config.headers["X-Organization-Slug"] = organizationSlug;
+        console.debug(`[api] Attached X-Organization-Slug: ${organizationSlug} for ${config.url}`);
+      } else {
+        delete config.headers["X-Organization-Slug"];
+        console.debug(`[api] No X-Organization-Slug found for ${config.url}`);
+      }
+    } else if (config.headers) {
+      console.debug(`[api] Skipping X-Organization-Slug for public endpoint: ${config.url}`);
+    }
+
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// --- Token-refresh serialization -------------------------------------------
-// Prevents multiple concurrent 401 responses from each triggering an
-// independent refresh call (race condition → multiple /token/refresh/ calls,
-// all but the first invalidate each other's new tokens).
+// ---------------------------------------------------------------------------
+// Token-refresh serialization
+// ---------------------------------------------------------------------------
+
 let _isRefreshing = false;
 interface _QueueEntry { resolve: (token: string) => void; reject: (err: unknown) => void }
 let _refreshQueue: _QueueEntry[] = [];
@@ -91,9 +139,11 @@ function _drainRefreshQueueWithError(err: unknown) {
   _refreshQueue.forEach(({ reject }) => reject(err));
   _refreshQueue = [];
 }
+
+// ---------------------------------------------------------------------------
+// Response interceptor
 // ---------------------------------------------------------------------------
 
-// Response interceptor - handle 401 with refresh
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<ApiError>) => {
@@ -109,8 +159,6 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       if (_isRefreshing) {
-        // Another request already started the refresh — queue this one and
-        // retry it once the refresh resolves.
         return new Promise<string>((resolve, reject) => {
           _refreshQueue.push({ resolve, reject });
         }).then((newToken) => {
@@ -150,7 +198,6 @@ api.interceptors.response.use(
         })
       );
     } else {
-      // For other errors, dispatch the setError action
       const errorData = {
         message: _getApiErrorMessage(error, 'An error occurred'),
         status: statusCode || 500,
@@ -163,7 +210,6 @@ api.interceptors.response.use(
 
 export default api;
 
-// Helper function to handle API errors
 export const handleApiError = (error: unknown): string => {
   if (axios.isAxiosError(error)) {
     const apiError = error.response?.data as ApiError;
@@ -171,4 +217,3 @@ export const handleApiError = (error: unknown): string => {
   }
   return 'An unexpected error occurred';
 };
-

@@ -6,6 +6,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-vetai_db}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@db:5432/vetai_db}
+      POSTGRES_HOST: ${POSTGRES_HOST:-db}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
     ports:
       - "5432:5432"
     volumes:
@@ -266,9 +269,9 @@ services:
     container_name: ovs_frontend
     working_dir: /workspace
     environment:
-      VITE_API_PROXY_TARGET: http://backend:8000
-      VITE_API_URL: http://backend:8000/api/v1
-      VITE_WS_URL: ws://backend:8000
+      VITE_API_PROXY_TARGET: http://backend:8000  # ← internal, used by Vite proxy server (correct)
+      VITE_API_URL: http://localhost:8000/api/v1  # ← used by browser (must be localhost)
+      VITE_WS_URL: ws://localhost:8000
     command: >
       sh -c 'LOCK_HASH="$$(sha256sum package-lock.json | awk "{print $$1}")";
              CACHED_HASH="$$(cat node_modules/.package-lock.hash 2>/dev/null || true)";

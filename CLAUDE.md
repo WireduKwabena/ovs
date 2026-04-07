@@ -79,7 +79,7 @@ The entire backend is multi-tenant. `apps/tenants/models.py::Organization` is th
 
 - **`SHARED_APPS`** — live in the `public` schema: `tenants`, `users`, Django internals, third-party libraries.
 - **`TENANT_APPS`** — live in each tenant's schema: all domain apps (`campaigns`, `applications`, `interviews`, `appointments`, etc.).
-- **Tenant resolution**: `TenantMiddleware` resolves the tenant from the subdomain or the `X-Institution-Slug` request header. Falls back to the public schema when no tenant matches (e.g., during tests against `testserver`).
+- **Tenant resolution**: `TenantMiddleware` resolves the tenant from the subdomain or the `X-Organization-Slug` request header. Falls back to the public schema when no tenant matches (e.g., during tests against `testserver`).
 - **Public-schema URL config**: `config/public_urls.py` (`PUBLIC_SCHEMA_URLCONF`) — serves requests that have no tenant context: org onboarding/registration, system-admin login, billing webhooks. Everything else uses `config/urls.py`.
 
 ### API Versioning

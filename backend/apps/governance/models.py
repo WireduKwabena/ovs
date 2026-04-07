@@ -14,13 +14,6 @@ class OrganizationMembership(models.Model):
         on_delete=models.CASCADE,
         related_name="organization_memberships",
     )
-    organization = models.ForeignKey(
-        "tenants.Organization",
-        null=True,
-        blank=True,
-        on_delete=models.CASCADE,
-        related_name="memberships",
-    )
     title = models.CharField(max_length=120, blank=True)
     membership_role = models.CharField(max_length=80, blank=True)
     is_active = models.BooleanField(default=True, db_index=True)

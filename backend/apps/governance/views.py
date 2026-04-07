@@ -4,7 +4,7 @@ from datetime import timezone as dt_timezone
 from uuid import uuid4
 
 from django.db import transaction
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.utils.text import slugify
@@ -159,25 +159,10 @@ def _parse_iso_datetime_value(raw_value):
 
 
 def _platform_oversight_queryset():
-    subscription_queryset = BillingSubscription.objects.order_by("-updated_at", "-created_at")
-    return (
-        Organization.objects.all()
-        .annotate(
-            active_member_count=Count(
-                "memberships",
-                filter=Q(memberships__is_active=True),
-                distinct=True,
-            )
-        )
-        .prefetch_related(
-            Prefetch(
-                "billing_subscriptions",
-                queryset=subscription_queryset,
-                to_attr="_platform_billing_subscriptions",
-            )
-        )
-        .order_by("name")
-    )
+    # In the django-tenants model, membership and billing data live in each org's
+    # own schema.  We can't annotate them via FK joins from the public schema.
+    # Per-org stats are fetched lazily in _build_platform_organization_oversight_record.
+    return Organization.objects.all().order_by("name")
 
 
 def _build_platform_subscription_summary(organization: Organization):
@@ -216,13 +201,27 @@ def _build_platform_subscription_summary(organization: Organization):
 
 
 def _build_platform_organization_oversight_record(organization: Organization) -> dict:
+    from django_tenants.utils import schema_context
+
+    active_member_count = 0
+    subscriptions: list = []
+    try:
+        with schema_context(organization.schema_name):
+            active_member_count = OrganizationMembership.objects.filter(is_active=True).count()
+            subscriptions = list(
+                BillingSubscription.objects.order_by("-updated_at", "-created_at")
+            )
+    except Exception:
+        pass
+
+    organization._platform_billing_subscriptions = subscriptions
     return {
         "id": organization.id,
         "code": str(organization.code or ""),
         "name": str(organization.name or ""),
         "organization_type": str(organization.organization_type or ""),
         "is_active": bool(organization.is_active),
-        "active_member_count": int(getattr(organization, "active_member_count", 0) or 0),
+        "active_member_count": active_member_count,
         "subscription": _build_platform_subscription_summary(organization),
     }
 

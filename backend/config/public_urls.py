@@ -107,6 +107,12 @@ urlpatterns = [
         billing_views.PaystackWebhookAPIView.as_view(),
         name="public_paystack_webhook",
     ),
+    # In public_urls.py
+    path(
+        "api/v1/auth/resolve-tenant/",
+        auth_views.ResolveTenantView.as_view(),
+        name="public_resolve_tenant",
+    ),
 
     # ------------------------------------------------------------------
     # Legacy unversioned routes — kept for backward compatibility only

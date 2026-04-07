@@ -231,19 +231,7 @@ def _active_subscription_for_queryset(queryset) -> BillingSubscription | None:
 
 
 def _active_subscription_for_scope(*, emails: list[str], organization_id: str | None = None) -> BillingSubscription | None:
-    # When an explicit organization_id is available, prefer subscriptions that
-    # are directly owned by that org (FK set).  This handles single-schema test
-    # environments and any multi-org edge-cases; in production schema-isolation
-    # ensures only the current tenant's rows are visible, so the FK filter is a
-    # no-op subset of all rows.
-    normalized_org_id = str(organization_id or "").strip()
-    if normalized_org_id:
-        org_qs = BillingSubscription.objects.filter(organization_id=normalized_org_id)
-        result = _active_subscription_for_queryset(org_qs)
-        if result is not None:
-            return result
-
-    # Fallback: all subscriptions in the current schema (schema-isolation path).
+    # organization_id param kept for API compatibility; schema isolation handles tenant scoping.
     qs = BillingSubscription.objects.all()
     if qs.exists():
         return _active_subscription_for_queryset(qs)
@@ -384,18 +372,7 @@ def get_active_subscription_for_user(user, *, organization_id: str | None = None
 
 
 def get_latest_subscription_for_user(user, *, organization_id: str | None = None) -> BillingSubscription | None:
-    _, emails, _, resolved_org_id = _scope_for_user(user, organization_id=organization_id)
-
-    normalized_org_id = str(resolved_org_id or "").strip()
-    if normalized_org_id:
-        subscription = (
-            BillingSubscription.objects.filter(organization_id=normalized_org_id)
-            .order_by("-updated_at", "-created_at")
-            .first()
-        )
-        if subscription is not None:
-            return _normalize_subscription_runtime_state(subscription)
-
+    # organization_id param kept for API compatibility; schema isolation handles tenant scoping.
     subscription = (
         BillingSubscription.objects.all()
         .order_by("-updated_at", "-created_at")

@@ -47,7 +47,25 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # CORS - allow all origins in development
 CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOWED_ORIGINS = []
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+    "x-organization-slug",  # your tenant header
+]
 
 # Django Debug Toolbar (optional)
 if importlib.util.find_spec("django_extensions") is not None:

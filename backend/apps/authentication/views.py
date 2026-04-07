@@ -6,6 +6,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.exceptions import PermissionDenied
 
+
+
 import logging
 import secrets
 from django.conf import settings
@@ -252,7 +254,96 @@ def _attach_registered_user_to_organization(
     if updated_fields:
         membership.save(update_fields=updated_fields + ["updated_at"])
 
+"""
+Tenant resolution view — add to apps/authentication/views.py
+and register in config/public_urls.py as:
 
+    path(
+        "api/v1/auth/resolve-tenant/",
+        auth_views.ResolveTenantView.as_view(),
+        name="public_resolve_tenant",
+    ),
+"""
+
+class ResolveTenantView(APIView):
+    """
+    POST /api/v1/auth/resolve-tenant/
+
+    Accepts { "email": "user@example.com" } and returns which login
+    flow and institution slug to use.
+
+    Response for platform/system admin (public schema):
+        { "login_type": "admin", "schema": "public" }
+
+    Response for org member/admin (tenant schema):
+        {
+            "login_type": "member",
+            "schema": "demo",
+            "organization_slug": "demo",
+            "organization_name": "GAMS Demo"
+        }
+
+    404 if no account found anywhere.
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        email = str(request.data.get("email") or "").lower().strip()
+        if not email:
+            return Response(
+                {"error": "Email is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ── 1. Check public schema for platform admins ────────────────────
+        # Users with user_type='admin' or is_superuser always authenticate
+        # against the public schema regardless of org membership.
+        from apps.users.models import User
+
+        try:
+            user = User.objects.get(email=email)
+            if user.user_type == "admin" or user.is_superuser:
+                return Response(
+                    {
+                        "login_type": "admin",
+                        "schema": "public",
+                        "organization_name": "Platform Administration",
+                    }
+                )
+        except User.DoesNotExist:
+            pass
+
+        # ── 2. Search tenant schemas ──────────────────────────────────────
+        # Iterate over all active organizations and check each tenant schema
+        # for a user with this email.
+        from apps.tenants.models import Organization
+        from django_tenants.utils import schema_context
+
+        for org in Organization.objects.filter(
+            is_active=True
+        ).exclude(schema_name="public").order_by("name"):
+            try:
+                with schema_context(org.schema_name):
+                    if User.objects.filter(email=email).exists():
+                        return Response(
+                            {
+                                "login_type": "member",
+                                "schema": org.schema_name,
+                                "organization_slug": org.code,
+                                "organization_name": org.name,
+                            }
+                        )
+            except Exception:
+                # Skip schemas that are broken or mid-migration
+                continue
+
+        # ── 3. Not found ──────────────────────────────────────────────────
+        return Response(
+            {"error": "No account found for this email address."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
 class OrganizationAdminRegisterView(generics.CreateAPIView):
     """
@@ -449,6 +540,10 @@ def login_view(request):
     External users receive direct JWT tokens.
     Internal operator accounts must complete 2FA challenge before tokens are issued.
     """
+    from django.db import connection
+    
+    print("Schema:", connection.schema_name)
+    print("URLConf:", request.urlconf)
     serializer = LoginSerializer(data=request.data, context={'request': request})
     serializer.is_valid(raise_exception=True)
     user = serializer.validated_data['user']
@@ -489,6 +584,10 @@ def admin_login_view(request):
 
     Always returns a 2FA challenge for successful admin credential checks.
     """
+    from django.db import connection
+    
+    print("Schema:", connection.schema_name)
+    print("URLConf:", request.urlconf)
     serializer = AdminLoginSerializer(data=request.data, context={'request': request})
     serializer.is_valid(raise_exception=True)
     user = serializer.validated_data['user']

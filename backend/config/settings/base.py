@@ -110,7 +110,6 @@ ENABLE_REALTIME = config("ENABLE_REALTIME", default=False, cast=bool)
 SHARED_APPS = [
     'django_tenants',  # mandatory
     'apps.tenants', # you must list the app where your tenant model resides in
-    "apps.users",
     'django.contrib.contenttypes',
     "django.contrib.staticfiles",
     # everything below here is optional
@@ -146,6 +145,7 @@ TENANT_APPS = (
     # resolves correctly when there is no per-tenant schema (single-tenant / dev mode).
     'rest_framework_simplejwt.token_blacklist',
     # Custom apps (token_blacklist is now in SHARED_APPS for public-schema compatibility)
+    "apps.users",
     "apps.core",
     "apps.admin_dashboard",
     "apps.authentication",
@@ -182,13 +182,13 @@ SHOW_PUBLIC_IF_NO_TENANT_FOUND = True
 USE_REDIS = config("USE_REDIS", default=True, cast=bool)
 
 MIDDLEWARE = [
-    'apps.tenants.middleware.TenantMiddleware',  # subdomain + X-Institution-Slug + public fallback
+    'apps.tenants.middleware.TenantMiddleware',  # subdomain + X-Organization-Slug + public fallback
     "django.middleware.security.SecurityMiddleware"
     ]
 if _has_module("whitenoise"):
     MIDDLEWARE.append("whitenoise.middleware.WhiteNoiseMiddleware")
 if _has_module("corsheaders"):
-    MIDDLEWARE.append("corsheaders.middleware.CorsMiddleware")
+    MIDDLEWARE.insert(0, "corsheaders.middleware.CorsMiddleware")
 # Request ID must be injected early so all subsequent middleware and views have access.
 MIDDLEWARE.append("apps.core.middleware.RequestIDMiddleware")
 if _has_module("redis") and USE_REDIS:
@@ -202,8 +202,10 @@ MIDDLEWARE += [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = 'config.urls'
+
 PUBLIC_SCHEMA_URLCONF = 'config.public_urls'
+ROOT_URLCONF = 'config.urls'
+
 
 TEMPLATES = [
     {
@@ -400,7 +402,7 @@ if _has_module("corsheaders"):
     # Active organization context is carried in a custom request header.
     # Explicitly allow it for browser preflight checks.
     CORS_ALLOW_HEADERS = tuple(
-        dict.fromkeys([*cors_default_headers, "x-active-organization-id"])
+        dict.fromkeys([*cors_default_headers, "x-active-organization-id",'x-organization-slug','X-Organization-Slug'])
     )
 CSRF_TRUSTED_ORIGINS = env_list(
     "CSRF_TRUSTED_ORIGINS",

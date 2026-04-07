@@ -86,23 +86,25 @@ class AllSchemasTestRunner(DiscoverRunner):
             # TenantMixin.save() uses _state.adding (not pk is None) because
             # UUID PKs are pre-assigned in __init__ before save() is called.
             is_new = org_instance._state.adding
-            if is_new and connection.schema_name != "public":
-                # Suppress schema creation; we don't need a real DB schema per
-                # test organisation.
-                org_instance.auto_create_schema = False
+            from django_tenants.utils import schema_context
+            if connection.schema_name != "public":
+                if is_new:
+                    # Suppress schema creation; we don't need a real DB schema per
+                    # test organisation.
+                    org_instance.auto_create_schema = False
 
-                # If the caller didn't supply a schema_name, auto-generate a
-                # unique one so the unique constraint on tenants_organization
-                # doesn't clash when multiple test orgs are created in one test.
-                if not org_instance.schema_name:
-                    import uuid as _uuid
-                    _slug = getattr(org_instance, "code", "") or str(org_instance.pk or "")
-                    _slug = _slug[:20].replace("-", "_").lower()
-                    org_instance.schema_name = f"t_{_slug}_{_uuid.uuid4().hex[:8]}"
+                    # If the caller didn't supply a schema_name, auto-generate a
+                    # unique one so the unique constraint on tenants_organization
+                    # doesn't clash when multiple test orgs are created in one test.
+                    if not org_instance.schema_name:
+                        import uuid as _uuid
+                        _slug = getattr(org_instance, "code", "") or str(org_instance.pk or "")
+                        _slug = _slug[:20].replace("-", "_").lower()
+                        org_instance.schema_name = f"t_{_slug}_{_uuid.uuid4().hex[:8]}"
 
-                # Use schema_context so connections[alias].schema_name is
-                # genuinely 'public' when TenantMixin.save() checks it.
-                from django_tenants.utils import schema_context
+                # Both new and existing org records live in the public schema's
+                # tenants_organization table.  TenantMixin.save() raises if called
+                # from a non-public schema, so always switch to public here.
                 with schema_context("public"):
                     _orig_save(org_instance, verbosity=verbosity, *args, **kwargs)
                 # schema_context.__exit__ restores the tenant connection.
@@ -149,7 +151,11 @@ class AllSchemasTestRunner(DiscoverRunner):
         TenantModel = get_tenant_model()
         DomainModel = get_tenant_domain_model()
 
-        tenant = TenantModel.objects.create(schema_name=self.TEST_TENANT_SCHEMA)
+        tenant = TenantModel.objects.create(
+            schema_name=self.TEST_TENANT_SCHEMA,
+            code="test-tenant",
+            name="Test Tenant",
+        )
 
         # Attach a domain so middleware can find it later.
         DomainModel.objects.get_or_create(

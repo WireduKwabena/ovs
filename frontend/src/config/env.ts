@@ -26,7 +26,6 @@ export const API_URL = get("VITE_API_URL", "/api/v1");
 export const WS_BASE_URL = (() => {
   const explicit =
     get("VITE_INTERVIEW_WS_URL") ||
-    get("VITE_FASTAPI_WS") ||
     get("VITE_WS_URL");
   if (explicit) return explicit;
 

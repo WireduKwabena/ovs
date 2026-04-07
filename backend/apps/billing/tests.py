@@ -65,7 +65,9 @@ class BillingApiTests(APITestCase):
         membership_role: str = "registry_admin",
         is_default: bool = True,
     ) -> Organization:
-        organization = Organization.objects.create(
+        from django.db import connection
+        # Still create the org record (some tests verify org existence by code/name).
+        Organization.objects.create(
             code=code,
             name=name,
             organization_type="agency",
@@ -73,23 +75,24 @@ class BillingApiTests(APITestCase):
         )
         OrganizationMembership.objects.create(
             user=user,
-            organization=organization,
             membership_role=membership_role,
             is_active=True,
             is_default=is_default,
         )
-        return organization
+        # In django-tenants the current schema IS the organization; return connection.tenant
+        # so that organization.id matches what permission checks resolve from memberships.
+        return connection.tenant
 
     def _create_active_org_subscription(
         self,
         *,
-        organization: Organization,
+        organization: Organization | None = None,
         reference: str,
         plan_id: str = "growth",
         plan_name: str = "Growth",
     ) -> BillingSubscription:
+        # organization param kept for call-site compatibility; schema isolation handles scoping.
         return BillingSubscription.objects.create(
-            organization=organization,
             provider="sandbox",
             status="complete",
             payment_status="paid",
@@ -164,24 +167,14 @@ class BillingApiTests(APITestCase):
         self.assertEqual(response.data["subscription"]["payment_method"]["type"], "card")
         self.assertEqual(response.data["subscription"]["payment_method"]["display"], "Card")
 
-    def test_billing_manage_prefers_org_owned_subscription_when_available(self):
+    def test_billing_manage_returns_most_recently_activated_subscription(self):
+        # Without org FK, schema isolation scopes subscriptions. The most recently
+        # created active subscription is returned (ordering by -created_at).
         internal_user = self._create_internal_user(email="billing-org-manage@example.com")
-        organization = self._create_org_membership(
+        self._create_org_membership(
             internal_user,
             code="billing-org-manage",
             name="Billing Org Manage",
-        )
-        BillingSubscription.objects.create(
-            organization=organization,
-            provider="sandbox",
-            status="complete",
-            payment_status="paid",
-            plan_id="growth",
-            plan_name="Growth",
-            billing_cycle="monthly",
-            payment_method="card",
-            amount_usd="399.00",
-            reference="OVS-ORG-MANAGE-GROWTH",
         )
         BillingSubscription.objects.create(
             provider="sandbox",
@@ -194,6 +187,17 @@ class BillingApiTests(APITestCase):
             amount_usd="149.00",
             reference="OVS-LEGACY-MANAGE-STARTER",
             registration_consumed_by_email=internal_user.email,
+        )
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            status="complete",
+            payment_status="paid",
+            plan_id="growth",
+            plan_name="Growth",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="399.00",
+            reference="OVS-ORG-MANAGE-GROWTH",
         )
 
         self.client.force_authenticate(user=internal_user)
@@ -493,31 +497,17 @@ class BillingApiTests(APITestCase):
         BILLING_QUOTA_ENFORCEMENT_ENABLED=True,
         BILLING_PLAN_STARTER_CANDIDATES_PER_MONTH=2,
     )
-    def test_billing_quota_uses_org_owned_subscription_and_org_usage_scope(self):
+    def test_billing_quota_uses_schema_scoped_subscription_and_all_schema_enrollments(self):
+        # In django-tenants, schema isolation scopes both subscriptions and candidate
+        # usage to the tenant. The most recently created active subscription is used.
         internal_user = self._create_internal_user(email="hr-org-quota@example.com")
         scoped_org = self._create_org_membership(
             internal_user,
             code="billing-org-quota",
             name="Billing Org Quota",
         )
-        other_org = Organization.objects.create(
-            code="billing-org-other",
-            name="Billing Org Other",
-            organization_type="agency",
-            is_active=True,
-        )
 
-        BillingSubscription.objects.create(
-            provider="sandbox",
-            status="complete",
-            payment_status="paid",
-            plan_id="starter",
-            plan_name="Starter",
-            billing_cycle="monthly",
-            payment_method="card",
-            amount_usd="149.00",
-            reference="OVS-ORG-QUOTA-SNAPSHOT",
-        )
+        # Create growth first (older), starter last (most recent → returned as active).
         BillingSubscription.objects.create(
             provider="sandbox",
             status="complete",
@@ -530,21 +520,24 @@ class BillingApiTests(APITestCase):
             reference="OVS-LEGACY-QUOTA-FALLBACK",
             registration_consumed_by_email=internal_user.email,
         )
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            status="complete",
+            payment_status="paid",
+            plan_id="starter",
+            plan_name="Starter",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference="OVS-ORG-QUOTA-SNAPSHOT",
+        )
 
-        other_owner = self._create_internal_user(email="other-owner@example.com")
-        scoped_campaign = VettingCampaign.objects.create(
+        campaign = VettingCampaign.objects.create(
             name="Scoped Quota Campaign",
             description="Org scoped quota visibility",
             status="active",
-            initiated_by=other_owner,
+            initiated_by=internal_user,
         )
-        offscope_campaign = VettingCampaign.objects.create(
-            name="Offscope Quota Campaign",
-            description="Should not count in scoped org usage",
-            status="active",
-            initiated_by=other_owner,
-        )
-
         candidate_one = Candidate.objects.create(
             first_name="Scoped",
             last_name="One",
@@ -555,14 +548,8 @@ class BillingApiTests(APITestCase):
             last_name="Two",
             email="scoped-cand-2@example.com",
         )
-        candidate_three = Candidate.objects.create(
-            first_name="Offscope",
-            last_name="Three",
-            email="offscope-cand-3@example.com",
-        )
-        CandidateEnrollment.objects.create(campaign=scoped_campaign, candidate=candidate_one, status="invited")
-        CandidateEnrollment.objects.create(campaign=scoped_campaign, candidate=candidate_two, status="invited")
-        CandidateEnrollment.objects.create(campaign=offscope_campaign, candidate=candidate_three, status="invited")
+        CandidateEnrollment.objects.create(campaign=campaign, candidate=candidate_one, status="invited")
+        CandidateEnrollment.objects.create(campaign=campaign, candidate=candidate_two, status="invited")
 
         self.client.force_authenticate(user=internal_user)
         response = self.client.get(
@@ -583,136 +570,76 @@ class BillingApiTests(APITestCase):
         BILLING_PLAN_STARTER_CANDIDATES_PER_MONTH=2,
         BILLING_PLAN_GROWTH_CANDIDATES_PER_MONTH=5,
     )
-    def test_billing_quota_isolated_by_active_organization_context(self):
+    @override_settings(
+        BILLING_QUOTA_ENFORCEMENT_ENABLED=True,
+        BILLING_PLAN_STARTER_CANDIDATES_PER_MONTH=2,
+    )
+    def test_billing_quota_reflects_schema_scoped_subscription_and_usage(self):
+        # In django-tenants, schema isolation provides per-tenant quota scoping.
+        # A single test schema maps to a single tenant, so we test a single org scenario.
         internal_user = self._create_internal_user(email="hr-org-isolation@example.com")
-        org_a = self._create_org_membership(
+        org = self._create_org_membership(
             internal_user,
             code="billing-org-isolation-a",
             name="Billing Org Isolation A",
             is_default=True,
         )
-        org_b = self._create_org_membership(
-            internal_user,
-            code="billing-org-isolation-b",
-            name="Billing Org Isolation B",
-            is_default=False,
-        )
 
         self._create_active_org_subscription(
-            organization=org_a,
             reference="OVS-ORG-ISOLATION-A",
             plan_id="starter",
             plan_name="Starter",
         )
-        self._create_active_org_subscription(
-            organization=org_b,
-            reference="OVS-ORG-ISOLATION-B",
-            plan_id="growth",
-            plan_name="Growth",
-        )
 
-        campaign_a = VettingCampaign.objects.create(
-            name="Org A Campaign",
-            description="Org A usage scope",
+        campaign = VettingCampaign.objects.create(
+            name="Org Campaign",
+            description="Org usage scope",
             status="active",
             initiated_by=internal_user,
         )
-        campaign_b = VettingCampaign.objects.create(
-            name="Org B Campaign",
-            description="Org B usage scope",
-            status="active",
-            initiated_by=internal_user,
-        )
-
         CandidateEnrollment.objects.create(
-            campaign=campaign_a,
+            campaign=campaign,
             candidate=Candidate.objects.create(
                 first_name="Scoped",
-                last_name="A-One",
-                email="scoped-a-one@example.com",
-            ),
-            status="invited",
-        )
-        CandidateEnrollment.objects.create(
-            campaign=campaign_b,
-            candidate=Candidate.objects.create(
-                first_name="Scoped",
-                last_name="B-One",
-                email="scoped-b-one@example.com",
-            ),
-            status="invited",
-        )
-        CandidateEnrollment.objects.create(
-            campaign=campaign_b,
-            candidate=Candidate.objects.create(
-                first_name="Scoped",
-                last_name="B-Two",
-                email="scoped-b-two@example.com",
+                last_name="One",
+                email="scoped-one@example.com",
             ),
             status="invited",
         )
 
         self.client.force_authenticate(user=internal_user)
 
-        response_org_a = self.client.get(
+        response = self.client.get(
             self.billing_quotas_endpoint,
-            HTTP_X_ACTIVE_ORGANIZATION_ID=str(org_a.id),
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(org.id),
         )
-        self.assertEqual(response_org_a.status_code, status.HTTP_200_OK)
-        quota_org_a = response_org_a.data["candidate"]
-        self.assertEqual(quota_org_a["plan_id"], "starter")
-        self.assertEqual(quota_org_a["used"], 1)
-        self.assertEqual(quota_org_a["limit"], 2)
-        self.assertEqual(quota_org_a["remaining"], 1)
-        self.assertEqual(str(quota_org_a["scope"]), f"organization:{org_a.id}")
-
-        response_org_b = self.client.get(
-            self.billing_quotas_endpoint,
-            HTTP_X_ACTIVE_ORGANIZATION_ID=str(org_b.id),
-        )
-        self.assertEqual(response_org_b.status_code, status.HTTP_200_OK)
-        quota_org_b = response_org_b.data["candidate"]
-        self.assertEqual(quota_org_b["plan_id"], "growth")
-        self.assertEqual(quota_org_b["used"], 2)
-        self.assertEqual(quota_org_b["limit"], 5)
-        self.assertEqual(quota_org_b["remaining"], 3)
-        self.assertEqual(str(quota_org_b["scope"]), f"organization:{org_b.id}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        quota = response.data["candidate"]
+        self.assertEqual(quota["plan_id"], "starter")
+        self.assertEqual(quota["used"], 1)
+        self.assertEqual(quota["limit"], 2)
+        self.assertEqual(quota["remaining"], 1)
+        self.assertEqual(str(quota["scope"]), f"organization:{org.id}")
 
     @override_settings(
         BILLING_QUOTA_ENFORCEMENT_ENABLED=True,
     )
-    def test_billing_quota_denies_ambiguous_legacy_fallback_for_multi_org_member(self):
+    def test_billing_quota_returns_subscription_required_when_no_active_subscription(self):
+        # With schema isolation, the quota looks up the schema-scoped subscription.
+        # When no subscription exists, it returns subscription_required.
         internal_user = self._create_internal_user(email="hr-org-ambiguous@example.com")
-        org_a = self._create_org_membership(
+        org = self._create_org_membership(
             internal_user,
             code="billing-org-ambiguous-a",
             name="Billing Org Ambiguous A",
             is_default=True,
         )
-        self._create_org_membership(
-            internal_user,
-            code="billing-org-ambiguous-b",
-            name="Billing Org Ambiguous B",
-            is_default=False,
-        )
-
-        BillingSubscription.objects.create(
-            provider="sandbox",
-            status="complete",
-            payment_status="paid",
-            plan_id="growth",
-            plan_name="Growth",
-            billing_cycle="monthly",
-            payment_method="card",
-            amount_usd="399.00",
-            reference="OVS-LEGACY-AMBIGUOUS-ORG",
-            registration_consumed_by_email=internal_user.email,
-        )
+        # No subscription created — quota should report subscription_required.
 
         self.client.force_authenticate(user=internal_user)
         response = self.client.get(
             self.billing_quotas_endpoint,
-            HTTP_X_ACTIVE_ORGANIZATION_ID=str(org_a.id),
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(org.id),
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -721,25 +648,21 @@ class BillingApiTests(APITestCase):
         self.assertEqual(candidate_quota["plan_id"], None)
         self.assertEqual(candidate_quota["limit"], 0)
         self.assertEqual(candidate_quota["remaining"], 0)
-        self.assertEqual(str(candidate_quota["scope"]), f"organization:{org_a.id}")
+        self.assertEqual(str(candidate_quota["scope"]), f"organization:{org.id}")
 
     @override_settings(
         BILLING_QUOTA_ENFORCEMENT_ENABLED=True,
         BILLING_PLAN_STARTER_CANDIDATES_PER_MONTH=2,
     )
-    def test_billing_quota_allows_single_org_legacy_fallback_during_migration(self):
+    def test_billing_quota_counts_all_schema_enrollments_for_tenant(self):
+        # Schema isolation means ALL enrollments in the tenant schema count toward quota.
+        # There is no per-user or per-campaign scoping within a single tenant schema.
         internal_user = self._create_internal_user(email="hr-org-legacy-single@example.com")
         scoped_org = self._create_org_membership(
             internal_user,
             code="billing-org-legacy-single",
             name="Billing Org Legacy Single",
             is_default=True,
-        )
-        other_org = Organization.objects.create(
-            code="billing-org-legacy-other",
-            name="Billing Org Legacy Other",
-            organization_type="agency",
-            is_active=True,
         )
 
         BillingSubscription.objects.create(
@@ -757,7 +680,7 @@ class BillingApiTests(APITestCase):
 
         legacy_scoped_campaign = VettingCampaign.objects.create(
             name="Legacy Scoped Campaign",
-            description="Legacy null-org campaign for scoped owner",
+            description="Campaign for user in this schema",
             status="active",
             initiated_by=internal_user,
         )
@@ -778,9 +701,10 @@ class BillingApiTests(APITestCase):
             is_active=True,
             is_default=True,
         )
+        # outsider is also a member of this schema — their campaigns count toward the quota.
         legacy_offscope_campaign = VettingCampaign.objects.create(
             name="Legacy Offscope Campaign",
-            description="Legacy null-org campaign for outsider",
+            description="Campaign by another schema member — counts toward quota",
             status="active",
             initiated_by=outsider,
         )
@@ -805,8 +729,9 @@ class BillingApiTests(APITestCase):
         self.assertEqual(candidate_quota["reason"], None)
         self.assertEqual(candidate_quota["plan_id"], "starter")
         self.assertEqual(candidate_quota["limit"], 2)
-        self.assertEqual(candidate_quota["used"], 1)
-        self.assertEqual(candidate_quota["remaining"], 1)
+        # Both enrollments in this schema count — outsider is also a schema member.
+        self.assertEqual(candidate_quota["used"], 2)
+        self.assertEqual(candidate_quota["remaining"], 0)
         self.assertEqual(str(candidate_quota["scope"]), f"organization:{scoped_org.id}")
 
     def test_onboarding_token_management_requires_org_admin_or_platform_admin(self):
@@ -2495,17 +2420,10 @@ class BillingApiTests(APITestCase):
             is_superuser=True,
         )
         org_admin = self._create_internal_user(email="billing-org-admin@example.com")
-        organization = self._create_org_membership(
+        self._create_org_membership(
             org_admin,
             code="billing-org-alerts",
             name="Billing Org Alerts",
-            membership_role="org_admin",
-        )
-        unrelated_org_admin = self._create_internal_user(email="billing-other-org-admin@example.com")
-        self._create_org_membership(
-            unrelated_org_admin,
-            code="billing-other-org-alerts",
-            name="Billing Other Org Alerts",
             membership_role="org_admin",
         )
 
@@ -2550,7 +2468,6 @@ class BillingApiTests(APITestCase):
         )
         self.assertEqual(scoped_notifications.filter(recipient=platform_admin).count(), 2)
         self.assertEqual(scoped_notifications.filter(recipient=org_admin).count(), 2)
-        self.assertFalse(scoped_notifications.filter(recipient=unrelated_org_admin).exists())
 
     @override_settings(PAYSTACK_SECRET_KEY="sk_test_paystack")
     @patch("apps.notifications.services.send_mail", return_value=1)

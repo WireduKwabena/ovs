@@ -92,12 +92,8 @@ def is_subscription_active(subscription: BillingSubscription | None, *, now=None
 
 
 def get_active_subscription_for_organization(*, organization_id: str | None = None) -> BillingSubscription | None:
-    qs = BillingSubscription.objects.all()
-    if organization_id:
-        # Filter by FK when provided so that tests (which share a single schema)
-        # and multi-org edge-cases return the correct subscription.
-        qs = qs.filter(organization_id=organization_id)
-    candidates = qs.order_by("-updated_at", "-created_at")
+    # organization_id param kept for API compatibility; schema isolation handles tenant scoping.
+    candidates = BillingSubscription.objects.all().order_by("-updated_at", "-created_at")
     for subscription in candidates.iterator(chunk_size=100):
         if is_subscription_active(subscription):
             return subscription

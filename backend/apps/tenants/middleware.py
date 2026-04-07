@@ -1,15 +1,16 @@
 from django_tenants.middleware.main import TenantMainMiddleware
 from django.db import connection
-
+from django.urls import set_urlconf, clear_url_caches
+from django.conf import settings
 
 class TenantMiddleware(TenantMainMiddleware):
     '''
     Extended tenant middleware that supports both subdomain routing and
-    X-Institution-Slug header routing (for mobile clients and local dev).
+    X-Organization-Slug header routing (for mobile clients and local dev).
 
     Resolution order:
       1. Subdomain (vvu.iconnect.app) — via TenantMainMiddleware
-      2. X-Institution-Slug header — for mobile / direct API calls
+      2. X-Organization-Slug header — for mobile / direct API calls
       3. Public schema fallback — unauthenticated/admin endpoints
     '''
 
@@ -21,20 +22,29 @@ class TenantMiddleware(TenantMainMiddleware):
         except self.TENANT_NOT_FOUND_EXCEPTION:
             pass  # No domain record — try header fallback
 
-        # Try X-Institution-Slug header
-        slug = request.headers.get('X-Institution-Slug')
+        from django_tenants.utils import get_tenant_model, get_public_schema_name
+        # Try X-Organization-Slug header
+        slug = request.headers.get('X-Organization-Slug')
         if slug:
-            from apps.tenants.models import Organization
+            
+            Organization = get_tenant_model()
+            # from apps.tenants.models import Organization
             try:
-                institution = Organization.objects.get(code=slug, is_active=True)
-                request.tenant = institution
-                connection.set_tenant(institution)
+                organization = Organization.objects.get(code=slug, is_active=True)
+                request.tenant = organization
+                connection.set_tenant(organization)
+                request.urlconf = settings.ROOT_URLCONF 
+                set_urlconf(request.urlconf) # Explicitly set for the current thread
+                clear_url_caches() 
                 return
             except Organization.DoesNotExist:
                 pass
+        # 4. Fallback: If we reach here and no tenant is set, ensure Public URLConf
+        if not hasattr(request, 'tenant') or request.tenant.schema_name == get_public_schema_name():
+            request.urlconf = settings.PUBLIC_SCHEMA_URLCONF
 
         # Fall back to public schema (for /admin/, /api/health/, etc.)
-        from django_tenants.utils import get_public_schema_name
+        # from django_tenants.utils import get_public_schema_name
         from apps.tenants.models import Organization
         try:
             public = Organization.objects.get(schema_name=get_public_schema_name())

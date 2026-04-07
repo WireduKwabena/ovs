@@ -26,7 +26,8 @@ class Organization(TenantMixin):
     tier = models.CharField(
         max_length=20,
         choices=[
-            ('starter', 'Starter — free'),
+            ('trial', 'Trial'),
+            ('starter', 'Starter'),
             ('growth', 'Growth'),
             ('enterprise', 'Enterprise'),
         ],

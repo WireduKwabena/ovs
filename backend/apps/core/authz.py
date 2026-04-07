@@ -147,8 +147,13 @@ def _committee_roles_from_memberships(user) -> set[str]:
     if not _is_authenticated(user):
         return set()
     try:
+        from django.db import connection as _conn
         from apps.governance.models import CommitteeMembership
     except Exception:  # pragma: no cover - governance app may be unavailable
+        return set()
+
+    # CommitteeMembership is a TENANT_APP — it does not exist in the public schema.
+    if getattr(_conn, "schema_name", "public") == "public":
         return set()
 
     membership_roles = set(
@@ -174,20 +179,13 @@ def get_user_organization_ids(user) -> set[str]:
     except Exception:  # pragma: no cover - governance app may be unavailable
         return set()
 
-    memberships = OrganizationMembership.objects.filter(user=user, is_active=True)
-    if not memberships.exists():
+    if getattr(connection, "schema_name", "public") == "public":
         return set()
 
-    # Prefer explicit organization_id FK when set (single-schema / test environments).
-    explicit_ids = {
-        str(m.organization_id)
-        for m in memberships
-        if getattr(m, "organization_id", None) is not None
-    }
-    if explicit_ids:
-        return explicit_ids
+    if not OrganizationMembership.objects.filter(user=user, is_active=True).exists():
+        return set()
 
-    # Fallback: schema-based isolation — all memberships belong to the current tenant.
+    # In the django-tenants model the current schema IS the organization.
     try:
         return {str(connection.tenant.id)}
     except Exception:
@@ -207,6 +205,9 @@ def get_user_organization_names(user) -> set[str]:
         from django.db import connection
         from apps.governance.models import OrganizationMembership
     except Exception:  # pragma: no cover - governance app may be unavailable
+        return names
+
+    if getattr(connection, "schema_name", "public") == "public":
         return names
 
     has_membership = OrganizationMembership.objects.filter(user=user, is_active=True).exists()
@@ -229,6 +230,10 @@ def get_user_organization_memberships(user) -> list[dict]:
     except Exception:  # pragma: no cover - governance app may be unavailable
         return []
 
+    # OrganizationMembership is a TENANT_APP — it does not exist in the public schema.
+    if getattr(connection, "schema_name", "public") == "public":
+        return []
+
     memberships = (
         OrganizationMembership.objects.filter(user=user, is_active=True)
         .order_by("-is_default", "created_at")
@@ -248,19 +253,11 @@ def get_user_organization_memberships(user) -> list[dict]:
 
     payload: list[dict] = []
     for membership in memberships:
-        # Use the explicit organization FK when set (single-schema / test environments).
-        explicit_org = getattr(membership, "organization", None)
-        if explicit_org is not None:
-            organization_id = str(explicit_org.id)
-            organization_code = str(getattr(explicit_org, "code", "") or "")
-            organization_name = str(getattr(explicit_org, "name", "") or "")
-            organization_type = str(getattr(explicit_org, "organization_type", "") or "")
-        else:
-            # Schema-based isolation fallback: membership belongs to the current tenant.
-            organization_id = tenant_id
-            organization_code = tenant_code
-            organization_name = tenant_name
-            organization_type = tenant_org_type
+        # In the django-tenants model the current schema IS the organization.
+        organization_id = tenant_id
+        organization_code = tenant_code
+        organization_name = tenant_name
+        organization_type = tenant_org_type
         payload.append(
             {
                 "id": str(membership.id),
@@ -367,6 +364,9 @@ def get_user_committees(user, *, organization_id: str | None = None) -> list[dic
         from django.db import connection
         from apps.governance.models import CommitteeMembership
     except Exception:  # pragma: no cover - governance app may be unavailable
+        return []
+
+    if getattr(connection, "schema_name", "public") == "public":
         return []
 
     memberships = (

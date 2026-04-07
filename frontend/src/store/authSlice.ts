@@ -23,6 +23,21 @@ import {
 } from "../types";
 import { getApiErrorMessage } from "@/utils/apiError";
 
+// ---------------------------------------------------------------------------
+// Tenant resolution types
+// ---------------------------------------------------------------------------
+
+export interface TenantResolutionResult {
+  login_type: "admin" | "member";
+  schema?: string;
+  organization_slug?: string;
+  organization_name?: string;
+}
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+
 interface AuthState {
   user: User | AdminUser | null;
   tokens: AuthTokens | null;
@@ -46,6 +61,9 @@ interface AuthState {
   twoFactorProvisioningUri: string | null;
   twoFactorExpiresInSeconds: number | null;
   twoFactorMessage: string | null;
+  // Tenant context — set during login flow, cleared on logout
+  organizationSlug: string | null;
+  resolvedLoginType: "admin" | "member" | null;
 }
 
 const initialState: AuthState = {
@@ -71,7 +89,13 @@ const initialState: AuthState = {
   activeOrganization: null,
   activeOrganizationSource: "none",
   invalidRequestedOrganizationId: "",
+  organizationSlug: null,
+  resolvedLoginType: null,
 };
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 const resolveUserType = (
   payload: {
@@ -82,16 +106,13 @@ const resolveUserType = (
   }
 ): AuthState["userType"] => {
   const { user, user_type: payloadType, is_platform_admin } = payload;
-  
-  // 1. Explicit Platform Admin flag from backend (Governance actor summary) or Superuser
+
   if (is_platform_admin === true || user.is_superuser === true) {
     return 'platform_admin';
   }
 
-  // 2. Resolve based on payload hint
   const typeHint = payloadType || (user as { user_type?: string }).user_type;
 
-  // Normalize legacy "admin" alias to the canonical "platform_admin" value.
   if (typeHint === 'admin' || typeHint === 'platform_admin') {
     return 'platform_admin';
   }
@@ -131,13 +152,13 @@ const clearSessionState = (state: AuthState) => {
   state.activeOrganization = null;
   state.activeOrganizationSource = "none";
   state.invalidRequestedOrganizationId = "";
+  state.organizationSlug = null;
+  state.resolvedLoginType = null;
   clearTwoFactorState(state);
 };
 
 const normalizeStringArray = (value: unknown): string[] => {
-  if (!Array.isArray(value)) {
-    return [];
-  }
+  if (!Array.isArray(value)) return [];
   return Array.from(
     new Set(
       value
@@ -149,14 +170,10 @@ const normalizeStringArray = (value: unknown): string[] => {
 };
 
 const normalizeOrganizationSummary = (value: unknown): OrganizationSummary | null => {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
+  if (!value || typeof value !== "object") return null;
   const record = value as Record<string, unknown>;
   const id = String(record.id ?? "").trim();
-  if (!id) {
-    return null;
-  }
+  if (!id) return null;
   return {
     id,
     code: String(record.code ?? "").trim(),
@@ -166,30 +183,22 @@ const normalizeOrganizationSummary = (value: unknown): OrganizationSummary | nul
 };
 
 const normalizeOrganizationSummaryList = (value: unknown): OrganizationSummary[] => {
-  if (!Array.isArray(value)) {
-    return [];
-  }
+  if (!Array.isArray(value)) return [];
   const deduped = new Map<string, OrganizationSummary>();
   for (const item of value) {
     const normalized = normalizeOrganizationSummary(item);
-    if (!normalized) {
-      continue;
-    }
+    if (!normalized) continue;
     deduped.set(normalized.id, normalized);
   }
   return Array.from(deduped.values());
 };
 
 const normalizeOrganizationMembership = (value: unknown): OrganizationMembershipContext | null => {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
+  if (!value || typeof value !== "object") return null;
   const record = value as Record<string, unknown>;
   const id = String(record.id ?? "").trim();
   const organizationId = String(record.organization_id ?? "").trim();
-  if (!id || !organizationId) {
-    return null;
-  }
+  if (!id || !organizationId) return null;
   return {
     id,
     organization_id: organizationId,
@@ -206,30 +215,22 @@ const normalizeOrganizationMembership = (value: unknown): OrganizationMembership
 };
 
 const normalizeOrganizationMembershipList = (value: unknown): OrganizationMembershipContext[] => {
-  if (!Array.isArray(value)) {
-    return [];
-  }
+  if (!Array.isArray(value)) return [];
   const deduped = new Map<string, OrganizationMembershipContext>();
   for (const item of value) {
     const normalized = normalizeOrganizationMembership(item);
-    if (!normalized) {
-      continue;
-    }
+    if (!normalized) continue;
     deduped.set(normalized.id, normalized);
   }
   return Array.from(deduped.values());
 };
 
 const normalizeCommitteeContext = (value: unknown): CommitteeContext | null => {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
+  if (!value || typeof value !== "object") return null;
   const record = value as Record<string, unknown>;
   const id = String(record.id ?? "").trim();
   const committeeId = String(record.committee_id ?? "").trim();
-  if (!id || !committeeId) {
-    return null;
-  }
+  if (!id || !committeeId) return null;
   return {
     id,
     committee_id: committeeId,
@@ -247,22 +248,16 @@ const normalizeCommitteeContext = (value: unknown): CommitteeContext | null => {
 };
 
 const normalizeCommitteeContextList = (value: unknown): CommitteeContext[] => {
-  if (!Array.isArray(value)) {
-    return [];
-  }
+  if (!Array.isArray(value)) return [];
   const deduped = new Map<string, CommitteeContext>();
   for (const item of value) {
     const normalized = normalizeCommitteeContext(item);
-    if (!normalized) {
-      continue;
-    }
+    if (!normalized) continue;
     deduped.set(normalized.id, normalized);
   }
   return Array.from(deduped.values());
 };
 
-// Reusable empty org context — used when a session is established but the
-// profile hasn't been fetched yet (i.e. immediately after login / 2FA verify).
 const EMPTY_ORG_CONTEXT = {
   organizations: [],
   organization_memberships: [],
@@ -303,18 +298,11 @@ const resolveRoles = (payload: {
   user?: User | AdminUser;
 }): string[] => {
   const fromPayload = normalizeStringArray(payload.roles);
-  if (fromPayload.length > 0) {
-    return fromPayload;
-  }
+  if (fromPayload.length > 0) return fromPayload;
   const fromPayloadGroups = normalizeStringArray(payload.group_roles);
-  if (fromPayloadGroups.length > 0) {
-    return fromPayloadGroups;
-  }
-
+  if (fromPayloadGroups.length > 0) return fromPayloadGroups;
   const fromUserRoles = normalizeStringArray((payload.user as (User & { roles?: unknown }) | undefined)?.roles);
-  if (fromUserRoles.length > 0) {
-    return fromUserRoles;
-  }
+  if (fromUserRoles.length > 0) return fromUserRoles;
   return normalizeStringArray((payload.user as (User & { group_roles?: unknown }) | undefined)?.group_roles);
 };
 
@@ -323,12 +311,47 @@ const resolveCapabilities = (payload: {
   user?: User | AdminUser;
 }): string[] => {
   const fromPayload = normalizeStringArray(payload.capabilities);
-  if (fromPayload.length > 0) {
-    return fromPayload;
-  }
+  if (fromPayload.length > 0) return fromPayload;
   return normalizeStringArray((payload.user as (User & { capabilities?: unknown }) | undefined)?.capabilities);
 };
 
+// ---------------------------------------------------------------------------
+// Thunks
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve which tenant/schema an email belongs to.
+ * Called before login to determine the correct endpoint and institution slug.
+ */
+export const resolveTenant = createAsyncThunk<
+  TenantResolutionResult,
+  string,
+  { rejectValue: ApiError }
+>("auth/resolveTenant", async (email, { rejectWithValue }) => {
+  try {
+    // Use fetch directly to avoid the api.ts interceptor injecting a slug
+    // before we know which slug to use.
+    const response = await fetch("/api/v1/auth/resolve-tenant/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.toLowerCase().trim() }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      return rejectWithValue({
+        message: data?.error || "No account found for this email address.",
+      });
+    }
+    return (await response.json()) as TenantResolutionResult;
+  } catch {
+    return rejectWithValue({ message: "Unable to reach the server. Please try again." });
+  }
+});
+
+/**
+ * Login for org members and org admins (tenant schema).
+ * Requires institutionSlug to be set in state first (via resolveTenant).
+ */
 export const login = createAsyncThunk<
   LoginAttemptResponse,
   LoginCredentials,
@@ -341,6 +364,22 @@ export const login = createAsyncThunk<
   }
 });
 
+/**
+ * Login for platform/system admins (public schema).
+ * Does NOT inject X-Organization-Slug — hits public schema directly.
+ */
+export const adminLogin = createAsyncThunk<
+  LoginAttemptResponse,
+  LoginCredentials,
+  { rejectValue: ApiError }
+>("auth/adminLogin", async (credentials, { rejectWithValue }) => {
+  try {
+    return await authService.adminLogin(credentials);
+  } catch (error: unknown) {
+    return rejectWithValue({ message: getApiErrorMessage(error, "Login failed") });
+  }
+});
+
 export const verifyTwoFactor = createAsyncThunk<
   LoginResponse,
   { token: string; otp?: string; backup_code?: string },
@@ -348,6 +387,18 @@ export const verifyTwoFactor = createAsyncThunk<
 >("/auth/login/verify/", async (payload, { rejectWithValue }) => {
   try {
     return await authService.verifyTwoFactor(payload);
+  } catch (error: unknown) {
+    return rejectWithValue({ message: getApiErrorMessage(error, "Two-factor verification failed") });
+  }
+});
+
+export const adminVerifyTwoFactor = createAsyncThunk<
+  LoginResponse,
+  { token: string; otp?: string; backup_code?: string },
+  { rejectValue: ApiError }
+>("auth/adminVerifyTwoFactor", async (payload, { rejectWithValue }) => {
+  try {
+    return await authService.adminVerifyTwoFactor(payload);
   } catch (error: unknown) {
     return rejectWithValue({ message: getApiErrorMessage(error, "Two-factor verification failed") });
   }
@@ -379,20 +430,17 @@ export const logout = createAsyncThunk<
     }
   }
 
-  // Wipe all non-auth slices so a subsequent login cannot see the previous
-  // user's in-memory data (notifications, applications, rubrics, etc.).
+  // Clear organization slug from sessionStorage on logout
+  sessionStorage.removeItem("organization_slug");
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (dispatch as any)({ type: "store/reset" });
 
-  // Flush redux-persist storage so the next page load does not rehydrate
-  // stale profile data or any tokens that may have been written before the
-  // authStorageTransform was in place. Imported dynamically to avoid a
-  // circular dependency (store → authSlice → store).
   try {
     const { persistor } = await import("@/app/store");
     await persistor.purge();
   } catch {
-    // Non-fatal — in-memory session is already cleared above.
+    // Non-fatal
   }
 });
 
@@ -404,7 +452,6 @@ export const fetchProfile = createAsyncThunk<
   if (!getState().auth.tokens?.access) {
     return rejectWithValue({ message: "No token" });
   }
-
   try {
     return await authService.getProfile();
   } catch (error: unknown) {
@@ -441,7 +488,6 @@ export const refreshToken = createAsyncThunk<
   if (!refreshTokenValue) {
     return rejectWithValue({ message: "No refresh token" });
   }
-
   try {
     return await authService.refreshToken(refreshTokenValue);
   } catch (error: unknown) {
@@ -499,6 +545,48 @@ export const requestPasswordReset = createAsyncThunk<
   }
 });
 
+// ---------------------------------------------------------------------------
+// Shared login fulfillment handler (used by both login and adminLogin)
+// ---------------------------------------------------------------------------
+
+const applyLoginFulfilled = (state: AuthState, payload: LoginAttemptResponse) => {
+  state.loading = false;
+
+  if (isTwoFactorChallenge(payload)) {
+    clearSessionState(state);
+    // Re-apply slug after clearSessionState wipes it
+    state.organizationSlug = sessionStorage.getItem("organization_slug");
+    state.resolvedLoginType = sessionStorage.getItem("resolved_login_type") as "admin" | "member" | null;
+    state.twoFactorRequired = true;
+    state.twoFactorToken = payload.token;
+    state.twoFactorSetupRequired = Boolean(payload.setup_required);
+    state.twoFactorProvisioningUri = payload.provisioning_uri ?? null;
+    state.twoFactorExpiresInSeconds = payload.expires_in_seconds ?? null;
+    state.twoFactorMessage = payload.message;
+    state.userType = resolveUserType({
+      user_type: payload.user_type,
+      user: { is_superuser: false, is_staff: false } as unknown as AdminUser,
+    });
+    return;
+  }
+
+  state.user = payload.user;
+  state.tokens = payload.tokens;
+  state.userType = resolveUserType({
+    user_type: payload.user_type,
+    user: payload.user,
+  });
+  state.roles = resolveRoles(payload);
+  state.capabilities = resolveCapabilities(payload);
+  state.isAuthenticated = true;
+  applyOrganizationContext(state, EMPTY_ORG_CONTEXT);
+  clearTwoFactorState(state);
+};
+
+// ---------------------------------------------------------------------------
+// Slice
+// ---------------------------------------------------------------------------
+
 const authSlice = createSlice({
   name: "auth",
   initialState,
@@ -519,44 +607,56 @@ const authSlice = createSlice({
         Object.assign(state.user, action.payload);
       }
     },
+    // Called by LoginForm after resolveTenant succeeds, before login is dispatched
+    setOrganizationSlug: (state, action: PayloadAction<string | null>) => {
+      state.organizationSlug = action.payload;
+      if (action.payload) {
+        sessionStorage.setItem("organization_slug", action.payload);
+      } else {
+        sessionStorage.removeItem("organization_slug");
+      }
+    },
+    setResolvedLoginType: (state, action: PayloadAction<"admin" | "member" | null>) => {
+      state.resolvedLoginType = action.payload;
+      if (action.payload) {
+        sessionStorage.setItem("resolved_login_type", action.payload);
+      } else {
+        sessionStorage.removeItem("resolved_login_type");
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
+      // ── resolveTenant ────────────────────────────────────────────────────
+      .addCase(resolveTenant.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(resolveTenant.fulfilled, (state, action) => {
+        state.loading = false;
+        state.resolvedLoginType = action.payload.login_type;
+        state.organizationSlug = action.payload.organization_slug ?? null;
+        // Persist to sessionStorage so api.ts interceptor can pick it up
+        if (action.payload.organization_slug) {
+          sessionStorage.setItem("organization_slug", action.payload.organization_slug);
+        } else {
+          sessionStorage.removeItem("organization_slug");
+        }
+        sessionStorage.setItem("resolved_login_type", action.payload.login_type);
+      })
+      .addCase(resolveTenant.rejected, (state, action) => {
+        state.loading = false;
+        state.error = (action.payload as ApiError)?.message || "Account not found";
+      })
+
+      // ── login (tenant members) ───────────────────────────────────────────
       .addCase(login.pending, (state) => {
         state.loading = true;
         state.switchingActiveOrganization = false;
         state.error = null;
       })
       .addCase(login.fulfilled, (state, action) => {
-        state.loading = false;
-
-        if (isTwoFactorChallenge(action.payload)) {
-          clearSessionState(state);
-          state.twoFactorRequired = true;
-          state.twoFactorToken = action.payload.token;
-          state.twoFactorSetupRequired = Boolean(action.payload.setup_required);
-          state.twoFactorProvisioningUri = action.payload.provisioning_uri ?? null;
-          state.twoFactorExpiresInSeconds = action.payload.expires_in_seconds ?? null;
-          state.twoFactorMessage = action.payload.message;
-          state.userType = resolveUserType({
-            user_type: action.payload.user_type,
-            // Only type hint is available during 2FA challenge — no full user object yet.
-            user: { is_superuser: false, is_staff: false } as unknown as AdminUser,
-          });
-          return;
-        }
-
-        state.user = action.payload.user;
-        state.tokens = action.payload.tokens;
-        state.userType = resolveUserType({
-          user_type: action.payload.user_type,
-          user: action.payload.user,
-        });
-        state.roles = resolveRoles(action.payload);
-        state.capabilities = resolveCapabilities(action.payload);
-        state.isAuthenticated = true;
-        applyOrganizationContext(state, EMPTY_ORG_CONTEXT);
-        clearTwoFactorState(state);
+        applyLoginFulfilled(state, action.payload);
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
@@ -565,6 +665,23 @@ const authSlice = createSlice({
         state.error = (action.payload as ApiError)?.message || "Login failed";
       })
 
+      // ── adminLogin (platform admins) ─────────────────────────────────────
+      .addCase(adminLogin.pending, (state) => {
+        state.loading = true;
+        state.switchingActiveOrganization = false;
+        state.error = null;
+      })
+      .addCase(adminLogin.fulfilled, (state, action) => {
+        applyLoginFulfilled(state, action.payload);
+      })
+      .addCase(adminLogin.rejected, (state, action) => {
+        state.loading = false;
+        state.switchingActiveOrganization = false;
+        clearSessionState(state);
+        state.error = (action.payload as ApiError)?.message || "Login failed";
+      })
+
+      // ── verifyTwoFactor ──────────────────────────────────────────────────
       .addCase(verifyTwoFactor.pending, (state) => {
         state.loading = true;
         state.switchingActiveOrganization = false;
@@ -590,6 +707,31 @@ const authSlice = createSlice({
         state.error = (action.payload as ApiError)?.message || "Two-factor verification failed";
       })
 
+      // ── adminVerifyTwoFactor ─────────────────────────────────────────────
+      .addCase(adminVerifyTwoFactor.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(adminVerifyTwoFactor.fulfilled, (state, action) => {
+        state.user = action.payload.user;
+        state.tokens = action.payload.tokens;
+        state.userType = resolveUserType({
+          user_type: action.payload.user_type,
+          user: action.payload.user,
+        });
+        state.roles = resolveRoles(action.payload);
+        state.capabilities = resolveCapabilities(action.payload);
+        state.isAuthenticated = true;
+        state.loading = false;
+        applyOrganizationContext(state, EMPTY_ORG_CONTEXT);
+        clearTwoFactorState(state);
+      })
+      .addCase(adminVerifyTwoFactor.rejected, (state, action) => {
+        state.loading = false;
+        state.error = (action.payload as ApiError)?.message || "Two-factor verification failed";
+      })
+
+      // ── register ─────────────────────────────────────────────────────────
       .addCase(register.pending, (state) => {
         state.loading = true;
         state.switchingActiveOrganization = false;
@@ -611,6 +753,7 @@ const authSlice = createSlice({
         state.user = action.payload as User | AdminUser;
       })
 
+      // ── logout ────────────────────────────────────────────────────────────
       .addCase(logout.fulfilled, (state) => {
         clearSessionState(state);
         state.loading = false;
@@ -624,6 +767,7 @@ const authSlice = createSlice({
         state.error = null;
       })
 
+      // ── fetchProfile ──────────────────────────────────────────────────────
       .addCase(fetchProfile.pending, (state) => {
         state.loading = true;
       })
@@ -633,9 +777,7 @@ const authSlice = createSlice({
           user_type: action.payload.user_type,
           user: action.payload.user,
           active_organization: action.payload.active_organization,
-        // `actor.is_platform_admin` is a future governance-summary field not yet in
-        // the ProfileResponse type — omit until the backend ships it.
-        is_platform_admin: undefined,
+          is_platform_admin: undefined,
         });
         state.roles = resolveRoles(action.payload);
         state.capabilities = resolveCapabilities(action.payload);
@@ -650,6 +792,7 @@ const authSlice = createSlice({
         state.error = (action.payload as ApiError)?.message || "Failed to fetch profile";
       })
 
+      // ── switchActiveOrganization ──────────────────────────────────────────
       .addCase(switchActiveOrganization.pending, (state) => {
         state.switchingActiveOrganization = true;
         state.error = null;
@@ -673,6 +816,7 @@ const authSlice = createSlice({
         state.error = (action.payload as ApiError)?.message || "Failed to update active organization";
       })
 
+      // ── refreshToken ──────────────────────────────────────────────────────
       .addCase(refreshToken.fulfilled, (state, action) => {
         state.tokens = action.payload;
         state.isAuthenticated = true;
@@ -684,6 +828,7 @@ const authSlice = createSlice({
         state.error = (action.payload as ApiError)?.message || "Session expired";
       })
 
+      // ── changePassword ────────────────────────────────────────────────────
       .addCase(changePassword.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -696,6 +841,7 @@ const authSlice = createSlice({
         state.error = (action.payload as ApiError)?.message || "Password change failed";
       })
 
+      // ── requestPasswordReset ──────────────────────────────────────────────
       .addCase(requestPasswordReset.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -711,6 +857,7 @@ const authSlice = createSlice({
         state.passwordResetEmailSent = false;
       })
 
+      // ── resetPassword ─────────────────────────────────────────────────────
       .addCase(resetPassword.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -725,11 +872,13 @@ const authSlice = createSlice({
   },
 });
 
-export const { clearError, clearTwoFactorChallenge, resetPasswordStatus, updateUser } = authSlice.actions;
+export const {
+  clearError,
+  clearTwoFactorChallenge,
+  resetPasswordStatus,
+  updateUser,
+  setOrganizationSlug,
+  setResolvedLoginType,
+} = authSlice.actions;
+
 export default authSlice.reducer;
-
-
-
-
-
-

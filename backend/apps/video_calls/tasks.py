@@ -10,13 +10,6 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from apps.video_calls.models import VideoMeeting
-from apps.video_calls.services import (
-    notify_meeting_start_now,
-    notify_meeting_starting_soon,
-    notify_meeting_time_up,
-)
-
 logger = logging.getLogger(__name__)
 
 
@@ -48,24 +41,27 @@ def _compute_next_retry_at(
     return now + timedelta(seconds=backoff_seconds)
 
 
-@shared_task(name="apps.video_calls.tasks.process_video_meeting_reminders")
-def process_video_meeting_reminders() -> dict[str, int]:
-    now = timezone.now()
-    max_lead_minutes = int(getattr(settings, "VIDEO_CALLS_MAX_REMINDER_BEFORE_MINUTES", 120))
-    if max_lead_minutes < 1:
-        max_lead_minutes = 120
-    max_retries = int(getattr(settings, "VIDEO_CALLS_REMINDER_RETRY_MAX_ATTEMPTS", 3))
-    if max_retries < 1:
-        max_retries = 1
-    base_retry_seconds = int(getattr(settings, "VIDEO_CALLS_REMINDER_RETRY_BASE_SECONDS", 60))
-    if base_retry_seconds < 1:
-        base_retry_seconds = 1
-    max_retry_seconds = int(getattr(settings, "VIDEO_CALLS_REMINDER_RETRY_MAX_SECONDS", 900))
-    if max_retry_seconds < base_retry_seconds:
-        max_retry_seconds = base_retry_seconds
+def _process_reminders_for_schema(
+    *,
+    now,
+    soon_cutoff,
+    claim_until,
+    max_retries: int,
+    base_retry_seconds: int,
+    max_retry_seconds: int,
+) -> dict[str, int]:
+    """
+    Runs all video meeting reminder logic for the current DB schema context.
+    Must be called from within a schema_context() block.
+    """
+    # Import here to ensure models are resolved in the correct schema context.
+    from apps.video_calls.models import VideoMeeting
+    from apps.video_calls.services import (
+        notify_meeting_start_now,
+        notify_meeting_starting_soon,
+        notify_meeting_time_up,
+    )
 
-    soon_cutoff = now + timedelta(minutes=max_lead_minutes)
-    claim_until = now + timedelta(seconds=base_retry_seconds)
     stats = {
         "soon": 0,
         "start_now": 0,
@@ -74,6 +70,8 @@ def process_video_meeting_reminders() -> dict[str, int]:
         "start_now_failed": 0,
         "completed_failed": 0,
     }
+
+    # ── 1. Starting-soon reminders ────────────────────────────────────────────
 
     meetings_starting_soon = (
         VideoMeeting.objects.select_related("organizer")
@@ -96,7 +94,6 @@ def process_video_meeting_reminders() -> dict[str, int]:
         if minutes_until_start <= 0 or minutes_until_start > reminder_minutes:
             continue
 
-        # Claim this reminder atomically to avoid duplicate sends from concurrent workers.
         claimed = VideoMeeting.objects.filter(
             id=meeting.id,
             reminder_before_sent_at__isnull=True,
@@ -129,11 +126,7 @@ def process_video_meeting_reminders() -> dict[str, int]:
                 max_retry_seconds=max_retry_seconds,
             )
             _warning_for_notification_failure(
-                "starting_soon",
-                meeting.id,
-                failure_count,
-                max_retries,
-                exc,
+                "starting_soon", meeting.id, failure_count, max_retries, exc,
             )
             VideoMeeting.objects.filter(
                 id=meeting.id,
@@ -149,6 +142,8 @@ def process_video_meeting_reminders() -> dict[str, int]:
             continue
 
         stats["soon"] += 1
+
+    # ── 2. Start-now transition ───────────────────────────────────────────────
 
     start_window = now - timedelta(minutes=1)
     meetings_needing_start_transition = (
@@ -170,6 +165,8 @@ def process_video_meeting_reminders() -> dict[str, int]:
                 continue
             meeting.save(update_fields=["updated_at"])
 
+    # ── 3. Start-now notifications ────────────────────────────────────────────
+
     meetings_start_notifications = (
         VideoMeeting.objects.select_related("organizer")
         .prefetch_related("participants__user")
@@ -184,6 +181,7 @@ def process_video_meeting_reminders() -> dict[str, int]:
             Q(reminder_start_next_retry_at__isnull=True) | Q(reminder_start_next_retry_at__lte=now)
         )
     )
+
     for meeting in meetings_start_notifications:
         claimed = VideoMeeting.objects.filter(
             id=meeting.id,
@@ -198,6 +196,7 @@ def process_video_meeting_reminders() -> dict[str, int]:
         )
         if not claimed:
             continue
+
         try:
             notify_meeting_start_now(meeting)
             VideoMeeting.objects.filter(id=meeting.id).update(
@@ -217,11 +216,7 @@ def process_video_meeting_reminders() -> dict[str, int]:
                 max_retry_seconds=max_retry_seconds,
             )
             _warning_for_notification_failure(
-                "start_now",
-                meeting.id,
-                failure_count,
-                max_retries,
-                exc,
+                "start_now", meeting.id, failure_count, max_retries, exc,
             )
             VideoMeeting.objects.filter(
                 id=meeting.id,
@@ -234,7 +229,10 @@ def process_video_meeting_reminders() -> dict[str, int]:
             )
             stats["start_now_failed"] += 1
             continue
+
         stats["start_now"] += 1
+
+    # ── 4. Complete overdue meetings ──────────────────────────────────────────
 
     meetings_to_complete = (
         VideoMeeting.objects.select_related("organizer")
@@ -244,6 +242,7 @@ def process_video_meeting_reminders() -> dict[str, int]:
             scheduled_end__lte=now,
         )
     )
+
     for meeting in meetings_to_complete:
         try:
             with transaction.atomic():
@@ -252,6 +251,8 @@ def process_video_meeting_reminders() -> dict[str, int]:
                 meeting.mark_completed()
         except ValidationError:
             continue
+
+    # ── 5. Time-up notifications ──────────────────────────────────────────────
 
     meetings_time_up_notifications = (
         VideoMeeting.objects.select_related("organizer")
@@ -266,6 +267,7 @@ def process_video_meeting_reminders() -> dict[str, int]:
             Q(reminder_time_up_next_retry_at__isnull=True) | Q(reminder_time_up_next_retry_at__lte=now)
         )
     )
+
     for meeting in meetings_time_up_notifications:
         claimed = VideoMeeting.objects.filter(
             id=meeting.id,
@@ -280,6 +282,7 @@ def process_video_meeting_reminders() -> dict[str, int]:
         )
         if not claimed:
             continue
+
         try:
             notify_meeting_time_up(meeting)
             VideoMeeting.objects.filter(id=meeting.id).update(
@@ -299,11 +302,7 @@ def process_video_meeting_reminders() -> dict[str, int]:
                 max_retry_seconds=max_retry_seconds,
             )
             _warning_for_notification_failure(
-                "time_up",
-                meeting.id,
-                failure_count,
-                max_retries,
-                exc,
+                "time_up", meeting.id, failure_count, max_retries, exc,
             )
             VideoMeeting.objects.filter(
                 id=meeting.id,
@@ -316,5 +315,74 @@ def process_video_meeting_reminders() -> dict[str, int]:
             )
             stats["completed_failed"] += 1
             continue
+
         stats["completed"] += 1
+
     return stats
+
+
+@shared_task(name="apps.video_calls.tasks.process_video_meeting_reminders")
+def process_video_meeting_reminders() -> dict[str, int]:
+    """
+    Iterates over all active tenant schemas and processes video meeting
+    reminders for each one. The public schema has no video_calls tables
+    so it is always skipped.
+    """
+    from django_tenants.utils import schema_context
+    from apps.tenants.models import Organization
+
+    now = timezone.now()
+
+    max_lead_minutes = int(getattr(settings, "VIDEO_CALLS_MAX_REMINDER_BEFORE_MINUTES", 120))
+    if max_lead_minutes < 1:
+        max_lead_minutes = 120
+    max_retries = int(getattr(settings, "VIDEO_CALLS_REMINDER_RETRY_MAX_ATTEMPTS", 3))
+    if max_retries < 1:
+        max_retries = 1
+    base_retry_seconds = int(getattr(settings, "VIDEO_CALLS_REMINDER_RETRY_BASE_SECONDS", 60))
+    if base_retry_seconds < 1:
+        base_retry_seconds = 1
+    max_retry_seconds = int(getattr(settings, "VIDEO_CALLS_REMINDER_RETRY_MAX_SECONDS", 900))
+    if max_retry_seconds < base_retry_seconds:
+        max_retry_seconds = base_retry_seconds
+
+    soon_cutoff = now + timedelta(minutes=max_lead_minutes)
+    claim_until = now + timedelta(seconds=base_retry_seconds)
+
+    totals: dict[str, int] = {
+        "soon": 0,
+        "start_now": 0,
+        "completed": 0,
+        "soon_failed": 0,
+        "start_now_failed": 0,
+        "completed_failed": 0,
+    }
+
+    tenant_schemas = (
+        Organization.objects.filter(is_active=True)
+        .exclude(schema_name="public")
+        .values_list("schema_name", flat=True)
+    )
+
+    for schema_name in tenant_schemas:
+        try:
+            with schema_context(schema_name):
+                schema_stats = _process_reminders_for_schema(
+                    now=now,
+                    soon_cutoff=soon_cutoff,
+                    claim_until=claim_until,
+                    max_retries=max_retries,
+                    base_retry_seconds=base_retry_seconds,
+                    max_retry_seconds=max_retry_seconds,
+                )
+            for key, value in schema_stats.items():
+                totals[key] += value
+        except Exception as exc:
+            logger.error(
+                "process_video_meeting_reminders failed for schema=%s error=%s",
+                schema_name,
+                f"{exc.__class__.__name__}: {exc}",
+                exc_info=True,
+            )
+
+    return totals
