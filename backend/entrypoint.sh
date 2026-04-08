@@ -13,14 +13,22 @@ if [ "${RUN_INIT:-false}" = "true" ]; then
 
         export DJANGO_SKIP_POST_MIGRATE_SIGNALS=1
 
-        echo "  Step 1a: Running core framework migrations..."
+        echo "  Step 1a: Running core framework migrations (dependency order)..."
+        # Order matters: contenttypes and auth first, then users (creates users_user),
+        # then admin (admin.0001_initial has FK → users_user and will fail if run
+        # before users_user exists), then the remaining framework apps.
         python manage.py migrate_schemas --schema=public contenttypes --noinput
         python manage.py migrate_schemas --schema=public auth --noinput
-        python manage.py migrate_schemas --schema=public sites --noinput
-        python manage.py migrate_schemas --schema=public sessions --noinput
 
         echo "  Step 1b: Running users migration..."
         python manage.py migrate_schemas --schema=public users --noinput
+
+        echo "  Step 1b2: Running admin migration (requires users_user)..."
+        python manage.py migrate_schemas --schema=public admin --noinput
+
+        echo "  Step 1b3: Running remaining framework migrations..."
+        python manage.py migrate_schemas --schema=public sites --noinput
+        python manage.py migrate_schemas --schema=public sessions --noinput
 
         echo "  Step 1c: Running tenants migration..."
         python manage.py migrate_schemas --schema=public tenants --noinput
@@ -60,6 +68,10 @@ ENDSHELL
         echo "✓ Database already initialized, checking for new migrations..."
 
         export DJANGO_SKIP_POST_MIGRATE_SIGNALS=1
+        # Run users before admin to ensure users_user exists before admin.0001_initial
+        # tries to create its FK constraint (this is a no-op if already applied).
+        python manage.py migrate_schemas --schema=public users --noinput
+        python manage.py migrate_schemas --schema=public admin --noinput
         python manage.py migrate_schemas --schema=public --noinput
 
         python manage.py shell << 'ENDSHELL'
