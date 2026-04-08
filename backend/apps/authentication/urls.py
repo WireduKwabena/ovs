@@ -30,9 +30,6 @@ urlpatterns = [
     path('password-reset/', views.password_reset_request_view, name='password_reset'),
     path('password-reset-confirm/', views.password_reset_confirm_view, name='password_reset_confirm'),
 
-    # Tenant resolution — accessible from both tenant and public URL confs
-    path('resolve-tenant/', views.ResolveTenantView.as_view(), name='resolve_tenant'),
-
     # 2FA Management
     path('admin/2fa/setup/', views.two_factor_setup_view, name='admin_2fa_setup'),
     path('admin/2fa/enable/', views.two_factor_enable_view, name='admin_2fa_enable'),

@@ -562,17 +562,21 @@ class ResolveTenantTests(NoThrottleMixin, APITestCase):
     """
     POST /api/v1/auth/resolve-tenant/ — discovers which login flow to use.
 
-    The view searches public schema (admin users) then iterates tenant schemas.
-    In tests everything runs in test_tenant, so admin users created here are
-    found in the public-schema user check (user_type='admin').
+    This is a PUBLIC endpoint: called before the frontend knows which tenant
+    to route to. It lives only in public_urls.py and must be reached via a
+    hostname that doesn't match any tenant domain (so TenantMiddleware falls
+    back to the public schema).  We use SERVER_NAME=public.testserver — that
+    host has no entry in the domain table, triggering the public-schema fallback.
     """
 
     url = "/api/v1/auth/resolve-tenant/"
+    # Hostname unknown to TenantMiddleware → routes to PUBLIC_SCHEMA_URLCONF
+    _public_host = {"SERVER_NAME": "public.testserver"}
 
     def test_admin_user_resolves_to_public(self):
         admin = _make_admin(email="resolve.admin@test.local")
         resp = self.client.post(
-            self.url, {"email": admin.email}, format="json", **_TENANT_HEADER
+            self.url, {"email": admin.email}, format="json", **self._public_host
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
         self.assertEqual(resp.data["login_type"], "admin")
@@ -580,10 +584,10 @@ class ResolveTenantTests(NoThrottleMixin, APITestCase):
 
     def test_unknown_email_returns_404(self):
         resp = self.client.post(
-            self.url, {"email": "nobody@nowhere.local"}, format="json", **_TENANT_HEADER
+            self.url, {"email": "nobody@nowhere.local"}, format="json", **self._public_host
         )
         self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_missing_email_returns_400(self):
-        resp = self.client.post(self.url, {}, format="json", **_TENANT_HEADER)
+        resp = self.client.post(self.url, {}, format="json", **self._public_host)
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
