@@ -228,7 +228,10 @@ export const Navbar: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!isAuthenticated || !canAccessVideoCalls) {
+    // reminder-health is an admin-only endpoint — only poll for platform/system admins.
+    // canAccessVideoCalls is true for all internal workflow roles (vetting, registry, etc.)
+    // and would cause 403s for non-admin users.
+    if (!isAuthenticated || !hasAdminAccess) {
       return;
     }
 
@@ -261,7 +264,7 @@ export const Navbar: React.FC = () => {
       mounted = false;
       window.clearInterval(interval);
     };
-  }, [isAuthenticated, canAccessVideoCalls]);
+  }, [isAuthenticated, hasAdminAccess]);
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
