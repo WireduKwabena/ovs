@@ -140,12 +140,13 @@ if _has_module("django_celery_results"):
     SHARED_APPS.append("django_celery_results")
 if _has_module("drf_spectacular"):
     SHARED_APPS.append("drf_spectacular")
+# token_blacklist lives in the shared (public) schema — its OutstandingToken.user FK
+# points to users_user which is also in public. Keeping it in TENANT_APPS would cause
+# "relation users_user does not exist" when migrations run in a tenant schema.
+if _has_module("rest_framework_simplejwt.token_blacklist"):
+    SHARED_APPS.append("rest_framework_simplejwt.token_blacklist")
 
 TENANT_APPS = (
-    # token_blacklist lives in the shared (public) schema so its FK to auth_user
-    # resolves correctly when there is no per-tenant schema (single-tenant / dev mode).
-    'rest_framework_simplejwt.token_blacklist',
-    # Custom apps (token_blacklist is now in SHARED_APPS for public-schema compatibility)
     "apps.core",
     "apps.admin_dashboard",
     "apps.authentication",
