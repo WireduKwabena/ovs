@@ -32,7 +32,7 @@ class Migration(migrations.Migration):
                 ('is_active', models.BooleanField(default=True)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('created_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='created_questions', to=settings.AUTH_USER_MODEL)),
+                ('created_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='created_questions', to=settings.AUTH_USER_MODEL, db_constraint=False)),
             ],
             options={
                 'verbose_name': 'Interview Question',
@@ -121,7 +121,7 @@ class Migration(migrations.Migration):
                 ('agrees_with_ai', models.BooleanField(help_text='Does reviewer agree with AI evaluation?')),
                 ('ai_override_reason', models.TextField(blank=True, help_text='If disagreeing with AI, explain why')),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('reviewer', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='interview_reviews', to=settings.AUTH_USER_MODEL)),
+                ('reviewer', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='interview_reviews', to=settings.AUTH_USER_MODEL, db_constraint=False)),
                 ('session', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='feedback', to='interviews.interviewsession')),
             ],
             options={

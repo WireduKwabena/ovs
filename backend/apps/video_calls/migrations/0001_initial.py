@@ -34,7 +34,7 @@ class Migration(migrations.Migration):
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('case', models.ForeignKey(blank=True, db_constraint=False, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='video_meetings', to='applications.vettingcase')),
-                ('organizer', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='organized_video_meetings', to=settings.AUTH_USER_MODEL)),
+                ('organizer', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='organized_video_meetings', to=settings.AUTH_USER_MODEL, db_constraint=False)),
             ],
             options={
                 'verbose_name': 'Video Meeting',
@@ -53,7 +53,7 @@ class Migration(migrations.Migration):
                 ('left_at', models.DateTimeField(blank=True, null=True)),
                 ('last_reminded_at', models.DateTimeField(blank=True, null=True)),
                 ('meeting', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='participants', to='video_calls.videomeeting')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='video_meeting_participations', to=settings.AUTH_USER_MODEL)),
+                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='video_meeting_participations', to=settings.AUTH_USER_MODEL, db_constraint=False)),
             ],
             options={
                 'verbose_name': 'Video Meeting Participant',

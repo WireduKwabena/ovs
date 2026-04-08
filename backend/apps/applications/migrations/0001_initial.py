@@ -56,7 +56,7 @@ class Migration(migrations.Migration):
                 ('resolution_notes', models.TextField(blank=True)),
                 ('resolved_at', models.DateTimeField(blank=True, null=True)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('resolved_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='resolved_checks', to=settings.AUTH_USER_MODEL)),
+                ('resolved_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='resolved_checks', to=settings.AUTH_USER_MODEL, db_constraint=False)),
                 ('documents_compared', models.ManyToManyField(related_name='consistency_checks', to='applications.document')),
             ],
             options={
@@ -124,9 +124,9 @@ class Migration(migrations.Migration):
                 ('submitted_at', models.DateTimeField(blank=True, null=True)),
                 ('completed_at', models.DateTimeField(blank=True, null=True)),
                 ('expected_completion_date', models.DateTimeField(blank=True, null=True)),
-                ('applicant', models.ForeignKey(limit_choices_to={'user_type': 'applicant'}, on_delete=django.db.models.deletion.CASCADE, related_name='vetting_cases', to=settings.AUTH_USER_MODEL)),
-                ('assigned_to', models.ForeignKey(blank=True, limit_choices_to={'user_type__in': ['internal', 'admin']}, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='assigned_cases', to=settings.AUTH_USER_MODEL)),
-                ('decided_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='decided_cases', to=settings.AUTH_USER_MODEL)),
+                ('applicant', models.ForeignKey(limit_choices_to={'user_type': 'applicant'}, on_delete=django.db.models.deletion.CASCADE, related_name='vetting_cases', to=settings.AUTH_USER_MODEL, db_constraint=False)),
+                ('assigned_to', models.ForeignKey(blank=True, limit_choices_to={'user_type__in': ['internal', 'admin']}, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='assigned_cases', to=settings.AUTH_USER_MODEL, db_constraint=False)),
+                ('decided_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='decided_cases', to=settings.AUTH_USER_MODEL, db_constraint=False)),
             ],
             options={
                 'verbose_name': 'Vetting Case',
@@ -153,7 +153,7 @@ class Migration(migrations.Migration):
                 ('resolved_at', models.DateTimeField(blank=True, null=True)),
                 ('related_consistency_check', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='generated_flags', to='applications.consistencycheck')),
                 ('related_documents', models.ManyToManyField(blank=True, related_name='flags', to='applications.document')),
-                ('resolved_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='resolved_flags', to=settings.AUTH_USER_MODEL)),
+                ('resolved_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='resolved_flags', to=settings.AUTH_USER_MODEL, db_constraint=False)),
                 ('case', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='interrogation_flags', to='applications.vettingcase')),
             ],
             options={

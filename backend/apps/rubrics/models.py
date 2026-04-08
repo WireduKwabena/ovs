@@ -144,7 +144,8 @@ class VettingRubric(models.Model):
         User,
         on_delete=models.SET_NULL,
         null=True,
-        related_name='created_rubrics'
+        related_name='created_rubrics',
+        db_constraint=False,
     )
     
     created_at = models.DateTimeField(auto_now_add=True)
@@ -402,7 +403,8 @@ class RubricEvaluation(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='conducted_evaluations'
+        related_name='conducted_evaluations',
+        db_constraint=False,
     )
     
     created_at = models.DateTimeField(auto_now_add=True)
@@ -676,6 +678,7 @@ class VettingDecisionRecommendation(models.Model):
         null=True,
         blank=True,
         related_name="generated_vetting_decision_recommendations",
+        db_constraint=False,
     )
     is_latest = models.BooleanField(default=True, db_index=True)
 
@@ -727,6 +730,7 @@ class VettingDecisionOverride(models.Model):
         null=True,
         blank=True,
         related_name="vetting_decision_overrides",
+        db_constraint=False,
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -793,7 +797,8 @@ class CriteriaOverride(models.Model):
         User,
         on_delete=models.SET_NULL,
         null=True,
-        related_name='score_overrides'
+        related_name='score_overrides',
+        db_constraint=False,
     )
     
     created_at = models.DateTimeField(auto_now_add=True)

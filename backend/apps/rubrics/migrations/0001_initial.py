@@ -66,7 +66,7 @@ class Migration(migrations.Migration):
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('case', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='rubric_evaluation', to='applications.vettingcase')),
-                ('evaluated_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='conducted_evaluations', to=settings.AUTH_USER_MODEL)),
+                ('evaluated_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='conducted_evaluations', to=settings.AUTH_USER_MODEL, db_constraint=False)),
             ],
             options={
                 'verbose_name': 'Rubric Evaluation',
@@ -82,7 +82,7 @@ class Migration(migrations.Migration):
                 ('overridden_score', models.FloatField(validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(100)])),
                 ('justification', models.TextField(help_text='Explanation for the override')),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('overridden_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='score_overrides', to=settings.AUTH_USER_MODEL)),
+                ('overridden_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='score_overrides', to=settings.AUTH_USER_MODEL, db_constraint=False)),
                 ('criteria', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='overrides', to='rubrics.rubriccriteria')),
                 ('evaluation', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='overrides', to='rubrics.rubricevaluation')),
             ],
@@ -116,7 +116,7 @@ class Migration(migrations.Migration):
                 ('is_default', models.BooleanField(default=False)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('created_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='created_rubrics', to=settings.AUTH_USER_MODEL)),
+                ('created_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='created_rubrics', to=settings.AUTH_USER_MODEL, db_constraint=False)),
             ],
             options={
                 'verbose_name': 'Vetting Rubric',

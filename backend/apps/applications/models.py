@@ -76,7 +76,8 @@ class VettingCase(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name='vetting_cases',
-        limit_choices_to={'user_type': 'applicant'}
+        limit_choices_to={'user_type': 'applicant'},
+        db_constraint=False,
     )
 
     candidate_enrollment = models.ForeignKey(
@@ -93,7 +94,8 @@ class VettingCase(models.Model):
         null=True,
         blank=True,
         related_name='assigned_cases',
-        limit_choices_to={'user_type__in': ['internal', 'admin']}
+        limit_choices_to={'user_type__in': ['internal', 'admin']},
+        db_constraint=False,
     )
     
     # Case details
@@ -174,7 +176,8 @@ class VettingCase(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='decided_cases'
+        related_name='decided_cases',
+        db_constraint=False,
     )
     decided_at = models.DateTimeField(null=True, blank=True)
     
@@ -586,7 +589,8 @@ class ConsistencyCheck(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='resolved_checks'
+        related_name='resolved_checks',
+        db_constraint=False,
     )
     resolved_at = models.DateTimeField(null=True, blank=True)
     
@@ -726,7 +730,8 @@ class InterrogationFlag(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='resolved_flags'
+        related_name='resolved_flags',
+        db_constraint=False,
     )
     
     # Timestamps
@@ -837,6 +842,7 @@ class VerificationSource(models.Model):
         null=True,
         blank=True,
         related_name="created_verification_sources",
+        db_constraint=False,
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -888,6 +894,7 @@ class VerificationRequest(models.Model):
         null=True,
         blank=True,
         related_name="verification_requests",
+        db_constraint=False,
     )
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending", db_index=True)

@@ -36,6 +36,7 @@ class VideoMeeting(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name="organized_video_meetings",
+        db_constraint=False,
     )
     case = models.ForeignKey(
         VettingCase,
@@ -179,6 +180,7 @@ class VideoMeetingParticipant(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name="video_meeting_participations",
+        db_constraint=False,
     )
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=ROLE_CANDIDATE)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_INVITED, db_index=True)
@@ -257,6 +259,7 @@ class VideoMeetingEvent(models.Model):
         null=True,
         blank=True,
         related_name="video_meeting_events",
+        db_constraint=False,
     )
     action = models.CharField(max_length=32, choices=ACTION_CHOICES)
     scope = models.CharField(max_length=12, choices=SCOPE_CHOICES, default=SCOPE_SINGLE)

@@ -31,7 +31,7 @@ class Migration(migrations.Migration):
                 ('configuration', models.JSONField(blank=True, default=dict)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='created_verification_sources', to=settings.AUTH_USER_MODEL)),
+                ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='created_verification_sources', to=settings.AUTH_USER_MODEL, db_constraint=False)),
                 ('organization', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='verification_sources', to='tenants.organization')),
             ],
             options={
@@ -59,7 +59,7 @@ class Migration(migrations.Migration):
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('case', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='verification_requests', to='applications.vettingcase')),
                 ('organization', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='verification_requests', to='tenants.organization')),
-                ('requested_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='verification_requests', to=settings.AUTH_USER_MODEL)),
+                ('requested_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='verification_requests', to=settings.AUTH_USER_MODEL, db_constraint=False)),
                 ('source', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='verification_requests', to='applications.verificationsource')),
             ],
             options={

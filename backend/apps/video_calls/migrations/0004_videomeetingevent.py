@@ -23,7 +23,7 @@ class Migration(migrations.Migration):
                 ('detail', models.TextField(blank=True)),
                 ('metadata', models.JSONField(blank=True, default=dict)),
                 ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('actor', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='video_meeting_events', to=settings.AUTH_USER_MODEL)),
+                ('actor', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='video_meeting_events', to=settings.AUTH_USER_MODEL, db_constraint=False)),
                 ('meeting', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='events', to='video_calls.videomeeting')),
             ],
             options={

@@ -262,7 +262,8 @@ class InterviewQuestion(models.Model):
         User,
         on_delete=models.SET_NULL,
         null=True,
-        related_name='created_questions'
+        related_name='created_questions',
+        db_constraint=False,
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -585,7 +586,8 @@ class InterviewFeedback(models.Model):
         User,
         on_delete=models.SET_NULL,
         null=True,
-        related_name='interview_reviews'
+        related_name='interview_reviews',
+        db_constraint=False,
     )
     
     # Overall evaluation

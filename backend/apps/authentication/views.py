@@ -540,10 +540,6 @@ def login_view(request):
     External users receive direct JWT tokens.
     Internal operator accounts must complete 2FA challenge before tokens are issued.
     """
-    from django.db import connection
-    
-    print("Schema:", connection.schema_name)
-    print("URLConf:", request.urlconf)
     serializer = LoginSerializer(data=request.data, context={'request': request})
     serializer.is_valid(raise_exception=True)
     user = serializer.validated_data['user']
@@ -584,10 +580,6 @@ def admin_login_view(request):
 
     Always returns a 2FA challenge for successful admin credential checks.
     """
-    from django.db import connection
-    
-    print("Schema:", connection.schema_name)
-    print("URLConf:", request.urlconf)
     serializer = AdminLoginSerializer(data=request.data, context={'request': request})
     serializer.is_valid(raise_exception=True)
     user = serializer.validated_data['user']

@@ -59,6 +59,7 @@ class Migration(migrations.Migration):
                         on_delete=django.db.models.deletion.SET_NULL,
                         related_name="generated_vetting_decision_recommendations",
                         to=settings.AUTH_USER_MODEL,
+                        db_constraint=False,
                     ),
                 ),
                 (
@@ -102,6 +103,7 @@ class Migration(migrations.Migration):
                         on_delete=django.db.models.deletion.SET_NULL,
                         related_name="vetting_decision_overrides",
                         to=settings.AUTH_USER_MODEL,
+                        db_constraint=False,
                     ),
                 ),
                 (

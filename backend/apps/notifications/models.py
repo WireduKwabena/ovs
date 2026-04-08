@@ -130,7 +130,8 @@ class Notification(models.Model):
     recipient = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='notifications'
+        related_name='notifications',
+        db_constraint=False,
     )
 
     template = models.ForeignKey(

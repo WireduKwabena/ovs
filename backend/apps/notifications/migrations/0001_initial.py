@@ -55,7 +55,7 @@ class Migration(migrations.Migration):
                 ('last_triggered_at', models.DateTimeField(blank=True, null=True)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('notify_users', models.ManyToManyField(help_text='Users to notify when rule triggers', related_name='alert_subscriptions', to=settings.AUTH_USER_MODEL)),
+                ('notify_users', models.ManyToManyField(help_text='Users to notify when rule triggers', related_name='alert_subscriptions', to=settings.AUTH_USER_MODEL, db_constraint=False)),
                 ('notification_template', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='alert_rules', to='notifications.notificationtemplate')),
             ],
             options={
@@ -82,7 +82,7 @@ class Migration(migrations.Migration):
                 ('retry_count', models.IntegerField(default=0)),
                 ('metadata', models.JSONField(default=dict, help_text='Additional context data')),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('recipient', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='notifications', to=settings.AUTH_USER_MODEL)),
+                ('recipient', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='notifications', to=settings.AUTH_USER_MODEL, db_constraint=False)),
                 ('related_case', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='notifications', to='applications.vettingcase')),
                 ('related_interview', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='notifications', to='interviews.interviewsession')),
                 ('template', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='sent_notifications', to='notifications.notificationtemplate')),
