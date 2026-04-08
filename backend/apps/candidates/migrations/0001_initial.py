@@ -49,7 +49,7 @@ class Migration(migrations.Migration):
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('campaign', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='enrollments', to='campaigns.vettingcampaign')),
                 ('candidate', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='enrollments', to='candidates.candidate')),
-                ('decision_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='reviewed_candidate_enrollments', to=settings.AUTH_USER_MODEL)),
+                ('decision_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='reviewed_candidate_enrollments', to=settings.AUTH_USER_MODEL, db_constraint=False)),
             ],
             options={
                 'ordering': ['-created_at'],

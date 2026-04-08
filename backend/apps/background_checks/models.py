@@ -69,6 +69,7 @@ class BackgroundCheck(models.Model):
         null=True,
         blank=True,
         related_name="submitted_background_checks",
+        db_constraint=False,
     )
 
     error_code = models.CharField(max_length=100, blank=True)

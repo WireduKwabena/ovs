@@ -89,6 +89,7 @@ class Migration(migrations.Migration):
                         on_delete=django.db.models.deletion.SET_NULL,
                         related_name="published_appointment_records",
                         to=settings.AUTH_USER_MODEL,
+                        db_constraint=False,
                     ),
                 ),
                 (
@@ -99,6 +100,7 @@ class Migration(migrations.Migration):
                         on_delete=django.db.models.deletion.SET_NULL,
                         related_name="revoked_appointment_records",
                         to=settings.AUTH_USER_MODEL,
+                        db_constraint=False,
                     ),
                 ),
             ],

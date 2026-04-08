@@ -35,7 +35,7 @@ class Migration(migrations.Migration):
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('enrollment', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='access_passes', to='candidates.candidateenrollment')),
                 ('invitation', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='access_passes', to='invitations.invitation')),
-                ('issued_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='issued_candidate_access_passes', to=settings.AUTH_USER_MODEL)),
+                ('issued_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='issued_candidate_access_passes', to=settings.AUTH_USER_MODEL, db_constraint=False)),
             ],
             options={
                 'ordering': ['-created_at'],

@@ -15,6 +15,7 @@ class ApprovalStageTemplate(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="created_approval_stage_templates",
+        db_constraint=False,
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -98,6 +99,7 @@ class AppointmentRecord(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="nominations_submitted",
+        db_constraint=False,
     )
     nominated_by_display = models.CharField(max_length=200)
     nominated_by_org = models.CharField(max_length=200, blank=True)
@@ -124,6 +126,7 @@ class AppointmentRecord(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="appointment_decisions",
+        db_constraint=False,
     )
     final_decision_by_display = models.CharField(max_length=200, blank=True)
     appointment_date = models.DateField(null=True, blank=True)
@@ -205,6 +208,7 @@ class AppointmentPublication(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="published_appointment_records",
+        db_constraint=False,
     )
     published_at = models.DateTimeField(null=True, blank=True)
     revoked_by = models.ForeignKey(
@@ -213,6 +217,7 @@ class AppointmentPublication(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="revoked_appointment_records",
+        db_constraint=False,
     )
     revoked_at = models.DateTimeField(null=True, blank=True)
     revocation_reason = models.TextField(blank=True)
@@ -270,6 +275,7 @@ class AppointmentStageAction(models.Model):
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
+        db_constraint=False,
     )
     actor_role = models.CharField(max_length=50)
     action = models.CharField(max_length=20, choices=ACTION_CHOICES)

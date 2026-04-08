@@ -23,6 +23,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.SET_NULL,
                 to=settings.AUTH_USER_MODEL,
+                db_constraint=False,
             ),
         ),
         migrations.AddField(
@@ -33,6 +34,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.SET_NULL,
                 to=settings.AUTH_USER_MODEL,
+                db_constraint=False,
             ),
         ),
         migrations.AddIndex(

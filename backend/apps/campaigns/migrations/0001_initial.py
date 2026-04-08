@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
                 ('settings_json', models.JSONField(blank=True, default=dict)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('initiated_by', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='initiated_campaigns', to=settings.AUTH_USER_MODEL)),
+                ('initiated_by', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='initiated_campaigns', to=settings.AUTH_USER_MODEL, db_constraint=False)),
             ],
             options={
                 'ordering': ['-created_at'],
@@ -49,7 +49,7 @@ class Migration(migrations.Migration):
                 ('rubric_payload', models.JSONField(blank=True, default=dict)),
                 ('is_active', models.BooleanField(db_index=True, default=False)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='created_campaign_rubric_versions', to=settings.AUTH_USER_MODEL)),
+                ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='created_campaign_rubric_versions', to=settings.AUTH_USER_MODEL, db_constraint=False)),
                 ('campaign', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='rubric_versions', to='campaigns.vettingcampaign')),
             ],
             options={

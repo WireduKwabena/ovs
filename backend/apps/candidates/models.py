@@ -98,6 +98,7 @@ class CandidateEnrollment(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="reviewed_candidate_enrollments",
+        db_constraint=False,
     )
     metadata = models.JSONField(default=dict, blank=True)
 

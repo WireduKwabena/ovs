@@ -42,6 +42,7 @@ class Invitation(models.Model):
         null=True,
         blank=True,
         related_name="created_invitations",
+        db_constraint=False,
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -105,6 +106,7 @@ class CandidateAccessPass(models.Model):
         null=True,
         blank=True,
         related_name="issued_candidate_access_passes",
+        db_constraint=False,
     )
     metadata = models.JSONField(default=dict, blank=True)
 

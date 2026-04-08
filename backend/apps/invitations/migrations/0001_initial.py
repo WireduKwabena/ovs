@@ -31,7 +31,7 @@ class Migration(migrations.Migration):
                 ('last_error', models.TextField(blank=True)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='created_invitations', to=settings.AUTH_USER_MODEL)),
+                ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='created_invitations', to=settings.AUTH_USER_MODEL, db_constraint=False)),
                 ('enrollment', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='invitations', to='candidates.candidateenrollment')),
             ],
             options={

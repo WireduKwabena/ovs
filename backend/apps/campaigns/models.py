@@ -60,6 +60,7 @@ class VettingCampaign(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="initiated_campaigns",
+        db_constraint=False,
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -120,6 +121,7 @@ class CampaignRubricVersion(models.Model):
         null=True,
         blank=True,
         related_name="created_campaign_rubric_versions",
+        db_constraint=False,
     )
 
     created_at = models.DateTimeField(auto_now_add=True)

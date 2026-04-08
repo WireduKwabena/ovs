@@ -13,6 +13,7 @@ class OrganizationMembership(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="organization_memberships",
+        db_constraint=False,
     )
     title = models.CharField(max_length=120, blank=True)
     membership_role = models.CharField(max_length=80, blank=True)
@@ -71,6 +72,7 @@ class Committee(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="created_committees",
+        db_constraint=False,
     )
     metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -104,6 +106,7 @@ class CommitteeMembership(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="committee_memberships",
+        db_constraint=False,
     )
     organization_membership = models.ForeignKey(
         OrganizationMembership,

@@ -77,8 +77,8 @@ class Migration(migrations.Migration):
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('appointment_exercise', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='appointment_records', to='campaigns.vettingcampaign')),
-                ('final_decision_by_user', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='appointment_decisions', to=settings.AUTH_USER_MODEL)),
-                ('nominated_by_user', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='nominations_submitted', to=settings.AUTH_USER_MODEL)),
+                ('final_decision_by_user', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='appointment_decisions', to=settings.AUTH_USER_MODEL, db_constraint=False)),
+                ('nominated_by_user', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='nominations_submitted', to=settings.AUTH_USER_MODEL, db_constraint=False)),
             ],
             options={
                 'ordering': ['-created_at'],

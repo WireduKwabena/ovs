@@ -41,7 +41,7 @@ class Migration(migrations.Migration):
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('case', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='background_checks', to='applications.vettingcase')),
-                ('submitted_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='submitted_background_checks', to=settings.AUTH_USER_MODEL)),
+                ('submitted_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='submitted_background_checks', to=settings.AUTH_USER_MODEL, db_constraint=False)),
             ],
             options={
                 'ordering': ['-created_at'],

@@ -25,6 +25,7 @@ class AuditLog(models.Model):
         null=True,
         blank=True,
         related_name="audit_logs",
+        db_constraint=False,
     )
     admin_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -32,6 +33,7 @@ class AuditLog(models.Model):
         null=True,
         blank=True,
         related_name="admin_audit_logs",
+        db_constraint=False,
     )
     action = models.CharField(max_length=20, choices=ACTION_CHOICES, default="other")
     entity_type = models.CharField(max_length=100, blank=True)
