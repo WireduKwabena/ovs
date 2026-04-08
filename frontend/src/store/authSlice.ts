@@ -5,6 +5,11 @@ import {
 } from "@reduxjs/toolkit";
 
 import { authService } from "../services/auth.service";
+
+// Key used to persist the refresh token in sessionStorage so a page refresh
+// doesn't immediately log the user out. sessionStorage is per-tab and cleared
+// when the browser session ends, which is a reasonable security tradeoff.
+export const REFRESH_TOKEN_SESSION_KEY = "auth_refresh_token";
 import {
   type AdminUser,
   type ApiError,
@@ -155,6 +160,7 @@ const clearSessionState = (state: AuthState) => {
   state.organizationSlug = null;
   state.resolvedLoginType = null;
   clearTwoFactorState(state);
+  sessionStorage.removeItem(REFRESH_TOKEN_SESSION_KEY);
 };
 
 const normalizeStringArray = (value: unknown): string[] => {
@@ -495,6 +501,25 @@ export const refreshToken = createAsyncThunk<
   }
 });
 
+// Restores the session after a page refresh by reading the refresh token stored
+// in sessionStorage (put there by every successful login / token-refresh call).
+export const silentRefresh = createAsyncThunk<
+  AuthTokens,
+  void,
+  { rejectValue: ApiError }
+>("auth/silentRefresh", async (_, { rejectWithValue }) => {
+  const storedRefresh = sessionStorage.getItem(REFRESH_TOKEN_SESSION_KEY);
+  if (!storedRefresh) {
+    return rejectWithValue({ message: "No stored refresh token" });
+  }
+  try {
+    return await authService.refreshToken(storedRefresh);
+  } catch (error: unknown) {
+    sessionStorage.removeItem(REFRESH_TOKEN_SESSION_KEY);
+    return rejectWithValue({ message: getApiErrorMessage(error, "Session expired") });
+  }
+});
+
 export const updateUserProfile = createAsyncThunk(
   "/auth/profile/update/",
   async (data: Record<string, unknown>, { rejectWithValue }) => {
@@ -581,6 +606,9 @@ const applyLoginFulfilled = (state: AuthState, payload: LoginAttemptResponse) =>
   state.isAuthenticated = true;
   applyOrganizationContext(state, EMPTY_ORG_CONTEXT);
   clearTwoFactorState(state);
+  if (payload.tokens?.refresh) {
+    sessionStorage.setItem(REFRESH_TOKEN_SESSION_KEY, payload.tokens.refresh);
+  }
 };
 
 // ---------------------------------------------------------------------------
@@ -700,6 +728,9 @@ const authSlice = createSlice({
         state.loading = false;
         applyOrganizationContext(state, EMPTY_ORG_CONTEXT);
         clearTwoFactorState(state);
+        if (action.payload.tokens?.refresh) {
+          sessionStorage.setItem(REFRESH_TOKEN_SESSION_KEY, action.payload.tokens.refresh);
+        }
       })
       .addCase(verifyTwoFactor.rejected, (state, action) => {
         state.loading = false;
@@ -725,6 +756,9 @@ const authSlice = createSlice({
         state.loading = false;
         applyOrganizationContext(state, EMPTY_ORG_CONTEXT);
         clearTwoFactorState(state);
+        if (action.payload.tokens?.refresh) {
+          sessionStorage.setItem(REFRESH_TOKEN_SESSION_KEY, action.payload.tokens.refresh);
+        }
       })
       .addCase(adminVerifyTwoFactor.rejected, (state, action) => {
         state.loading = false;
@@ -820,12 +854,27 @@ const authSlice = createSlice({
       .addCase(refreshToken.fulfilled, (state, action) => {
         state.tokens = action.payload;
         state.isAuthenticated = true;
+        if (action.payload.refresh) {
+          sessionStorage.setItem(REFRESH_TOKEN_SESSION_KEY, action.payload.refresh);
+        }
       })
       .addCase(refreshToken.rejected, (state, action) => {
         state.loading = false;
         state.switchingActiveOrganization = false;
         clearSessionState(state);
         state.error = (action.payload as ApiError)?.message || "Session expired";
+      })
+
+      // ── silentRefresh (page-reload session restore) ────────────────────
+      .addCase(silentRefresh.fulfilled, (state, action) => {
+        state.tokens = action.payload;
+        state.isAuthenticated = true;
+        if (action.payload.refresh) {
+          sessionStorage.setItem(REFRESH_TOKEN_SESSION_KEY, action.payload.refresh);
+        }
+      })
+      .addCase(silentRefresh.rejected, (state) => {
+        clearSessionState(state);
       })
 
       // ── changePassword ────────────────────────────────────────────────────

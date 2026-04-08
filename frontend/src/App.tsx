@@ -13,7 +13,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { UnauthenticatedRoute } from "./components/auth/UnauthenticatedRoute";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
-import { fetchProfile, switchActiveOrganization } from "./store/authSlice";
+import { fetchProfile, silentRefresh, REFRESH_TOKEN_SESSION_KEY, switchActiveOrganization } from "./store/authSlice";
 import { type AppDispatch, type RootState } from "./app/store";
 import {
   APPOINTMENT_ROUTE_CAPABILITIES,
@@ -835,6 +835,18 @@ const App: React.FC = () => {
   );
   const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
   const accessToken = useSelector((state: RootState) => state.auth.tokens?.access);
+
+  // After redux-persist rehydrates, tokens are always cleared (by design, to
+  // avoid storing JWTs in localStorage). If a refresh token was saved to
+  // sessionStorage at login time, use it to silently restore the session so a
+  // page refresh doesn't log the user out.
+  useEffect(() => {
+    if (!isRehydrated || isAuthenticated) return;
+    const storedRefresh = sessionStorage.getItem(REFRESH_TOKEN_SESSION_KEY);
+    if (storedRefresh) {
+      void dispatch(silentRefresh());
+    }
+  }, [dispatch, isRehydrated, isAuthenticated]);
 
   useEffect(() => {
     if (!isRehydrated || !isAuthenticated || !accessToken) {
