@@ -15,14 +15,23 @@ class TenantMiddleware(TenantMainMiddleware):
     '''
 
     def process_request(self, request):
+        from django_tenants.utils import get_tenant_model, get_public_schema_name
+
         # Try subdomain resolution first
         try:
             super().process_request(request)
-            return  # Subdomain resolved — done
         except self.TENANT_NOT_FOUND_EXCEPTION:
             pass  # No domain record — try header fallback
 
-        from django_tenants.utils import get_tenant_model, get_public_schema_name
+        # If subdomain resolved to a real (non-public) tenant, we're done.
+        # If it fell back to the public schema (e.g. localhost), still try the
+        # X-Organization-Slug header so direct API calls can specify a tenant.
+        if (
+            hasattr(request, 'tenant')
+            and request.tenant.schema_name != get_public_schema_name()
+        ):
+            return
+
         # Try X-Organization-Slug header
         slug = request.headers.get('X-Organization-Slug')
         if slug:
