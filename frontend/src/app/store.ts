@@ -2,7 +2,7 @@
 import { configureStore, combineReducers, type Action } from '@reduxjs/toolkit';
 import { persistStore, persistReducer, createTransform, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
 import storage from 'redux-persist/lib/storage';
-import authReducer from '@/store/authSlice';  // Absolute or relative fix
+import authReducer, { REFRESH_TOKEN_SESSION_KEY } from '@/store/authSlice';
 import applicationReducer from '@/store/applicationSlice';
 import notificationReducer from '@/store/notificationSlice';
 import rubricReducer from '@/store/rubricSlice';
@@ -32,15 +32,25 @@ const authStorageTransform = createTransform(
     const { tokens, isAuthenticated, loading, switchingActiveOrganization, silentRefreshPending, ...safeState } = state;
     return safeState;
   },
-  // inbound: what the store receives when rehydrating from localStorage
-  (state: Record<string, unknown>) => ({
-    ...state,
-    tokens: null,
-    isAuthenticated: false,
-    loading: false,
-    switchingActiveOrganization: false,
-    silentRefreshPending: false,
-  }),
+  // inbound: what the store receives when rehydrating from localStorage.
+  // If there is a stored refresh token in sessionStorage we know a
+  // silentRefresh will be dispatched immediately after rehydration.
+  // Setting silentRefreshPending=true HERE (before the first render)
+  // prevents ProtectedRoute from redirecting to /login in that first
+  // render cycle while the refresh is still in-flight.
+  (state: Record<string, unknown>) => {
+    const hasSavedRefreshToken =
+      typeof sessionStorage !== 'undefined' &&
+      Boolean(sessionStorage.getItem(REFRESH_TOKEN_SESSION_KEY));
+    return {
+      ...state,
+      tokens: null,
+      isAuthenticated: false,
+      loading: false,
+      switchingActiveOrganization: false,
+      silentRefreshPending: hasSavedRefreshToken,
+    };
+  },
   { whitelist: ['auth'] },
 );
 
