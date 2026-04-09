@@ -15,14 +15,14 @@ export const UnauthenticatedRoute: React.FC<UnauthenticatedRouteProps> = ({
   children,
   allowTwoFactorChallenge = false,
 }) => {
-  const { isAuthenticated, userType, twoFactorRequired, twoFactorToken } = useSelector(
+  const { isAuthenticated, userType, twoFactorRequired, twoFactorToken, silentRefreshPending } = useSelector(
     (state: RootState) => state.auth,
   );
   const isRehydrated = useSelector((state: RootState) =>
     state._persist ? state._persist.rehydrated : true,
   );
 
-  if (!isRehydrated) {
+  if (!isRehydrated || silentRefreshPending) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center" data-testid="unauth-route-loader">
         <Loader className="h-8 w-8 animate-spin" />

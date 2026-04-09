@@ -29,7 +29,7 @@ const authStorageTransform = createTransform(
   // outbound: what gets written to localStorage
   (state: Record<string, unknown>) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { tokens, isAuthenticated, loading, switchingActiveOrganization, ...safeState } = state;
+    const { tokens, isAuthenticated, loading, switchingActiveOrganization, silentRefreshPending, ...safeState } = state;
     return safeState;
   },
   // inbound: what the store receives when rehydrating from localStorage
@@ -39,6 +39,7 @@ const authStorageTransform = createTransform(
     isAuthenticated: false,
     loading: false,
     switchingActiveOrganization: false,
+    silentRefreshPending: false,
   }),
   { whitelist: ['auth'] },
 );

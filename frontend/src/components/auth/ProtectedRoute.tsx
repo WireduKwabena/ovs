@@ -45,6 +45,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     activeOrganization,
     twoFactorRequired,
     twoFactorToken,
+    silentRefreshPending,
   } = useSelector((state: RootState) => state.auth);
   const location = useLocation();
 
@@ -53,6 +54,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   );
 
   if (!isRehydrated) {
+    return <Loader size="lg" />;
+  }
+
+  // While silentRefresh is in-flight, hold here instead of redirecting to
+  // /login. The session may still be restored from the stored refresh token.
+  if (silentRefreshPending) {
     return <Loader size="lg" />;
   }
 

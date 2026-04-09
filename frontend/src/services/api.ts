@@ -38,6 +38,7 @@ const PUBLIC_SCHEMA_ENDPOINTS = [
   '/auth/admin/2fa/enable/',
   '/auth/register/organization-admin/',
   '/auth/resolve-tenant/',
+  '/auth/token/refresh/',   // JWT tokens are schema-agnostic; refresh runs from public schema
   '/billing/onboarding-token/validate/',
   '/billing/subscriptions/',
   '/billing/health/',

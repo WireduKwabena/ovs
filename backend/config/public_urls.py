@@ -32,6 +32,11 @@ except ModuleNotFoundError:  # pragma: no cover - optional in some setups
 from apps.authentication import views as auth_views
 from apps.billing import views as billing_views
 
+try:
+    from rest_framework_simplejwt.views import TokenRefreshView
+except Exception:  # pragma: no cover - optional dependency
+    TokenRefreshView = None
+
 # ---------------------------------------------------------------------------
 # Helpers — inline path lists to avoid pulling in all of apps.billing.urls
 # ---------------------------------------------------------------------------
@@ -107,12 +112,21 @@ urlpatterns = [
         billing_views.PaystackWebhookAPIView.as_view(),
         name="public_paystack_webhook",
     ),
-    # In public_urls.py
     path(
         "api/v1/auth/resolve-tenant/",
         auth_views.ResolveTenantView.as_view(),
         name="public_resolve_tenant",
     ),
+
+    # Token refresh — must be reachable from the public schema so that platform
+    # admins (who have no org slug and thus no tenant context) can restore their
+    # session after a page refresh. JWT tokens are schema-agnostic; the blacklist
+    # tables live in SHARED_APPS (public schema) and are always accessible here.
+    *([path(
+        "api/v1/auth/token/refresh/",
+        TokenRefreshView.as_view(),
+        name="public_token_refresh",
+    )] if TokenRefreshView else []),
 
     # ------------------------------------------------------------------
     # Legacy unversioned routes — kept for backward compatibility only

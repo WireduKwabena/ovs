@@ -69,6 +69,9 @@ interface AuthState {
   // Tenant context — set during login flow, cleared on logout
   organizationSlug: string | null;
   resolvedLoginType: "admin" | "member" | null;
+  // True while silentRefresh is in-flight; prevents ProtectedRoute from
+  // redirecting to /login before the page-refresh session restore completes.
+  silentRefreshPending: boolean;
 }
 
 const initialState: AuthState = {
@@ -96,6 +99,7 @@ const initialState: AuthState = {
   invalidRequestedOrganizationId: "",
   organizationSlug: null,
   resolvedLoginType: null,
+  silentRefreshPending: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -159,6 +163,7 @@ const clearSessionState = (state: AuthState) => {
   state.invalidRequestedOrganizationId = "";
   state.organizationSlug = null;
   state.resolvedLoginType = null;
+  state.silentRefreshPending = false;
   clearTwoFactorState(state);
   sessionStorage.removeItem(REFRESH_TOKEN_SESSION_KEY);
 };
@@ -822,7 +827,11 @@ const authSlice = createSlice({
       })
       .addCase(fetchProfile.rejected, (state, action) => {
         state.loading = false;
-        clearSessionState(state);
+        // Do NOT clear the session here. Genuine 401 failures are already
+        // handled by the api.ts response interceptor, which dispatches logout()
+        // after a failed token refresh. Clearing the session on other failures
+        // (500, network errors, schema issues) would permanently log the user
+        // out even though their tokens are still valid.
         state.error = (action.payload as ApiError)?.message || "Failed to fetch profile";
       })
 
@@ -866,15 +875,19 @@ const authSlice = createSlice({
       })
 
       // ── silentRefresh (page-reload session restore) ────────────────────
+      .addCase(silentRefresh.pending, (state) => {
+        state.silentRefreshPending = true;
+      })
       .addCase(silentRefresh.fulfilled, (state, action) => {
         state.tokens = action.payload;
         state.isAuthenticated = true;
+        state.silentRefreshPending = false;
         if (action.payload.refresh) {
           sessionStorage.setItem(REFRESH_TOKEN_SESSION_KEY, action.payload.refresh);
         }
       })
       .addCase(silentRefresh.rejected, (state) => {
-        clearSessionState(state);
+        clearSessionState(state); // also sets silentRefreshPending = false
       })
 
       // ── changePassword ────────────────────────────────────────────────────

@@ -55,6 +55,7 @@ const selectNotificationsState = (state: RootState) => state.notifications;
 const selectUserData = createSelector([selectAuthState], (auth) => ({
   user: auth.user,
   isAuthenticated: auth.isAuthenticated,
+  accessToken: auth.tokens?.access ?? null,
   userType: auth.userType,
   roles: auth.roles ?? [],
   capabilities: auth.capabilities ?? [],
@@ -134,7 +135,7 @@ export const Navbar: React.FC = () => {
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const mobileDrawerRef = useRef<HTMLDivElement>(null);
 
-  const { user, isAuthenticated, userType, roles, capabilities } =
+  const { user, isAuthenticated, accessToken, userType, roles, capabilities } =
     useSelector(selectUserData);
   const unreadCount = useSelector(selectUnreadCount);
 
@@ -187,10 +188,10 @@ export const Navbar: React.FC = () => {
   };
 
   useEffect(() => {
-    if (isAuthenticated && canAccessNotifications) {
+    if (isAuthenticated && accessToken && canAccessNotifications) {
       dispatch(fetchNotifications());
     }
-  }, [canAccessNotifications, dispatch, isAuthenticated]);
+  }, [accessToken, canAccessNotifications, dispatch, isAuthenticated]);
 
   const applyReminderHealthPayload = (payload: VideoMeetingReminderHealth) => {
     const hasRetryIssues =
