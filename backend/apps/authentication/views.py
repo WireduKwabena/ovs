@@ -297,36 +297,48 @@ class ResolveTenantView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # ── 1. Check public schema for platform admins ────────────────────
-        # Users with user_type='admin' or is_superuser always authenticate
-        # against the public schema regardless of org membership.
+        # ── 1. Look up user in the public schema ──────────────────────────
+        # All users live in the public schema (users is a SHARED_APP).
+        # Platform admins (user_type='admin' or is_superuser) always
+        # authenticate against the public schema regardless of org membership.
         from apps.users.models import User
 
         try:
             user = User.objects.get(email=email)
-            if user.user_type == "admin" or user.is_superuser:
-                return Response(
-                    {
-                        "login_type": "admin",
-                        "schema": "public",
-                        "organization_name": "Platform Administration",
-                    }
-                )
         except User.DoesNotExist:
-            pass
+            return Response(
+                {"error": "No account found for this email address."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if user.user_type == "admin" or user.is_superuser:
+            return Response(
+                {
+                    "login_type": "admin",
+                    "schema": "public",
+                    "organization_name": "Platform Administration",
+                }
+            )
 
         # ── 2. Search tenant schemas ──────────────────────────────────────
-        # Iterate over all active organizations and check each tenant schema
-        # for a user with this email.
+        # Look for an active OrganizationMembership in each tenant schema.
+        # We must use OrganizationMembership (a TENANT_APP) rather than User
+        # (a SHARED_APP in the public schema) because User.objects.filter()
+        # returns results from the public schema in every schema context,
+        # making every org appear to contain the user.
         from apps.tenants.models import Organization
         from django_tenants.utils import schema_context
+
+        from apps.governance.models import OrganizationMembership
 
         for org in Organization.objects.filter(
             is_active=True
         ).exclude(schema_name="public").order_by("name"):
             try:
                 with schema_context(org.schema_name):
-                    if User.objects.filter(email=email).exists():
+                    if OrganizationMembership.objects.filter(
+                        user_id=user.pk, is_active=True
+                    ).exists():
                         return Response(
                             {
                                 "login_type": "member",
@@ -339,9 +351,9 @@ class ResolveTenantView(APIView):
                 # Skip schemas that are broken or mid-migration
                 continue
 
-        # ── 3. Not found ──────────────────────────────────────────────────
+        # ── 3. User exists but has no active membership in any tenant ────────
         return Response(
-            {"error": "No account found for this email address."},
+            {"error": "No active organization membership found for this email address."},
             status=status.HTTP_404_NOT_FOUND,
         )
 

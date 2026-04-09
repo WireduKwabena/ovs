@@ -237,6 +237,13 @@ except ImportError:  # pragma: no cover - optional in local/dev
 
 # Custom User Model
 AUTH_USER_MODEL = 'users.User'
+
+# Authentication backends — use unscoped lookups for credential / token validation.
+# TenantAwareUserManager (User.objects) restricts queries to tenant members, which
+# is correct for view-layer code but must NOT be applied during identity verification.
+AUTHENTICATION_BACKENDS = [
+    'apps.authentication.backends.AllUsersModelBackend',
+]
 AUTH_PUBLIC_REGISTRATION_ENABLED = env_bool('AUTH_PUBLIC_REGISTRATION_ENABLED', default=False)
 AUTH_TWO_FACTOR_CHALLENGE_TTL_SECONDS = config(
     'AUTH_TWO_FACTOR_CHALLENGE_TTL_SECONDS',
@@ -308,8 +315,10 @@ default_authentication_classes = [
     "rest_framework.authentication.SessionAuthentication",
 ]
 if _has_module("rest_framework_simplejwt"):
+    # AllUsersJWTAuthentication resolves users via User.all_objects so that JWT
+    # validation is never blocked by the TenantAwareUserManager membership filter.
     default_authentication_classes.insert(
-        0, "rest_framework_simplejwt.authentication.JWTAuthentication"
+        0, "apps.authentication.backends.AllUsersJWTAuthentication"
     )
 default_filter_backends = [
     "rest_framework.filters.SearchFilter",

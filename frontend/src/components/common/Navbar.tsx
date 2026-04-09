@@ -392,13 +392,6 @@ export const Navbar: React.FC = () => {
     (user as User | null)?.profile_picture_url ||
     (user as User | null)?.avatar_url ||
     "";
-  const roleSummary = hasAdminAccess
-    ? "Platform Admin"
-    : isApplicantUser
-      ? "Invited Candidate"
-      : canManageActiveOrganizationGovernance
-        ? "Organization Governance"
-        : "Internal Operations";
   const canManageTwoFactor = !isApplicantUser;
 
   const reminderStatusMeta: Record<
@@ -847,16 +840,6 @@ export const Navbar: React.FC = () => {
                   {(user as User | null)?.email || "Signed in"}
                 </p>
               </div>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
-                {roleSummary}
-              </span>
-              {canShowOrganizationContext ? (
-                <span className="inline-flex items-center rounded-full border border-border/70 bg-muted/70 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                  Scoped Access
-                </span>
-              ) : null}
             </div>
             {canShowOrganizationContext ? (
               <div className="mt-4">

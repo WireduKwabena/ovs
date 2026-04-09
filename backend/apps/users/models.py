@@ -55,13 +55,51 @@ class CustomUserManager(BaseUserManager):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('user_type', 'admin')
-        
+
         if extra_fields.get('is_staff') is not True:
             raise ValueError(_('Superuser must have is_staff=True'))
         if extra_fields.get('is_superuser') is not True:
             raise ValueError(_('Superuser must have is_superuser=True'))
-        
+
         return self.create_user(email, password, **extra_fields)
+
+
+class TenantAwareUserManager(CustomUserManager):
+    """
+    Tenant-scoped user manager.
+
+    In a tenant schema context every queryset is automatically restricted to
+    users who have an active OrganizationMembership in the current tenant,
+    preventing accidental cross-tenant user exposure.
+
+    In the public schema (platform-admin context) no filter is applied and all
+    users remain visible, preserving existing superuser / admin behaviour.
+
+    Use ``User.all_objects`` when you explicitly need to bypass this scoping
+    (e.g. management commands that must iterate over all users platform-wide).
+    """
+
+    def get_queryset(self):
+        from django_tenants.utils import get_public_schema_name
+
+        qs = super().get_queryset()
+
+        # Public schema — no restriction; platform admins see everything.
+        if connection.schema_name == get_public_schema_name():
+            return qs
+
+        # Tenant context — restrict to users with an active membership here.
+        # The import is deferred to avoid a circular import cycle:
+        #   users.models → governance.models → users.models
+        try:
+            from apps.governance.models import OrganizationMembership
+        except ImportError:  # pragma: no cover — governance app not installed
+            return qs
+
+        member_ids = OrganizationMembership.objects.filter(
+            is_active=True
+        ).values("user_id")
+        return qs.filter(pk__in=member_ids)
 
 
 class User(AbstractUser):
@@ -127,8 +165,16 @@ class User(AbstractUser):
     updated_at = models.DateTimeField(auto_now=True)
     last_login_ip = models.GenericIPAddressField(null=True, blank=True)
     
-    objects = CustomUserManager()
-    
+    # Tenant-scoped default manager: in a tenant context, only users with an
+    # active OrganizationMembership in the current tenant are returned.
+    # In the public schema, all users are returned (no restriction).
+    objects = TenantAwareUserManager()
+
+    # Unscoped manager — bypasses tenant filtering intentionally.
+    # Use only when cross-tenant visibility is explicitly required, e.g. in
+    # management commands, the resolve-tenant view, or platform-admin tooling.
+    all_objects = CustomUserManager()
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'last_name']
     

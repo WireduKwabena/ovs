@@ -64,7 +64,8 @@ CORS_ALLOW_HEADERS = [
     "user-agent",
     "x-csrftoken",
     "x-requested-with",
-    "x-organization-slug",  # your tenant header
+    "x-organization-slug",        # tenant routing
+    "x-active-organization-id",   # org-scoped API context
 ]
 
 # Django Debug Toolbar (optional)
