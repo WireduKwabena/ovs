@@ -473,8 +473,11 @@ export const fetchProfile = createAsyncThunk<
 export const switchActiveOrganization = createAsyncThunk<
   ProfileResponse,
   string | null,
-  { rejectValue: ApiError }
->("/auth/profile/active-organization/", async (organizationId, { rejectWithValue }) => {
+  { rejectValue: ApiError; state: { auth: AuthState } }
+>("/auth/profile/active-organization/", async (organizationId, { getState, rejectWithValue }) => {
+  if (!getState().auth.tokens?.access) {
+    return rejectWithValue({ message: "No token" });
+  }
   try {
     await authService.setActiveOrganization({
       organization_id: organizationId,
@@ -506,6 +509,15 @@ export const refreshToken = createAsyncThunk<
   }
 });
 
+// Module-level deduplication flag.  React 18 StrictMode double-invokes effects,
+// which would dispatch silentRefresh twice with the same refresh token.  With
+// ROTATE_REFRESH_TOKENS=True that blacklists the token on the first call, causing
+// the second call to get a 401 and wipe the freshly-restored session.
+// Setting this flag synchronously (before the first await) means the condition()
+// check on any concurrent dispatch sees it immediately and skips silently — no
+// Redux actions are dispatched, so no clearSessionState side-effect occurs.
+let _silentRefreshInFlight = false;
+
 // Restores the session after a page refresh by reading the refresh token stored
 // in sessionStorage (put there by every successful login / token-refresh call).
 export const silentRefresh = createAsyncThunk<
@@ -517,12 +529,22 @@ export const silentRefresh = createAsyncThunk<
   if (!storedRefresh) {
     return rejectWithValue({ message: "No stored refresh token" });
   }
+  // Set the in-flight flag synchronously before the first await so any
+  // concurrent dispatch (e.g. StrictMode's second effect invocation) is
+  // blocked by the condition() check before it can start its own HTTP call.
+  _silentRefreshInFlight = true;
   try {
     return await authService.refreshToken(storedRefresh);
   } catch (error: unknown) {
     sessionStorage.removeItem(REFRESH_TOKEN_SESSION_KEY);
     return rejectWithValue({ message: getApiErrorMessage(error, "Session expired") });
+  } finally {
+    _silentRefreshInFlight = false;
   }
+}, {
+  // When condition() returns false, RTK dispatches NO actions at all (no pending,
+  // no rejected) — the duplicate call vanishes without any store side-effects.
+  condition: () => !_silentRefreshInFlight,
 });
 
 export const updateUserProfile = createAsyncThunk(
@@ -823,10 +845,18 @@ const authSlice = createSlice({
         applyOrganizationContext(state, action.payload);
         state.isAuthenticated = true;
         state.loading = false;
+        // Clear silentRefreshPending here — if a page-refresh restore was in
+        // progress (silentRefresh succeeded but left this flag true so that
+        // OrganizationScopedRoute stayed blocked), the full sequence is now
+        // done and the route guard can proceed with correct activeOrganization.
+        state.silentRefreshPending = false;
         clearTwoFactorState(state);
       })
       .addCase(fetchProfile.rejected, (state, action) => {
         state.loading = false;
+        // Also clear silentRefreshPending so the app doesn't get stuck in a
+        // loading state if the profile fetch fails after silentRefresh succeeded.
+        state.silentRefreshPending = false;
         // Do NOT clear the session here. Genuine 401 failures are already
         // handled by the api.ts response interceptor, which dispatches logout()
         // after a failed token refresh. Clearing the session on other failures
@@ -881,7 +911,11 @@ const authSlice = createSlice({
       .addCase(silentRefresh.fulfilled, (state, action) => {
         state.tokens = action.payload;
         state.isAuthenticated = true;
-        state.silentRefreshPending = false;
+        // Do NOT clear silentRefreshPending here. AppBootstrap immediately
+        // dispatches fetchProfile() after silentRefresh succeeds, and we want
+        // OrganizationScopedRoute to stay blocked (via its silentRefreshPending
+        // guard) until activeOrganization is updated from the server.
+        // silentRefreshPending is cleared by fetchProfile.fulfilled / rejected.
         if (action.payload.refresh) {
           sessionStorage.setItem(REFRESH_TOKEN_SESSION_KEY, action.payload.refresh);
         }

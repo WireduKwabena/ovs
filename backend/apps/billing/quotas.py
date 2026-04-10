@@ -230,16 +230,44 @@ def _active_subscription_for_queryset(queryset) -> BillingSubscription | None:
     return None
 
 
+def _trial_subscription_for_tenant() -> BillingSubscription | None:
+    """Return an unsaved synthetic BillingSubscription for trial-tier tenants.
+
+    When an Organization has ``tier='trial'`` but no BillingSubscription record
+    yet exists, the quota system would otherwise block all operations with
+    ``subscription_required``.  This helper synthesises a virtual subscription
+    so that trial orgs receive their configured (small) limits immediately upon
+    creation, with no payment step required.
+    """
+    try:
+        tenant = connection.tenant
+    except Exception:
+        return None
+    tier = getattr(tenant, "tier", None)
+    if tier != "trial":
+        return None
+    sub = BillingSubscription(
+        plan_id="trial",
+        plan_name="Trial",
+        status="complete",
+        payment_status="no_payment_required",
+    )
+    return sub
+
+
 def _active_subscription_for_scope(*, emails: list[str], organization_id: str | None = None) -> BillingSubscription | None:
     # organization_id param kept for API compatibility; schema isolation handles tenant scoping.
     qs = BillingSubscription.objects.all()
     if qs.exists():
         return _active_subscription_for_queryset(qs)
     if not emails:
-        return None
-    return _active_subscription_for_queryset(
+        return _trial_subscription_for_tenant()
+    result = _active_subscription_for_queryset(
         BillingSubscription.objects.filter(registration_consumed_by_email__in=emails)
     )
+    if result is None:
+        return _trial_subscription_for_tenant()
+    return result
 
 
 def _metadata_datetime(metadata: dict, key: str):
@@ -308,6 +336,7 @@ def _plan_candidate_limit(plan_id: str | None) -> int | None:
     normalized_plan = str(plan_id or "").strip().lower()
     default_limit = int(getattr(settings, "BILLING_PLAN_DEFAULT_CANDIDATES_PER_MONTH", 0))
     plan_limits = {
+        "trial": int(getattr(settings, "BILLING_PLAN_TRIAL_CANDIDATES_PER_MONTH", 15)),
         "starter": int(getattr(settings, "BILLING_PLAN_STARTER_CANDIDATES_PER_MONTH", 150)),
         "growth": int(getattr(settings, "BILLING_PLAN_GROWTH_CANDIDATES_PER_MONTH", 600)),
         "enterprise": int(getattr(settings, "BILLING_PLAN_ENTERPRISE_CANDIDATES_PER_MONTH", 0)),
@@ -323,6 +352,7 @@ def _plan_organization_seat_limit(plan_id: str | None) -> int | None:
     normalized_plan = str(plan_id or "").strip().lower()
     default_limit = int(getattr(settings, "BILLING_PLAN_DEFAULT_ORG_SEATS", 0))
     plan_limits = {
+        "trial": int(getattr(settings, "BILLING_PLAN_TRIAL_ORG_SEATS", 5)),
         "starter": int(getattr(settings, "BILLING_PLAN_STARTER_ORG_SEATS", 25)),
         "growth": int(getattr(settings, "BILLING_PLAN_GROWTH_ORG_SEATS", 100)),
         "enterprise": int(getattr(settings, "BILLING_PLAN_ENTERPRISE_ORG_SEATS", 0)),
@@ -692,7 +722,7 @@ def _plan_vetting_operation_limit(plan_id: str | None, operation: str) -> int | 
     if normalized_operation not in VETTING_OPERATION_KEYS:
         return None
 
-    if normalized_plan in {"starter", "growth", "enterprise"}:
+    if normalized_plan in {"trial", "starter", "growth", "enterprise"}:
         plan_prefix = normalized_plan.upper()
     else:
         plan_prefix = "DEFAULT"

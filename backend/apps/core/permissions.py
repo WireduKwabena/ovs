@@ -220,6 +220,7 @@ def _build_active_organization_context(request) -> dict:
                 "code": str(membership.get("organization_code") or ""),
                 "name": str(membership.get("organization_name") or ""),
                 "organization_type": str(membership.get("organization_type") or ""),
+                "tier": str(membership.get("tier") or ""),
             }
         )
 

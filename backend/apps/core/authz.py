@@ -245,11 +245,13 @@ def get_user_organization_memberships(user) -> list[dict]:
         tenant_code = str(tenant.code or "")
         tenant_name = str(tenant.name or "")
         tenant_org_type = str(getattr(tenant, "organization_type", "") or "")
+        tenant_tier = str(getattr(tenant, "tier", "") or "")
     except Exception:
         tenant_id = ""
         tenant_code = ""
         tenant_name = ""
         tenant_org_type = ""
+        tenant_tier = ""
 
     payload: list[dict] = []
     for membership in memberships:
@@ -265,6 +267,7 @@ def get_user_organization_memberships(user) -> list[dict]:
                 "organization_code": organization_code,
                 "organization_name": organization_name,
                 "organization_type": organization_type,
+                "tier": tenant_tier,
                 "title": str(membership.title or ""),
                 "membership_role": str(membership.membership_role or ""),
                 "is_default": bool(membership.is_default),
@@ -287,6 +290,7 @@ def get_user_default_organization(user) -> dict | None:
         "code": selected["organization_code"],
         "name": selected["organization_name"],
         "organization_type": selected["organization_type"],
+        "tier": selected.get("tier", ""),
         "membership_id": selected["id"],
         "membership_role": selected["membership_role"],
         "is_default_membership": bool(selected.get("is_default")),
@@ -305,6 +309,7 @@ def get_user_organization_by_id(user, organization_id) -> dict | None:
             "code": membership["organization_code"],
             "name": membership["organization_name"],
             "organization_type": membership["organization_type"],
+            "tier": membership.get("tier", ""),
             "membership_id": membership["id"],
             "membership_role": membership["membership_role"],
             "is_default_membership": bool(membership.get("is_default")),

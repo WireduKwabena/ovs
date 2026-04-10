@@ -29,6 +29,7 @@ export interface OrganizationSummary {
   code: string;
   name: string;
   organization_type: string;
+  tier?: string;
 }
 
 export interface OrganizationMembershipContext {

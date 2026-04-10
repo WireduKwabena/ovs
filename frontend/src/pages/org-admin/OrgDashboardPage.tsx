@@ -12,6 +12,7 @@ import {
   Clock,
   AlertTriangle,
   ExternalLink,
+  Sparkles,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -161,6 +162,30 @@ const OrgDashboardPage: React.FC = () => {
                 </Link>
               </div>
             </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Trial Plan Banner */}
+      {activeOrganization?.tier === "trial" && !sub && (
+        <Card className="p-5 rounded-2xl border-amber-400/40 bg-amber-400/5 shadow-sm">
+          <div className="flex items-start gap-4">
+            <Sparkles className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-bold text-amber-700">You&apos;re on the Trial Plan</h3>
+              <p className="text-xs text-amber-600 mt-1">
+                Trial includes up to 15 candidates per month and 5 organization seats.
+                Upgrade to a paid plan to unlock higher limits and full platform access.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 border-amber-400 text-amber-700 hover:bg-amber-50"
+              onClick={() => navigate("/subscribe")}
+            >
+              Upgrade Plan
+            </Button>
           </div>
         </Card>
       )}

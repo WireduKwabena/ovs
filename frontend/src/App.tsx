@@ -233,6 +233,9 @@ const OrganizationScopedRoute: React.FC<{ children: React.ReactNode }> = ({ chil
   const location = useLocation();
   const { orgId } = useParams<{ orgId: string }>();
   const userType = useSelector((state: RootState) => state.auth.userType);
+  const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
+  const silentRefreshPending = useSelector((state: RootState) => state.auth.silentRefreshPending);
+  const hasAccessToken = useSelector((state: RootState) => Boolean(state.auth.tokens?.access));
   const activeOrganizationId = useSelector((state: RootState) =>
     String(state.auth.activeOrganization?.id || "").trim(),
   );
@@ -249,7 +252,10 @@ const OrganizationScopedRoute: React.FC<{ children: React.ReactNode }> = ({ chil
       !normalizedOrganizationId ||
       normalizedOrganizationId === activeOrganizationId ||
       switchingActiveOrganization ||
-      attemptedOrganizationIdRef.current === normalizedOrganizationId
+      attemptedOrganizationIdRef.current === normalizedOrganizationId ||
+      !isAuthenticated ||
+      silentRefreshPending ||
+      !hasAccessToken
     ) {
       return;
     }
@@ -266,7 +272,7 @@ const OrganizationScopedRoute: React.FC<{ children: React.ReactNode }> = ({ chil
     return () => {
       isSubscribed = false;
     };
-  }, [activeOrganizationId, dispatch, forceAttemptSyncRender, normalizedOrganizationId, switchingActiveOrganization]);
+  }, [activeOrganizationId, dispatch, forceAttemptSyncRender, hasAccessToken, isAuthenticated, normalizedOrganizationId, silentRefreshPending, switchingActiveOrganization]);
 
   const routePath = `${location.pathname}${location.search || ""}`;
   const setupRedirectPath = getOrganizationSetupPath(routePath);

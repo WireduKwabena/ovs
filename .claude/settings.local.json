@@ -4,7 +4,28 @@
       "Bash(ls frontend/src/pages/admin/*.tsx)",
       "Bash(find:*)",
       "Bash(cd:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(python manage.py test apps.authentication.tests --keepdb -v 2)",
+      "Bash(docker exec:*)",
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/auth/resolve-tenant/ -H 'Content-Type: application/json' -H 'Host: public.localhost' -d '{\"email\": \"gams.vetting@demo.local\"}')",
+      "Bash(python -m json.tool)",
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/auth/login/ -H 'Content-Type: application/json' -H 'X-Organization-Slug: public-service-commission' -d '{\"email\": \"gams.vetting@demo.local\", \"password\": \"DemoVetting123!\"}')",
+      "Bash(curl -sv -X POST http://localhost:8000/api/v1/auth/login/ -H 'Content-Type: application/json' -H 'X-Organization-Slug: public-service-commission' -d '{\"email\": \"gams.vetting@demo.local\", \"password\": \"DemoVetting123!\"}')",
+      "Bash(xargs grep:*)",
+      "Bash(docker restart:*)",
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/auth/login/verify/ -H 'Content-Type: application/json' -H 'X-Organization-Slug: public-service-commission' -d '{\"token\": \"eyJlbWFpbCI6ImdhbXMudmV0dGluZ0BkZW1vLmxvY2FsIiwibm9uY2UiOiJYQ2ZNUVFRazJpbFpRYVVFRjhrNmhnIiwicHVycG9zZSI6ImxvZ2luXzJmYSJ9:1wAT9e:_W_8IEqizio6J4Dl-E_iyGIU3zWzQEtu1N24Fg6vSUk\", \"otp\": \"__TRACKED_VAR__\"}')",
+      "Bash(curl -s http://localhost:8000/api/v1/auth/profile/ -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzc1NjU5Mjk1LCJpYXQiOjE3NzU2NTU2OTUsImp0aSI6IjMzYTZlMWMxYWY2NDRkZjNiMjM0NmE3OTlmMzM4Njk4IiwidXNlcl9pZCI6ImJmMDI4NjViLTI4ODItNGYwZi1hMTBiLWJmYjFiNGNiMmY2YSIsInJlY2VudF9hdXRoX2F0IjoxNzc1NjU1Njk1fQ.QlzpKK83oa4DFfaMYcuLPRjwdwGPSK9zWMmlhrvY1L0' -H 'X-Organization-Slug: public-service-commission')",
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/auth/logout/ -H 'Content-Type: application/json' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzc1NjU5NDg0LCJpYXQiOjE3NzU2NTU4ODQsImp0aSI6IjUxYmIyMDQ0N2Y0MDQ4Nzk4ZTQwMWZkYzQ3ZjNlMTcyIiwidXNlcl9pZCI6ImJmMDI4NjViLTI4ODItNGYwZi1hMTBiLWJmYjFiNGNiMmY2YSIsInJlY2VudF9hdXRoX2F0IjoxNzc1NjU1Njk1fQ.etbul0nweGD994mrvV6oivBbRS0EBEwBUjJyrzOKxU4' -H 'X-Organization-Slug: public-service-commission' -d '{\"refresh\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc3NjI2MDY4NCwiaWF0IjoxNzc1NjU1ODg0LCJqdGkiOiJlYTE2NDY0OGRlMGQ0NGMwYWExNzdhYTgzMzc4NjllMCIsInVzZXJfaWQiOiJiZjAyODY1Yi0yODgyLTRmMGYtYTEwYi1iZmIxYjRjYjJmNmEiLCJyZWNlbnRfYXV0aF9hdCI6MTc3NTY1NTY5NX0.4Gc8XJiHr4QwwdMb8ituOVOy5LL5UqoQsyErxwpLtHE\"}' -w '\\\\nHTTP %{http_code}\\\\n')",
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/auth/token/refresh/ -H 'Content-Type: application/json' -H 'X-Organization-Slug: public-service-commission' -d '{\"refresh\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc3NjI2MDY4NCwiaWF0IjoxNzc1NjU1ODg0LCJqdGkiOiJlYTE2NDY0OGRlMGQ0NGMwYWExNzdhYTgzMzc4NjllMCIsInVzZXJfaWQiOiJiZjAyODY1Yi0yODgyLTRmMGYtYTEwYi1iZmIxYjRjYjJmNmEiLCJyZWNlbnRfYXV0aF9hdCI6MTc3NTY1NTY5NX0.4Gc8XJiHr4QwwdMb8ituOVOy5LL5UqoQsyErxwpLtHE\"}')",
+      "Bash(sed -n '23,50p' A:/projects/Django/OVS-Redo/backend/apps/core/authz.py)",
+      "Bash(sed -n '133,145p' A:/projects/Django/OVS-Redo/backend/apps/core/authz.py)",
+      "Bash(curl -s http://localhost:8000/api/v1/governance/organization/summary/ -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzc1NjgwNjA4LCJpYXQiOjE3NzU2NzcwMDgsImp0aSI6IjlkM2ViNzQ1ZTIzZTQwOGE5YWEzMWVmOWY1YzhhMDQ5IiwidXNlcl9pZCI6IjBjMzlmNjI3LWUxODUtNDBkZC1hZTQzLThmYjI0M2FiOTU1MyIsInJlY2VudF9hdXRoX2F0IjoxNzc1Njc3MDA4fQ.WGUVPAPEgOAdTLA5gbu6kmLEsWzjbj4Uun-qMF_AgMw' -H 'X-Organization-Slug: public-service-commission' -w '\\\\nHTTP %{http_code}\\\\n')",
+      "Bash(curl -s http://localhost:8000/api/v1/video-calls/meetings/reminder-health/ -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzc1NjgwNjA4LCJpYXQiOjE3NzU2NzcwMDgsImp0aSI6IjlkM2ViNzQ1ZTIzZTQwOGE5YWEzMWVmOWY1YzhhMDQ5IiwidXNlcl9pZCI6IjBjMzlmNjI3LWUxODUtNDBkZC1hZTQzLThmYjI0M2FiOTU1MyIsInJlY2VudF9hdXRoX2F0IjoxNzc1Njc3MDA4fQ.WGUVPAPEgOAdTLA5gbu6kmLEsWzjbj4Uun-qMF_AgMw' -H 'X-Organization-Slug: public-service-commission' -w '\\\\nHTTP %{http_code}\\\\n')",
+      "Bash(npx tsc:*)",
+      "Bash(sed -n '142,165p' A:/projects/Django/OVS-Redo/frontend/src/store/authSlice.ts)",
+      "Bash(sed -n '570,600p' A:/projects/Django/OVS-Redo/frontend/src/store/authSlice.ts)",
+      "Bash(python manage.py makemigrations --check)",
+      "Bash(python manage.py test apps.authentication.tests --keepdb)"
     ]
   }
 }
