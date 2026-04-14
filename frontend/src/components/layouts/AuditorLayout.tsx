@@ -174,8 +174,10 @@ export const AuditorLayout: React.FC<AuditorLayoutProps> = ({ children }) => {
         {/* Mobile overlay */}
         {mobileMenuOpen && (
           <div
+            role="presentation"
             className="fixed inset-0 z-30 bg-background/80 backdrop-blur-sm lg:hidden"
             onClick={() => setMobileMenuOpen(false)}
+            onKeyDown={() => setMobileMenuOpen(false)}
           />
         )}
 

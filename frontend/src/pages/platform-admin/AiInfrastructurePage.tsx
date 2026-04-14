@@ -151,7 +151,7 @@ export const AiInfrastructurePage: React.FC = () => {
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">Total Models</span>
-                    <span className="font-bold">{health.total_models}</span>
+                    <span className="font-bold">{MODEL_REGISTRY.length}</span>
                   </div>
                 </div>
               </Card>

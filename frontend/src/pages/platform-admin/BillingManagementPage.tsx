@@ -77,7 +77,7 @@ export const BillingManagementPage: React.FC = () => {
             <h3 className="text-sm font-bold text-blue-700">Revenue Metrics via Stripe Dashboard</h3>
             <p className="text-xs text-blue-600 mt-1">
               Platform-wide MRR, subscription counts, failed payments, and ARPU are available directly in the Stripe Dashboard.
-              Per-tenant subscription health is visible in each organization's workspace.
+              Per-tenant subscription health is visible in each organization&apos;s workspace.
             </p>
             <a
               href="https://dashboard.stripe.com"
