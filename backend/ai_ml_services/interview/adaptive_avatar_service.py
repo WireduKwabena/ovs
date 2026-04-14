@@ -1,8 +1,6 @@
 """Adaptive avatar helpers for interview flows using LiveKit + Tavus.
 
-Replaces the legacy EmotionalAvatarService (HeyGen) with Tavus persona
-configuration. Instead of manipulating voice emotion via an API call, the
-interviewer's tone is shaped by:
+Shapes the interviewer's tone using:
   1. The Tavus persona's base personality (configured at conversation creation).
   2. The conversational context injected into the Anthropic system prompt
      (handled by AnthropicInterviewEngine).
@@ -59,9 +57,9 @@ class AdaptiveAvatarService(LiveKitTavusService):
     LiveKitTavusService subclass that adapts the interviewer's tone based on
     real-time interview context.
 
-    The 'emotion' adjustment from the old HeyGen implementation is replaced by
-    enriching the Anthropic system prompt with contextual tone instructions.
-    The Tavus avatar then naturally reflects the tone through its response.
+    Adapts the interviewer's tone by enriching the Anthropic system prompt
+    with contextual tone instructions. The Tavus avatar naturally reflects
+    the tone through its response.
     """
 
     def determine_tone_from_context(

@@ -1,17 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  CreditCard,
   ShieldCheck,
-  AlertTriangle,
   ExternalLink,
-  BarChart3,
   Zap,
   Globe,
   Settings,
   RefreshCw,
-  TrendingUp,
+  Info,
   Package,
-  Plus
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { billingService, type BillingHealthResponse } from '@/services/billing.service';
@@ -44,10 +40,10 @@ export const BillingManagementPage: React.FC = () => {
   }, [fetchBillingHealth]);
 
   const plans = [
-    { name: 'Standard', price: '$49/mo', organizations: 124, status: 'Active', icon: Package },
-    { name: 'Professional', price: '$199/mo', organizations: 42, status: 'Active', icon: Zap },
-    { name: 'Enterprise', price: 'Custom', organizations: 12, status: 'Active', icon: ShieldCheck },
-    { name: 'Government (Tier 1)', price: 'Subsidized', organizations: 8, status: 'Active', icon: Globe },
+    { name: 'Starter', price: '$149/mo', description: 'Up to 150 candidates/month, 10 seats', icon: Package },
+    { name: 'Growth', price: '$399/mo', description: 'Up to 600 candidates/month, 30 seats', icon: Zap },
+    { name: 'Enterprise', price: '$999/mo', description: 'Unlimited candidates, custom seats', icon: ShieldCheck },
+    { name: 'Government', price: 'Custom', description: 'Subsidized tier for public institutions', icon: Globe },
   ];
 
   return (
@@ -61,8 +57,8 @@ export const BillingManagementPage: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="rounded-xl gap-2"
             onClick={() => void fetchBillingHealth(true)}
             disabled={refreshing}
@@ -70,60 +66,31 @@ export const BillingManagementPage: React.FC = () => {
             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh Gateway
           </Button>
-          <Button className="rounded-xl gap-2 shadow-lg">
-            <Plus className="h-4 w-4" />
-            Create Plan
-          </Button>
         </div>
       </div>
 
-      {/* Financial Metrics Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Card className="p-6 rounded-2xl border-border/70 bg-card/50 shadow-sm backdrop-blur-sm">
-          <div className="flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
-              <TrendingUp className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Monthly Revenue</p>
-              <p className="text-xl font-bold">$124,500.00</p>
-            </div>
+      {/* Revenue Metrics Note */}
+      <Card className="p-5 rounded-2xl border-blue-500/20 bg-blue-500/5 shadow-sm">
+        <div className="flex items-start gap-4">
+          <Info className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
+          <div>
+            <h3 className="text-sm font-bold text-blue-700">Revenue Metrics via Stripe Dashboard</h3>
+            <p className="text-xs text-blue-600 mt-1">
+              Platform-wide MRR, subscription counts, failed payments, and ARPU are available directly in the Stripe Dashboard.
+              Per-tenant subscription health is visible in each organization's workspace.
+            </p>
+            <a
+              href="https://dashboard.stripe.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 mt-2 text-xs font-bold text-blue-700 underline hover:text-blue-900"
+            >
+              <ExternalLink className="h-3 w-3" />
+              Open Stripe Dashboard
+            </a>
           </div>
-        </Card>
-        <Card className="p-6 rounded-2xl border-border/70 bg-card/50 shadow-sm backdrop-blur-sm">
-          <div className="flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
-              <CreditCard className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Active Subscriptions</p>
-              <p className="text-xl font-bold">186</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-6 rounded-2xl border-border/70 bg-card/50 shadow-sm backdrop-blur-sm">
-          <div className="flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-              <AlertTriangle className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Failed Payments</p>
-              <p className="text-xl font-bold">4</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-6 rounded-2xl border-border/70 bg-card/50 shadow-sm backdrop-blur-sm">
-          <div className="flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-              <BarChart3 className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">ARPU</p>
-              <p className="text-xl font-bold">$669.35</p>
-            </div>
-          </div>
-        </Card>
-      </div>
+        </div>
+      </Card>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         {/* Gateway Health Status */}
@@ -212,24 +179,15 @@ export const BillingManagementPage: React.FC = () => {
                   <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
                     <plan.icon className="h-6 w-6" />
                   </div>
-                  <Button variant="ghost" size="icon" className="rounded-full">
-                    <Settings className="h-4 w-4" />
-                  </Button>
+                  <Settings className="h-4 w-4 text-muted-foreground mt-1" />
                 </div>
-                
                 <div className="mt-6">
                   <h3 className="text-xl font-bold">{plan.name}</h3>
                   <p className="text-2xl font-bold mt-1 text-primary">{plan.price}</p>
-                  <p className="text-xs text-muted-foreground mt-2 font-medium">
-                    Currently powering <span className="text-foreground">{plan.organizations}</span> organizations
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-2 font-medium">{plan.description}</p>
                 </div>
-
-                <div className="mt-6 pt-6 border-t border-border/50 flex items-center justify-between">
-                  <Badge className="bg-emerald-500/10 text-emerald-500 rounded-full border-emerald-500/20">{plan.status}</Badge>
-                  <Button variant="link" className="h-auto p-0 text-xs font-bold uppercase tracking-widest gap-1">
-                    Manage Limits <ExternalLink className="h-3 w-3" />
-                  </Button>
+                <div className="mt-6 pt-6 border-t border-border/50">
+                  <Badge className="bg-emerald-500/10 text-emerald-500 rounded-full border-emerald-500/20">Active</Badge>
                 </div>
               </Card>
             ))}

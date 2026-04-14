@@ -5,8 +5,7 @@ Video interview session and analysis models.
 
 Academic Note:
 --------------
-Implements simplified interview system without HeyGen avatar.
-Uses pre-defined questions with AI-based response evaluation.
+Implements interview system using LiveKit + Tavus avatar with AI-based response evaluation.
 
 Key components:
 1. InterviewSession: Main interview entity
@@ -28,7 +27,7 @@ class InterviewSession(models.Model):
     Main interview session model.
     
     Represents a complete interview session for a vetting case.
-    Simplified from docs - no HeyGen, just question bank + video responses.
+    Question bank + video responses powered by LiveKit + Tavus.
     
     Academic Note:
     --------------

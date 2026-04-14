@@ -945,6 +945,7 @@ LIVEKIT_URL = config("LIVEKIT_URL", default="")
 LIVEKIT_API_KEY = config("LIVEKIT_API_KEY", default="")
 LIVEKIT_API_SECRET = config("LIVEKIT_API_SECRET", default="")
 LIVEKIT_TOKEN_TTL_SECONDS = config("LIVEKIT_TOKEN_TTL_SECONDS", default=3600, cast=int)
+
 VIDEO_CALLS_JOIN_GRACE_MINUTES = config(
     "VIDEO_CALLS_JOIN_GRACE_MINUTES",
     default=30,

@@ -118,6 +118,7 @@ export const OrgAdminLayout: React.FC<OrgAdminLayoutProps> = ({ children }) => {
               {organizations.length > 1 ? (
                  <div className="relative">
                     <select 
+                      title='organisations'
                       className="w-full appearance-none rounded-xl border border-border/70 bg-card/50 px-3 py-2 text-sm font-medium focus:outline-hidden focus:ring-2 focus:ring-primary/20"
                       value={activeOrganizationId || ''}
                       onChange={(e) => handleOrgSwitch(e.target.value)}

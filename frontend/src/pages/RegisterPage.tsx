@@ -32,6 +32,18 @@ const getReasonMessage = (reason: string): string => {
 export const RegisterPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const onboardingToken = String(searchParams.get("onboarding_token") || "").trim();
+  // org slug is embedded in the link by build_onboarding_link so the API interceptor
+  // can send X-Organization-Slug for both token validation and registration.
+  const orgSlug = String(searchParams.get("org") || "").trim();
+
+  // Persist the org slug to sessionStorage before any API call fires so that
+  // the Axios interceptor can attach X-Organization-Slug on the validate and
+  // register requests (the user has no session yet at this point).
+  useEffect(() => {
+    if (orgSlug) {
+      sessionStorage.setItem("organization_slug", orgSlug);
+    }
+  }, [orgSlug]);
 
   const [isVerifying, setIsVerifying] = useState(Boolean(onboardingToken));
   const [isTokenValid, setIsTokenValid] = useState(false);

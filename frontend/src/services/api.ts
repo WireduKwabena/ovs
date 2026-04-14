@@ -31,6 +31,18 @@ const CANDIDATE_SESSION_ENDPOINT_PREFIXES = [
 
 // Endpoints that must NEVER receive X-Organization-Slug because they run
 // on the public schema unconditionally.
+// Endpoints that must NEVER receive X-Organization-Slug because they run
+// on the public schema unconditionally. Uses exact-path matching — do NOT
+// add prefix entries here; each path must match the full URL segment after
+// the base URL (e.g. '/auth/admin/login/' not '/auth/admin/').
+//
+// Billing checkout confirm calls (stripe/confirm, paystack/confirm) are NOT
+// listed here — they use a standalone publicApi axios instance in
+// subscription.service.ts that has no interceptors and sends no headers.
+//
+// NOTE: /billing/onboarding-token/validate/ is intentionally absent — it
+// queries tenant tables (OrganizationOnboardingToken) and therefore requires
+// X-Organization-Slug so TenantMiddleware can switch to the correct schema.
 const PUBLIC_SCHEMA_ENDPOINTS = [
   '/auth/admin/login/',
   '/auth/admin/login/verify/',
@@ -38,9 +50,7 @@ const PUBLIC_SCHEMA_ENDPOINTS = [
   '/auth/admin/2fa/enable/',
   '/auth/register/organization-admin/',
   '/auth/resolve-tenant/',
-  '/auth/token/refresh/',   // JWT tokens are schema-agnostic; refresh runs from public schema
-  '/billing/onboarding-token/validate/',
-  '/billing/subscriptions/',
+  '/auth/token/refresh/',
   '/billing/health/',
   '/billing/exchange-rate/',
 ];

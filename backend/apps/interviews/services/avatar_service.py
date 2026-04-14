@@ -30,7 +30,7 @@ class AIAvatarService:
         provider: str = "livekit_tavus",
         **kwargs,
     ):
-        if provider not in ("livekit_tavus", "heygen"):
+        if provider != "livekit_tavus":
             raise ValueError(f"Unknown avatar provider: {provider!r}")
         self.provider = "livekit_tavus"
         self._service = LiveKitTavusService(session_id)

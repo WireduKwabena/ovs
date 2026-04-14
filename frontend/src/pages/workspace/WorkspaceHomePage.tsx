@@ -174,9 +174,9 @@ const WorkspaceHomePage: React.FC = () => {
                 <Users className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Active Staff</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total Members</p>
                 <p className="text-2xl font-bold">
-                  {loading ? "—" : (summary?.stats.members_active ?? 0)}
+                  {loading ? "—" : (summary?.stats.members_total ?? 0)}
                 </p>
               </div>
             </div>

@@ -1,10 +1,8 @@
 """WebSocket interview flow utilities for the LiveKit + Tavus + Anthropic stack.
 
-Replaces the former HeyGen-based handler. Key differences:
   - Avatar video/audio is handled by Tavus inside the LiveKit room autonomously.
-  - Question generation uses AnthropicInterviewEngine (Claude) instead of
-    hardcoded heuristics.
-  - ICE candidate forwarding is no longer needed — LiveKit manages WebRTC.
+  - Question generation uses AnthropicInterviewEngine (Claude).
+  - LiveKit manages WebRTC; no ICE candidate forwarding needed.
   - `deliver_avatar_output` sends a JSON signal; Tavus speaks the text in-room.
 """
 

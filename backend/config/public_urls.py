@@ -31,6 +31,7 @@ except ModuleNotFoundError:  # pragma: no cover - optional in some setups
 
 from apps.authentication import views as auth_views
 from apps.billing import views as billing_views
+from apps.users import views as users_views
 
 try:
     from rest_framework_simplejwt.views import TokenRefreshView
@@ -63,6 +64,13 @@ urlpatterns = [
         auth_views.OrganizationAdminRegisterView.as_view(),
         name="public_register_organization_admin",
     ),
+
+    # User profile — must be reachable from the public schema so that platform
+    # admins (who have no tenant context) can fetch/refresh their profile after
+    # login or page refresh. The view itself is tenant-safe: it guards all
+    # OrganizationMembership queries behind a schema_name == "public" check.
+    path("api/v1/auth/profile/", users_views.profile_view, name="public_profile"),
+    path("api/auth/profile/", users_views.profile_view),  # legacy unversioned
 
     # System-admin login flow (always requires 2FA)
     path("api/v1/auth/admin/login/", auth_views.admin_login_view, name="public_admin_login"),

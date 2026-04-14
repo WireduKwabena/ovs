@@ -5,7 +5,7 @@ import { toast } from "react-toastify";
 import { useDispatch, useSelector } from "react-redux";
 
 import type { AppDispatch, RootState } from "@/app/store";
-import { clearError, clearTwoFactorChallenge, verifyTwoFactor } from "@/store/authSlice";
+import { adminVerifyTwoFactor, clearError, clearTwoFactorChallenge, verifyTwoFactor } from "@/store/authSlice";
 import { Button } from "@/components/ui/button";
 import { ProvisioningQrCard } from "@/components/security/ProvisioningQrCard";
 import { EmergencyBackupCodesCard } from "@/components/security/EmergencyBackupCodesCard";
@@ -27,6 +27,7 @@ export const TwoFactorPage: React.FC = () => {
     twoFactorProvisioningUri,
     twoFactorExpiresInSeconds,
     twoFactorMessage,
+    resolvedLoginType,
     loading,
     error,
   } = useSelector((state: RootState) => state.auth);
@@ -91,7 +92,10 @@ export const TwoFactorPage: React.FC = () => {
     try {
       const payload = { token: twoFactorToken, ...factorInput.getPayload() };
 
-      const response = await dispatch(verifyTwoFactor(payload)).unwrap();
+      // Platform admins authenticate against the public schema — they must use
+      // the admin verify endpoint (/auth/admin/login/verify/) not the tenant one.
+      const verifyThunk = resolvedLoginType === "admin" ? adminVerifyTwoFactor : verifyTwoFactor;
+      const response = await dispatch(verifyThunk(payload)).unwrap();
 
       toast.success("2FA verification successful.");
 

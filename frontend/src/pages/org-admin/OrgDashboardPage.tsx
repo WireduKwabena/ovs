@@ -18,6 +18,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import { useAuth } from "@/hooks/useAuth";
+import { adminService } from "@/services/admin.service";
 import { governanceService } from "@/services/governance.service";
 import { billingService } from "@/services/billing.service";
 import type {
@@ -25,9 +26,11 @@ import type {
   BillingManagedSubscription,
 } from "@/services/billing.service";
 import type {
+  DashboardStats,
   GovernanceOrganizationSummaryResponse,
   OrganizationOnboardingTokenStateResponse,
 } from "@/types";
+import { formatRelativeTime } from "@/utils/helper";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -36,9 +39,13 @@ import {
   buildBillingProcessingErrorNotificationTraceHref,
 } from "@/utils/notificationTrace";
 
+const HEALTHY_PAYMENT_STATUSES = new Set(["paid", "no_payment_required"]);
+
 const isBillingHealthy = (sub: BillingManagedSubscription | null): boolean => {
   if (!sub) return false;
-  return sub.status === "active" && sub.payment_status === "paid";
+  // Backend stores a healthy subscription as status="complete" (see is_subscription_active in services.py).
+  // payment_status can be "paid" or "no_payment_required" for healthy subscriptions.
+  return sub.status === "complete" && HEALTHY_PAYMENT_STATUSES.has(sub.payment_status);
 };
 
 const OrgDashboardPage: React.FC = () => {
@@ -47,6 +54,7 @@ const OrgDashboardPage: React.FC = () => {
   const [summary, setSummary] = useState<GovernanceOrganizationSummaryResponse | null>(null);
   const [onboarding, setOnboarding] = useState<OrganizationOnboardingTokenStateResponse | null>(null);
   const [billingData, setBillingData] = useState<BillingSubscriptionManageResponse | null>(null);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -55,14 +63,16 @@ const OrgDashboardPage: React.FC = () => {
     else setRefreshing(true);
 
     try {
-      const [summaryData, onboardingData, billing] = await Promise.all([
+      const [summaryData, onboardingData, billing, stats] = await Promise.all([
         governanceService.getOrganizationSummary(),
         billingService.getOnboardingTokenState(),
         billingService.getSubscriptionManagement(),
+        adminService.getDashboard().catch(() => null),
       ]);
       setSummary(summaryData);
       setOnboarding(onboardingData);
       setBillingData(billing);
+      setDashboardStats(stats);
     } catch {
       toast.error("Failed to sync organization metrics");
     } finally {
@@ -75,19 +85,28 @@ const OrgDashboardPage: React.FC = () => {
     void loadData();
   }, [loadData]);
 
-  const pipelineData = [
-    { name: "Initial Screening", value: 12 },
-    { name: "AI Analysis", value: 8 },
-    { name: "Committee Review", value: 5 },
-    { name: "Final Approval", value: 3 },
-  ];
+  const pipelineData = dashboardStats
+    ? [
+        { name: "Pending Review", value: dashboardStats.pending, status: "pending" },
+        { name: "Under Review", value: dashboardStats.under_review, status: "under_review" },
+        { name: "Approved", value: dashboardStats.approved, status: "approved" },
+        { name: "Rejected", value: dashboardStats.rejected, status: "rejected" },
+      ]
+    : [];
 
-  const recentActions = [
-    { action: "New Nominee", target: "John Doe", time: "10m ago", type: "case" },
-    { action: "Committee Formed", target: "Security Review B", time: "2h ago", type: "gov" },
-    { action: "Member Joined", target: "Sarah Smith", time: "5h ago", type: "user" },
-    { action: "Case Approved", target: "APP-2026-44", time: "1d ago", type: "case" },
-  ];
+  const recentActions = (dashboardStats?.recent_applications ?? []).slice(0, 5).map((app) => ({
+    action:
+      app.status === "under_review"
+        ? "Under Review"
+        : app.status === "approved"
+          ? "Case Approved"
+          : app.status === "rejected"
+            ? "Case Rejected"
+            : "New Application",
+    target: app.applicant_name || app.case_id,
+    time: formatRelativeTime(app.created_at),
+    type: "case" as const,
+  }));
 
   const sub = billingData?.subscription ?? null;
   const billingNeedsAttention = sub !== null && !isBillingHealthy(sub);
@@ -116,7 +135,7 @@ const OrgDashboardPage: React.FC = () => {
             </span>
           </div>
           <h1 className="text-3xl font-bold tracking-tight">
-            Organization Governance Workspace
+            {activeOrganization?.name ?? "Organization Workspace"}
           </h1>
           <p className="text-muted-foreground mt-1 text-sm md:text-base">
             Operational oversight of your organization&apos;s vetting pipeline and governance structure.
@@ -151,14 +170,14 @@ const OrgDashboardPage: React.FC = () => {
                   className="text-xs font-bold text-rose-700 underline hover:text-rose-800 flex items-center gap-1"
                 >
                   <ExternalLink className="h-3 w-3" />
-                  Open Payment Failure Trace
+                  View Payment Failure Alerts
                 </Link>
                 <Link
                   to={buildBillingProcessingErrorNotificationTraceHref()}
                   className="text-xs font-bold text-rose-700 underline hover:text-rose-800 flex items-center gap-1"
                 >
                   <ExternalLink className="h-3 w-3" />
-                  Open Runtime Error Trace
+                  View Processing Error Alerts
                 </Link>
               </div>
             </div>
@@ -201,7 +220,7 @@ const OrgDashboardPage: React.FC = () => {
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                 Active Cases
               </p>
-              <p className="text-2xl font-bold">28</p>
+              <p className="text-2xl font-bold">{dashboardStats?.total_applications ?? 0}</p>
             </div>
           </div>
         </Card>
@@ -263,13 +282,17 @@ const OrgDashboardPage: React.FC = () => {
             </div>
             <div className="space-y-3">
                 {pipelineData.map((item) => (
-                  <div
+                  <button
                     key={item.name}
-                    className="flex items-center justify-between p-3 rounded-xl bg-background/50 border border-border/50"
+                    onClick={() => navigate(`/admin/org/${activeOrganizationId}/cases?status=${item.status}`)}
+                    className="flex items-center justify-between w-full p-3 rounded-xl bg-background/50 border border-border/50 hover:bg-muted/60 hover:border-border transition-colors group"
                   >
-                    <span className="text-xs font-medium">{item.name}</span>
-                    <span className="text-sm font-bold">{item.value}</span>
-                  </div>
+                    <span className="text-xs font-medium group-hover:text-primary transition-colors">{item.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold">{item.value}</span>
+                      <ChevronRight className="h-3 w-3 text-muted-foreground group-hover:text-primary transition-colors" />
+                    </div>
+                  </button>
                 ))}
               </div>
           </Card>
@@ -383,6 +406,9 @@ const OrgDashboardPage: React.FC = () => {
               Recent Activity
             </h3>
             <div className="space-y-5">
+              {recentActions.length === 0 && (
+                <p className="text-xs text-muted-foreground">No recent activity.</p>
+              )}
               {recentActions.map((log, i) => (
                 <div key={i} className="flex items-start gap-3">
                   <div

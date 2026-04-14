@@ -9,7 +9,6 @@ class Organization(TenantMixin):
         ("agency", "Agency"),
         ("committee_secretariat", "Committee Secretariat"),
         ("executive_office", "Executive Office"),
-        ("audit", "Audit Institution"),
         ("other", "Other"),
     ]
 

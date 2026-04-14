@@ -1,6 +1,6 @@
 """LiveKit + Tavus streaming avatar integration for interview sessions.
 
-Replaces the legacy HeyGen streaming service. Architecture:
+Architecture:
   - LiveKit  — WebRTC room for real-time video/audio transport
   - Tavus    — AI video avatar persona that joins the LiveKit room
   - Anthropic — Claude generates interview questions (see anthropic_interview_engine.py)

@@ -164,7 +164,6 @@ const OrganizationSetupPage: React.FC = () => {
               <option value="ministry">Ministry</option>
               <option value="committee_secretariat">Committee Secretariat</option>
               <option value="executive_office">Executive Office</option>
-              <option value="audit">Audit Institution</option>
               <option value="other">Other</option>
             </select>
           </div>

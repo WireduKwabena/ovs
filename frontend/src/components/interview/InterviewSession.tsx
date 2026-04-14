@@ -1,6 +1,6 @@
 // ============================================================================
 // Main Interview Component
-// Location: frontend/src/components/interview/HeyGenInterrogation.tsx
+// Location: frontend/src/components/interview/InterviewSession.tsx
 // ============================================================================
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
@@ -29,7 +29,7 @@ import type {
 import { interviewService } from '@/services/interview.service';
 import type { LiveKitAvatarSessionConfig } from '@/services/interview.service';
 
-interface HeyGenInterrogationProps {
+interface InterviewSessionProps {
   applicationId: string;
   completionRedirectPath?: string;
 }
@@ -64,7 +64,7 @@ const normalizeStatus = (status?: string): InterrogationFlagStatus => {
   return 'unresolved';
 };
 
-export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
+export const InterviewSession: React.FC<InterviewSessionProps> = ({
   applicationId,
   completionRedirectPath = '/workspace',
 }) => {
@@ -235,7 +235,7 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
     };
   }, [applicationId, dispatch, markWsEvent]);
 
-  
+
 
   const startRecording = () => {
     if (!wsConnected) {
@@ -764,5 +764,3 @@ export const HeyGenInterrogation: React.FC<HeyGenInterrogationProps> = ({
     </div>
   );
 };
-
-

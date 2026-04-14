@@ -214,6 +214,7 @@ export const SubscriptionPlansPage: React.FC = () => {
     isAuthenticated,
     userType,
     activeOrganizationId,
+    activeOrganization,
     canManageActiveOrganizationGovernance,
   } = useAuth();
 
@@ -577,6 +578,26 @@ export const SubscriptionPlansPage: React.FC = () => {
             ) : null}
           </section>
         ) : null}
+
+        {/* Trial Plan Current-Plan Indicator */}
+        {activeOrganization?.tier === "trial" && (
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-300 bg-amber-50 p-5">
+            <div className="flex items-start gap-3">
+              <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+              <div>
+                <p className="text-sm font-bold text-amber-800">
+                  Current plan: <span className="uppercase tracking-wide">Trial</span>
+                </p>
+                <p className="mt-0.5 text-xs text-amber-700">
+                  Includes up to 15 candidates/month and 5 organization seats. Select a paid plan below to upgrade.
+                </p>
+              </div>
+            </div>
+            <span className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-700">
+              Free trial
+            </span>
+          </div>
+        )}
 
         <div className="mb-6 inline-flex rounded-xl border border-slate-700 bg-white p-1 shadow-sm">
           <button

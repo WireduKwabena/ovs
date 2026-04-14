@@ -25,6 +25,7 @@ import {
 import { getCandidatePath, getOrgAdminPath, getOrganizationSetupPath, getPlatformAdminPath, getWorkspacePath } from "./utils/appPaths";
 import { SystemAdminLayout } from "./components/layouts/SystemAdminLayout";
 import { OrgAdminLayout } from "./components/layouts/OrgAdminLayout";
+import { AuditorLayout } from "./components/layouts/AuditorLayout";
 
 const Navbar = React.lazy(() =>
   import("./components/common/Navbar").then((module) => ({ default: module.Navbar })),
@@ -97,9 +98,9 @@ const NotificationDetailPage = React.lazy(() =>
     default: module.NotificationDetailPage,
   })),
 );
-const HeyGenInterrogation = React.lazy(() =>
-  import("./components/interview/HeyGenInterrogation").then((module) => ({
-    default: module.HeyGenInterrogation,
+const InterviewSession = React.lazy(() =>
+  import("./components/interview/InterviewSession").then((module) => ({
+    default: module.InterviewSession,
   })),
 );
 
@@ -116,6 +117,7 @@ const HIDE_NAVBAR_PREFIXES = [
   "/forgot-password",
   "/reset-password",
   "/billing",
+  "/audit",
 ];
 
 const ORG_WORKFLOW_DISALLOWED_USER_TYPES: Array<"applicant" | "internal" | "org_admin" | "platform_admin"> = ["applicant", "platform_admin"];
@@ -144,6 +146,15 @@ const LegacyWorkspaceRedirect: React.FC<{ segment?: string }> = ({ segment = "ho
 const LegacyCandidateRedirect: React.FC<{ segment?: string }> = ({ segment = "home" }) => {
   const location = useLocation();
   return <Navigate to={`${getCandidatePath(segment)}${location.search || ""}`} replace />;
+};
+
+// Redirects pure auditor users away from the general workspace to the dedicated audit portal.
+const AuditorWorkspaceRedirect: React.FC<{ fallback: React.ReactNode }> = ({ fallback }) => {
+  const capabilities = useSelector((state: RootState) => state.auth.capabilities);
+  if (isPureAuditorUser(capabilities as string[] | null | undefined)) {
+    return <Navigate to="/audit/logs" replace />;
+  }
+  return <>{fallback}</>;
 };
 
 // Redirect a legacy flat path (e.g. /applications/:caseId) to the canonical
@@ -305,14 +316,14 @@ const OrganizationScopedRoute: React.FC<{ children: React.ReactNode }> = ({ chil
   );
 };
 
-const HeyGenInterrogationPage: React.FC = () => {
+const InterviewSessionPage: React.FC = () => {
   const { applicationId } = useParams<{ applicationId: string }>();
 
   if (!applicationId) {
     return <Navigate to={getWorkspacePath("home")} />;
   }
 
-  return <HeyGenInterrogation applicationId={applicationId} />;
+  return <InterviewSession applicationId={applicationId} />;
 };
 
 const CandidateInterrogationPage: React.FC = () => {
@@ -323,7 +334,7 @@ const CandidateInterrogationPage: React.FC = () => {
   }
 
   return (
-    <HeyGenInterrogation
+    <InterviewSession
       applicationId={applicationId}
       completionRedirectPath={getCandidatePath("home")}
     />
@@ -513,7 +524,7 @@ const AppRoutes: React.FC = () => (
         path="/interview/interrogation/:applicationId"
         element={
           <ProtectedRoute disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}>
-            <HeyGenInterrogationPage />
+            <InterviewSessionPage />
           </ProtectedRoute>
         }
       />
@@ -521,7 +532,7 @@ const AppRoutes: React.FC = () => (
         path={getWorkspacePath("home")}
         element={
           <ProtectedRoute disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}>
-            <WorkspaceHomePage />
+            <AuditorWorkspaceRedirect fallback={<WorkspaceHomePage />} />
           </ProtectedRoute>
         }
       />
@@ -551,7 +562,7 @@ const AppRoutes: React.FC = () => (
       <Route
         path={getWorkspacePath("notifications")}
         element={
-          <ProtectedRoute disallowUserTypes={["applicant"]}>
+          <ProtectedRoute disallowUserTypes={["applicant", "platform_admin"]}>
             <NotificationsPage />
           </ProtectedRoute>
         }
@@ -559,7 +570,7 @@ const AppRoutes: React.FC = () => (
       <Route
         path={`${getWorkspacePath("notifications")}/:notificationId`}
         element={
-          <ProtectedRoute disallowUserTypes={["applicant"]}>
+          <ProtectedRoute disallowUserTypes={["applicant", "platform_admin"]}>
             <NotificationDetailPage />
           </ProtectedRoute>
         }
@@ -604,7 +615,7 @@ const AppRoutes: React.FC = () => (
             requiredCapabilities={["gams.audit.view"]}
             legacyUserTypeFallback={["org_admin", "platform_admin"]}
           >
-            <AuditLogsPage />
+            <AuditorWorkspaceRedirect fallback={<AuditLogsPage />} />
           </ProtectedRoute>
         }
       />
@@ -741,10 +752,21 @@ const AppRoutes: React.FC = () => (
       <Route path="/admin/platform/health" element={<ProtectedRoute platformAdminOnly><SystemHealthPage /></ProtectedRoute>} />
       <Route path={getPlatformAdminPath("dashboard")} element={<ProtectedRoute platformAdminOnly><PlatformDashboardPage /></ProtectedRoute>} />
 
+      {/* Auditor portal routes */}
+      <Route
+        path="/audit/logs"
+        element={
+          <ProtectedRoute requiredCapabilities={["gams.audit.view"]}>
+            <AuditLogsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/audit" element={<Navigate to="/audit/logs" replace />} />
+
       {/* Legacy flat-path redirects — forward to canonical /workspace/* paths */}
       <Route path="/fraud-insights" element={<Navigate to={getWorkspacePath("fraud-insights")} replace />} />
       <Route path="/background-checks" element={<Navigate to={getWorkspacePath("background-checks")} replace />} />
-      <Route path="/audit-logs" element={<Navigate to={getWorkspacePath("audit-logs")} replace />} />
+      <Route path="/audit-logs" element={<AuditorWorkspaceRedirect fallback={<Navigate to={getWorkspacePath("audit-logs")} replace />} />} />
       <Route path="/applications" element={<Navigate to={getWorkspacePath("applications")} replace />} />
       <Route path="/applications/:caseId" element={<LegacySegmentParamRedirect segment="applications" paramKey="caseId" />} />
       <Route path="/notifications" element={<Navigate to={getWorkspacePath("notifications")} replace />} />
@@ -787,15 +809,37 @@ const AppRoutes: React.FC = () => (
     </Routes>
 );
 
+const GOVERNANCE_CAPABILITIES = new Set([
+  "gams.registry.manage",
+  "gams.appointment.stage",
+  "gams.appointment.decide",
+  "gams.appointment.publish",
+  "gams.appointment.view_internal",
+]);
+
+const isPureAuditorUser = (capabilities: readonly string[] | null | undefined): boolean => {
+  if (!Array.isArray(capabilities) || capabilities.length === 0) return false;
+  const hasAuditView = capabilities.includes("gams.audit.view");
+  const hasAnyGovernanceCap = capabilities.some((c) => GOVERNANCE_CAPABILITIES.has(c));
+  return hasAuditView && !hasAnyGovernanceCap;
+};
+
 const AppShell: React.FC = () => {
   const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
   const userType = useSelector((state: RootState) => state.auth.userType);
+  const capabilities = useSelector((state: RootState) => state.auth.capabilities);
   const location = useLocation();
   const hideNavbar = shouldHideNavbar(location.pathname);
 
   const showTopNavbar = isAuthenticated && (userType === "applicant" || userType === "internal") && !hideNavbar;
   const isPlatformAdmin = isAuthenticated && (userType === "platform_admin" || userType === "admin");
   const isOrgAdmin = isAuthenticated && userType === "org_admin";
+  // Pure auditors: internal members whose only capability is gams.audit.view —
+  // they get a dedicated read-only portal instead of the full workspace navbar.
+  const isAuditor =
+    isAuthenticated &&
+    userType === "internal" &&
+    isPureAuditorUser(capabilities as string[] | null | undefined);
 
   if (isPlatformAdmin) {
     return (
@@ -814,6 +858,16 @@ const AppShell: React.FC = () => {
           <AppRoutes />
         </Suspense>
       </OrgAdminLayout>
+    );
+  }
+
+  if (isAuditor) {
+    return (
+      <AuditorLayout>
+        <Suspense fallback={<RouteLoader />}>
+          <AppRoutes />
+        </Suspense>
+      </AuditorLayout>
     );
   }
 

@@ -60,10 +60,15 @@ def generate_raw_onboarding_token() -> str:
 
 
 def build_onboarding_link(raw_token: str) -> str:
+    from django.db import connection as _conn
     frontend_base = str(getattr(settings, "FRONTEND_URL", "") or "").strip().rstrip("/")
     if not frontend_base:
         return ""
-    query = urlencode({"onboarding_token": raw_token})
+    params: dict = {"onboarding_token": raw_token}
+    org_code = str(getattr(getattr(_conn, "tenant", None), "code", "") or "").strip()
+    if org_code:
+        params["org"] = org_code
+    query = urlencode(params)
     return f"{frontend_base}/register?{query}"
 
 

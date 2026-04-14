@@ -30,7 +30,7 @@ const CLOSED_MESSAGE_PATTERNS = [
 ];
 
 const KEYWORD_LABELS: Array<{ match: RegExp; label: string }> = [
-  { match: /(meeting_autojoin|autojoin|join_call|video_call|livekit|heygen)/i, label: "Join video call" },
+  { match: /(meeting_autojoin|autojoin|join_call|video_call|livekit)/i, label: "Join video call" },
   { match: /(meeting_url|join_url|join_link|join)/i, label: "Join" },
   { match: /(interview)/i, label: "Start interview" },
   { match: /(case|application)/i, label: "Open case" },

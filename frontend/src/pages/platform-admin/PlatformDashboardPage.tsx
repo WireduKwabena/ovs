@@ -20,20 +20,15 @@ import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { auditService } from "@/services/audit.service";
 import { governanceService } from "@/services/governance.service";
-import type { GovernancePlatformOrganizationOversight } from "@/types";
+import type { AuditLog, GovernancePlatformOrganizationOversight } from "@/types";
+import { formatRelativeTime } from "@/utils/helper";
 import BillingHealthCard from "@/components/admin/BillingHealthCard";
-
-const growthData = [
-  { month: "Oct", orgs: 120, revenue: 85000 },
-  { month: "Nov", orgs: 132, revenue: 92000 },
-  { month: "Dec", orgs: 145, revenue: 105000 },
-  { month: "Jan", orgs: 168, revenue: 118000 },
-  { month: "Feb", orgs: 186, revenue: 124500 },
-];
 
 const PlatformDashboardPage: React.FC = () => {
   const [organizations, setOrganizations] = useState<GovernancePlatformOrganizationOversight[]>([]);
+  const [recentAuditLogs, setRecentAuditLogs] = useState<AuditLog[]>([]);
   const [, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -43,8 +38,12 @@ const PlatformDashboardPage: React.FC = () => {
     else setRefreshing(true);
 
     try {
-      const orgPayload = await governanceService.listPlatformOrganizations();
+      const [orgPayload, auditLogs] = await Promise.all([
+        governanceService.listPlatformOrganizations(),
+        auditService.getRecentActivity().catch(() => [] as AuditLog[]),
+      ]);
       setOrganizations(Array.isArray(orgPayload.results) ? orgPayload.results : []);
+      setRecentAuditLogs(auditLogs.slice(0, 5));
     } catch {
       toast.error("Failed to sync platform metrics.");
     } finally {
@@ -73,13 +72,25 @@ const PlatformDashboardPage: React.FC = () => {
   };
 
   const stats = useMemo(() => {
+    const totalOrgs = organizations.length;
+    const activeOrgs = organizations.filter((o) => o.is_active).length;
     return {
-      totalOrgs: organizations.length,
-      activeOrgs: organizations.filter((o) => o.is_active).length,
+      totalOrgs,
+      activeOrgs,
       premiumOrgs: organizations.filter((o) => o.subscription?.source === "active").length,
       totalStaff: organizations.reduce((acc, o) => acc + (o.active_member_count || 0), 0),
       needsAttention: organizations.filter((o) => !o.is_active || !o.subscription).length,
+      activationRate: totalOrgs > 0 ? Math.round((activeOrgs / totalOrgs) * 100) : 0,
     };
+  }, [organizations]);
+
+  const orgTypeBreakdown = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const org of organizations) {
+      const type = org.organization_type || "Unknown";
+      counts[type] = (counts[type] ?? 0) + 1;
+    }
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
   }, [organizations]);
 
   return (
@@ -153,9 +164,9 @@ const PlatformDashboardPage: React.FC = () => {
             </div>
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                Growth Index
+                Activation Rate
               </p>
-              <p className="text-2xl font-bold">+12.4%</p>
+              <p className="text-2xl font-bold">{stats.activationRate}%</p>
             </div>
           </div>
         </Card>
@@ -244,20 +255,23 @@ const PlatformDashboardPage: React.FC = () => {
           <Card className="p-6 rounded-[2rem] border-border/70 bg-card/50 shadow-sm backdrop-blur-sm">
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h2 className="text-lg font-bold">Ecosystem Expansion</h2>
+                <h2 className="text-lg font-bold">Tenant Breakdown</h2>
                 <p className="text-xs text-muted-foreground">
-                  Tenant acquisition and revenue trajectory.
+                  Registered organizations by type.
                 </p>
               </div>
               <Badge variant="outline" className="rounded-full">
-                L5M Overview
+                {stats.totalOrgs} total
               </Badge>
             </div>
             <div className="space-y-2">
-              {growthData.map((item) => (
-                <div key={item.month} className="flex items-center justify-between p-2 rounded-lg bg-background/50 border border-border/30">
-                  <span className="text-xs font-medium">{item.month}</span>
-                  <span className="text-xs font-bold">{item.orgs} orgs</span>
+              {orgTypeBreakdown.length === 0 && (
+                <p className="text-xs text-muted-foreground">No organizations registered.</p>
+              )}
+              {orgTypeBreakdown.map(([type, count]) => (
+                <div key={type} className="flex items-center justify-between p-2 rounded-lg bg-background/50 border border-border/30">
+                  <span className="text-xs font-medium capitalize">{type.replace(/_/g, " ")}</span>
+                  <span className="text-xs font-bold">{count} org{count !== 1 ? "s" : ""}</span>
                 </div>
               ))}
             </div>
@@ -277,25 +291,14 @@ const PlatformDashboardPage: React.FC = () => {
                   Full Telemetry
                 </Link>
               </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
-                  <span className="text-xs font-medium">Core API Gateway</span>
-                  <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[9px]">
-                    Operational
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
-                  <span className="text-xs font-medium">AI Inference Mesh</span>
-                  <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[9px]">
-                    Operational
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
-                  <span className="text-xs font-medium">Background Task Queue</span>
-                  <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[9px]">
-                    Load: Moderate
-                  </Badge>
-                </div>
+              <div className="p-4 rounded-xl bg-muted/30 border border-border/50">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Live service metrics and latency telemetry are available on the{" "}
+                  <Link to="/admin/platform/health" className="font-bold text-primary hover:underline">
+                    System Health
+                  </Link>{" "}
+                  page. Connect an observability backend (Prometheus / Grafana) for real-time dashboard widgets.
+                </p>
               </div>
             </Card>
 
@@ -313,17 +316,19 @@ const PlatformDashboardPage: React.FC = () => {
                 </Link>
               </div>
               <div className="space-y-4">
-                {[
-                  { action: "Org Provisioned", target: "Ministry of Health", time: "2h ago" },
-                  { action: "Billing Updated", target: "Standard Plan", time: "5h ago" },
-                  { action: "AI Policy Changed", target: "Confidence Floor", time: "1d ago" },
-                ].map((log, i) => (
-                  <div key={i} className="flex items-start gap-3">
+                {recentAuditLogs.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No recent audit activity.</p>
+                )}
+                {recentAuditLogs.map((log) => (
+                  <div key={log.id} className="flex items-start gap-3">
                     <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
                     <div>
-                      <p className="text-xs font-bold">{log.action}</p>
+                      <p className="text-xs font-bold">{log.action_display ?? log.action}</p>
                       <p className="text-[10px] text-muted-foreground">
-                        {log.target} · {log.time}
+                        {log.entity_type}
+                        {log.user_name ? ` · ${log.user_name}` : ""}
+                        {" · "}
+                        {formatRelativeTime(log.created_at)}
                       </p>
                     </div>
                   </div>
@@ -396,9 +401,9 @@ const PlatformDashboardPage: React.FC = () => {
               </div>
               <div className="pt-3 border-t border-border/50">
                 <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">
-                  Global ARPU
+                  Revenue Metrics
                 </p>
-                <p className="text-xl font-bold text-primary">$669.35</p>
+                <p className="text-xs text-muted-foreground">Available in Stripe Dashboard</p>
               </div>
             </div>
           </Card>
