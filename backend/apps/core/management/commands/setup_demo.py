@@ -16,6 +16,7 @@ from apps.billing.models import BillingSubscription, OrganizationOnboardingToken
 from apps.billing.services import create_organization_onboarding_token, get_active_onboarding_token_for_organization
 from apps.campaigns.models import VettingCampaign
 from apps.governance.models import Committee, CommitteeMembership, OrganizationMembership
+from apps.notifications.models import Notification
 from apps.tenants.models import Organization
 from apps.personnel.models import PersonnelRecord
 from apps.positions.models import GovernmentPosition
@@ -51,9 +52,110 @@ _DEMO_USERS: tuple[tuple[str, str, str], ...] = (
     ("auditor",         "gams.auditor@demo.local",         "DemoAuditor123!"),
 )
 
+DEMO_NOTIFICATIONS = [
+    {
+        "subject": "Vetting case assigned to you",
+        "message": (
+            "A new vetting case has been assigned to you for review. "
+            "Please open the case and begin the initial document verification."
+        ),
+        "notification_type": "in_app",
+        "status": "sent",
+        "priority": "high",
+        "metadata": {"event_type": "case_assigned", "case_id": "DEMO-CASE-001"},
+    },
+    {
+        "subject": "AI analysis complete",
+        "message": (
+            "The AI vetting analysis for case DEMO-CASE-001 is complete. "
+            "Recommendation: manual review required. Confidence score: 72%."
+        ),
+        "notification_type": "in_app",
+        "status": "sent",
+        "priority": "normal",
+        "metadata": {
+            "event_type": "ai_analysis_complete",
+            "case_id": "DEMO-CASE-001",
+            "recommendation": "recommend_manual_review",
+            "score": "72",
+        },
+    },
+    {
+        "subject": "Committee review scheduled",
+        "message": (
+            "A committee review session has been scheduled for nominee "
+            "John Addo on Thursday at 10:00 AM. Please confirm your attendance."
+        ),
+        "notification_type": "in_app",
+        "status": "read",
+        "priority": "normal",
+        "metadata": {"event_type": "committee_review_scheduled"},
+    },
+    {
+        "subject": "Document verification failed",
+        "message": (
+            "The national ID document submitted for case DEMO-CASE-002 "
+            "failed authenticity verification. A fraud flag has been raised for manual review."
+        ),
+        "notification_type": "in_app",
+        "status": "sent",
+        "priority": "urgent",
+        "metadata": {
+            "event_type": "document_verification_failed",
+            "case_id": "DEMO-CASE-002",
+            "document_type": "national_id",
+            "document_status": "failed",
+        },
+    },
+    {
+        "subject": "Appointment approved",
+        "message": (
+            "The appointment for Justice Kwame Asante to the position of "
+            "Director of Public Prosecutions has been approved and signed off."
+        ),
+        "notification_type": "in_app",
+        "status": "read",
+        "priority": "normal",
+        "metadata": {"event_type": "appointment_approved", "new_status": "appointed"},
+    },
+    {
+        "subject": "New organization registered",
+        "message": (
+            "A new organization 'Ghana Audit Service' has registered on the platform "
+            "and is pending onboarding review."
+        ),
+        "notification_type": "in_app",
+        "status": "sent",
+        "priority": "low",
+        "metadata": {"event_type": "org_registered"},
+    },
+    {
+        "subject": "Interview session ready",
+        "message": (
+            "The AI interview session for candidate Abena Mensah is ready to begin. "
+            "Click below to join the vetting interview."
+        ),
+        "notification_type": "in_app",
+        "status": "sent",
+        "priority": "high",
+        "metadata": {"event_type": "interview_ready", "case_id": "DEMO-CASE-003"},
+    },
+    {
+        "subject": "Gazette published",
+        "message": (
+            "The appointment gazette for Q1 2026 has been published. "
+            "3 new appointments are now publicly visible on the transparency portal."
+        ),
+        "notification_type": "in_app",
+        "status": "read",
+        "priority": "normal",
+        "metadata": {"event_type": "gazette_published"},
+    },
+]
+
 
 class Command(BaseCommand):
-    help = "Bootstrap a safe, idempotent GAMS demo workspace (users, roles, and sample government workflow records)."
+    help = "Bootstrap a safe, idempotent GAMS demo workspace (users, roles, sample workflow records, and notifications)."
 
     def add_arguments(self, parser):
         for role, default_email, default_password in _DEMO_USERS:
@@ -63,6 +165,16 @@ class Command(BaseCommand):
             "--skip-sample-data",
             action="store_true",
             help="Create role accounts/groups only; skip campaign/position/personnel/appointment demo records.",
+        )
+        parser.add_argument(
+            "--skip-notifications",
+            action="store_true",
+            help="Skip seeding demo in-app notifications.",
+        )
+        parser.add_argument(
+            "--clear-notifications",
+            action="store_true",
+            help="Delete existing demo notifications before re-seeding them.",
         )
         parser.add_argument(
             "--org-slug",
@@ -129,6 +241,12 @@ class Command(BaseCommand):
 
                 if not options["skip_sample_data"]:
                     self._ensure_sample_data(users=users, organizations=organizations)
+
+            if not options["skip_notifications"]:
+                self._seed_notifications(
+                    users=users,
+                    clear=options["clear_notifications"],
+                )
 
         self.stdout.write(self.style.SUCCESS("GAMS demo setup completed."))
         self.stdout.write("Demo sign-in accounts:")
@@ -396,6 +514,51 @@ class Command(BaseCommand):
             committee=committee_for_records,
         )
         self._ensure_published_publication(serving_record, publisher=users["publication"])
+
+    # ── Notifications ─────────────────────────────────────────────────────────
+
+    def _seed_notifications(self, *, users: dict[str, User], clear: bool) -> None:
+        """Seed demo in-app notifications for all demo users. Must be called inside schema_context."""
+        demo_subjects = [n["subject"] for n in DEMO_NOTIFICATIONS]
+        all_users = list(users.values())
+
+        if clear:
+            deleted, _ = Notification.objects.filter(
+                recipient__in=all_users,
+                subject__in=demo_subjects,
+            ).delete()
+            if deleted:
+                self.stdout.write(self.style.WARNING(f"Cleared {deleted} existing demo notifications."))
+
+        now = timezone.now()
+        created_count = 0
+
+        for user in all_users:
+            for i, demo in enumerate(DEMO_NOTIFICATIONS):
+                offset_minutes = i * 47 + 3
+                created_at = now - timedelta(minutes=offset_minutes)
+
+                notif = Notification(
+                    recipient=user,
+                    subject=demo["subject"],
+                    message=demo["message"],
+                    notification_type=demo["notification_type"],
+                    status=demo["status"],
+                    priority=demo["priority"],
+                    metadata=demo["metadata"],
+                    is_archived=False,
+                    sent_at=created_at if demo["status"] in ("sent", "read") else None,
+                    read_at=created_at + timedelta(minutes=5) if demo["status"] == "read" else None,
+                )
+                notif.save()
+                Notification.objects.filter(pk=notif.pk).update(created_at=created_at)
+                created_count += 1
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Seeded {created_count} notifications across {len(all_users)} demo user(s)."
+            )
+        )
 
     # ── Billing & onboarding token ────────────────────────────────────────────
 
