@@ -99,7 +99,7 @@ const OrgCasesPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 px-4 py-6 md:px-8 md:py-8 lg:px-12 lg:py-10">
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>

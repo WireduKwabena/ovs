@@ -9,6 +9,7 @@ from .views import (
     BillingSubscriptionRetryAPIView,
     OrganizationOnboardingTokenGenerateAPIView,
     OrganizationOnboardingTokenRevokeAPIView,
+    OrganizationOnboardingTokenSendInviteAPIView,
     OrganizationOnboardingTokenStateAPIView,
     OrganizationOnboardingTokenValidateAPIView,
     PaystackCheckoutSessionConfirmAPIView,
@@ -37,6 +38,11 @@ urlpatterns = [
         "onboarding-token/revoke/",
         OrganizationOnboardingTokenRevokeAPIView.as_view(),
         name="billing-onboarding-token-revoke",
+    ),
+    path(
+        "onboarding-token/send-invite/",
+        OrganizationOnboardingTokenSendInviteAPIView.as_view(),
+        name="billing-onboarding-token-send-invite",
     ),
     path(
         "onboarding-token/validate/",

@@ -63,6 +63,8 @@ from .serializers import (
     OrganizationOnboardingTokenGenerateSerializer,
     OrganizationOnboardingTokenRevokeSerializer,
     OrganizationOnboardingTokenStateResponseSerializer,
+    OrganizationOnboardingTokenSendInviteSerializer,
+    OrganizationOnboardingTokenSendInviteResponseSerializer,
     OrganizationOnboardingTokenValidateResponseSerializer,
     OrganizationOnboardingTokenValidateSerializer,
     BillingPaymentMethodUpdateSerializer,
@@ -158,6 +160,22 @@ def _stripe_secret_key() -> str:
 
 def _stripe_webhook_secret() -> str:
     return str(getattr(settings, "STRIPE_WEBHOOK_SECRET", "") or "").strip()
+
+
+def _stripe_event_organization_id(event_type: str, event_data: dict) -> str | None:
+    """Extract organization_id from a Stripe event's metadata (plain dict form).
+
+    - checkout.session.* and customer.subscription.* events: metadata is on the object itself.
+    - invoice.* events: metadata lives on subscription_details.metadata (populated when
+      subscription_data.metadata was set at checkout creation time).
+    """
+    metadata: dict = {}
+    if event_type.startswith("checkout.session.") or event_type.startswith("customer.subscription."):
+        metadata = dict(event_data.get("metadata") or {})
+    elif event_type.startswith("invoice."):
+        sub_details = dict(event_data.get("subscription_details") or {})
+        metadata = dict(sub_details.get("metadata") or {})
+    return _normalized_organization_id(metadata.get("organization_id"))
 
 
 def _paystack_secret_key() -> str:
@@ -637,7 +655,10 @@ def _hydrate_stripe_identifiers(subscription: BillingSubscription):
     try:
         _ensure_stripe_ready()
         session = _stripe_retrieve_checkout_session_with_expansions(subscription.session_id)
-        session_data = dict(session or {})
+        if session is not None:
+            session_data = session._to_dict_recursive() if hasattr(session, "_to_dict_recursive") else dict(session)
+        else:
+            session_data = {}
         customer_id = customer_id or session_data.get("customer")
         stripe_subscription_id = stripe_subscription_id or session_data.get("subscription")
     except Exception:
@@ -946,6 +967,52 @@ def _resolve_checkout_organization_id(request) -> str:
         raise PermissionDenied("You do not have permission to initiate billing checkout.")
 
     return organization_id
+
+
+def _send_onboarding_invite_email(
+    *,
+    recipient_email: str,
+    organization_name: str,
+    onboarding_link: str,
+    invited_by: str,
+    expires_at=None,
+    allowed_email_domain: str = "",
+) -> None:
+    """Send an onboarding invite email to recipient_email with the given link."""
+    from django.core.mail import EmailMultiAlternatives
+    from django.template.loader import render_to_string
+    from django.utils.html import strip_tags
+
+    subject = f"You're invited to join {organization_name} on CAVP"
+    context = {
+        "organization_name": organization_name,
+        "onboarding_link": onboarding_link,
+        "invited_by": invited_by,
+        "expires_at": expires_at.strftime("%Y-%m-%d %H:%M UTC") if expires_at else None,
+        "allowed_email_domain": allowed_email_domain or "",
+    }
+    try:
+        html_body = render_to_string("emails/onboarding_invite.html", context)
+        text_body = strip_tags(html_body)
+    except Exception:
+        html_body = None
+        text_body = (
+            f"You have been invited by {invited_by} to join {organization_name} on CAVP.\n\n"
+            f"Accept your invitation: {onboarding_link}\n"
+        )
+        if expires_at:
+            text_body += f"\nThis link expires on {context['expires_at']}."
+
+    from_email = str(getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@cavp.app"))
+    email_msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=from_email,
+        to=[recipient_email],
+    )
+    if html_body:
+        email_msg.attach_alternative(html_body, "text/html")
+    email_msg.send(fail_silently=False)
 
 
 def _serialize_onboarding_token_state(token_record):
@@ -1649,11 +1716,22 @@ class SubscriptionConfirmAPIView(APIView):
         organization_id = _resolve_checkout_organization_id(request)
         workspace_email = str(getattr(request_user, "email", "") or "").strip().lower() or None
 
-        _persist_sandbox_ticket(
-            ticket,
-            registration_email=workspace_email,
-            organization_id=organization_id,
+        # Billing tables are TENANT_APPS — switch to the org's schema before writing.
+        from apps.tenants.models import Organization as _Organization  # noqa: PLC0415
+        from django_tenants.utils import schema_context as _schema_context  # noqa: PLC0415
+        organization = (
+            _Organization.objects.filter(id=organization_id, is_active=True).first()
+            if organization_id else None
         )
+        if organization is None:
+            raise ValidationError("Unable to resolve organization for this subscription confirmation.")
+
+        with _schema_context(organization.schema_name):
+            _persist_sandbox_ticket(
+                ticket,
+                registration_email=workspace_email,
+                organization_id=organization_id,
+            )
 
         return Response(
             {
@@ -1980,11 +2058,12 @@ class BillingPaymentMethodUpdateSessionAPIView(APIView):
         except Exception as exc:
             raise ValidationError(f"Unable to start Stripe billing portal session: {exc}") from exc
 
+        session_dict = session._to_dict_recursive() if hasattr(session, "_to_dict_recursive") else dict(session)
         return Response(
             {
                 "status": "ok",
                 "provider": "stripe",
-                "url": session.get("url"),
+                "url": session_dict.get("url"),
             },
             status=status.HTTP_200_OK,
         )
@@ -2058,13 +2137,15 @@ class BillingSubscriptionRetryAPIView(APIView):
                         }
                     ],
                     metadata=metadata,
+                    subscription_data={"metadata": metadata},
                 )
             except Exception as exc:
                 raise ValidationError(f"Unable to start Stripe retry checkout session: {exc}") from exc
 
+            session_dict = session._to_dict_recursive()
             _persist_stripe_session(
-                dict(session),
-                checkout_url=session.get("url"),
+                session_dict,
+                checkout_url=session_dict.get("url"),
                 organization_id=_request_billing_organization_id(request),
             )
             return Response(
@@ -2072,8 +2153,8 @@ class BillingSubscriptionRetryAPIView(APIView):
                     "status": "ok",
                     "provider": "stripe",
                     "message": "Retry checkout session created.",
-                    "session_id": session.get("id"),
-                    "checkout_url": session.get("url"),
+                    "session_id": session_dict.get("id"),
+                    "checkout_url": session_dict.get("url"),
                 },
                 status=status.HTTP_200_OK,
             )
@@ -2337,6 +2418,99 @@ class OrganizationOnboardingTokenRevokeAPIView(APIView):
         )
 
 
+class OrganizationOnboardingTokenSendInviteAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = OrganizationOnboardingTokenSendInviteSerializer
+
+    @extend_schema(
+        request=OrganizationOnboardingTokenSendInviteSerializer,
+        responses={
+            200: OrganizationOnboardingTokenSendInviteResponseSerializer,
+            400: BillingActionErrorSerializer,
+            401: BillingActionErrorSerializer,
+            403: BillingActionErrorSerializer,
+        },
+    )
+    @transaction.atomic
+    def post(self, request):
+        organization = _resolve_onboarding_management_organization(request)
+
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        active_subscription = get_active_subscription_for_organization(organization_id=str(organization.id))
+        if active_subscription is None:
+            raise ValidationError("Active organization subscription is required before sending onboarding invites.")
+
+        recipient_emails: list = serializer.validated_data["recipient_emails"]
+        expires_in_hours = serializer.validated_data.get("expires_in_hours")
+        expires_at = None
+        if expires_in_hours is not None:
+            expires_at = timezone.now() + timedelta(hours=int(expires_in_hours))
+
+        # Generate a single token shared across all recipients — the link is the same for all.
+        token_record, raw_token = create_organization_onboarding_token(
+            organization=organization,
+            subscription=active_subscription,
+            created_by=request.user,
+            expires_at=expires_at,
+            max_uses=serializer.validated_data.get("max_uses"),
+            allowed_email_domain=serializer.validated_data.get("allowed_email_domain", ""),
+            rotate=bool(serializer.validated_data.get("rotate", True)),
+            metadata={"issued_via": "email_invite", "recipient_emails": recipient_emails},
+        )
+
+        onboarding_link = build_onboarding_link(raw_token)
+        invited_by = str(getattr(request.user, "get_full_name", lambda: "")() or "").strip()
+        if not invited_by:
+            invited_by = str(getattr(request.user, "email", "") or organization.name)
+
+        sent: list[str] = []
+        failed: list[str] = []
+        for email in recipient_emails:
+            try:
+                _send_onboarding_invite_email(
+                    recipient_email=email,
+                    organization_name=organization.name,
+                    onboarding_link=onboarding_link,
+                    invited_by=invited_by,
+                    expires_at=token_record.expires_at,
+                    allowed_email_domain=token_record.allowed_email_domain,
+                )
+                sent.append(email)
+            except Exception:
+                failed.append(email)
+
+        log_event(
+            request=request,
+            action="update",
+            entity_type="OrganizationOnboardingToken",
+            entity_id=str(token_record.id),
+            changes={
+                "event": "organization_onboarding_invite_sent",
+                "organization_id": str(organization.id),
+                "subscription_id": str(active_subscription.id),
+                "token_preview": token_record.token_prefix,
+                "sent": sent,
+                "failed": failed,
+                "max_uses": token_record.max_uses,
+                "expires_at": token_record.expires_at.isoformat() if token_record.expires_at else None,
+                "allowed_email_domain": token_record.allowed_email_domain,
+            },
+        )
+
+        return Response(
+            {
+                "status": "ok",
+                "sent": sent,
+                "failed": failed,
+                "organization_name": organization.name,
+                "token_state": _serialize_onboarding_token_state(token_record),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 class OrganizationOnboardingTokenValidateAPIView(APIView):
     permission_classes = [AllowAny]
     serializer_class = OrganizationOnboardingTokenValidateSerializer
@@ -2403,39 +2577,61 @@ class SubscriptionAccessVerifyAPIView(APIView):
         serializer.is_valid(raise_exception=True)
 
         reference = serializer.validated_data["reference"]
-        valid, reason, subscription = _resolve_subscription_access_state(reference)
+        org_id = _normalized_organization_id(serializer.validated_data.get("organization_id"))
 
-        payload = {
-            "valid": valid,
-            "reason": reason,
-            "reference": reference,
-        }
-
-        if subscription is not None:
-            payload.update(
-                {
-                    "planId": subscription.plan_id,
-                    "planName": subscription.plan_name,
-                    "billingCycle": subscription.billing_cycle,
-                    "paymentMethod": subscription.payment_method,
-                    "amountUsd": float(subscription.amount_usd),
-                    "confirmedAt": _datetime_to_ms(subscription.ticket_confirmed_at),
-                    "expiresAt": _datetime_to_ms(subscription.ticket_expires_at),
-                    "status": subscription.status,
-                    "paymentStatus": subscription.payment_status,
-                    "registrationConsumedAt": _datetime_to_ms(subscription.registration_consumed_at),
-                }
+        # Billing tables are TENANT_APPS — switch to the org's schema before querying.
+        from apps.tenants.models import Organization as _Organization  # noqa: PLC0415
+        from django_tenants.utils import schema_context as _schema_context  # noqa: PLC0415
+        organization = _Organization.objects.filter(id=org_id, is_active=True).first() if org_id else None
+        if organization is None:
+            _audit_subscription_access_verify(
+                request=request,
+                reference=reference,
+                valid=False,
+                reason="no_tenant_context",
+                rate_limited=False,
+                attempts_in_window=count,
+                client_ip=client_ip,
+            )
+            return Response(
+                {"valid": False, "reason": "no_tenant_context", "reference": reference},
+                status=status.HTTP_200_OK,
             )
 
-        _audit_subscription_access_verify(
-            request=request,
-            reference=reference,
-            valid=valid,
-            reason=reason,
-            rate_limited=False,
-            attempts_in_window=count,
-            client_ip=client_ip,
-        )
+        with _schema_context(organization.schema_name):
+            valid, reason, subscription = _resolve_subscription_access_state(reference)
+
+            payload = {
+                "valid": valid,
+                "reason": reason,
+                "reference": reference,
+            }
+
+            if subscription is not None:
+                payload.update(
+                    {
+                        "planId": subscription.plan_id,
+                        "planName": subscription.plan_name,
+                        "billingCycle": subscription.billing_cycle,
+                        "paymentMethod": subscription.payment_method,
+                        "amountUsd": float(subscription.amount_usd),
+                        "confirmedAt": _datetime_to_ms(subscription.ticket_confirmed_at),
+                        "expiresAt": _datetime_to_ms(subscription.ticket_expires_at),
+                        "status": subscription.status,
+                        "paymentStatus": subscription.payment_status,
+                        "registrationConsumedAt": _datetime_to_ms(subscription.registration_consumed_at),
+                    }
+                )
+
+            _audit_subscription_access_verify(
+                request=request,
+                reference=reference,
+                valid=valid,
+                reason=reason,
+                rate_limited=False,
+                attempts_in_window=count,
+                client_ip=client_ip,
+            )
 
         return Response(payload, status=status.HTTP_200_OK)
 
@@ -2496,21 +2692,23 @@ class StripeCheckoutSessionCreateAPIView(APIView):
                     }
                 ],
                 metadata=metadata,
+                subscription_data={"metadata": metadata},
             )
         except Exception as exc:
             raise ValidationError(f"Unable to create Stripe checkout session: {exc}") from exc
 
+        session_dict = session._to_dict_recursive()
         _persist_stripe_session(
-            dict(session),
-            checkout_url=session.get("url"),
+            session_dict,
+            checkout_url=session_dict.get("url"),
             organization_id=organization_id,
         )
 
         return Response(
             {
                 "provider": "stripe",
-                "session_id": session.get("id"),
-                "checkout_url": session.get("url"),
+                "session_id": session_dict.get("id"),
+                "checkout_url": session_dict.get("url"),
             },
             status=status.HTTP_200_OK,
         )
@@ -2556,24 +2754,32 @@ class StripeCheckoutSessionConfirmAPIView(APIView):
         except Exception as exc:
             raise ValidationError(f"Unable to retrieve Stripe session: {exc}") from exc
 
-        session_payload = dict(session)
+        session_payload = session._to_dict_recursive()
         session_status = session_payload.get("status")
         payment_status = session_payload.get("payment_status")
         if session_status != "complete" or payment_status not in {"paid", "no_payment_required"}:
             raise ValidationError("Stripe checkout session is not fully paid yet.")
 
-        subscription = _persist_stripe_session(
-            session_payload,
-        )
+        # Billing tables are TENANT_APPS — resolve the tenant from the organization_id
+        # embedded in the session metadata before any ORM calls.
+        session_metadata = dict(session_payload.get("metadata") or {})
+        org_id = _normalized_organization_id(session_metadata.get("organization_id"))
+        from apps.tenants.models import Organization as _Organization  # noqa: PLC0415
+        from django_tenants.utils import schema_context as _schema_context  # noqa: PLC0415
+        organization = _Organization.objects.filter(id=org_id, is_active=True).first() if org_id else None
+        if organization is None:
+            raise ValidationError("Unable to resolve organization for this Stripe session.")
 
-        ticket = _build_subscription_ticket(
-            plan_id=subscription.plan_id,
-            plan_name=subscription.plan_name,
-            billing_cycle=subscription.billing_cycle,
-            payment_method=subscription.payment_method,
-            amount_usd=float(subscription.amount_usd),
-            reference=subscription.reference,
-        )
+        with _schema_context(organization.schema_name):
+            subscription = _persist_stripe_session(session_payload)
+            ticket = _build_subscription_ticket(
+                plan_id=subscription.plan_id,
+                plan_name=subscription.plan_name,
+                billing_cycle=subscription.billing_cycle,
+                payment_method=subscription.payment_method,
+                amount_usd=float(subscription.amount_usd),
+                reference=subscription.reference,
+            )
 
         return Response(
             {
@@ -2699,33 +2905,44 @@ class PaystackCheckoutSessionConfirmAPIView(APIView):
             response["Retry-After"] = str(retry_after)
             return response
 
+        # Verify the transaction first (no DB — HTTP call to Paystack) so we can
+        # extract the organization_id that was embedded in the metadata at checkout
+        # initiation time.  We need it to switch to the correct tenant schema before
+        # any billing ORM calls.
         transaction_data = _paystack_verify_transaction(reference)
-        subscription = _persist_paystack_transaction(
-            transaction_data,
-        )
-        transaction_status = str(transaction_data.get("status") or "").strip().lower()
-        if transaction_status != "success":
-            gateway_response = str(transaction_data.get("gateway_response") or "").strip()
-            detail = f"Paystack transaction is not successful yet (status: {transaction_status or 'unknown'})."
-            if gateway_response:
-                detail = f"{detail} Gateway response: {gateway_response}"
-            raise ValidationError(
-                {
-                    "detail": detail,
-                    "status": transaction_status or "unknown",
-                    "reference": reference,
-                    "checkout_url": subscription.checkout_url,
-                }
-            )
+        tx_metadata = dict(transaction_data.get("metadata") or {})
+        org_id = _normalized_organization_id(tx_metadata.get("organization_id"))
+        from apps.tenants.models import Organization as _Organization  # noqa: PLC0415
+        from django_tenants.utils import schema_context as _schema_context  # noqa: PLC0415
+        organization = _Organization.objects.filter(id=org_id, is_active=True).first() if org_id else None
+        if organization is None:
+            raise ValidationError("Unable to resolve organization for this Paystack transaction.")
 
-        ticket = _build_subscription_ticket(
-            plan_id=subscription.plan_id,
-            plan_name=subscription.plan_name,
-            billing_cycle=subscription.billing_cycle,
-            payment_method=subscription.payment_method,
-            amount_usd=float(subscription.amount_usd),
-            reference=subscription.reference,
-        )
+        with _schema_context(organization.schema_name):
+            subscription = _persist_paystack_transaction(transaction_data)
+            transaction_status = str(transaction_data.get("status") or "").strip().lower()
+            if transaction_status != "success":
+                gateway_response = str(transaction_data.get("gateway_response") or "").strip()
+                detail = f"Paystack transaction is not successful yet (status: {transaction_status or 'unknown'})."
+                if gateway_response:
+                    detail = f"{detail} Gateway response: {gateway_response}"
+                raise ValidationError(
+                    {
+                        "detail": detail,
+                        "status": transaction_status or "unknown",
+                        "reference": reference,
+                        "checkout_url": subscription.checkout_url,
+                    }
+                )
+
+            ticket = _build_subscription_ticket(
+                plan_id=subscription.plan_id,
+                plan_name=subscription.plan_name,
+                billing_cycle=subscription.billing_cycle,
+                payment_method=subscription.payment_method,
+                amount_usd=float(subscription.amount_usd),
+                reference=subscription.reference,
+            )
 
         return Response(
             {
@@ -2749,7 +2966,6 @@ class PaystackWebhookAPIView(APIView):
             400: BillingActionErrorSerializer,
         },
     )
-    @transaction.atomic
     def post(self, request):
         _ensure_paystack_ready()
 
@@ -2770,6 +2986,27 @@ class PaystackWebhookAPIView(APIView):
         event_type = str(event.get("event") or "").strip()
         event_data = dict(event.get("data") or {})
 
+        # Billing tables are TENANT_APPS — they only exist in tenant schemas, not the
+        # public schema that handles this webhook endpoint.  Resolve the target tenant
+        # from the organization_id embedded in the transaction metadata at checkout
+        # initiation time, then switch the DB search_path before any ORM operations.
+        event_metadata = dict(event_data.get("metadata") or {})
+        org_id = _normalized_organization_id(event_metadata.get("organization_id"))
+        from apps.tenants.models import Organization as _Organization  # noqa: PLC0415
+        from django_tenants.utils import schema_context as _schema_context  # noqa: PLC0415
+        organization = _Organization.objects.filter(id=org_id, is_active=True).first() if org_id else None
+        if organization is None:
+            # Acknowledge receipt but take no DB action — we have no tenant to write to.
+            return Response(
+                {"received": True, "event_type": event_type, "detail": "no_tenant_context"},
+                status=status.HTTP_200_OK,
+            )
+
+        with _schema_context(organization.schema_name):
+            return self._process_paystack_event(event, event_id, event_type, event_data, signature)
+
+    @transaction.atomic
+    def _process_paystack_event(self, event, event_id, event_type, event_data, signature):
         if event_id:
             webhook_event, _ = BillingWebhookEvent.objects.get_or_create(
                 provider="paystack",
@@ -2882,7 +3119,6 @@ class StripeWebhookAPIView(APIView):
             400: BillingActionErrorSerializer,
         },
     )
-    @transaction.atomic
     def post(self, request):
         _ensure_stripe_webhook_ready()
 
@@ -2892,27 +3128,53 @@ class StripeWebhookAPIView(APIView):
 
         payload = request.body
         try:
-            event = _stripe_construct_event(payload=payload, sig_header=signature)
+            event_obj = _stripe_construct_event(payload=payload, sig_header=signature)
         except Exception as exc:
             raise ValidationError(f"Invalid Stripe webhook signature: {exc}") from exc
 
+        # Convert the StripeObject to a plain dict immediately — StripeObject v14 does not
+        # inherit from dict, so .get() and other dict methods are unavailable on the raw object.
+        event = event_obj._to_dict_recursive() if hasattr(event_obj, "_to_dict_recursive") else dict(event_obj)
+
+        event_type = event.get("type", "")
+        event_data = dict((event.get("data") or {}).get("object") or {})
+
+        # Billing tables are TENANT_APPS — resolve the tenant from the organization_id
+        # embedded in the event metadata before any ORM calls.
+        org_id = _stripe_event_organization_id(event_type, event_data)
+        from apps.tenants.models import Organization as _Organization  # noqa: PLC0415
+        from django_tenants.utils import schema_context as _schema_context  # noqa: PLC0415
+        organization = _Organization.objects.filter(id=org_id, is_active=True).first() if org_id else None
+        if organization is None:
+            return Response(
+                {"received": True, "event_type": event_type, "detail": "no_tenant_context"},
+                status=status.HTTP_200_OK,
+            )
+
+        with _schema_context(organization.schema_name):
+            return self._process_stripe_event(event, event_type, event_data, signature)
+
+    @transaction.atomic
+    def _process_stripe_event(self, event: dict, event_type: str, event_data: dict, signature: str):
+        # event and event_data are already plain Python dicts (converted in post())
         event_id = str(event.get("id") or "")
+        livemode = bool(event.get("livemode", False))
         if event_id:
             webhook_event, _ = BillingWebhookEvent.objects.get_or_create(
                 provider="stripe",
                 event_id=event_id,
                 defaults={
-                    "event_type": event.get("type", ""),
+                    "event_type": event_type,
                     "signature": signature,
                     "payload": event,
-                    "livemode": bool(event.get("livemode", False)),
+                    "livemode": livemode,
                     "processing_status": "received",
                 },
             )
-            webhook_event.event_type = event.get("type", "")
+            webhook_event.event_type = event_type
             webhook_event.signature = signature
             webhook_event.payload = event
-            webhook_event.livemode = bool(event.get("livemode", False))
+            webhook_event.livemode = livemode
             webhook_event.processing_status = "received"
             webhook_event.processing_error = ""
             webhook_event.save(update_fields=[
@@ -2926,15 +3188,14 @@ class StripeWebhookAPIView(APIView):
         else:
             webhook_event = BillingWebhookEvent.objects.create(
                 provider="stripe",
-                event_type=event.get("type", ""),
+                event_type=event_type,
                 signature=signature,
                 payload=event,
-                livemode=bool(event.get("livemode", False)),
+                livemode=livemode,
                 processing_status="received",
             )
 
-        event_type = event.get("type", "")
-        event_data = (event.get("data") or {}).get("object") or {}
+        event_data_dict = event_data  # already a plain dict from post()
 
         response_payload = {
             "received": True,
@@ -2948,7 +3209,7 @@ class StripeWebhookAPIView(APIView):
                 "checkout.session.async_payment_failed",
                 "checkout.session.expired",
             }:
-                subscription = _persist_stripe_session(dict(event_data))
+                subscription = _persist_stripe_session(event_data_dict)
                 response_payload["session_id"] = subscription.session_id
                 response_payload["payment_status"] = subscription.payment_status
             elif event_type == "invoice.payment_failed":
@@ -2960,7 +3221,7 @@ class StripeWebhookAPIView(APIView):
                     metadata = dict(subscription.metadata or {})
                     metadata["last_invoice_payment_failed_at"] = timezone.now().isoformat()
                     subscription.metadata = metadata
-                    subscription.raw_last_payload = dict(event_data)
+                    subscription.raw_last_payload = event_data_dict
                     subscription.save(
                         update_fields=["status", "payment_status", "metadata", "raw_last_payload", "updated_at"]
                     )
@@ -2989,7 +3250,7 @@ class StripeWebhookAPIView(APIView):
                         ).isoformat()
                     metadata["canceled_at"] = timezone.now().isoformat()
                     subscription.metadata = metadata
-                    subscription.raw_last_payload = dict(event_data)
+                    subscription.raw_last_payload = event_data_dict
                     subscription.save(
                         update_fields=["status", "payment_status", "metadata", "raw_last_payload", "updated_at"]
                     )
@@ -3029,7 +3290,7 @@ class StripeWebhookAPIView(APIView):
                         subscription.status = "canceled"
                         subscription.payment_status = "unpaid"
                     subscription.metadata = metadata
-                    subscription.raw_last_payload = dict(event_data)
+                    subscription.raw_last_payload = event_data_dict
                     subscription.save(
                         update_fields=["status", "payment_status", "metadata", "raw_last_payload", "updated_at"]
                     )

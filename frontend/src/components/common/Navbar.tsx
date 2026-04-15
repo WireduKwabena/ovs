@@ -1184,6 +1184,23 @@ export const Navbar: React.FC = () => {
                       </Link>
                     );
                   })}
+                  {desktopSecondaryLinks.map((navItem) => {
+                    const NavIcon = getNavIcon(navItem);
+                    const active = isRouteActive(navItem.to);
+                    return (
+                      <Link
+                        key={navItem.to}
+                        to={navItem.to}
+                        className={mobileNavClass(navItem.to)}
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <span className={`${sidebarIconClass(active)} mr-2`}>
+                          <NavIcon className="h-4 w-4 shrink-0" />
+                        </span>
+                        {navItem.label}
+                      </Link>
+                    );
+                  })}
                 </div>
               </div>
 

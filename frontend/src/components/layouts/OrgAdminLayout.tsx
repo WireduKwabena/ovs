@@ -209,9 +209,7 @@ export const OrgAdminLayout: React.FC<OrgAdminLayoutProps> = ({ children }) => {
 
         {/* Main Content Area */}
         <main className="min-h-screen w-full lg:pl-64 xl:pl-72">
-          <div className="p-4 md:p-6 lg:p-8">
-            {children}
-          </div>
+          {children}
         </main>
       </div>
     </div>

@@ -3,6 +3,8 @@ import type {
   OrganizationOnboardingTokenGeneratePayload,
   OrganizationOnboardingTokenGenerateResponse,
   OrganizationOnboardingTokenRevokePayload,
+  OrganizationOnboardingTokenSendInvitePayload,
+  OrganizationOnboardingTokenSendInviteResponse,
   OrganizationOnboardingTokenStateResponse,
 } from '@/types';
 
@@ -142,6 +144,16 @@ const revokeOnboardingToken = async (
   return response.data;
 };
 
+const sendOnboardingInvite = async (
+  payload: OrganizationOnboardingTokenSendInvitePayload,
+): Promise<OrganizationOnboardingTokenSendInviteResponse> => {
+  const response = await api.post<OrganizationOnboardingTokenSendInviteResponse>(
+    '/billing/onboarding-token/send-invite/',
+    payload,
+  );
+  return response.data;
+};
+
 const getHealth = async (): Promise<BillingHealthResponse> => {
   const response = await api.get<BillingHealthResponse>('/billing/health/');
   return response.data;
@@ -195,4 +207,5 @@ export const billingService = {
   getOnboardingTokenState,
   generateOnboardingToken,
   revokeOnboardingToken,
+  sendOnboardingInvite,
 };

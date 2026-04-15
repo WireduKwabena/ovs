@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Copy, Loader2, ShieldCheck } from "lucide-react";
+import { Copy, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { toast } from "react-toastify";
 
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,9 @@ const OrganizationOnboardingPage: React.FC = () => {
   const [maxUses, setMaxUses] = useState("25");
   const [expiresInHours, setExpiresInHours] = useState("72");
   const [allowedDomain, setAllowedDomain] = useState("");
+  const [inviteEmails, setInviteEmails] = useState<string[]>([]);
+  const [inviteEmailDraft, setInviteEmailDraft] = useState("");
+  const [sendingInvite, setSendingInvite] = useState(false);
 
   const canManage = userType !== "applicant" && canManageActiveOrganizationGovernance;
   const tokenState = onboardingState?.token ?? null;
@@ -125,6 +128,93 @@ const OrganizationOnboardingPage: React.FC = () => {
       toast.error(getErrorMessage(error, "Failed to revoke onboarding invite."));
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+  const commitEmailDraft = () => {
+    const email = inviteEmailDraft.trim().replace(/,+$/, "");
+    if (!email) return;
+    if (!isValidEmail(email)) {
+      toast.error(`"${email}" is not a valid email address.`);
+      return;
+    }
+    if (inviteEmails.includes(email)) {
+      setInviteEmailDraft("");
+      return;
+    }
+    if (inviteEmails.length >= 20) {
+      toast.error("You can send to at most 20 recipients at once.");
+      return;
+    }
+    setInviteEmails((prev) => [...prev, email]);
+    setInviteEmailDraft("");
+  };
+
+  const handleEmailDraftKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === "," || e.key === "Tab") {
+      e.preventDefault();
+      commitEmailDraft();
+    } else if (e.key === "Backspace" && inviteEmailDraft === "" && inviteEmails.length > 0) {
+      setInviteEmails((prev) => prev.slice(0, -1));
+    }
+  };
+
+  const removeInviteEmail = (email: string) => {
+    setInviteEmails((prev) => prev.filter((e) => e !== email));
+  };
+
+  const handleSendInvite = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!canManage || !activeOrganizationId) return;
+
+    // Commit any in-progress draft before submitting
+    const draft = inviteEmailDraft.trim().replace(/,+$/, "");
+    let emailsToSend = inviteEmails;
+    if (draft) {
+      if (!isValidEmail(draft)) {
+        toast.error(`"${draft}" is not a valid email address.`);
+        return;
+      }
+      if (!emailsToSend.includes(draft)) {
+        emailsToSend = [...emailsToSend, draft];
+      }
+    }
+    if (emailsToSend.length === 0) {
+      toast.error("Add at least one recipient email address.");
+      return;
+    }
+
+    setSendingInvite(true);
+    try {
+      const payload = {
+        recipient_emails: emailsToSend,
+        rotate: true,
+        max_uses: Number.isFinite(Number(maxUses)) && Number(maxUses) > 0 ? Number(maxUses) : undefined,
+        expires_in_hours:
+          Number.isFinite(Number(expiresInHours)) && Number(expiresInHours) > 0
+            ? Number(expiresInHours)
+            : undefined,
+        allowed_email_domain: allowedDomain.trim() || undefined,
+      };
+      const result = await billingService.sendOnboardingInvite(payload);
+      const sentCount = result.sent.length;
+      const failedCount = result.failed.length;
+      if (failedCount === 0) {
+        toast.success(`Invite${sentCount > 1 ? "s" : ""} sent to ${sentCount} recipient${sentCount > 1 ? "s" : ""}.`);
+      } else {
+        toast.warning(
+          `Sent to ${sentCount}, failed for ${failedCount}: ${result.failed.join(", ")}`,
+        );
+      }
+      setInviteEmails([]);
+      setInviteEmailDraft("");
+      await fetchState();
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to send onboarding invites."));
+    } finally {
+      setSendingInvite(false);
     }
   };
 
@@ -342,6 +432,103 @@ const OrganizationOnboardingPage: React.FC = () => {
             </div>
           </div>
         ) : null}
+
+        <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Mail className="h-4 w-4 text-slate-600" />
+            <p className="text-sm font-semibold text-slate-900">Send Invite by Email</p>
+          </div>
+          <p className="mb-4 text-xs text-slate-600">
+            Generate a new invite link and send it to one or more people. Type an address and press{" "}
+            <kbd className="rounded border border-slate-300 bg-white px-1 py-0.5 font-mono text-[10px]">
+              Enter
+            </kbd>{" "}
+            or{" "}
+            <kbd className="rounded border border-slate-300 bg-white px-1 py-0.5 font-mono text-[10px]">
+              ,
+            </kbd>{" "}
+            to add it. Up to 20 recipients. Uses the same token settings above.
+          </p>
+          <form onSubmit={(e) => void handleSendInvite(e)} className="space-y-3">
+            <div className="space-y-1.5">
+              <label
+                htmlFor="invite-email-input"
+                className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+              >
+                Recipients
+              </label>
+              {/* Tag input container */}
+              <div
+                className={[
+                  "flex min-h-[2.5rem] flex-wrap gap-1.5 rounded-md border bg-white px-2 py-1.5 text-sm transition focus-within:ring-2 focus-within:ring-primary/20",
+                  sendingInvite || !hasActiveSubscription
+                    ? "cursor-not-allowed opacity-60 border-slate-200"
+                    : "border-slate-300 focus-within:border-primary/50",
+                ].join(" ")}
+                onClick={() => document.getElementById("invite-email-input")?.focus()}
+              >
+                {inviteEmails.map((email) => (
+                  <span
+                    key={email}
+                    className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+                  >
+                    {email}
+                    <button
+                      type="button"
+                      aria-label={`Remove ${email}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeInviteEmail(email);
+                      }}
+                      className="ml-0.5 rounded hover:text-destructive focus:outline-none"
+                      disabled={sendingInvite}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                <input
+                  id="invite-email-input"
+                  type="text"
+                  inputMode="email"
+                  placeholder={inviteEmails.length === 0 ? "colleague@example.com" : "Add another…"}
+                  value={inviteEmailDraft}
+                  onChange={(e) => setInviteEmailDraft(e.target.value)}
+                  onKeyDown={handleEmailDraftKeyDown}
+                  onBlur={commitEmailDraft}
+                  className="min-w-[180px] flex-1 bg-transparent py-0.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none disabled:cursor-not-allowed"
+                  disabled={sendingInvite || !hasActiveSubscription || inviteEmails.length >= 20}
+                />
+              </div>
+              {inviteEmails.length > 0 ? (
+                <p className="text-xs text-slate-500">
+                  {inviteEmails.length} recipient{inviteEmails.length > 1 ? "s" : ""} added
+                  {inviteEmails.length < 20 ? ` · ${20 - inviteEmails.length} remaining` : " · limit reached"}
+                </p>
+              ) : null}
+            </div>
+            <Button
+              type="submit"
+              disabled={
+                sendingInvite ||
+                !hasActiveSubscription ||
+                (inviteEmails.length === 0 && !inviteEmailDraft.trim())
+              }
+            >
+              {sendingInvite ? (
+                <>
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Sending…
+                </>
+              ) : (
+                <>
+                  <Mail className="mr-1.5 h-3.5 w-3.5" />
+                  Send Invite{inviteEmails.length > 1 ? "s" : ""}
+                </>
+              )}
+            </Button>
+          </form>
+        </div>
 
         <div className="mt-6">
           <Button type="button" variant="outline" onClick={() => navigate("/organization/dashboard")}>

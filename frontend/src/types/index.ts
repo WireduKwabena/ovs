@@ -1203,6 +1203,22 @@ export interface OrganizationOnboardingTokenRevokePayload {
   reason?: string;
 }
 
+export interface OrganizationOnboardingTokenSendInvitePayload {
+  recipient_emails: string[];
+  max_uses?: number;
+  expires_in_hours?: number;
+  allowed_email_domain?: string;
+  rotate?: boolean;
+}
+
+export interface OrganizationOnboardingTokenSendInviteResponse {
+  status: string;
+  sent: string[];
+  failed: string[];
+  organization_name: string;
+  token_state: OrganizationOnboardingTokenState;
+}
+
 // Analytics/Chart Interfaces
 export interface ChartDataPoint {
   name: string;

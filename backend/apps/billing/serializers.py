@@ -82,6 +82,7 @@ class CheckoutConfirmErrorSerializer(serializers.Serializer):
 
 class SubscriptionAccessVerifySerializer(serializers.Serializer):
     reference = serializers.CharField(max_length=255)
+    organization_id = serializers.UUIDField(required=False, allow_null=True)
 
 
 class BillingActionErrorSerializer(serializers.Serializer):
@@ -292,3 +293,23 @@ class OrganizationOnboardingTokenValidateResponseSerializer(serializers.Serializ
     subscription_id = serializers.UUIDField(required=False, allow_null=True)
     remaining_uses = serializers.IntegerField(required=False, allow_null=True)
     expires_at = serializers.DateTimeField(required=False, allow_null=True)
+
+
+class OrganizationOnboardingTokenSendInviteSerializer(serializers.Serializer):
+    recipient_emails = serializers.ListField(
+        child=serializers.EmailField(),
+        min_length=1,
+        max_length=20,
+    )
+    max_uses = serializers.IntegerField(required=False, min_value=1)
+    expires_in_hours = serializers.IntegerField(required=False, min_value=1, max_value=24 * 365)
+    allowed_email_domain = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    rotate = serializers.BooleanField(required=False, default=True)
+
+
+class OrganizationOnboardingTokenSendInviteResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    sent = serializers.ListField(child=serializers.EmailField())
+    failed = serializers.ListField(child=serializers.EmailField())
+    organization_name = serializers.CharField()
+    token_state = OnboardingTokenStateSerializer()
