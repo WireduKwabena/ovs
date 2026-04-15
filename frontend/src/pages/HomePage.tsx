@@ -569,11 +569,7 @@ export const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen scroll-smooth bg-background text-foreground">
-      <section data-testid="homepage-hero" className={heroSectionClassName}>
-        <div className={heroAuraClassName} />
-        <div className={heroGridClassName} />
-
-        <header className={heroHeaderClassName}>
+      <header className={heroHeaderClassName}>
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-linear-to-br from-cyan-400 via-blue-500 to-violet-500 shadow-[0_12px_30px_rgba(59,130,246,0.35)]">
@@ -638,7 +634,9 @@ export const HomePage: React.FC = () => {
             />
           </div>
         </header>
-
+      <section data-testid="homepage-hero" className={heroSectionClassName}>
+        <div className={heroAuraClassName} />
+        <div className={heroGridClassName} />
         <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:hidden lg:px-8">
           <div
             aria-label="Homepage sections"
@@ -916,16 +914,18 @@ export const HomePage: React.FC = () => {
           </div>
 
           <div className="mt-14 grid gap-8 xl:grid-cols-[0.95fr_1.05fr]">
-            <article data-home-reveal className={`home-reveal home-reveal-delay-1 ${workflowOperatingCardClassName}`}>
-              <p className={workflowEyebrowClassName}>Operating Model</p>
-              <ul className="mt-6 space-y-4">
-                {processSteps.map((step) => (
-                  <li key={step} className={workflowListItemClassName}>
-                    <CheckCircle2 className="mt-1 h-4 w-4 text-emerald-300" />
-                    <span>{step}</span>
-                  </li>
-                ))}
-              </ul>
+            <article data-home-reveal className="home-reveal home-reveal-delay-1">
+              <div className={workflowOperatingCardClassName}>
+                <p className={workflowEyebrowClassName}>Operating Model</p>
+                <ul className="mt-6 space-y-4">
+                  {processSteps.map((step) => (
+                    <li key={step} className={workflowListItemClassName}>
+                      <CheckCircle2 className="mt-1 h-4 w-4 text-emerald-300" />
+                      <span>{step}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </article>
 
             <div
