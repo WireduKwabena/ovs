@@ -367,9 +367,9 @@ const AppRoutes: React.FC = () => (
       <Route
         path="/admin/org/:orgId/users"
         element={
-          <OrganizationScopedRoute>
+          <ProtectedRoute platformAdminOnly>
             <OrgUsersPage />
-          </OrganizationScopedRoute>
+          </ProtectedRoute>
         }
       />
       <Route

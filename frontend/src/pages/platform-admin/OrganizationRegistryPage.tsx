@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Building2,
   Search,
@@ -16,8 +17,10 @@ import type { GovernancePlatformOrganizationOversight } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { getOrgAdminPath } from '@/utils/appPaths';
 
 export const OrganizationRegistryPage: React.FC = () => {
+  const navigate = useNavigate();
   const [organizations, setOrganizations] = useState<GovernancePlatformOrganizationOversight[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -181,6 +184,14 @@ export const OrganizationRegistryPage: React.FC = () => {
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Billing Posture</p>
                     <p className="text-sm font-semibold">{org.subscription?.plan_name || 'Free Tier'}</p>
                   </div>
+                  <Button
+                    variant="outline"
+                    className="rounded-xl gap-2"
+                    onClick={() => navigate(getOrgAdminPath(org.id, 'users'))}
+                  >
+                    <Users className="h-4 w-4" />
+                    Registry Admins
+                  </Button>
                   <Button 
                     variant={org.is_active ? "outline" : "default"} 
                     className="rounded-xl gap-2"

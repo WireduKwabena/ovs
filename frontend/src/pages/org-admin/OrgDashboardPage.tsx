@@ -460,13 +460,11 @@ const OrgDashboardPage: React.FC = () => {
                 </button>
                 <button
                   onClick={() =>
-                    navigate(`/admin/org/${activeOrganizationId}/users`)
+                    navigate(`/admin/org/${activeOrganizationId}/members`)
                   }
                   className="flex items-center justify-between w-full p-4 rounded-2xl bg-white/10 hover:bg-white/20 transition-all group/btn border border-white/5"
                 >
-                  <span className="text-sm font-bold">
-                    Onboard Staff Member
-                  </span>
+                  <span className="text-sm font-bold">Manage Members</span>
                   <ChevronRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
                 </button>
               </div>

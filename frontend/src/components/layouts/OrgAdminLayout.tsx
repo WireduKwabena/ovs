@@ -43,7 +43,7 @@ export const OrgAdminLayout: React.FC<OrgAdminLayoutProps> = ({ children }) => {
     { to: getOrgAdminPath(activeOrganizationId, 'dashboard'), label: 'Org Dashboard', icon: LayoutDashboard },
     { to: getOrgAdminPath(activeOrganizationId, 'cases'), label: 'Vetting Cases', icon: FolderOpen },
     { to: getOrgAdminPath(activeOrganizationId, 'committees'), label: 'Committees', icon: Users },
-    { to: getOrgAdminPath(activeOrganizationId, 'users'), label: 'Personnel', icon: UserPlus },
+    { to: getOrgAdminPath(activeOrganizationId, 'members'), label: 'Members', icon: UserPlus },
     { to: getOrgAdminPath(activeOrganizationId, 'onboarding'), label: 'Onboarding', icon: ClipboardCheck },
     { to: '/settings', label: 'Settings', icon: CreditCard },
   ] : [];

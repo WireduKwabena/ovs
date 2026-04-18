@@ -110,6 +110,47 @@ class MonitorHealthApiTests(MonitorApiBaseTests):
         mock_log_event.assert_not_called()
 
 
+class MonitorPublicRouteTests(APITestCase):
+    _public_host = {"SERVER_NAME": "public.testserver"}
+
+    def setUp(self):
+        self.superuser = User.objects.create_user(
+            email="aimonitor-superuser@example.com",
+            password="Pass1234!",
+            first_name="AI",
+            last_name="Superuser",
+            user_type="admin",
+            is_staff=True,
+            is_superuser=True,
+        )
+
+    @patch("ai_ml_services.views.model_monitor")
+    def test_versioned_health_endpoint_is_available_from_public_schema_for_superuser(self, mock_monitor):
+        mock_monitor.enabled = True
+        mock_monitor.backend = "memory"
+        mock_monitor.use_redis = False
+        mock_monitor.redis_url = "redis://localhost:6379/2"
+        mock_monitor.get_metrics.return_value = {
+            "status": "no_data",
+            "model_name": "default",
+            "backend": "memory",
+        }
+        mock_monitor.check_data_drift.return_value = {
+            "drift_detected": False,
+            "model_name": "default",
+            "reason": "Insufficient data",
+        }
+
+        self.client.force_authenticate(self.superuser)
+        with patch("ai_ml_services.views.log_event") as mock_log_event:
+            response = self.client.get("/api/v1/ai-monitor/health/", **self._public_host)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.assertEqual(response.data["status"], "ok")
+        self.assertEqual(response.data["monitor"]["backend"], "memory")
+        mock_log_event.assert_called_once()
+
+
 @unittest.skipUnless(_HAS_CV2_NUMPY, _CV2_NUMPY_MISSING_REASON)
 class MonitorDocumentClassificationApiTests(MonitorApiBaseTests):
     @patch("ai_ml_services.views.get_ai_service")

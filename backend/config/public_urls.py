@@ -16,7 +16,7 @@ ROOT_URLCONF (config/urls.py) and requires a matched tenant domain.
 """
 
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 
 try:
     from drf_spectacular.views import (
@@ -96,6 +96,11 @@ urlpatterns = [
         billing_views.SubscriptionAccessVerifyAPIView.as_view(),
         name="public_subscription_access_verify",
     ),
+    # AI monitor endpoints must be reachable from the public schema for
+    # platform superusers and external callback integrations.
+    path("api/v1/ai-monitor/", include("ai_ml_services.urls")),
+    path("api/v1/audit/", include("apps.audit.urls")),
+    path("api/v1/governance/", include("apps.governance.urls")),
 
     # Stripe
     path(
@@ -103,6 +108,7 @@ urlpatterns = [
         billing_views.StripeCheckoutSessionConfirmAPIView.as_view(),
         name="public_stripe_confirm",
     ),
+    path("api/v1/video-calls/", include("apps.video_calls.urls")),
     path(
         "api/v1/billing/subscriptions/stripe/webhook/",
         billing_views.StripeWebhookAPIView.as_view(),

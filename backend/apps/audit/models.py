@@ -3,6 +3,7 @@
 import uuid
 
 from django.conf import settings
+from django.db import connection
 from django.db import models
 
 
@@ -61,3 +62,16 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f"{self.action} {self.entity_type}:{self.entity_id}"
+
+
+def audit_storage_available() -> bool:
+    """
+    Return whether the audit table is visible in the current DB search path.
+
+    This lets shared/public routes fail closed instead of raising when the
+    current schema has not been migrated for audit storage.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT to_regclass(%s)", [AuditLog._meta.db_table])
+        row = cursor.fetchone()
+    return bool(row and row[0])

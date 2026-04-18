@@ -439,9 +439,6 @@ export const Navbar: React.FC = () => {
   const organizationCasesPath = activeOrganizationId
     ? getOrgAdminPath(activeOrganizationId, "cases")
     : getOrganizationSetupPath("/dashboard");
-  const organizationUsersPath = activeOrganizationId
-    ? getOrgAdminPath(activeOrganizationId, "users")
-    : getOrganizationSetupPath("/dashboard");
   const routeAliasesByTarget: Record<string, string[]> = {
     [workspaceHomePath]: ["/workspace"],
     [candidateHomePath]: ["/candidate/access"],
@@ -474,7 +471,6 @@ export const Navbar: React.FC = () => {
       "/admin/applications",
       "/organization/cases",
     ],
-    [organizationUsersPath]: ["/admin/users", "/organization/users"],
     [organizationMembersPath]: ["/organization/members"],
     [organizationCommitteesPath]: ["/organization/committees"],
     [organizationOnboardingPath]: ["/organization/onboarding"],
@@ -621,10 +617,6 @@ export const Navbar: React.FC = () => {
     pushUnique(desktopPrimaryLinks, {
       to: organizationCasesPath,
       label: "Cases",
-    });
-    pushUnique(desktopPrimaryLinks, {
-      to: organizationUsersPath,
-      label: "Users",
     });
     pushUnique(desktopSecondaryLinks, {
       to: organizationMembersPath,

@@ -70,6 +70,10 @@ vi.mock("./pages/org-admin/OrgDashboardPage", () => ({
   default: () => <div>Mock Organization Dashboard Page</div>,
 }));
 
+vi.mock("./pages/org-admin/OrgUsersPage", () => ({
+  default: () => <div>Mock Organization Users Page</div>,
+}));
+
 vi.mock("./components/admin/CaseReview", () => ({
   CaseReview: () => <div>Mock Case Review Page</div>,
 }));
@@ -399,6 +403,15 @@ describe("App government route access", () => {
     expect(await screen.findByText("Mock Case Review Page")).toBeTruthy();
   });
 
+  it("allows platform admins to access the platform-only organization users route", async () => {
+    renderAppAt("/admin/org/org-1/users", "admin", [], {
+      activeOrganizationId: "org-1",
+      organizationMemberships: [],
+    });
+
+    expect(await screen.findByText("Mock Organization Users Page")).toBeTruthy();
+  });
+
   it("redirects org-admin scoped internal users away from platform admin routes", async () => {
     renderAppAt("/admin/platform/dashboard", "internal", [], {
       activeOrganizationId: "org-1",
@@ -411,6 +424,22 @@ describe("App government route access", () => {
         },
       ],
     });
+    expect(await screen.findByText("Mock Dashboard Page")).toBeTruthy();
+  });
+
+  it("redirects org-admin scoped internal users away from the platform-only organization users route", async () => {
+    renderAppAt("/admin/org/org-1/users", "internal", [], {
+      activeOrganizationId: "org-1",
+      organizationMemberships: [
+        {
+          id: "m-8",
+          organization_id: "org-1",
+          membership_role: "registry_admin",
+          is_active: true,
+        },
+      ],
+    });
+
     expect(await screen.findByText("Mock Dashboard Page")).toBeTruthy();
   });
 

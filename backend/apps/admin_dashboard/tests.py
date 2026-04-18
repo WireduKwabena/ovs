@@ -205,17 +205,22 @@ class AdminDashboardAPITests(APITestCase):
         self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(response.data["results"][0]["application_type"], "Employment")
 
-    def test_users_list_as_admin(self):
+    def test_users_list_as_admin_requires_active_organization_scope(self):
         self.client.force_authenticate(user=self.admin_user)
         response = self.client.get("/api/admin/users/")
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_users_filter_by_type(self):
+    def test_users_filter_by_type_as_admin_returns_only_registry_admins(self):
         self.client.force_authenticate(user=self.admin_user)
-        response = self.client.get("/api/admin/users/?user_type=internal")
+        response = self.client.get(
+            "/api/admin/users/?user_type=internal",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(self.organization_one.id),
+        )
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        returned_emails = {item["email"] for item in response.data["results"]}
+        self.assertEqual(returned_emails, {"org-admin@example.com"})
 
     def test_users_list_as_org_admin_are_scoped_to_active_organization(self):
         self.client.force_authenticate(user=self.org_admin_user)
@@ -231,25 +236,28 @@ class AdminDashboardAPITests(APITestCase):
         self.assertNotIn("other-org@example.com", returned_emails)
         self.assertNotIn("admin@example.com", returned_emails)
 
-    def test_admin_can_disable_non_self_user(self):
+    def test_admin_can_disable_registry_admin_within_active_organization_scope(self):
         self.client.force_authenticate(user=self.admin_user)
         response = self.client.patch(
-            f"/api/admin/users/{self.internal_user.id}/",
+            f"/api/admin/users/{self.org_admin_user.id}/",
+            {"is_active": False},
+            format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(self.organization_one.id),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.org_admin_user.refresh_from_db()
+        self.assertFalse(self.org_admin_user.is_active)
+
+    def test_admin_user_update_requires_active_organization_scope(self):
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.patch(
+            f"/api/admin/users/{self.org_admin_user.id}/",
             {"is_active": False},
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_admin_cannot_disable_self(self):
-        self.client.force_authenticate(user=self.admin_user)
-        response = self.client.patch(
-            f"/api/admin/users/{self.admin_user.id}/",
-            {"is_active": False},
-            format="json",
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_org_admin_can_disable_user_within_active_organization_scope(self):
         self.client.force_authenticate(user=self.org_admin_user)
@@ -288,24 +296,31 @@ class AdminDashboardAPITests(APITestCase):
         self.org_internal_user.refresh_from_db()
         self.assertEqual(self.org_internal_user.user_type, "internal")
 
-    def test_admin_can_assign_government_group_roles(self):
+    def test_admin_can_assign_government_group_roles_to_registry_admin_within_scope(self):
         self.client.force_authenticate(user=self.admin_user)
         response = self.client.patch(
-            f"/api/admin/users/{self.internal_user.id}/",
+            f"/api/admin/users/{self.org_admin_user.id}/",
             {"group_roles": ["vetting_officer", "auditor"]},
             format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(self.organization_one.id),
         )
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.org_admin_user.refresh_from_db()
+        self.assertEqual(
+            set(self.org_admin_user.groups.values_list("name", flat=True)),
+            {"auditor", "vetting_officer"},
+        )
 
-    def test_admin_cannot_assign_internal_roles_to_applicant_user(self):
+    def test_admin_cannot_assign_internal_roles_to_non_registry_admin_user(self):
         self.client.force_authenticate(user=self.admin_user)
         response = self.client.patch(
             f"/api/admin/users/{self.regular_user.id}/",
             {"group_roles": ["vetting_officer"]},
             format="json",
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(self.organization_one.id),
         )
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
 

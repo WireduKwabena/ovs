@@ -96,8 +96,10 @@ def log_event(
         True if a row was persisted, False otherwise.
     """
     try:
-        from apps.audit.models import AuditLog
+        from apps.audit.models import AuditLog, audit_storage_available
     except Exception:
+        return False
+    if not audit_storage_available():
         return False
 
     actor = user

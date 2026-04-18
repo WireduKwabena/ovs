@@ -5,8 +5,10 @@ from datetime import timedelta
 from django.contrib.auth.models import Group
 from django.shortcuts import get_object_or_404
 from django.core.paginator import Paginator
+from django.db import connection
 from django.db.models import Avg, Count, Q
 from django.utils import timezone
+from django_tenants.utils import get_public_schema_name
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -124,11 +126,24 @@ def _scoped_admin_cases_queryset(request):
     return queryset
 
 
+def _is_public_schema() -> bool:
+    try:
+        return connection.schema_name == get_public_schema_name()
+    except Exception:
+        return False
+
+
 def _scoped_admin_users_queryset(request):
     queryset = User.objects.all()
     user = getattr(request, "user", None)
     if is_platform_admin_user(user):
-        return queryset
+        if _is_public_schema():
+            return queryset.none()
+        return queryset.filter(
+            is_superuser=False,
+            organization_memberships__is_active=True,
+            organization_memberships__membership_role="registry_admin",
+        ).distinct()
     if not getattr(user, "is_authenticated", False):
         return queryset.none()
     # In django-tenants, OrganizationMembership is schema-scoped; filter users
@@ -149,6 +164,22 @@ def _platform_admin_org_management_forbidden(request):
             )
         },
         status=status.HTTP_403_FORBIDDEN,
+    )
+
+
+def _platform_admin_org_scope_required(request):
+    if not is_platform_admin_user(getattr(request, "user", None)):
+        return None
+    if not _is_public_schema():
+        return None
+    return Response(
+        {
+            "detail": (
+                "Platform administrators must select an organization scope to manage "
+                "registry administrators from this API."
+            )
+        },
+        status=status.HTTP_400_BAD_REQUEST,
     )
 
 
@@ -360,9 +391,9 @@ def admin_users(request):
     GET /api/admin/users/
     Supports filtering: ?q=email_or_name&user_type=admin|internal|applicant&is_active=true|false
     """
-    platform_forbidden_response = _platform_admin_org_management_forbidden(request)
-    if platform_forbidden_response is not None:
-        return platform_forbidden_response
+    platform_scope_response = _platform_admin_org_scope_required(request)
+    if platform_scope_response is not None:
+        return platform_scope_response
 
     users = _scoped_admin_users_queryset(request)
 
@@ -423,9 +454,9 @@ def admin_user_update(request, user_id):
     Partially update an admin-managed user.
     PATCH /api/admin/users/<uuid:user_id>/
     """
-    platform_forbidden_response = _platform_admin_org_management_forbidden(request)
-    if platform_forbidden_response is not None:
-        return platform_forbidden_response
+    platform_scope_response = _platform_admin_org_scope_required(request)
+    if platform_scope_response is not None:
+        return platform_scope_response
 
     managed_user = get_object_or_404(_scoped_admin_users_queryset(request), pk=user_id)
     serializer = AdminUserUpdateRequestSerializer(data=request.data, partial=True)
@@ -511,6 +542,5 @@ def admin_user_update(request, user_id):
         managed_user.groups.set(target_groups)
 
     return Response(AdminManagedUserSerializer(managed_user).data)
-
 
 

@@ -300,7 +300,8 @@ class Command(BaseCommand):
             user_type="admin", is_staff=True, is_superuser=True,
             organization="Public Service Commission", department="Appointments Secretariat",
         )
-        admin_user.groups.add(*groups.values())
+        # Platform superusers must not inherit tenant workflow roles.
+        admin_user.groups.remove(*groups.values())
 
         vetting_user = self._upsert_user(
             email=opt("vetting", "email"),
@@ -390,9 +391,11 @@ class Command(BaseCommand):
         # records (OrganizationMembership, Committee, CommitteeMembership).
         workflow_org = organizations["admin"]
 
+        # Platform superusers are system-wide operators, not tenant members.
+        self._remove_org_memberships(user=users["admin"])
+
         # Memberships for roles that don't participate in committee setup.
         for key, role in {
-            "admin":       "system_admin",
             "vetting":     "vetting_officer",
             "authority":   "appointing_authority",
             "registry":    "registry_admin",
@@ -960,6 +963,9 @@ class Command(BaseCommand):
         if changed:
             membership.save(update_fields=changed + ["updated_at"])
         return membership
+
+    def _remove_org_memberships(self, *, user: User) -> None:
+        OrganizationMembership.objects.filter(user=user).delete()
 
     def _upsert_committee(
         self,

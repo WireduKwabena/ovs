@@ -12,7 +12,7 @@ from apps.core.authz import get_user_committee_ids, get_user_organization_ids
 from apps.core.permissions import IsAuditReaderOrAdmin, is_admin_user
 
 from .contracts import GOVERNMENT_AUDIT_EVENT_CATALOG
-from .models import AuditLog
+from .models import AuditLog, audit_storage_available
 from .serializers import (
     AuditByEntityErrorSerializer,
     AuditByUserErrorSerializer,
@@ -121,6 +121,8 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
+            return AuditLog.objects.none()
+        if not audit_storage_available():
             return AuditLog.objects.none()
         queryset = super().get_queryset()
         user = getattr(self.request, "user", None)

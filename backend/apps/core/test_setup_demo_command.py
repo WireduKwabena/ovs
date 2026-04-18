@@ -38,6 +38,8 @@ class SetupDemoCommandTests(TestCase):
         admin_user = User.objects.get(email="gams.admin@demo.local")
         self.assertTrue(admin_user.is_superuser)
         self.assertTrue(admin_user.is_staff)
+        self.assertFalse(admin_user.groups.filter(name__in=APPOINTMENT_ROLE_GROUPS).exists())
+        self.assertFalse(OrganizationMembership.objects.filter(user=admin_user).exists())
         self.assertFalse(User.objects.get(email="gams.vetting@demo.local").is_staff)
         self.assertFalse(User.objects.get(email="gams.committee@demo.local").is_staff)
         self.assertFalse(User.objects.get(email="gams.committeechair@demo.local").is_staff)
@@ -58,7 +60,6 @@ class SetupDemoCommandTests(TestCase):
         self.assertSetEqual(set(Organization.objects.values_list("code", flat=True)), expected_org_codes)
 
         for email in {
-            "gams.admin@demo.local",
             "gams.vetting@demo.local",
             "gams.committee@demo.local",
             "gams.committeechair@demo.local",
@@ -174,11 +175,22 @@ class SetupDemoCommandTests(TestCase):
         minister_position.is_vacant = False
         minister_position.save(update_fields=["current_holder", "is_vacant", "updated_at"])
 
+        admin_user = User.objects.get(email="gams.admin@demo.local")
+        admin_user.groups.add(*Group.objects.filter(name__in=APPOINTMENT_ROLE_GROUPS))
+        OrganizationMembership.objects.create(
+            user=admin_user,
+            membership_role="system_admin",
+            is_active=True,
+            is_default=True,
+            joined_at=timezone.now(),
+        )
+
         call_command("setup_demo")
 
         nomination_record.refresh_from_db()
         publication.refresh_from_db()
         minister_position.refresh_from_db()
+        admin_user.refresh_from_db()
 
         self.assertEqual(nomination_record.status, "nominated")
         self.assertFalse(nomination_record.is_public)
@@ -200,9 +212,10 @@ class SetupDemoCommandTests(TestCase):
         self.assertEqual(User.objects.filter(email="gams.admin@demo.local").count(), 1)
         self.assertEqual(Organization.objects.filter(code="public-service-commission").count(), 1)
         self.assertEqual(
-            OrganizationMembership.objects.filter(user__email="gams.admin@demo.local", is_active=True).count(),
-            1,
+            OrganizationMembership.objects.filter(user__email="gams.admin@demo.local").count(),
+            0,
         )
+        self.assertFalse(admin_user.groups.filter(name__in=APPOINTMENT_ROLE_GROUPS).exists())
         self.assertEqual(Committee.objects.filter(code="parliamentary-appointments-main").count(), 1)
         self.assertEqual(
             CommitteeMembership.objects.filter(

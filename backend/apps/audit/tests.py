@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 import unittest
+from unittest.mock import patch
 
 from django.conf import settings
 from django.contrib.auth.models import Group
@@ -244,6 +245,14 @@ class AuditApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 50)
+
+    @patch("apps.audit.views.audit_storage_available", return_value=False)
+    def test_recent_activity_returns_empty_list_when_storage_is_unavailable(self, _mock_storage):
+        self.client.force_authenticate(self.admin_user)
+        response = self.client.get("/api/audit/logs/recent_activity/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])
 
     def test_statistics_returns_expected_totals(self):
         self.client.force_authenticate(self.admin_user)
@@ -561,5 +570,26 @@ class AuditApiTests(APITestCase):
         self.assertTrue(created)
         row = AuditLog.objects.get(entity_type="SanitizeTest", entity_id="S-2")
         self.assertEqual(row.changes, {"value": ["a", "b"]})
+
+    @patch("apps.audit.models.audit_storage_available", return_value=False)
+    def test_log_event_returns_false_when_storage_is_unavailable(self, _mock_storage):
+        request = RequestFactory().post("/api/audit/test")
+        request.user = self.admin_user
+
+        created = log_event(
+            request=request,
+            action="other",
+            entity_type="UnavailableAudit",
+            entity_id="MISSING-1",
+            changes={"event": "storage_unavailable"},
+        )
+
+        self.assertFalse(created)
+        self.assertFalse(
+            AuditLog.objects.filter(
+                entity_type="UnavailableAudit",
+                entity_id="MISSING-1",
+            ).exists()
+        )
 
 

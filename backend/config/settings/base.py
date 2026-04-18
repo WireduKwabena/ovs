@@ -145,6 +145,7 @@ if _has_module("drf_spectacular"):
 # "relation users_user does not exist" when migrations run in a tenant schema.
 if _has_module("rest_framework_simplejwt.token_blacklist"):
     SHARED_APPS.append("rest_framework_simplejwt.token_blacklist")
+SHARED_APPS.append("apps.audit")
 
 TENANT_APPS = (
     "apps.core",
@@ -981,6 +982,8 @@ TWILIO_ACCOUNT_SID = config("TWILIO_ACCOUNT_SID", default="")
 TWILIO_AUTH_TOKEN = config("TWILIO_AUTH_TOKEN", default="")
 TWILIO_PHONE_NUMBER = config("TWILIO_PHONE_NUMBER", default="")
 NOTIFICATIONS_SMS_ENABLED = config("NOTIFICATIONS_SMS_ENABLED", default=False, cast=bool)
+
+
 
 
 

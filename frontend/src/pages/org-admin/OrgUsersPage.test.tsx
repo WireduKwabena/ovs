@@ -75,6 +75,7 @@ describe("OrgUsersPage filters", () => {
     });
 
     expect(await screen.findByText(/active filters/i)).toBeTruthy();
+    expect(await screen.findByText(/^Registry Admin$/i)).toBeTruthy();
     expect(await screen.findByRole("button", { name: /clear user filters/i })).toBeTruthy();
 
     fireEvent.click(await screen.findByRole("button", { name: /clear user filters/i }));

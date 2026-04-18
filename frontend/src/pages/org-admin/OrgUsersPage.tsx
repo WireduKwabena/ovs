@@ -11,30 +11,17 @@ import {
   Shield,
   Copy,
   ShieldOff,
-  UserCog,
-  Check,
 } from "lucide-react";
 import { toast } from "react-toastify";
 
 import { adminService } from "@/services/admin.service";
-import { governanceService } from "@/services/governance.service";
-import type { AdminManagedUser, GovernanceOrganizationMember } from "@/types";
+import type { AdminManagedUser } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
 const USER_TYPE_OPTIONS = ["admin", "internal", "applicant"];
-
-const MEMBERSHIP_ROLES: { value: string; label: string }[] = [
-  { value: "registry_admin", label: "Registry Admin" },
-  { value: "vetting_officer", label: "Vetting Officer" },
-  { value: "committee_member", label: "Committee Member" },
-  { value: "committee_chair", label: "Committee Chair" },
-  { value: "appointing_authority", label: "Appointing Authority" },
-  { value: "publication_officer", label: "Publication Officer" },
-  { value: "auditor", label: "Auditor" },
-  { value: "nominee", label: "Nominee" },
-];
+const REGISTRY_ADMIN_LABEL = "Registry Admin";
 
 const OrgUsersPage: React.FC = () => {
   const { orgId } = useParams<{ orgId: string }>();
@@ -42,10 +29,6 @@ const OrgUsersPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [users, setUsers] = useState<AdminManagedUser[]>([]);
-  // Map from user ID → membership record
-  const [membershipMap, setMembershipMap] = useState<Map<string, GovernanceOrganizationMember>>(
-    new Map(),
-  );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -92,26 +75,17 @@ const OrgUsersPage: React.FC = () => {
               ? false
               : undefined;
 
-        const [usersResponse, membershipsResponse] = await Promise.all([
-          adminService.getOrgUsers(organizationId, {
-            q: searchFilter || undefined,
-            user_type:
-              (userTypeFilter as "admin" | "internal" | "applicant") ||
-              undefined,
-            is_active: isActiveParsed,
-          }),
-          governanceService.listOrganizationMembers({ is_active: undefined }),
-        ]);
+        const usersResponse = await adminService.getOrgUsers(organizationId, {
+          q: searchFilter || undefined,
+          user_type:
+            (userTypeFilter as "admin" | "internal" | "applicant") ||
+            undefined,
+          is_active: isActiveParsed,
+        });
 
         setUsers(usersResponse.results);
-
-        const map = new Map<string, GovernanceOrganizationMember>();
-        for (const m of membershipsResponse.results) {
-          map.set(m.user, m);
-        }
-        setMembershipMap(map);
       } catch {
-        toast.error("Failed to load organization users");
+        toast.error("Failed to load registry administrators");
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -167,39 +141,6 @@ const OrgUsersPage: React.FC = () => {
     }
   };
 
-  const handleChangeMembershipRole = async (
-    user: AdminManagedUser,
-    newRole: string,
-  ) => {
-    setOpenMenuId(null);
-    const membership = membershipMap.get(user.id);
-    if (!membership) {
-      toast.error("No membership record found for this user");
-      return;
-    }
-    setUpdatingId(user.id);
-    try {
-      const updated = await governanceService.updateOrganizationMember(
-        membership.id,
-        { membership_role: newRole },
-      );
-      setMembershipMap((prev) => {
-        const next = new Map(prev);
-        next.set(user.id, updated);
-        return next;
-      });
-      const roleLabel =
-        MEMBERSHIP_ROLES.find((r) => r.value === newRole)?.label ?? newRole;
-      toast.success(
-        `${user.full_name || user.email} role changed to ${roleLabel}`,
-      );
-    } catch {
-      toast.error("Failed to update membership role");
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
   const handleToggleStatus = async (user: AdminManagedUser) => {
     setUpdatingId(user.id);
     try {
@@ -220,11 +161,10 @@ const OrgUsersPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Organization Users
-          </h1>
+          <h1 className="text-3xl font-bold tracking-tight">Registry Admins</h1>
           <p className="text-muted-foreground mt-1 text-sm md:text-base">
-            Manage user accounts within the currently selected organization.
+            Platform-only view of organization administrators in the selected
+            organization.
           </p>
         </div>
         <Button
@@ -243,6 +183,10 @@ const OrgUsersPage: React.FC = () => {
       {/* Filters */}
       <Card className="p-4 rounded-2xl border-border/70 bg-card/50 shadow-sm backdrop-blur-sm">
         <div className="flex flex-col gap-4">
+          <p className="text-xs font-medium text-muted-foreground">
+            Only registry administrators are listed here. Regular organization
+            members remain visible on the Members page for organization admins.
+          </p>
           <div className="flex flex-wrap gap-4">
             <div className="flex-1 min-w-[200px]">
               <label
@@ -342,17 +286,11 @@ const OrgUsersPage: React.FC = () => {
           <Card className="p-12 text-center rounded-2xl border-dashed border-border/70 bg-muted/20">
             <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground">
-              No users found for the selected filters.
+              No registry admins found for the selected filters.
             </p>
           </Card>
         ) : (
           users.map((u) => {
-            const membership = membershipMap.get(u.id);
-            const currentRole = membership?.membership_role ?? null;
-            const currentRoleLabel =
-              MEMBERSHIP_ROLES.find((r) => r.value === currentRole)?.label ??
-              currentRole;
-
             return (
               <Card
                 key={u.id}
@@ -374,11 +312,9 @@ const OrgUsersPage: React.FC = () => {
                         >
                           {u.user_type}
                         </Badge>
-                        {currentRoleLabel && (
-                          <Badge className="bg-primary/10 text-primary hover:bg-primary/10 rounded-full border-primary/20 text-[10px]">
-                            {currentRoleLabel}
-                          </Badge>
-                        )}
+                        <Badge className="bg-primary/10 text-primary hover:bg-primary/10 rounded-full border-primary/20 text-[10px]">
+                          {REGISTRY_ADMIN_LABEL}
+                        </Badge>
                         {u.is_active ? (
                           <Badge className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/10 rounded-full border-emerald-500/20 text-[10px]">
                             Active
@@ -462,34 +398,6 @@ const OrgUsersPage: React.FC = () => {
                               <ShieldOff className="h-3.5 w-3.5" />
                               Reset 2FA
                             </button>
-                          )}
-
-                          {/* Change membership role */}
-                          {membership && (
-                            <div className="border-t border-border/50 mt-1 pt-1">
-                              <p className="flex items-center gap-2 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                                <UserCog className="h-3 w-3" />
-                                Org Role
-                              </p>
-                              {MEMBERSHIP_ROLES.map((role) => (
-                                <button
-                                  key={role.value}
-                                  className="flex w-full items-center justify-between px-3 py-2 text-xs font-medium hover:bg-accent transition-colors disabled:opacity-40"
-                                  disabled={currentRole === role.value}
-                                  onClick={() =>
-                                    void handleChangeMembershipRole(
-                                      u,
-                                      role.value,
-                                    )
-                                  }
-                                >
-                                  <span>{role.label}</span>
-                                  {currentRole === role.value && (
-                                    <Check className="h-3 w-3 text-primary" />
-                                  )}
-                                </button>
-                              ))}
-                            </div>
                           )}
                         </div>
                       )}
