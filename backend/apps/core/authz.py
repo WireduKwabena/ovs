@@ -81,7 +81,6 @@ ROLE_CAPABILITIES: dict[str, set[str]] = {
     },
     ROLE_AUDITOR: {
         CAPABILITY_AUDIT_VIEW,
-        CAPABILITY_APPOINTMENT_VIEW_INTERNAL,
     },
     ROLE_NOMINEE: set(),
 }

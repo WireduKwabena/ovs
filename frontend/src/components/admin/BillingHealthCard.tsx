@@ -1,17 +1,19 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Activity, Lock, RefreshCw } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Activity, Lock, RefreshCw } from "lucide-react";
 
-import { handleApiError } from '@/services/api';
-import { billingService, type BillingHealthResponse } from '@/services/billing.service';
+import { handleApiError } from "@/services/api";
 import {
-  buildBillingPaymentFailureNotificationTraceHref,
-  buildBillingProcessingErrorNotificationTraceHref,
-} from '@/utils/notificationTrace';
+  billingService,
+  type BillingHealthResponse,
+} from "@/services/billing.service";
 
 const POLL_INTERVAL_MS = 60_000;
 
-export type BillingHealthStatus = 'checking' | 'healthy' | 'attention' | 'unavailable';
+export type BillingHealthStatus =
+  | "checking"
+  | "healthy"
+  | "attention"
+  | "unavailable";
 
 interface BillingHealthCardProps {
   onStatusChange?: (status: BillingHealthStatus) => void;
@@ -19,28 +21,33 @@ interface BillingHealthCardProps {
 
 const badgeClass = (isGood: boolean): string => {
   return isGood
-    ? 'inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700'
-    : 'inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700';
+    ? "inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700"
+    : "inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700";
 };
 
-const deriveHealthStatus = (health: BillingHealthResponse): BillingHealthStatus => {
+const deriveHealthStatus = (
+  health: BillingHealthResponse,
+): BillingHealthStatus => {
   const stripeConfigured =
     health.stripe.sdk_installed &&
     health.stripe.secret_key_configured &&
     health.stripe.webhook_secret_configured;
   const paystackConfigured = Boolean(health.paystack?.secret_key_configured);
-  const configured = health.status === 'ok' && (stripeConfigured || paystackConfigured);
+  const configured =
+    health.status === "ok" && (stripeConfigured || paystackConfigured);
 
-  return configured ? 'healthy' : 'attention';
+  return configured ? "healthy" : "attention";
 };
 
 const responseStatusCode = (error: unknown): number | null => {
   const candidate = error as { response?: { status?: number } };
   const status = candidate?.response?.status;
-  return typeof status === 'number' ? status : null;
+  return typeof status === "number" ? status : null;
 };
 
-export const BillingHealthCard: React.FC<BillingHealthCardProps> = ({ onStatusChange }) => {
+export const BillingHealthCard: React.FC<BillingHealthCardProps> = ({
+  onStatusChange,
+}) => {
   const [health, setHealth] = useState<BillingHealthResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -51,15 +58,15 @@ export const BillingHealthCard: React.FC<BillingHealthCardProps> = ({ onStatusCh
   const latestHealthRef = useRef<BillingHealthResponse | null>(null);
 
   const loadHealth = useCallback(
-    async (mode: 'initial' | 'refresh' | 'poll' = 'initial') => {
-      if (mode === 'initial') {
+    async (mode: "initial" | "refresh" | "poll" = "initial") => {
+      if (mode === "initial") {
         setIsLoading(true);
-        onStatusChange?.('checking');
+        onStatusChange?.("checking");
       }
-      if (mode === 'refresh') {
+      if (mode === "refresh") {
         setIsRefreshing(true);
       }
-      if (mode !== 'poll') {
+      if (mode !== "poll") {
         setError(null);
       }
 
@@ -76,7 +83,7 @@ export const BillingHealthCard: React.FC<BillingHealthCardProps> = ({ onStatusCh
         const statusCode = responseStatusCode(err);
         const restricted = statusCode === 401 || statusCode === 403;
         const nextError = restricted
-          ? 'Billing health endpoint is restricted to staff users in this environment.'
+          ? "Billing health endpoint is restricted to staff users in this environment."
           : handleApiError(err);
 
         setError(nextError);
@@ -86,26 +93,28 @@ export const BillingHealthCard: React.FC<BillingHealthCardProps> = ({ onStatusCh
         }
 
         const latestHealth = latestHealthRef.current;
-        onStatusChange?.(latestHealth ? deriveHealthStatus(latestHealth) : 'unavailable');
+        onStatusChange?.(
+          latestHealth ? deriveHealthStatus(latestHealth) : "unavailable",
+        );
       } finally {
-        if (mode === 'initial') {
+        if (mode === "initial") {
           setIsLoading(false);
         }
-        if (mode === 'refresh') {
+        if (mode === "refresh") {
           setIsRefreshing(false);
         }
       }
     },
-    [onStatusChange]
+    [onStatusChange],
   );
 
   useEffect(() => {
-    void loadHealth('initial');
+    void loadHealth("initial");
   }, [loadHealth]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
-      void loadHealth('poll');
+      void loadHealth("poll");
     }, POLL_INTERVAL_MS);
 
     return () => {
@@ -114,135 +123,162 @@ export const BillingHealthCard: React.FC<BillingHealthCardProps> = ({ onStatusCh
   }, [loadHealth]);
 
   const staffOnlyTooltip = isAccessDenied
-    ? 'Billing health endpoint requires a staff account in this environment.'
-    : 'Staff-only billing health policy is active for this environment.';
+    ? "Billing health endpoint requires a staff account in this environment."
+    : "Staff-only billing health policy is active for this environment.";
 
   return (
-    <div className='rounded-xl border border-slate-200 bg-white p-5'>
-      <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+    <div className="rounded-xl border border-slate-200 bg-white p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className='flex items-center gap-2'>
-            <h2 className='inline-flex items-center gap-2 text-lg font-semibold'>
-              <Activity className='h-5 w-5 text-cyan-600' />
+          <div className="flex items-center gap-2">
+            <h2 className="inline-flex items-center gap-2 text-lg font-semibold">
+              <Activity className="h-5 w-5 text-cyan-600" />
               Billing Runtime
             </h2>
             {staffOnlyPolicyActive ? (
               <span
-                className='inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700'
+                className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
                 title={staffOnlyTooltip}
               >
-                <Lock className='h-3 w-3' />
+                <Lock className="h-3 w-3" />
                 Staff-only
               </span>
             ) : null}
           </div>
-          <p className='mt-1 text-[11px] text-slate-800'>
-            {lastCheckedAt ? `Last checked ${lastCheckedAt.toLocaleTimeString()}` : 'Not checked yet'}
+          <p className="mt-1 text-[11px] text-slate-800">
+            {lastCheckedAt
+              ? `Last checked ${lastCheckedAt.toLocaleTimeString()}`
+              : "Not checked yet"}
           </p>
         </div>
-        <div className='flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end'>
-          <Link
-            to={buildBillingProcessingErrorNotificationTraceHref()}
-            className='inline-flex w-full items-center justify-center gap-2 rounded-md border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-800 hover:bg-rose-100 sm:w-auto'
-          >
-            Open runtime errors
-          </Link>
-          <Link
-            to={buildBillingPaymentFailureNotificationTraceHref()}
-            className='inline-flex w-full items-center justify-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 sm:w-auto'
-          >
-            Open payment failures
-          </Link>
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
           <button
-            type='button'
-            onClick={() => void loadHealth('refresh')}
+            type="button"
+            onClick={() => void loadHealth("refresh")}
             disabled={isLoading || isRefreshing}
-            className='inline-flex w-full items-center justify-center gap-2 rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-900 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto'
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-900 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`}
+            />
+            {isRefreshing ? "Refreshing..." : "Refresh"}
           </button>
         </div>
       </div>
 
       {isLoading && !health ? (
-        <p className='mt-3 text-sm text-slate-800'>Checking billing health...</p>
+        <p className="mt-3 text-sm text-slate-800">
+          Checking billing health...
+        </p>
       ) : (
         <>
-          {error ? <p className='mt-3 text-sm text-rose-600'>{error}</p> : null}
+          {error ? <p className="mt-3 text-sm text-rose-600">{error}</p> : null}
           {health ? (
-            <div className='mt-4 space-y-3 text-sm'>
-              <div className='flex items-center justify-between'>
-                <span className='text-slate-800'>API Status</span>
-                <span className={badgeClass(health.status === 'ok')}>
-                  {health.status === 'ok' ? 'OK' : health.status}
+            <div className="mt-4 space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-800">API Status</span>
+                <span className={badgeClass(health.status === "ok")}>
+                  {health.status === "ok" ? "OK" : health.status}
                 </span>
               </div>
-              <div className='flex items-center justify-between'>
-                <span className='text-slate-800'>Access Policy</span>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-800">Access Policy</span>
                 <span className={badgeClass(!health.access.staff_required)}>
-                  {health.access.staff_required ? 'Staff-only' : 'Open'}
+                  {health.access.staff_required ? "Staff-only" : "Open"}
                 </span>
               </div>
-              <div className='flex items-center justify-between'>
-                <span className='text-slate-800'>Stripe SDK (Backend)</span>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-800">Stripe SDK (Backend)</span>
                 <span className={badgeClass(health.stripe.sdk_installed)}>
-                  {health.stripe.sdk_installed ? 'Installed' : 'Missing'}
+                  {health.stripe.sdk_installed ? "Installed" : "Missing"}
                 </span>
               </div>
               {!health.stripe.sdk_installed ? (
-                <p className='text-xs text-amber-700'>
-                  Backend runtime is missing the Python `stripe` package. Rebuild and restart backend services.
+                <p className="text-xs text-amber-700">
+                  Backend runtime is missing the Python `stripe` package.
+                  Rebuild and restart backend services.
                 </p>
               ) : null}
-              <div className='flex items-center justify-between'>
-                <span className='text-slate-800'>Stripe Secret Key</span>
-                <span className={badgeClass(health.stripe.secret_key_configured)}>
-                  {health.stripe.secret_key_configured ? 'Configured' : 'Not Configured'}
+              <div className="flex items-center justify-between">
+                <span className="text-slate-800">Stripe Secret Key</span>
+                <span
+                  className={badgeClass(health.stripe.secret_key_configured)}
+                >
+                  {health.stripe.secret_key_configured
+                    ? "Configured"
+                    : "Not Configured"}
                 </span>
               </div>
-              <div className='flex items-center justify-between'>
-                <span className='text-slate-800'>Stripe Webhook Secret</span>
-                <span className={badgeClass(health.stripe.webhook_secret_configured)}>
-                  {health.stripe.webhook_secret_configured ? 'Configured' : 'Not Configured'}
+              <div className="flex items-center justify-between">
+                <span className="text-slate-800">Stripe Webhook Secret</span>
+                <span
+                  className={badgeClass(
+                    health.stripe.webhook_secret_configured,
+                  )}
+                >
+                  {health.stripe.webhook_secret_configured
+                    ? "Configured"
+                    : "Not Configured"}
                 </span>
               </div>
-              <div className='flex items-center justify-between'>
-                <span className='text-slate-800'>Paystack Secret Key</span>
-                <span className={badgeClass(Boolean(health.paystack?.secret_key_configured))}>
-                  {health.paystack?.secret_key_configured ? 'Configured' : 'Not Configured'}
+              <div className="flex items-center justify-between">
+                <span className="text-slate-800">Paystack Secret Key</span>
+                <span
+                  className={badgeClass(
+                    Boolean(health.paystack?.secret_key_configured),
+                  )}
+                >
+                  {health.paystack?.secret_key_configured
+                    ? "Configured"
+                    : "Not Configured"}
                 </span>
               </div>
-              <div className='flex items-center justify-between'>
-                <span className='text-slate-800'>Paystack Currency</span>
-                <span className='inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700'>
-                  {health.paystack?.currency || 'N/A'}
+              <div className="flex items-center justify-between">
+                <span className="text-slate-800">Paystack Currency</span>
+                <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
+                  {health.paystack?.currency || "N/A"}
                 </span>
               </div>
-              <div className='flex items-center justify-between'>
-                <span className='text-slate-800'>Live FX API</span>
-                <span className={badgeClass(Boolean(health.exchange_rate?.api_url_configured))}>
-                  {health.exchange_rate?.api_url_configured ? 'Enabled' : 'Fallback only'}
+              <div className="flex items-center justify-between">
+                <span className="text-slate-800">Live FX API</span>
+                <span
+                  className={badgeClass(
+                    Boolean(health.exchange_rate?.api_url_configured),
+                  )}
+                >
+                  {health.exchange_rate?.api_url_configured
+                    ? "Enabled"
+                    : "Fallback only"}
                 </span>
               </div>
               {health.exchange_rate ? (
-                <p className='text-xs text-slate-800'>
-                  Fallback rate: {health.exchange_rate.fallback_rate}. Timeout: {health.exchange_rate.timeout_seconds}s.
-                  Cache TTL: {health.exchange_rate.cache_ttl_seconds}s.
+                <p className="text-xs text-slate-800">
+                  Fallback rate: {health.exchange_rate.fallback_rate}. Timeout:{" "}
+                  {health.exchange_rate.timeout_seconds}s. Cache TTL:{" "}
+                  {health.exchange_rate.cache_ttl_seconds}s.
                 </p>
               ) : null}
-              <div className='flex items-center justify-between'>
-                <span className='text-slate-800'>Verify Rate Limit</span>
-                <span className={badgeClass(health.subscription_verify_rate_limit.enabled)}>
-                  {health.subscription_verify_rate_limit.enabled ? 'Enabled' : 'Disabled'}
+              <div className="flex items-center justify-between">
+                <span className="text-slate-800">Verify Rate Limit</span>
+                <span
+                  className={badgeClass(
+                    health.subscription_verify_rate_limit.enabled,
+                  )}
+                >
+                  {health.subscription_verify_rate_limit.enabled
+                    ? "Enabled"
+                    : "Disabled"}
                 </span>
               </div>
-              <p className='text-xs text-slate-800'>
-                Verify limit: {health.subscription_verify_rate_limit.per_minute} requests/minute.
+              <p className="text-xs text-slate-800">
+                Verify limit: {health.subscription_verify_rate_limit.per_minute}{" "}
+                requests/minute.
               </p>
             </div>
           ) : (
-            <p className='mt-3 text-sm text-slate-800'>No health data available.</p>
+            <p className="mt-3 text-sm text-slate-800">
+              No health data available.
+            </p>
           )}
         </>
       )}

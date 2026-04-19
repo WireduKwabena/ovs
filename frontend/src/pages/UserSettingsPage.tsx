@@ -14,7 +14,10 @@ import { toast } from "react-toastify";
 import type { AppDispatch } from "@/app/store";
 import BillingAttentionPanel from "@/components/billing/BillingAttentionPanel";
 import { useAuth } from "@/hooks/useAuth";
-import { billingService, type BillingSubscriptionManageResponse } from "@/services/billing.service";
+import {
+  billingService,
+  type BillingSubscriptionManageResponse,
+} from "@/services/billing.service";
 import { fetchProfile, updateUserProfile } from "@/store/authSlice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +64,9 @@ const UserSettingsPage: React.FC = () => {
     organizations,
     activeOrganization,
     activeOrganizationId,
+    hasRole,
+    isOrgAdmin,
+    isPlatformAdmin,
   } = useAuth();
 
   const [email, setEmail] = useState("");
@@ -81,13 +87,24 @@ const UserSettingsPage: React.FC = () => {
   const [bio, setBio] = useState("");
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [billingData, setBillingData] = useState<BillingSubscriptionManageResponse | null>(null);
+  const [billingData, setBillingData] =
+    useState<BillingSubscriptionManageResponse | null>(null);
   const [billingLoading, setBillingLoading] = useState(false);
 
-  const resolvedOrganizations = Array.isArray(organizations) ? organizations : [];
+  const resolvedOrganizations = Array.isArray(organizations)
+    ? organizations
+    : [];
   const organizationFieldLocked = resolvedOrganizations.length > 0;
-  const canViewBilling = userType !== "applicant";
-  const canManageOrganizationBilling = canViewBilling && canManageActiveOrganizationGovernance;
+
+  // Billing should only be visible to registry_admin or organization_admin
+  // Not to superuser/platform admin, organization members, or applicants
+  const isRegistryAdmin = hasRole("registry_admin");
+  const canViewBilling =
+    (isOrgAdmin || isRegistryAdmin) &&
+    userType !== "applicant" &&
+    !isPlatformAdmin;
+  const canManageOrganizationBilling =
+    canViewBilling && canManageActiveOrganizationGovernance;
 
   const canEditPhone = useMemo(
     () => Boolean(user && typeof user === "object" && "phone_number" in user),
@@ -133,7 +150,12 @@ const UserSettingsPage: React.FC = () => {
     setFirstName(user?.first_name || "");
     setLastName(user?.last_name || "");
     if (organizationFieldLocked) {
-      setOrganization(activeOrganization?.name || resolvedOrganizations[0]?.name || user?.organization || "");
+      setOrganization(
+        activeOrganization?.name ||
+          resolvedOrganizations[0]?.name ||
+          user?.organization ||
+          "",
+      );
     } else {
       setOrganization(user?.organization || "");
     }
@@ -151,11 +173,19 @@ const UserSettingsPage: React.FC = () => {
     setPostalCode(user?.profile?.postal_code || "");
     setJobTitle(user?.profile?.current_job_title || "");
     setYearsOfExperience(
-      user?.profile?.years_of_experience != null ? String(user.profile.years_of_experience) : "",
+      user?.profile?.years_of_experience != null
+        ? String(user.profile.years_of_experience)
+        : "",
     );
     setLinkedinUrl(user?.profile?.linkedin_url || "");
     setBio(user?.profile?.bio || "");
-  }, [activeOrganization?.name, canEditPhone, organizationFieldLocked, resolvedOrganizations, user]);
+  }, [
+    activeOrganization?.name,
+    canEditPhone,
+    organizationFieldLocked,
+    resolvedOrganizations,
+    user,
+  ]);
 
   useEffect(() => {
     void fetchBillingManagement();
@@ -168,7 +198,8 @@ const UserSettingsPage: React.FC = () => {
       await fetchBillingManagement();
       toast.success("Profile refreshed.");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to refresh profile.";
+      const message =
+        error instanceof Error ? error.message : "Failed to refresh profile.";
       toast.error(message);
     } finally {
       setRefreshing(false);
@@ -200,7 +231,10 @@ const UserSettingsPage: React.FC = () => {
         email: normalizedEmail,
         first_name: firstName.trim(),
         last_name: lastName.trim(),
-        organization: (organizationFieldLocked ? activeOrganization?.name || organization : organization).trim(),
+        organization: (organizationFieldLocked
+          ? activeOrganization?.name || organization
+          : organization
+        ).trim(),
         department: department.trim(),
         date_of_birth: dateOfBirth || null,
         nationality: nationality.trim(),
@@ -220,7 +254,8 @@ const UserSettingsPage: React.FC = () => {
       await dispatch(fetchProfile()).unwrap();
       toast.success("Settings updated successfully.");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to update settings.";
+      const message =
+        error instanceof Error ? error.message : "Failed to update settings.";
       toast.error(message);
     } finally {
       setSaving(false);
@@ -245,7 +280,9 @@ const UserSettingsPage: React.FC = () => {
           <UserCog className="h-4 w-4" />
           Profile & Settings
         </div>
-        <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-900">Account Settings</h1>
+        <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-900">
+          Account Settings
+        </h1>
         <p className="mt-1 text-sm text-slate-700">
           Manage your identity details and security controls.
         </p>
@@ -253,15 +290,23 @@ const UserSettingsPage: React.FC = () => {
 
       <section className="mt-5 grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Display Name</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+            Display Name
+          </p>
           <p className="mt-2 text-sm font-bold text-slate-900">{accountName}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Account Type</p>
-          <p className="mt-2 text-sm font-bold capitalize text-slate-900">{userType || "unknown"}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+            Account Type
+          </p>
+          <p className="mt-2 text-sm font-bold capitalize text-slate-900">
+            {userType || "unknown"}
+          </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Member Since</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+            Member Since
+          </p>
           <p className="mt-2 text-sm font-bold text-slate-900">{memberSince}</p>
         </div>
       </section>
@@ -269,12 +314,17 @@ const UserSettingsPage: React.FC = () => {
       <section className="mt-6 grid gap-6 lg:grid-cols-5">
         <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-3">
           <h2 className="text-lg font-bold text-slate-900">Profile Details</h2>
-          <p className="mt-1 text-sm text-slate-700">Update the information used by your organization account.</p>
+          <p className="mt-1 text-sm text-slate-700">
+            Update the information used by your organization account.
+          </p>
 
           <form className="mt-5 space-y-4" onSubmit={handleSave}>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="settings-first-name" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                <Label
+                  htmlFor="settings-first-name"
+                  className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                >
                   First Name
                 </Label>
                 <Input
@@ -287,7 +337,10 @@ const UserSettingsPage: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="settings-last-name" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                <Label
+                  htmlFor="settings-last-name"
+                  className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                >
                   Last Name
                 </Label>
                 <Input
@@ -300,7 +353,10 @@ const UserSettingsPage: React.FC = () => {
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="settings-email" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                <Label
+                  htmlFor="settings-email"
+                  className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                >
                   Email
                 </Label>
                 <Input
@@ -315,7 +371,10 @@ const UserSettingsPage: React.FC = () => {
 
               {canEditPhone ? (
                 <div className="space-y-2">
-                  <Label htmlFor="settings-phone" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                  <Label
+                    htmlFor="settings-phone"
+                    className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                  >
                     Phone Number
                   </Label>
                   <Input
@@ -330,7 +389,10 @@ const UserSettingsPage: React.FC = () => {
               ) : null}
 
               <div className="space-y-2">
-                <Label htmlFor="settings-dob" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                <Label
+                  htmlFor="settings-dob"
+                  className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                >
                   Date of Birth
                 </Label>
                 <Input
@@ -343,25 +405,36 @@ const UserSettingsPage: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="settings-organization" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                <Label
+                  htmlFor="settings-organization"
+                  className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                >
                   Organization
                 </Label>
                 <Input
                   id="settings-organization"
                   value={organization}
                   onChange={(event) => setOrganization(event.target.value)}
-                  placeholder={organizationFieldLocked ? "Managed by active organization context" : "Organization"}
+                  placeholder={
+                    organizationFieldLocked
+                      ? "Managed by active organization context"
+                      : "Organization"
+                  }
                   disabled={saving || organizationFieldLocked}
                 />
                 {organizationFieldLocked ? (
                   <p className="text-[11px] text-slate-700">
-                    Organization name is derived from your active organization membership.
+                    Organization name is derived from your active organization
+                    membership.
                   </p>
                 ) : null}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="settings-department" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                <Label
+                  htmlFor="settings-department"
+                  className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                >
                   Department
                 </Label>
                 <Input
@@ -374,7 +447,10 @@ const UserSettingsPage: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="settings-nationality" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                <Label
+                  htmlFor="settings-nationality"
+                  className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                >
                   Nationality
                 </Label>
                 <Input
@@ -387,7 +463,10 @@ const UserSettingsPage: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="settings-city" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                <Label
+                  htmlFor="settings-city"
+                  className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                >
                   City
                 </Label>
                 <Input
@@ -400,7 +479,10 @@ const UserSettingsPage: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="settings-country" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                <Label
+                  htmlFor="settings-country"
+                  className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                >
                   Country
                 </Label>
                 <Input
@@ -413,7 +495,10 @@ const UserSettingsPage: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="settings-postal-code" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                <Label
+                  htmlFor="settings-postal-code"
+                  className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                >
                   Postal Code
                 </Label>
                 <Input
@@ -426,7 +511,10 @@ const UserSettingsPage: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="settings-job-title" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                <Label
+                  htmlFor="settings-job-title"
+                  className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                >
                   Current Job Title
                 </Label>
                 <Input
@@ -439,7 +527,10 @@ const UserSettingsPage: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="settings-experience" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                <Label
+                  htmlFor="settings-experience"
+                  className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                >
                   Years of Experience
                 </Label>
                 <Input
@@ -454,7 +545,10 @@ const UserSettingsPage: React.FC = () => {
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="settings-linkedin" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                <Label
+                  htmlFor="settings-linkedin"
+                  className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                >
                   LinkedIn URL
                 </Label>
                 <Input
@@ -468,7 +562,10 @@ const UserSettingsPage: React.FC = () => {
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="settings-address" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                <Label
+                  htmlFor="settings-address"
+                  className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                >
                   Address
                 </Label>
                 <textarea
@@ -482,7 +579,10 @@ const UserSettingsPage: React.FC = () => {
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="settings-bio" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                <Label
+                  htmlFor="settings-bio"
+                  className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                >
                   Bio
                 </Label>
                 <textarea
@@ -498,7 +598,11 @@ const UserSettingsPage: React.FC = () => {
             </div>
 
             <div className="flex flex-wrap gap-3 pt-2">
-              <Button type="submit" disabled={saving} className="bg-cyan-700 text-white hover:bg-cyan-800">
+              <Button
+                type="submit"
+                disabled={saving}
+                className="bg-cyan-700 text-white hover:bg-cyan-800"
+              >
                 {saving ? (
                   <span className="inline-flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -508,7 +612,12 @@ const UserSettingsPage: React.FC = () => {
                   "Save Changes"
                 )}
               </Button>
-              <Button type="button" variant="outline" disabled={refreshing || saving} onClick={() => void handleRefreshProfile()}>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={refreshing || saving}
+                onClick={() => void handleRefreshProfile()}
+              >
                 {refreshing ? (
                   <span className="inline-flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -526,7 +635,9 @@ const UserSettingsPage: React.FC = () => {
         </article>
 
         <aside className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
-          <h2 className="text-lg font-bold text-slate-900">Security Controls</h2>
+          <h2 className="text-lg font-bold text-slate-900">
+            Security Controls
+          </h2>
           <p className="mt-1 text-sm text-slate-700">
             Access account protection actions and credential updates.
           </p>
@@ -539,8 +650,12 @@ const UserSettingsPage: React.FC = () => {
               >
                 <ShieldCheck className="mt-0.5 h-5 w-5 text-cyan-700" />
                 <span>
-                  <span className="block text-sm font-semibold text-slate-900">Two-Factor Security</span>
-                  <span className="block text-xs text-slate-700">Manage authenticator and backup codes.</span>
+                  <span className="block text-sm font-semibold text-slate-900">
+                    Two-Factor Security
+                  </span>
+                  <span className="block text-xs text-slate-700">
+                    Manage authenticator and backup codes.
+                  </span>
                 </span>
               </Link>
             ) : null}
@@ -551,8 +666,12 @@ const UserSettingsPage: React.FC = () => {
             >
               <CheckCircle2 className="mt-0.5 h-5 w-5 text-cyan-700" />
               <span>
-                <span className="block text-sm font-semibold text-slate-900">Change Password</span>
-                <span className="block text-xs text-slate-700">Rotate your account password securely.</span>
+                <span className="block text-sm font-semibold text-slate-900">
+                  Change Password
+                </span>
+                <span className="block text-xs text-slate-700">
+                  Rotate your account password securely.
+                </span>
               </span>
             </Link>
           </div>
@@ -560,19 +679,25 @@ const UserSettingsPage: React.FC = () => {
           {canViewBilling ? (
             <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold text-slate-900">Organization Subscription</h3>
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Organization Subscription
+                </h3>
                 <CreditCard className="h-4 w-4 text-cyan-700" />
               </div>
               <p className="mt-2 text-[11px] text-slate-700">
-                Active organization scope: {activeOrganization?.name || "Default"}
+                Active organization scope:{" "}
+                {activeOrganization?.name || "Default"}
               </p>
 
               {billingLoading ? (
-                <p className="mt-3 text-xs text-slate-700">Loading billing details...</p>
+                <p className="mt-3 text-xs text-slate-700">
+                  Loading billing details...
+                </p>
               ) : !managedSubscription ? (
                 <div className="mt-3 space-y-3">
                   <p className="text-xs text-slate-700">
-                    {billingData?.message || "No active subscription found for this workspace."}
+                    {billingData?.message ||
+                      "No active subscription found for this workspace."}
                   </p>
                   {canManageOrganizationBilling ? (
                     <Button
@@ -591,7 +716,8 @@ const UserSettingsPage: React.FC = () => {
                     </Button>
                   ) : (
                     <p className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
-                      Subscription management is restricted to organization admins.
+                      Subscription management is restricted to organization
+                      admins.
                     </p>
                   )}
                 </div>
@@ -599,35 +725,48 @@ const UserSettingsPage: React.FC = () => {
                 <div className="mt-3 space-y-3">
                   <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-800">
                     <p>
-                      <span className="font-semibold">Plan:</span> {managedSubscription.plan_name} (
+                      <span className="font-semibold">Plan:</span>{" "}
+                      {managedSubscription.plan_name} (
                       {managedSubscription.billing_cycle})
                     </p>
                     <p className="mt-1">
-                      <span className="font-semibold">Subscription organization:</span>{" "}
-                      {managedSubscription.organization_name || managedSubscription.organization_id || "Scoped by active organization"}
+                      <span className="font-semibold">
+                        Subscription organization:
+                      </span>{" "}
+                      {managedSubscription.organization_name ||
+                        managedSubscription.organization_id ||
+                        "Scoped by active organization"}
                     </p>
                     <p className="mt-1">
-                      <span className="font-semibold">Status:</span> {managedSubscription.status} /{" "}
+                      <span className="font-semibold">Status:</span>{" "}
+                      {managedSubscription.status} /{" "}
                       {managedSubscription.payment_status}
                     </p>
                     <p className="mt-1">
                       <span className="font-semibold">Payment method:</span>{" "}
-                      {managedSubscription.payment_method?.display || "Not available"}
+                      {managedSubscription.payment_method?.display ||
+                        "Not available"}
                     </p>
                     <p className="mt-1">
                       <span className="font-semibold">Current period end:</span>{" "}
-                      {formatDateTimeLabel(managedSubscription.current_period_end)}
+                      {formatDateTimeLabel(
+                        managedSubscription.current_period_end,
+                      )}
                     </p>
                     {managedSubscription.cancel_at_period_end ? (
                       <p className="mt-1 text-amber-700">
                         Cancellation scheduled for{" "}
-                        {formatDateTimeLabel(managedSubscription.cancellation_effective_at)}. Access remains active until then.
+                        {formatDateTimeLabel(
+                          managedSubscription.cancellation_effective_at,
+                        )}
+                        . Access remains active until then.
                       </p>
                     ) : null}
                   </div>
 
                   <p className="text-[11px] text-slate-700">
-                    Organization billing and onboarding administration is handled in the organization dashboard.
+                    Organization billing and onboarding administration is
+                    handled in the organization dashboard.
                   </p>
                   {canManageOrganizationBilling ? (
                     <BillingAttentionPanel
@@ -653,7 +792,8 @@ const UserSettingsPage: React.FC = () => {
                     </Button>
                   ) : (
                     <p className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
-                      Organization administration remains restricted to organization admins.
+                      Organization administration remains restricted to
+                      organization admins.
                     </p>
                   )}
                 </div>
@@ -663,15 +803,26 @@ const UserSettingsPage: React.FC = () => {
 
           {canManageOrganizationBilling ? (
             <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <h3 className="text-sm font-semibold text-slate-900">Organization Administration</h3>
+              <h3 className="text-sm font-semibold text-slate-900">
+                Organization Administration
+              </h3>
               <p className="mt-2 text-[11px] text-slate-700">
-                Governance, committee management, onboarding links, and billing actions are managed in dedicated organization pages.
+                Governance, committee management, onboarding links, and billing
+                actions are managed in dedicated organization pages.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button type="button" variant="outline" onClick={() => navigate("/organization/dashboard")}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate("/organization/dashboard")}
+                >
                   Open Organization Dashboard
                 </Button>
-                <Button type="button" variant="outline" onClick={() => navigate("/organization/onboarding")}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate("/organization/onboarding")}
+                >
                   Open Organization Onboarding
                 </Button>
               </div>
@@ -684,4 +835,3 @@ const UserSettingsPage: React.FC = () => {
 };
 
 export default UserSettingsPage;
-

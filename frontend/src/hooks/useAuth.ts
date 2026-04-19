@@ -138,7 +138,7 @@ export const useAuth = () => {
   const canAccessInternalWorkflow =
     hasGovernmentCapability ||
     hasAnyRoleValue(resolvedRoles, APPOINTMENT_WORKFLOW_ROLES);
-  const canAccessApplications = canAccessInternalWorkflow || canViewAuditLogs;
+  const canAccessApplications = canAccessInternalWorkflow;
   const canAccessCampaigns = hasAnyCapabilityValue(resolvedCapabilities, CAMPAIGN_MANAGE_CAPABILITIES);
   const canAccessVideoCalls = canAccessInternalWorkflow;
   const canManageRubrics = hasAnyCapabilityValue(resolvedCapabilities, RUBRIC_MANAGE_CAPABILITIES);

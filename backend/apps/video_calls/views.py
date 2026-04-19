@@ -5,11 +5,13 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.http import HttpResponse
-from django.db import transaction
+from django.db import transaction, connection
 from django.db.models import Q
+from django.db.utils import ProgrammingError
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.text import slugify
 from django.utils import timezone
+from django_tenants.utils import get_public_schema_name, schema_context
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -583,49 +585,158 @@ class VideoMeetingViewSet(viewsets.ModelViewSet):
         if max_retries < 1:
             max_retries = 1
 
-        queryset = self.get_queryset()
+        # Check if we're in the public schema (superuser page accessing cross-tenant metrics)
+        is_public_schema = connection.schema_name == get_public_schema_name()
+        
+        if is_public_schema:
+            # Superuser page: aggregate metrics across all tenant schemas
+            return self._get_cross_tenant_reminder_health(now, max_retries)
+        else:
+            # Tenant-bound access: get metrics for current tenant only
+            queryset = self.get_queryset()
+            return self._build_reminder_health_response(queryset, now, max_retries)
 
-        payload = {
+    def _build_reminder_health_response(self, queryset, now, max_retries):
+        """Build the health response payload for a single queryset."""
+        try:
+            payload = {
+                "generated_at": now.isoformat(),
+                "max_retries": max_retries,
+                "soon_retry_pending": queryset.filter(
+                    status=VideoMeeting.STATUS_SCHEDULED,
+                    reminder_before_sent_at__isnull=True,
+                    reminder_before_failure_count__gt=0,
+                    reminder_before_failure_count__lt=max_retries,
+                    reminder_before_next_retry_at__isnull=False,
+                    reminder_before_next_retry_at__lte=now,
+                ).count(),
+                "soon_retry_exhausted": queryset.filter(
+                    status=VideoMeeting.STATUS_SCHEDULED,
+                    reminder_before_sent_at__isnull=True,
+                    reminder_before_failure_count__gte=max_retries,
+                ).count(),
+                "start_now_retry_pending": queryset.filter(
+                    status=VideoMeeting.STATUS_ONGOING,
+                    reminder_start_sent_at__isnull=True,
+                    reminder_start_failure_count__gt=0,
+                    reminder_start_failure_count__lt=max_retries,
+                    reminder_start_next_retry_at__isnull=False,
+                    reminder_start_next_retry_at__lte=now,
+                ).count(),
+                "start_now_retry_exhausted": queryset.filter(
+                    status=VideoMeeting.STATUS_ONGOING,
+                    reminder_start_sent_at__isnull=True,
+                    reminder_start_failure_count__gte=max_retries,
+                ).count(),
+                "time_up_retry_pending": queryset.filter(
+                    status=VideoMeeting.STATUS_COMPLETED,
+                    reminder_time_up_sent_at__isnull=True,
+                    reminder_time_up_failure_count__gt=0,
+                    reminder_time_up_failure_count__lt=max_retries,
+                    reminder_time_up_next_retry_at__isnull=False,
+                    reminder_time_up_next_retry_at__lte=now,
+                ).count(),
+                "time_up_retry_exhausted": queryset.filter(
+                    status=VideoMeeting.STATUS_COMPLETED,
+                    reminder_time_up_sent_at__isnull=True,
+                    reminder_time_up_failure_count__gte=max_retries,
+                ).count(),
+            }
+            return Response(payload, status=status.HTTP_200_OK)
+        except ProgrammingError:
+            # Table doesn't exist in this schema
+            return Response(
+                {
+                    "generated_at": now.isoformat(),
+                    "soon_retry_pending": 0,
+                    "soon_retry_exhausted": 0,
+                    "start_now_retry_pending": 0,
+                    "start_now_retry_exhausted": 0,
+                    "time_up_retry_pending": 0,
+                    "time_up_retry_exhausted": 0,
+                    "max_retries": max_retries,
+                    "note": "VideoMeeting table not initialized in schema",
+                },
+                status=status.HTTP_200_OK,
+            )
+
+    def _get_cross_tenant_reminder_health(self, now, max_retries):
+        """Aggregate reminder health metrics across all tenant schemas."""
+        from apps.tenants.models import Organization
+        
+        # Start with totals at root level (for frontend compatibility)
+        aggregated = {
             "generated_at": now.isoformat(),
             "max_retries": max_retries,
-            "soon_retry_pending": queryset.filter(
-                status=VideoMeeting.STATUS_SCHEDULED,
-                reminder_before_sent_at__isnull=True,
-                reminder_before_failure_count__gt=0,
-                reminder_before_failure_count__lt=max_retries,
-                reminder_before_next_retry_at__isnull=False,
-                reminder_before_next_retry_at__lte=now,
-            ).count(),
-            "soon_retry_exhausted": queryset.filter(
-                status=VideoMeeting.STATUS_SCHEDULED,
-                reminder_before_sent_at__isnull=True,
-                reminder_before_failure_count__gte=max_retries,
-            ).count(),
-            "start_now_retry_pending": queryset.filter(
-                status=VideoMeeting.STATUS_ONGOING,
-                reminder_start_sent_at__isnull=True,
-                reminder_start_failure_count__gt=0,
-                reminder_start_failure_count__lt=max_retries,
-                reminder_start_next_retry_at__isnull=False,
-                reminder_start_next_retry_at__lte=now,
-            ).count(),
-            "start_now_retry_exhausted": queryset.filter(
-                status=VideoMeeting.STATUS_ONGOING,
-                reminder_start_sent_at__isnull=True,
-                reminder_start_failure_count__gte=max_retries,
-            ).count(),
-            "time_up_retry_pending": queryset.filter(
-                status=VideoMeeting.STATUS_COMPLETED,
-                reminder_time_up_sent_at__isnull=True,
-                reminder_time_up_failure_count__gt=0,
-                reminder_time_up_failure_count__lt=max_retries,
-                reminder_time_up_next_retry_at__isnull=False,
-                reminder_time_up_next_retry_at__lte=now,
-            ).count(),
-            "time_up_retry_exhausted": queryset.filter(
-                status=VideoMeeting.STATUS_COMPLETED,
-                reminder_time_up_sent_at__isnull=True,
-                reminder_time_up_failure_count__gte=max_retries,
-            ).count(),
+            "soon_retry_pending": 0,
+            "soon_retry_exhausted": 0,
+            "start_now_retry_pending": 0,
+            "start_now_retry_exhausted": 0,
+            "time_up_retry_pending": 0,
+            "time_up_retry_exhausted": 0,
         }
-        return Response(payload, status=status.HTTP_200_OK)
+
+        # Get all active organizations
+        organizations = Organization.objects.filter(is_active=True).exclude(
+            schema_name=get_public_schema_name()
+        )
+
+        for org in organizations:
+            try:
+                with schema_context(org.schema_name):
+                    queryset = VideoMeeting.objects.all()
+                    
+                    # Accumulate metrics at root level
+                    aggregated["soon_retry_pending"] += queryset.filter(
+                        status=VideoMeeting.STATUS_SCHEDULED,
+                        reminder_before_sent_at__isnull=True,
+                        reminder_before_failure_count__gt=0,
+                        reminder_before_failure_count__lt=max_retries,
+                        reminder_before_next_retry_at__isnull=False,
+                        reminder_before_next_retry_at__lte=now,
+                    ).count()
+                    
+                    aggregated["soon_retry_exhausted"] += queryset.filter(
+                        status=VideoMeeting.STATUS_SCHEDULED,
+                        reminder_before_sent_at__isnull=True,
+                        reminder_before_failure_count__gte=max_retries,
+                    ).count()
+                    
+                    aggregated["start_now_retry_pending"] += queryset.filter(
+                        status=VideoMeeting.STATUS_ONGOING,
+                        reminder_start_sent_at__isnull=True,
+                        reminder_start_failure_count__gt=0,
+                        reminder_start_failure_count__lt=max_retries,
+                        reminder_start_next_retry_at__isnull=False,
+                        reminder_start_next_retry_at__lte=now,
+                    ).count()
+                    
+                    aggregated["start_now_retry_exhausted"] += queryset.filter(
+                        status=VideoMeeting.STATUS_ONGOING,
+                        reminder_start_sent_at__isnull=True,
+                        reminder_start_failure_count__gte=max_retries,
+                    ).count()
+                    
+                    aggregated["time_up_retry_pending"] += queryset.filter(
+                        status=VideoMeeting.STATUS_COMPLETED,
+                        reminder_time_up_sent_at__isnull=True,
+                        reminder_time_up_failure_count__gt=0,
+                        reminder_time_up_failure_count__lt=max_retries,
+                        reminder_time_up_next_retry_at__isnull=False,
+                        reminder_time_up_next_retry_at__lte=now,
+                    ).count()
+                    
+                    aggregated["time_up_retry_exhausted"] += queryset.filter(
+                        status=VideoMeeting.STATUS_COMPLETED,
+                        reminder_time_up_sent_at__isnull=True,
+                        reminder_time_up_failure_count__gte=max_retries,
+                    ).count()
+                        
+            except ProgrammingError:
+                # Schema exists but VideoMeeting table not migrated yet - skip
+                pass
+            except Exception:
+                # Log unexpected errors but continue aggregation
+                pass
+
+        return Response(aggregated, status=status.HTTP_200_OK)

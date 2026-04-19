@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { AlertTriangle, KeyRound, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
+import {
+  AlertTriangle,
+  KeyRound,
+  Loader2,
+  RefreshCw,
+  ShieldCheck,
+} from "lucide-react";
 import { toast } from "react-toastify";
 
 import type { TwoFactorStatusResponse } from "@/types";
@@ -32,7 +38,9 @@ const SecurityPage: React.FC = () => {
     setBackupCodesAcknowledged,
   } = useBackupCodesProtection();
 
-  const [busyAction, setBusyAction] = useState<"setup" | "enable" | "regenerate" | null>(null);
+  const [busyAction, setBusyAction] = useState<
+    "setup" | "enable" | "regenerate" | null
+  >(null);
 
   const refreshStatus = async () => {
     setLoadingStatus(true);
@@ -41,7 +49,10 @@ const SecurityPage: React.FC = () => {
       const response = await authService.getTwoFactorStatus();
       setStatus(response);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to load security status.";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to load security status.";
       setStatusError(message);
     } finally {
       setLoadingStatus(false);
@@ -58,10 +69,16 @@ const SecurityPage: React.FC = () => {
       const response = await authService.setupTwoFactor();
       setProvisioningUri(response.provisioning_uri);
       clearBackupCodes();
-      toast.success("Authenticator setup created. Scan the URI and verify with OTP.");
+      toast.success(
+        "Authenticator setup created. Scan the URI and verify with OTP.",
+      );
       await refreshStatus();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to setup authenticator.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to setup authenticator.",
+      );
     } finally {
       setBusyAction(null);
     }
@@ -83,7 +100,9 @@ const SecurityPage: React.FC = () => {
       setProvisioningUri(null);
       await refreshStatus();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to enable 2FA.");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to enable 2FA.",
+      );
     } finally {
       setBusyAction(null);
     }
@@ -102,13 +121,19 @@ const SecurityPage: React.FC = () => {
 
     setBusyAction("regenerate");
     try {
-      const response = await authService.regenerateBackupCodes(regenerateInput.getPayload());
+      const response = await authService.regenerateBackupCodes(
+        regenerateInput.getPayload(),
+      );
       revealBackupCodes(response.backup_codes);
       regenerateInput.clear();
       toast.success("Backup codes regenerated. Save them now.");
       await refreshStatus();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to regenerate backup codes.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to regenerate backup codes.",
+      );
     } finally {
       setBusyAction(null);
     }
@@ -131,7 +156,12 @@ const SecurityPage: React.FC = () => {
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-800">
           <p className="font-semibold">Unable to load security settings</p>
           <p className="mt-1 text-sm">{statusError || "Unknown error"}</p>
-          <Button type="button" size="sm" className="mt-4" onClick={() => void refreshStatus()}>
+          <Button
+            type="button"
+            size="sm"
+            className="mt-4"
+            onClick={() => void refreshStatus()}
+          >
             Retry
           </Button>
         </div>
@@ -146,7 +176,9 @@ const SecurityPage: React.FC = () => {
           <ShieldCheck className="h-4 w-4" />
           Security
         </div>
-        <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-900">Account Security</h1>
+        <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-900">
+          Account Security
+        </h1>
         <p className="mt-1 text-sm text-slate-700">
           Manage authenticator setup, 2FA state, and backup recovery codes.
         </p>
@@ -155,16 +187,28 @@ const SecurityPage: React.FC = () => {
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">2FA Required</p>
-          <p className="mt-2 text-sm font-bold text-slate-900">{status.two_factor_required ? "Yes" : "No"}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+            2FA Required
+          </p>
+          <p className="mt-2 text-sm font-bold text-slate-900">
+            {status.two_factor_required ? "Yes" : "No"}
+          </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">2FA Enabled</p>
-          <p className="mt-2 text-sm font-bold text-slate-900">{status.is_two_factor_enabled ? "Enabled" : "Not enabled"}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+            2FA Enabled
+          </p>
+          <p className="mt-2 text-sm font-bold text-slate-900">
+            {status.is_two_factor_enabled ? "Enabled" : "Not enabled"}
+          </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Backup Codes</p>
-          <p className="mt-2 text-sm font-bold text-slate-900">{status.backup_codes_remaining} remaining</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+            Backup Codes
+          </p>
+          <p className="mt-2 text-sm font-bold text-slate-900">
+            {status.backup_codes_remaining} remaining
+          </p>
         </div>
       </div>
 
@@ -175,9 +219,12 @@ const SecurityPage: React.FC = () => {
       ) : (
         <>
           <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-900">Authenticator Setup</h2>
+            <h2 className="text-lg font-bold text-slate-900">
+              Authenticator Setup
+            </h2>
             <p className="mt-1 text-sm text-slate-700">
-              Start setup to generate a provisioning URI for your authenticator app.
+              Start setup to generate a provisioning URI for your authenticator
+              app.
             </p>
 
             <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -196,7 +243,12 @@ const SecurityPage: React.FC = () => {
                   "Generate Provisioning URI"
                 )}
               </Button>
-              <Button type="button" variant="outline" onClick={() => void refreshStatus()} disabled={busyAction !== null}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void refreshStatus()}
+                disabled={busyAction !== null}
+              >
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Refresh Status
               </Button>
@@ -210,19 +262,30 @@ const SecurityPage: React.FC = () => {
 
             {!status.is_two_factor_enabled ? (
               <form onSubmit={handleEnable} className="mt-5 space-y-3">
-                <Label htmlFor="enable-otp" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                <Label
+                  htmlFor="enable-otp"
+                  className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                >
                   Verify OTP to enable 2FA
                 </Label>
                 <Input
                   id="enable-otp"
                   value={enableOtp}
-                  onChange={(event) => setEnableOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                  onChange={(event) =>
+                    setEnableOtp(
+                      event.target.value.replace(/\D/g, "").slice(0, 6),
+                    )
+                  }
                   inputMode="numeric"
                   placeholder="123456"
                   className="max-w-xs"
                   disabled={busyAction !== null}
                 />
-                <Button type="submit" disabled={busyAction !== null} className="bg-slate-900 text-white hover:bg-slate-800">
+                <Button
+                  type="submit"
+                  disabled={busyAction !== null}
+                  className="bg-slate-900 text-white hover:bg-slate-800"
+                >
                   {busyAction === "enable" ? (
                     <span className="inline-flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -242,9 +305,12 @@ const SecurityPage: React.FC = () => {
           </div>
 
           <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-900">Backup Recovery Codes</h2>
+            <h2 className="text-lg font-bold text-slate-900">
+              Backup Recovery Codes
+            </h2>
             <p className="mt-1 text-sm text-slate-700">
-              Regenerate backup codes using either your OTP or one existing backup code.
+              Regenerate backup codes using either your OTP or one existing
+              backup code.
             </p>
 
             {!status.is_two_factor_enabled ? (
@@ -269,7 +335,11 @@ const SecurityPage: React.FC = () => {
                   backupPlaceholder="ABCD-EFGH"
                   inputClassName="max-w-xs"
                 />
-                <Button type="submit" disabled={busyAction !== null} className="bg-cyan-700 text-white hover:bg-cyan-800">
+                <Button
+                  type="submit"
+                  disabled={busyAction !== null}
+                  className="bg-cyan-700 text-white hover:bg-cyan-800"
+                >
                   {busyAction === "regenerate" ? (
                     <span className="inline-flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" />

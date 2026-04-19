@@ -78,6 +78,10 @@ urlpatterns = [
     path("api/v1/auth/admin/2fa/setup/", auth_views.two_factor_setup_view, name="public_admin_2fa_setup"),
     path("api/v1/auth/admin/2fa/enable/", auth_views.two_factor_enable_view, name="public_admin_2fa_enable"),
 
+    # User 2FA management (accessible to platform admins/superusers with no tenant context)
+    path("api/v1/auth/2fa/status/", auth_views.two_factor_status_view, name="public_2fa_status"),
+    path("api/v1/auth/2fa/backup-codes/regenerate/", auth_views.two_factor_backup_codes_regenerate_view, name="public_2fa_backup_codes_regenerate"),
+
     # Billing — public utilities (no tenant required)
     path("api/v1/billing/health/", billing_views.BillingHealthAPIView.as_view(), name="public_billing_health"),
     path("api/v1/billing/exchange-rate/", billing_views.BillingExchangeRateAPIView.as_view(), name="public_billing_exchange_rate"),

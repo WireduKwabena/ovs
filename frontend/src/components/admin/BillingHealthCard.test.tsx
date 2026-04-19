@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
 
 import BillingHealthCard from "./BillingHealthCard";
 
@@ -21,7 +20,7 @@ describe("BillingHealthCard", () => {
     vi.clearAllMocks();
   });
 
-  it("renders billing runtime and payment-failure trace links alongside health data", async () => {
+  it("renders billing runtime health data with refresh button", async () => {
     mocks.getHealth.mockResolvedValue({
       status: "ok",
       access: {
@@ -50,24 +49,14 @@ describe("BillingHealthCard", () => {
       },
     });
 
-    render(
-      <MemoryRouter>
-        <BillingHealthCard />
-      </MemoryRouter>,
-    );
+    render(<BillingHealthCard />);
 
     await waitFor(() => {
       expect(mocks.getHealth).toHaveBeenCalledTimes(1);
     });
 
     expect(await screen.findByText("Billing Runtime")).toBeTruthy();
-    const runtimeTraceLink = screen.getByRole("link", { name: /open runtime errors/i });
-    expect(runtimeTraceLink.getAttribute("href")).toBe(
-      "/notifications?channel=all&event_type=processing_error&subsystem=billing",
-    );
-    const paymentTraceLink = screen.getByRole("link", { name: /open payment failures/i });
-    expect(paymentTraceLink.getAttribute("href")).toBe(
-      "/notifications?channel=all&event_type=billing_payment_failed&subsystem=billing",
-    );
+    const refreshButton = screen.getByRole("button", { name: /refresh/i });
+    expect(refreshButton).toBeTruthy();
   });
 });

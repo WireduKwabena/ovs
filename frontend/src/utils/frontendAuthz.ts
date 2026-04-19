@@ -26,7 +26,6 @@ export const APPOINTMENT_WORKFLOW_ROLES = [
   "committee_chair",
   "appointing_authority",
   "publication_officer",
-  "auditor",
 ] as const;
 
 export const STAGE_ACTOR_ROLES = [
