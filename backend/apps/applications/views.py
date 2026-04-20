@@ -166,6 +166,19 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="upload-document")
     def upload_document(self, request, pk=None):
+        # Only the applicant themselves or a candidate access session may upload
+        # documents to a dossier.  Candidates have a dedicated portal
+        # (CandidateAccessPage) for this; internal/government workflow operators
+        # are not permitted to mutate evidence through the dossier view.
+        enrollment_id = _candidate_enrollment_id(request)
+        if not enrollment_id:
+            user = request.user
+            if getattr(user, "user_type", None) not in ("applicant",) or not getattr(user, "is_authenticated", False):
+                if is_government_workflow_operator(user):
+                    raise PermissionDenied(
+                        "Internal workflow operators cannot upload documents to a dossier. "
+                        "Candidates use the dedicated candidate portal for document submission."
+                    )
         case = self.get_object()
         resolved_org_id = resolve_case_organization_id(case, actor=request.user)
         payload = request.data.copy()

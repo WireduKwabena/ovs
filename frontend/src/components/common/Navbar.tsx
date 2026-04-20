@@ -454,7 +454,12 @@ export const Navbar: React.FC = () => {
       "/ai-monitor",
       "/ml-monitoring",
     ],
-    [workspaceApplicationsPath]: ["/applications"],
+    [workspaceApplicationsPath]: [
+      "/applications",
+      "/admin/cases",
+      "/admin/applications",
+      "/organization/cases",
+    ],
     [workspaceNotificationsPath]: ["/notifications"],
     [workspaceCampaignsPath]: ["/campaigns"],
     [workspaceRubricsPath]: ["/rubrics"],
@@ -466,11 +471,7 @@ export const Navbar: React.FC = () => {
     [workspaceBackgroundChecksPath]: ["/background-checks"],
     [workspaceAuditLogsPath]: ["/audit-logs"],
     [organizationDashboardPath]: ["/organization/dashboard"],
-    [organizationCasesPath]: [
-      "/admin/cases",
-      "/admin/applications",
-      "/organization/cases",
-    ],
+    [organizationCasesPath]: [],
     [organizationMembersPath]: ["/organization/members"],
     [organizationCommitteesPath]: ["/organization/committees"],
     [organizationOnboardingPath]: ["/organization/onboarding"],
@@ -560,10 +561,15 @@ export const Navbar: React.FC = () => {
     }
   };
 
-  if (!hasAdminAccess && !isApplicantUser && canAccessApplications) {
+  if (
+    !hasAdminAccess &&
+    !isApplicantUser &&
+    (canAccessApplications ||
+      (canManageActiveOrganizationGovernance && activeOrganizationId))
+  ) {
     pushUnique(desktopPrimaryLinks, {
       to: workspaceApplicationsPath,
-      label: "Applications",
+      label: "Cases",
     });
   }
 
@@ -614,10 +620,6 @@ export const Navbar: React.FC = () => {
     canManageActiveOrganizationGovernance &&
     activeOrganizationId
   ) {
-    pushUnique(desktopPrimaryLinks, {
-      to: organizationCasesPath,
-      label: "Cases",
-    });
     pushUnique(desktopSecondaryLinks, {
       to: organizationMembersPath,
       label: "Members",

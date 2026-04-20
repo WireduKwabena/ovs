@@ -63,7 +63,6 @@ const OrganizationSetupPage = React.lazy(
 const OrgDashboardPage = React.lazy(
   () => import("./pages/org-admin/OrgDashboardPage"),
 );
-const OrgCasesPage = React.lazy(() => import("./pages/org-admin/OrgCasesPage"));
 const OrgUsersPage = React.lazy(() => import("./pages/org-admin/OrgUsersPage"));
 const WorkspaceHomePage = React.lazy(
   () => import("./pages/workspace/WorkspaceHomePage"),
@@ -143,11 +142,6 @@ const AppointmentsRegistryPage = React.lazy(
 );
 const ErrorPage = React.lazy(() => import("./pages/ErrorPage"));
 const NotFoundPage = React.lazy(() => import("./pages/NotFoundPage"));
-const AdminCaseReview = React.lazy(() =>
-  import("./components/admin/CaseReview").then((module) => ({
-    default: module.CaseReview,
-  })),
-);
 const ApplicationsPage = React.lazy(() =>
   import("./pages/ApplicationsPage").then((module) => ({
     default: module.ApplicationsPage,
@@ -302,6 +296,16 @@ const LegacyOrganizationRedirect: React.FC<{ segment: string }> = ({
   );
 };
 
+const LegacyOrgCaseDetailRedirect: React.FC = () => {
+  const { caseId } = useParams<{ caseId: string }>();
+  return (
+    <Navigate
+      to={`${getWorkspacePath("applications")}/${encodeURIComponent(String(caseId || "").trim())}`}
+      replace
+    />
+  );
+};
+
 const LegacyOrganizationCommitteeRedirect: React.FC = () => {
   const { committeeId } = useParams<{ committeeId: string }>();
   const userType = useSelector((state: RootState) => state.auth.userType);
@@ -328,21 +332,14 @@ const LegacyOrganizationCommitteeRedirect: React.FC = () => {
 const LegacyOrganizationCaseReviewRedirect: React.FC = () => {
   const { caseId } = useParams<{ caseId: string }>();
   const userType = useSelector((state: RootState) => state.auth.userType);
-  const activeOrganizationId = useSelector((state: RootState) =>
-    String(state.auth.activeOrganization?.id || "").trim(),
-  );
 
   if (userType === "platform_admin" || userType === "admin") {
     return <Navigate to={getPlatformAdminPath("dashboard")} replace />;
   }
 
-  if (!activeOrganizationId) {
-    return <Navigate to={getOrganizationSetupPath("/dashboard")} replace />;
-  }
-
   return (
     <Navigate
-      to={`${getOrgAdminPath(activeOrganizationId, "cases")}/${encodeURIComponent(String(caseId || "").trim())}`}
+      to={`${getWorkspacePath("applications")}/${encodeURIComponent(String(caseId || "").trim())}`}
       replace
     />
   );
@@ -508,11 +505,7 @@ const AppRoutes: React.FC = () => (
     />
     <Route
       path="/admin/org/:orgId/cases"
-      element={
-        <OrganizationScopedRoute>
-          <OrgCasesPage />
-        </OrganizationScopedRoute>
-      }
+      element={<Navigate to={getWorkspacePath("applications")} replace />}
     />
     <Route
       path="/admin/org/:orgId/members"
@@ -676,6 +669,7 @@ const AppRoutes: React.FC = () => (
         <ProtectedRoute
           disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
           requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+          legacyUserTypeFallback={["org_admin"]}
         >
           <ApplicationsPage />
         </ProtectedRoute>
@@ -687,6 +681,7 @@ const AppRoutes: React.FC = () => (
         <ProtectedRoute
           disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
           requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+          legacyUserTypeFallback={["org_admin"]}
         >
           <ApplicationDetailPage />
         </ProtectedRoute>
@@ -1095,19 +1090,11 @@ const AppRoutes: React.FC = () => (
     />
     <Route
       path="/admin/org/:orgId/cases/:caseId"
-      element={
-        <OrganizationScopedRoute>
-          <AdminCaseReview />
-        </OrganizationScopedRoute>
-      }
+      element={<LegacyOrgCaseDetailRedirect />}
     />
     <Route
       path="/admin/org/:orgId/cases"
-      element={
-        <OrganizationScopedRoute>
-          <OrgCasesPage />
-        </OrganizationScopedRoute>
-      }
+      element={<Navigate to={getWorkspacePath("applications")} replace />}
     />
     <Route
       path="/admin/cases/:caseId"

@@ -3,53 +3,101 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ArrowLeft,
-  Upload,
   FileText,
   CheckCircle,
   XCircle,
   Clock,
+  AlertTriangle,
 } from "lucide-react";
-import Modal from "@/components/common/Modal";
-import { DOCUMENT_TYPES } from "@/utils/constants";
 import { useApplications } from "@/hooks/useApplications";
-import { FieldLabel, HelpTooltip } from "@/components/common/FieldHelp";
+import { HelpTooltip } from "@/components/common/FieldHelp";
+import { applicationService } from "@/services/application.service";
+import { toast } from "react-toastify";
+import { useAuth } from "@/hooks/useAuth";
 
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Loader } from "@/components/common/Loader";
 
-import { applicationService } from "@/services/application.service";
-import { toast } from "react-toastify";
 import { formatDate, formatFileSize } from "@/utils/helper";
 
 export const ApplicationDetailPage: React.FC = () => {
   const { caseId } = useParams<{ caseId: string }>();
   const navigate = useNavigate();
   const { currentCase, loading, loadApplication } = useApplications();
+  const { canManageActiveOrganizationGovernance } = useAuth();
+
+  const [reviewNotes, setReviewNotes] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+  const [activeDecision, setActiveDecision] = useState<
+    "approve" | "reject" | "review" | null
+  >(null);
+
+  const handleApprove = async () => {
+    if (!caseId) return;
+    setActionLoading(true);
+    setActiveDecision("approve");
+    try {
+      await applicationService.update(caseId, {
+        status: "approved",
+        notes: reviewNotes.trim(),
+      });
+      toast.success("Case approved successfully");
+      navigate("/workspace/applications");
+    } catch {
+      toast.error("Failed to approve case");
+    } finally {
+      setActionLoading(false);
+      setActiveDecision(null);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!caseId) return;
+    if (!reviewNotes.trim()) {
+      toast.error("Please provide a reason for rejection");
+      return;
+    }
+    setActionLoading(true);
+    setActiveDecision("reject");
+    try {
+      await applicationService.update(caseId, {
+        status: "rejected",
+        notes: reviewNotes.trim(),
+      });
+      toast.success("Case rejected");
+      navigate("/workspace/applications");
+    } catch {
+      toast.error("Failed to reject case");
+    } finally {
+      setActionLoading(false);
+      setActiveDecision(null);
+    }
+  };
+
+  const handleRequestMoreInfo = async () => {
+    if (!caseId) return;
+    setActionLoading(true);
+    setActiveDecision("review");
+    try {
+      await applicationService.update(caseId, {
+        status: "under_review",
+        notes: reviewNotes.trim(),
+      });
+      toast.info("Case marked as under review");
+      navigate("/workspace/applications");
+    } catch {
+      toast.error("Failed to update case status");
+    } finally {
+      setActionLoading(false);
+      setActiveDecision(null);
+    }
+  };
 
   useEffect(() => {
     if (caseId) {
       loadApplication(caseId);
     }
   }, [caseId, loadApplication]);
-  const [uploading, setUploading] = useState(false);
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [pickedFile, setPickedFile] = useState<File | null>(null);
-  const [pickedDocType, setPickedDocType] = useState<string>("other");
-
-  const handleFileUpload = async (file: File, documentType: string) => {
-    if (!caseId) return;
-
-    setUploading(true);
-    try {
-      await applicationService.uploadDocument(caseId, file, documentType);
-      toast.success("Document uploaded successfully!");
-      loadApplication(caseId);
-    } catch {
-      toast.error("Failed to upload document");
-    } finally {
-      setUploading(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -87,11 +135,18 @@ export const ApplicationDetailPage: React.FC = () => {
     currentCase.application_type?.replace("_", " ") ||
     "Vetting Dossier";
   const resolveDocumentName = (doc: (typeof currentCase.documents)[number]) =>
-    doc.original_filename || doc.file_name || doc.document_type_display || "Document";
+    doc.original_filename ||
+    doc.file_name ||
+    doc.document_type_display ||
+    "Document";
   const resolveDocumentStatus = (doc: (typeof currentCase.documents)[number]) =>
     doc.status || doc.verification_status;
-  const resolveDocumentConfidence = (doc: (typeof currentCase.documents)[number]) =>
-    doc.ai_confidence_score ?? doc.verification_result?.authenticity_confidence ?? doc.verification_result?.ocr_confidence;
+  const resolveDocumentConfidence = (
+    doc: (typeof currentCase.documents)[number],
+  ) =>
+    doc.ai_confidence_score ??
+    doc.verification_result?.authenticity_confidence ??
+    doc.verification_result?.ocr_confidence;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -114,7 +169,8 @@ export const ApplicationDetailPage: React.FC = () => {
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
               {currentCase.office_title || currentCase.position_applied ? (
                 <span className="inline-flex rounded bg-slate-100 px-2 py-1 font-semibold text-slate-700">
-                  Office: {currentCase.office_title || currentCase.position_applied}
+                  Office:{" "}
+                  {currentCase.office_title || currentCase.position_applied}
                 </span>
               ) : null}
               {currentCase.appointment_exercise_name ? (
@@ -186,98 +242,12 @@ export const ApplicationDetailPage: React.FC = () => {
 
             {/* Documents */}
             <div className="bg-white rounded-lg shadow-sm p-6">
-              <div className="flex justify-between items-center mb-4">
+              <div className="mb-4">
                 <h2 className="inline-flex items-center gap-1.5 text-xl font-semibold">
                   Documents
                   <HelpTooltip text="Uploaded files, verification status, and AI confidence metrics for this dossier." />
                 </h2>
-                <button
-                  onClick={() => {
-                    setShowUploadModal(true);
-                    setPickedFile(null);
-                    setPickedDocType("other");
-                  }}
-                  disabled={uploading}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  <Upload className="w-4 h-4" />
-                  Upload Document
-                </button>
               </div>
-
-              {/* Upload Modal */}
-              <Modal
-                open={showUploadModal}
-                title="Upload Document"
-                cancelLabel="Cancel"
-                confirmLabel={uploading ? "Uploading..." : "Upload"}
-                onCancel={() => setShowUploadModal(false)}
-                onConfirm={async () => {
-                  if (!pickedFile) {
-                    toast.error("Please select a file to upload");
-                    return;
-                  }
-                  if (!caseId) {
-                    toast.error("Invalid case ID");
-                    return;
-                  }
-                  await handleFileUpload(pickedFile, pickedDocType);
-                  setShowUploadModal(false);
-                }}
-              >
-                <div className="space-y-4">
-                  <div>
-                    <FieldLabel
-                      htmlFor="detail-upload-file"
-                      label="Select file"
-                      help="Choose a PDF or image document to attach to this vetting dossier."
-                      className="mb-1 flex items-center gap-1.5"
-                      textClassName="block text-sm text-slate-700"
-                    />
-                    <input
-                      title="Select file"
-                      id="detail-upload-file"
-                      type="file"
-                      accept="application/pdf,image/*"
-                      onChange={(e) =>
-                        setPickedFile(
-                          e.target.files && e.target.files[0]
-                            ? e.target.files[0]
-                            : null,
-                        )
-                      }
-                      className="w-full"
-                    />
-                    {pickedFile && (
-                      <p className="mt-1 text-xs text-slate-700">
-                        Selected: {pickedFile.name}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <FieldLabel
-                      htmlFor="detail-upload-type"
-                      label="Document type"
-                      help="Classify the uploaded file so verification rules and scoring are applied correctly."
-                      className="mb-1 flex items-center gap-1.5"
-                      textClassName="block text-sm text-slate-700"
-                    />
-                    <select
-                      id="detail-upload-type"
-                      aria-label="Document type"
-                      value={pickedDocType}
-                      onChange={(e) => setPickedDocType(e.target.value)}
-                      className="w-full px-3 py-2 border rounded"
-                    >
-                      {DOCUMENT_TYPES.map((t) => (
-                        <option key={t.value} value={t.value}>
-                          {t.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </Modal>
 
               {currentCase.documents && currentCase.documents.length > 0 ? (
                 <div className="space-y-3">
@@ -289,7 +259,9 @@ export const ApplicationDetailPage: React.FC = () => {
                       <div className="flex items-center gap-3">
                         <FileText className="w-8 h-8 text-slate-700" />
                         <div>
-                          <p className="font-medium">{resolveDocumentName(doc)}</p>
+                          <p className="font-medium">
+                            {resolveDocumentName(doc)}
+                          </p>
                           <p className="text-sm text-slate-700">
                             {doc.document_type_display || doc.document_type} •{" "}
                             {formatFileSize(doc.file_size)}
@@ -300,7 +272,8 @@ export const ApplicationDetailPage: React.FC = () => {
                         <StatusBadge status={resolveDocumentStatus(doc)} />
                         {typeof resolveDocumentConfidence(doc) === "number" && (
                           <span className="text-sm text-slate-700">
-                            {resolveDocumentConfidence(doc)?.toFixed(1)}% confidence
+                            {resolveDocumentConfidence(doc)?.toFixed(1)}%
+                            confidence
                           </span>
                         )}
                       </div>
@@ -326,12 +299,15 @@ export const ApplicationDetailPage: React.FC = () => {
                 {currentCase.documents.map((doc) => (
                   <div key={doc.id} className="mb-4 p-4 bg-gray-50 rounded-lg">
                     <div className="flex justify-between items-start mb-2">
-                      <span className="font-medium">{doc.document_type_display || doc.document_type}</span>
+                      <span className="font-medium">
+                        {doc.document_type_display || doc.document_type}
+                      </span>
                       <StatusBadge status={resolveDocumentStatus(doc)} />
                     </div>
                     {typeof resolveDocumentConfidence(doc) === "number" && (
                       <div className="text-sm text-slate-700">
-                        AI Confidence: {resolveDocumentConfidence(doc)?.toFixed(1)}%
+                        AI Confidence:{" "}
+                        {resolveDocumentConfidence(doc)?.toFixed(1)}%
                       </div>
                     )}
                   </div>
@@ -455,10 +431,85 @@ export const ApplicationDetailPage: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            {/* Decision Actions — visible to governance managers only */}
+            {canManageActiveOrganizationGovernance && (
+              <>
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <h3 className="font-semibold mb-3 text-gray-900">
+                    Review Notes
+                  </h3>
+                  <textarea
+                    value={reviewNotes}
+                    onChange={(e) => setReviewNotes(e.target.value)}
+                    className="h-28 w-full resize-none rounded-lg border border-slate-300 p-3 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Add decision notes or rejection reason..."
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    {reviewNotes.length === 0
+                      ? "Note is required for rejection"
+                      : `${reviewNotes.length} characters`}
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <h3 className="font-semibold mb-4 text-gray-900">
+                    Decision Actions
+                  </h3>
+                  <div className="space-y-3">
+                    <button
+                      onClick={handleApprove}
+                      disabled={actionLoading}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {actionLoading && activeDecision === "approve" ? (
+                        <>
+                          <Loader size="sm" color="white" /> Processing...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-5 h-5" /> Approve Case
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={handleReject}
+                      disabled={actionLoading}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {actionLoading && activeDecision === "reject" ? (
+                        <>
+                          <Loader size="sm" color="white" /> Processing...
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="w-5 h-5" /> Reject Case
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={handleRequestMoreInfo}
+                      disabled={actionLoading}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-indigo-600 text-indigo-600 rounded-lg hover:bg-indigo-50 font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {actionLoading && activeDecision === "review" ? (
+                        <>
+                          <Loader size="sm" color="white" /> Processing...
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle className="w-5 h-5" /> Request More
+                          Info
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 };
-

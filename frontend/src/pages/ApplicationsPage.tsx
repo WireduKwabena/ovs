@@ -17,11 +17,19 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { formatDate } from "@/utils/helper";
 
+const PRIORITY_OPTIONS = ["low", "medium", "high", "critical"] as const;
+const APPLICATION_TYPE_OPTIONS = [
+  "employment",
+  "appointment",
+  "contract",
+  "volunteer",
+] as const;
+
 export const ApplicationsPage: React.FC = () => {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { applications, loading, refetch } = useApplications();
-  const { isAdmin } = useAuth();
+  const { isAdmin, canManageActiveOrganizationGovernance } = useAuth();
 
   const isAdminView = location.pathname.startsWith("/admin");
   const isValidStatusParam = (
@@ -45,32 +53,44 @@ export const ApplicationsPage: React.FC = () => {
     value === "approved" ||
     value === "rejected" ||
     value === "on_hold";
-  const isValidScopeParam = (value: string | null): value is "all" | "assigned" =>
-    value === "all" || value === "assigned";
+  const isValidScopeParam = (
+    value: string | null,
+  ): value is "all" | "assigned" => value === "all" || value === "assigned";
 
   const querySearch = (searchParams.get("q") || "").trim();
   const queryExercise = (searchParams.get("exercise") || "").trim();
   const queryOffice = (searchParams.get("office") || "").trim();
-  const [searchTerm, setSearchTerm] = useState(querySearch);
+  const [priorityFilter, setPriorityFilter] = useState(
+    () => searchParams.get("priority") || "",
+  );
+  const [applicationTypeFilter, setApplicationTypeFilter] = useState(
+    () => searchParams.get("application_type") || "",
+  );
   const statusFromQuery = searchParams.get("status");
-  const statusFilter = isValidStatusParam(statusFromQuery) ? statusFromQuery : "all";
+  const statusFilter = isValidStatusParam(statusFromQuery)
+    ? statusFromQuery
+    : "all";
   const scopeFromQuery = searchParams.get("scope");
-  const canChooseScope = !isAdminView && !isAdmin;
-  const scopeFilter = canChooseScope && isValidScopeParam(scopeFromQuery) ? scopeFromQuery : "assigned";
+  const canChooseScope =
+    !isAdminView && !isAdmin && !canManageActiveOrganizationGovernance;
+  const scopeFilter =
+    canChooseScope && isValidScopeParam(scopeFromQuery)
+      ? scopeFromQuery
+      : "assigned";
 
   useEffect(() => {
-    if (querySearch !== searchTerm) {
-      setSearchTerm(querySearch);
-    }
-  }, [querySearch, searchTerm]);
-
-  useEffect(() => {
-    if (isAdmin || isAdminView) {
+    if (isAdmin || isAdminView || canManageActiveOrganizationGovernance) {
       refetch({ scope: "all" });
       return;
     }
     refetch({ scope: scopeFilter });
-  }, [refetch, isAdmin, isAdminView, scopeFilter]);
+  }, [
+    refetch,
+    isAdmin,
+    isAdminView,
+    canManageActiveOrganizationGovernance,
+    scopeFilter,
+  ]);
 
   const handleStatusChange = (value: string) => {
     const nextParams = new URLSearchParams(searchParams);
@@ -92,6 +112,16 @@ export const ApplicationsPage: React.FC = () => {
     setSearchParams(nextParams, { replace: true });
   };
 
+  const handleSearchChange = (value: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (!value.trim()) {
+      nextParams.delete("q");
+    } else {
+      nextParams.set("q", value);
+    }
+    setSearchParams(nextParams, { replace: true });
+  };
+
   const clearWorkflowContext = () => {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete("q");
@@ -108,7 +138,10 @@ export const ApplicationsPage: React.FC = () => {
     return app.applicant_email || String(app.applicant || "");
   };
   const resolveCaseLabel = (app: (typeof applications)[number]) =>
-    app.office_title || app.position_applied || app.application_type || "vetting dossier";
+    app.office_title ||
+    app.position_applied ||
+    app.application_type ||
+    "vetting dossier";
   const workflowContextLabel = useMemo(() => {
     const labels: string[] = [];
     if (queryOffice) {
@@ -122,16 +155,33 @@ export const ApplicationsPage: React.FC = () => {
 
   const filteredApplications = applications.filter((app) => {
     const applicantDisplay = resolveApplicantDisplay(app).toLowerCase();
-    const officeDisplay = String(app.office_title || app.position_applied || "").toLowerCase();
+    const officeDisplay = String(
+      app.office_title || app.position_applied || "",
+    ).toLowerCase();
+    const normalizedSearchTerm = querySearch.toLowerCase();
     const matchesSearch =
-      app.case_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      applicantDisplay.includes(searchTerm.toLowerCase()) ||
-      (app.applicant_email || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      officeDisplay.includes(searchTerm.toLowerCase());
+      app.case_id.toLowerCase().includes(normalizedSearchTerm) ||
+      applicantDisplay.includes(normalizedSearchTerm) ||
+      (app.applicant_email || "")
+        .toLowerCase()
+        .includes(normalizedSearchTerm) ||
+      officeDisplay.includes(normalizedSearchTerm);
     const matchesStatus = statusFilter === "all" || app.status === statusFilter;
-    const matchesExercise = !queryExercise || app.appointment_exercise_id === queryExercise;
-    const matchesOffice = !queryOffice || officeDisplay.includes(queryOffice.toLowerCase());
-    return matchesSearch && matchesStatus && matchesExercise && matchesOffice;
+    const matchesPriority = !priorityFilter || app.priority === priorityFilter;
+    const matchesAppType =
+      !applicationTypeFilter || app.application_type === applicationTypeFilter;
+    const matchesExercise =
+      !queryExercise || app.appointment_exercise_id === queryExercise;
+    const matchesOffice =
+      !queryOffice || officeDisplay.includes(queryOffice.toLowerCase());
+    return (
+      matchesSearch &&
+      matchesStatus &&
+      matchesPriority &&
+      matchesAppType &&
+      matchesExercise &&
+      matchesOffice
+    );
   });
 
   return (
@@ -140,11 +190,9 @@ export const ApplicationsPage: React.FC = () => {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              Vetting Dossiers
-            </h1>
+            <h1 className="text-3xl font-bold text-gray-900">Cases</h1>
             <p className="mt-1 text-slate-700">
-              Review and manage submitted vetting dossiers for nomination files.
+              Review and manage vetting cases and nomination dossiers.
             </p>
           </div>
         </div>
@@ -154,7 +202,9 @@ export const ApplicationsPage: React.FC = () => {
             Office-Centered Sequence
           </p>
           <p className="mt-2 text-sm text-cyan-900">
-            Office -&gt; Appointment Exercise -&gt; Nominee / Nomination File -&gt; Vetting Dossier -&gt; Review -&gt; Approval -&gt; Appointment -&gt; Publication
+            Office -&gt; Appointment Exercise -&gt; Nominee / Nomination File
+            -&gt; Vetting Dossier -&gt; Review -&gt; Approval -&gt; Appointment
+            -&gt; Publication
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Link
@@ -205,9 +255,13 @@ export const ApplicationsPage: React.FC = () => {
         {/* Filters */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <div className="mb-4 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
-            Hover or focus the <Info className="mx-1 inline h-4 w-4 align-text-bottom" /> icons to understand each filter.
+            Hover or focus the{" "}
+            <Info className="mx-1 inline h-4 w-4 align-text-bottom" /> icons to
+            understand each filter.
           </div>
-          <div className={`grid grid-cols-1 gap-4 ${canChooseScope ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
+          <div
+            className={`grid grid-cols-1 gap-4 ${canChooseScope ? "md:grid-cols-4" : "md:grid-cols-3"}`}
+          >
             <div>
               <FieldLabel
                 htmlFor="applications-search"
@@ -222,8 +276,8 @@ export const ApplicationsPage: React.FC = () => {
                   id="applications-search"
                   type="text"
                   placeholder="Search by dossier ID, nominee, or office..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={querySearch}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   className="w-full rounded-lg border border-slate-700 py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
@@ -245,14 +299,80 @@ export const ApplicationsPage: React.FC = () => {
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="document_upload">Document Upload</SelectItem>
-                    <SelectItem value="document_analysis">Document Analysis</SelectItem>
-                    <SelectItem value="interview_scheduled">Interview Scheduled</SelectItem>
-                    <SelectItem value="interview_in_progress">Interview In Progress</SelectItem>
+                    <SelectItem value="document_upload">
+                      Document Upload
+                    </SelectItem>
+                    <SelectItem value="document_analysis">
+                      Document Analysis
+                    </SelectItem>
+                    <SelectItem value="interview_scheduled">
+                      Interview Scheduled
+                    </SelectItem>
+                    <SelectItem value="interview_in_progress">
+                      Interview In Progress
+                    </SelectItem>
                     <SelectItem value="under_review">Under Review</SelectItem>
                     <SelectItem value="approved">Approved</SelectItem>
                     <SelectItem value="rejected">Rejected</SelectItem>
                     <SelectItem value="on_hold">On Hold</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <FieldLabel
+                label="Priority"
+                help="Filter by case urgency level."
+                className="mb-2 flex items-center gap-1.5"
+                textClassName="block text-sm font-medium text-slate-800"
+              />
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-700 w-5 h-5 z-10" />
+                <Select
+                  value={priorityFilter || "all"}
+                  onValueChange={(v) => setPriorityFilter(v === "all" ? "" : v)}
+                >
+                  <SelectTrigger className="w-full rounded-lg border border-slate-700 py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <SelectValue placeholder="All priorities" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priorities</SelectItem>
+                    {PRIORITY_OPTIONS.map((p) => (
+                      <SelectItem key={p} value={p} className="capitalize">
+                        {p}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <FieldLabel
+                label="Type"
+                help="Filter by application type."
+                className="mb-2 flex items-center gap-1.5"
+                textClassName="block text-sm font-medium text-slate-800"
+              />
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-700 w-5 h-5 z-10" />
+                <Select
+                  value={applicationTypeFilter || "all"}
+                  onValueChange={(v) =>
+                    setApplicationTypeFilter(v === "all" ? "" : v)
+                  }
+                >
+                  <SelectTrigger className="w-full rounded-lg border border-slate-700 py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <SelectValue placeholder="All types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    {APPLICATION_TYPE_OPTIONS.map((t) => (
+                      <SelectItem key={t} value={t} className="capitalize">
+                        {t}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -295,7 +415,7 @@ export const ApplicationsPage: React.FC = () => {
               No dossiers found
             </h3>
             <p className="mb-6 text-slate-700">
-              {searchTerm || statusFilter !== "all"
+              {querySearch || statusFilter !== "all"
                 ? "Try adjusting your filters"
                 : "No dossiers match the current scope."}
             </p>
@@ -354,5 +474,3 @@ export const ApplicationsPage: React.FC = () => {
     </div>
   );
 };
-
-
