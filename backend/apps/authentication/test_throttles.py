@@ -99,7 +99,10 @@ class ThrottleAllowRequestUnitTests(SimpleTestCase):
     def _make_throttle(self, throttle_cls, rate):
         """Create a throttle instance with the rate set directly to bypass class-level caching."""
         t = throttle_cls()
-        t.THROTTLE_RATES = {throttle_cls.scope: rate}
+        # Override rate and derived values so the instance uses the test rate,
+        # not whatever default is configured in settings.
+        t.rate = rate
+        t.num_requests, t.duration = t.parse_rate(rate)
         return t
 
     @override_settings(CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "login-allow"}})

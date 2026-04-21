@@ -86,22 +86,24 @@ class AllSchemasTestRunner(DiscoverRunner):
             # TenantMixin.save() uses _state.adding (not pk is None) because
             # UUID PKs are pre-assigned in __init__ before save() is called.
             is_new = org_instance._state.adding
+            import uuid as _uuid
             from django_tenants.utils import schema_context
+
+            if is_new:
+                # Suppress schema creation; we don't need a real DB schema per
+                # test organisation — all tests run inside the single test_tenant
+                # schema.
+                org_instance.auto_create_schema = False
+
+                # If the caller didn't supply a schema_name, auto-generate a
+                # unique one so the unique constraint on tenants_organization
+                # doesn't clash when multiple test orgs are created in one test.
+                if not org_instance.schema_name:
+                    _slug = getattr(org_instance, "code", "") or str(org_instance.pk or "")
+                    _slug = _slug[:20].replace("-", "_").lower()
+                    org_instance.schema_name = f"t_{_slug}_{_uuid.uuid4().hex[:8]}"
+
             if connection.schema_name != "public":
-                if is_new:
-                    # Suppress schema creation; we don't need a real DB schema per
-                    # test organisation.
-                    org_instance.auto_create_schema = False
-
-                    # If the caller didn't supply a schema_name, auto-generate a
-                    # unique one so the unique constraint on tenants_organization
-                    # doesn't clash when multiple test orgs are created in one test.
-                    if not org_instance.schema_name:
-                        import uuid as _uuid
-                        _slug = getattr(org_instance, "code", "") or str(org_instance.pk or "")
-                        _slug = _slug[:20].replace("-", "_").lower()
-                        org_instance.schema_name = f"t_{_slug}_{_uuid.uuid4().hex[:8]}"
-
                 # Both new and existing org records live in the public schema's
                 # tenants_organization table.  TenantMixin.save() raises if called
                 # from a non-public schema, so always switch to public here.

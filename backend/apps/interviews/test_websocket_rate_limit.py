@@ -31,26 +31,30 @@ class InterviewConsumerRateLimitTests(SimpleTestCase):
         consumer = InterviewConsumer.__new__(InterviewConsumer)
         consumer._message_timestamps = []
         consumer.session_id = "test-session-123"
+        consumer._redis = None  # force in-memory fallback
         return consumer
+
+    def _call(self, consumer):
+        return asyncio.get_event_loop().run_until_complete(consumer._is_rate_limited())
 
     def test_first_message_is_not_rate_limited(self):
         consumer = self._make_consumer()
-        self.assertFalse(consumer._is_rate_limited())
+        self.assertFalse(self._call(consumer))
 
     def test_messages_within_limit_are_not_rate_limited(self):
         consumer = self._make_consumer()
         with patch("apps.interviews.websocket_handler._WS_RATE_LIMIT_PER_MINUTE", 5):
             for _ in range(5):
-                result = consumer._is_rate_limited()
+                result = self._call(consumer)
             self.assertFalse(result)
 
     def test_message_exceeding_limit_is_rate_limited(self):
         consumer = self._make_consumer()
         with patch("apps.interviews.websocket_handler._WS_RATE_LIMIT_PER_MINUTE", 3):
             for _ in range(3):
-                consumer._is_rate_limited()
+                self._call(consumer)
             # 4th call exceeds limit of 3
-            self.assertTrue(consumer._is_rate_limited())
+            self.assertTrue(self._call(consumer))
 
     def test_old_timestamps_are_pruned(self):
         consumer = self._make_consumer()
@@ -60,7 +64,7 @@ class InterviewConsumerRateLimitTests(SimpleTestCase):
 
         with patch("apps.interviews.websocket_handler._WS_RATE_LIMIT_PER_MINUTE", 5):
             # Old timestamps should be pruned, so this should NOT be rate limited
-            result = consumer._is_rate_limited()
+            result = self._call(consumer)
         self.assertFalse(result)
         # Old entries removed, only the new one remains
         self.assertEqual(len(consumer._message_timestamps), 1)
@@ -73,11 +77,11 @@ class InterviewConsumerRateLimitTests(SimpleTestCase):
         with patch("apps.interviews.websocket_handler._WS_RATE_LIMIT_PER_MINUTE", 2):
             # Exhaust consumer1's limit
             for _ in range(3):
-                consumer1._is_rate_limited()
+                self._call(consumer1)
             # consumer2 should still be unaffected
-            self.assertFalse(consumer2._is_rate_limited())
+            self.assertFalse(self._call(consumer2))
             # consumer1 should be limited
-            self.assertTrue(consumer1._is_rate_limited())
+            self.assertTrue(self._call(consumer1))
 
 
 class InterviewConsumerReceiveRateLimitTests(SimpleTestCase):
@@ -91,14 +95,17 @@ class InterviewConsumerReceiveRateLimitTests(SimpleTestCase):
         consumer._message_timestamps = []
         consumer.session_id = "test-session-456"
         consumer._chunk_index = 0
+        consumer._authenticated = True  # skip auth gate so tests reach rate-limit logic
+        consumer._redis = None
         consumer.send = AsyncMock()
+        consumer.close = AsyncMock()
         return consumer
 
     def test_receive_drops_message_when_rate_limited(self):
         consumer = self._make_consumer()
 
         # Force rate limit to trigger
-        consumer._is_rate_limited = MagicMock(return_value=True)
+        consumer._is_rate_limited = AsyncMock(return_value=True)
 
         async def run():
             await consumer.receive(text_data='{"type": "ping"}')
@@ -116,7 +123,7 @@ class InterviewConsumerReceiveRateLimitTests(SimpleTestCase):
 
     def test_receive_processes_message_when_not_rate_limited(self):
         consumer = self._make_consumer()
-        consumer._is_rate_limited = MagicMock(return_value=False)
+        consumer._is_rate_limited = AsyncMock(return_value=False)
 
         async def run():
             await consumer.receive(text_data='{"type": "ping"}')
@@ -130,7 +137,7 @@ class InterviewConsumerReceiveRateLimitTests(SimpleTestCase):
 
     def test_receive_returns_error_on_invalid_json(self):
         consumer = self._make_consumer()
-        consumer._is_rate_limited = MagicMock(return_value=False)
+        consumer._is_rate_limited = AsyncMock(return_value=False)
 
         async def run():
             await consumer.receive(text_data="not json {{{{")

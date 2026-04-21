@@ -19,12 +19,11 @@ frontend/coverage-run-final.txt
 frontend/test-results-new.txt
 frontend/test-results-updated.txt
 frontend/test-results.txt
-frontend/coverage/lcov-report/src/components/admin/index.html
-
 backend/coverage-docker-final.txt
 backend/coverage-docker.txt
 backend/coverage-latest.txt
 backend/coverage-run.txt
+backend/coverage-run2.txt
 backend/coverage.xml
 backend/.coverage
 backend/.coveragerc
