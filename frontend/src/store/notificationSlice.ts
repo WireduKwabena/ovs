@@ -81,14 +81,12 @@ const notificationSlice = createSlice({
           n => n.status === 'unread' || !n.is_read
         ).length;
         state.loading = false;
-        console.log('✅ Stored notifications:', state.notifications.length, 'Unread:', state.unreadCount);
       })
 
       .addCase(fetchNotifications.rejected, (state, action) => {
       state.loading = false;
       state.error = action.payload as ApiError;
-      state.notifications = []; // ✅ Reset to empty array on error
-      console.error('❌ Fetch rejected:', action.payload);
+      state.notifications = []; // Reset to empty array on error
     })
     .addCase(markAsRead.pending, (state) => {
         state.loading = true;
@@ -98,7 +96,6 @@ const notificationSlice = createSlice({
         // Optimistically update
         // ✅ FIX: Ensure action.meta.arg is array before using
         const idsToMark = Array.isArray(action.meta.arg) ? action.meta.arg : [];
-        console.log('✅ Marking as read:', idsToMark);
         state.notifications = state.notifications.map(n => 
           idsToMark.includes(n.id) ? { ...n, status: 'read' as const, is_read: true, read_at: new Date().toISOString() } : n
         );
@@ -113,7 +110,6 @@ const notificationSlice = createSlice({
         state.loading = true;
       })
       .addCase(markAllAsRead.fulfilled, (state) => {
-        console.log('✅ Marking all as read');
         state.notifications = state.notifications.map(n => ({
           ...n,
           status: 'read' as const,

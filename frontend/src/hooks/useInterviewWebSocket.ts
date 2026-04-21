@@ -78,7 +78,6 @@ export const useInterviewWebSocket = ({
       }
       switch (message.type) {
         case 'session_initialized':
-          console.log('Session initialized:', message.session_id);
           dispatch(setError(null)); // Clear any previous errors on successful initialization
           break;
 
@@ -138,8 +137,7 @@ export const useInterviewWebSocket = ({
           break;
 
         case 'captions':
-          // Handled by TavusAvatarPlayer, but logged for diagnostics.
-          console.log('Caption:', message.text);
+          // Handled by TavusAvatarPlayer
           break;
 
         case 'avatar_stream_start':
@@ -250,7 +248,6 @@ export const useInterviewWebSocket = ({
       }
       const recoveredAttempts = reconnectAttemptRef.current;
       resetReconnectState();
-      console.log('WebSocket connected');
       dispatch(setWsConnected(true));
       dispatch(setError(null)); // Clear any errors on successful connection
       if (onConnectionEvent) {
@@ -307,7 +304,6 @@ export const useInterviewWebSocket = ({
       if (wsRef.current !== ws) {
         return;
       }
-      console.log('WebSocket closed', event.code, event.reason);
       wsRef.current = null;
       dispatch(setWsConnected(false));
       // Set error only if the close was abnormal (e.g., not a normal shutdown)

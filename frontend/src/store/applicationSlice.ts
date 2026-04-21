@@ -98,7 +98,6 @@ const applicationSlice = createSlice({
       .addCase(fetchApplications.fulfilled, (state, action: PayloadAction<ApplicationWithDocuments[]>) => {
         state.applications = Array.isArray(action.payload) ? action.payload : [];
         state.loading = false;
-        console.log('✅ Applications stored:', state.applications.length);
       })
       .addCase(fetchApplications.rejected, (state, action) => {
         state.loading = false;
