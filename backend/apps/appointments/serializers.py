@@ -168,6 +168,12 @@ class AppointmentRecordSerializer(serializers.ModelSerializer):
         def add_error(field: str, message: str):
             errors.setdefault(field, []).append(message)
 
+        if appointment_exercise is not None and appointment_exercise.status != "active":
+            add_error(
+                "appointment_exercise",
+                "Selected appointment exercise must be active before it can be linked to a nomination file.",
+            )
+
         if appointment_exercise is not None and position is not None:
             if appointment_exercise.positions.exists() and not appointment_exercise.positions.filter(id=position.id).exists():
                 add_error("position", "Selected position is not linked to the appointment exercise.")

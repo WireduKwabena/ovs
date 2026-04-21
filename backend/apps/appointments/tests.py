@@ -833,6 +833,34 @@ class AppointmentPublicApiTests(APITestCase):
             expected_event=APPOINTMENT_RECORD_CREATED_EVENT,
         )
 
+    def test_create_record_rejects_draft_appointment_exercise(self):
+        nominee = self._build_nominee()
+        draft_campaign = VettingCampaign.objects.create(
+            name="Draft Exercise For Validation",
+            initiated_by=self.vetting_user,
+            status="draft",
+        )
+        response = self.client.post(
+            "/api/appointments/records/",
+            {
+                "position": str(self.record.position_id),
+                "nominee": str(nominee.id),
+                "appointment_exercise": str(draft_campaign.id),
+                "nominated_by_display": "H.E. President",
+                "nominated_by_org": "Office of the President",
+                "nomination_date": str(date.today()),
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("appointment_exercise", response.json())
+        self.assertTrue(
+            any(
+                "must be active" in str(message).lower()
+                for message in response.json().get("appointment_exercise", [])
+            )
+        )
+
     @patch("apps.invitations.tasks.send_invitation_task.delay", return_value=None)
     def test_create_record_emits_nomination_lifecycle_audit_and_notification(self, _mock_invite_delay):
         nominee = self._build_nominee()

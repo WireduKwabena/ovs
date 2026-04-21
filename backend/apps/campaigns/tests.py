@@ -112,6 +112,28 @@ class CampaignAuthorizationTests(APITestCase):
         response = self.client.post("/api/campaigns/", {"name": "Applicant Campaign"}, format="json")
         self.assertEqual(response.status_code, 403)
 
+    def test_internal_can_transition_campaign_status_draft_to_active(self):
+        self.client.force_authenticate(self.internal_one)
+        response = self.client.patch(
+            f"/api/campaigns/{self.campaign_one.id}/",
+            {"status": "active"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.campaign_one.refresh_from_db()
+        self.assertEqual(self.campaign_one.status, "active")
+
+    def test_internal_cannot_transition_campaign_status_draft_to_closed(self):
+        self.client.force_authenticate(self.internal_one)
+        response = self.client.patch(
+            f"/api/campaigns/{self.campaign_one.id}/",
+            {"status": "closed"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertIn("status", payload)
+
     def test_plain_internal_without_operational_role_cannot_list_campaigns(self):
         plain_internal = User.objects.create_user(
             email="plain_internal_campaign@example.com",

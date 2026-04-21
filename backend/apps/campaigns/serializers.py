@@ -5,6 +5,14 @@ from apps.applications.models import Document
 from .models import CampaignRubricVersion, VettingCampaign
 
 
+ALLOWED_STATUS_TRANSITIONS: dict[str, set[str]] = {
+    "draft": {"active", "archived"},
+    "active": {"closed", "archived"},
+    "closed": {"archived"},
+    "archived": set(),
+}
+
+
 class CampaignRubricVersionSerializer(serializers.ModelSerializer):
     class Meta:
         model = CampaignRubricVersion
@@ -49,7 +57,25 @@ class VettingCampaignSerializer(serializers.ModelSerializer):
         return normalized
 
     def validate(self, attrs):
-        return super().validate(attrs)
+        attrs = super().validate(attrs)
+
+        instance = getattr(self, "instance", None)
+        if instance is not None and "status" in attrs:
+            current_status = str(getattr(instance, "status", "")).strip().lower()
+            next_status = str(attrs.get("status", "")).strip().lower()
+
+            if current_status and next_status and next_status != current_status:
+                allowed = ALLOWED_STATUS_TRANSITIONS.get(current_status, set())
+                if next_status not in allowed:
+                    raise serializers.ValidationError(
+                        {
+                            "status": (
+                                f"Invalid status transition from '{current_status}' to '{next_status}'."
+                            )
+                        }
+                    )
+
+        return attrs
 
     def _merge_required_document_types(self, validated_data, required_document_types):
         if required_document_types is None:

@@ -72,6 +72,14 @@ export const campaignService = {
     return response.data;
   },
 
+  async updateStatus(
+    campaignId: string,
+    status: 'draft' | 'active' | 'closed' | 'archived',
+  ): Promise<VettingCampaign> {
+    const response = await api.patch<VettingCampaign>(`/campaigns/${campaignId}/`, { status });
+    return response.data;
+  },
+
   async getDashboard(campaignId: string): Promise<CampaignDashboard> {
     const response = await api.get<CampaignDashboard>(`/campaigns/${campaignId}/dashboard/`);
     return response.data;

@@ -46,7 +46,10 @@ jobs:
         run: npm run type-check
 
       - name: Test
-        run: npm run test
+        run: npm run test -- --run
+
+      - name: Test coverage thresholds
+        run: npm run test:coverage
 
       - name: Build + bundle budgets
         run: npm run build:ci
@@ -60,6 +63,9 @@ jobs:
           mkdir -p ../ci-artifacts/frontend
           if [ -d dist ]; then
             cp -r dist ../ci-artifacts/frontend/dist
+          fi
+          if [ -d coverage ]; then
+            cp -r coverage ../ci-artifacts/frontend/coverage
           fi
 
       - name: Upload frontend artifacts
@@ -121,7 +127,7 @@ jobs:
             -e POSTGRES_PASSWORD=postgres \
             -e CELERY_EAGER=true \
             -e SENTRY_DSN="" \
-            backend python manage.py test --keepdb 2>&1 | tee ci-artifacts/backend/backend-tests.log
+            backend sh -lc "coverage run --rcfile=.coveragerc manage.py test --keepdb && coverage report --rcfile=.coveragerc && coverage xml --rcfile=.coveragerc -o /app/coverage.xml" 2>&1 | tee ci-artifacts/backend/backend-tests.log
 
       - name: Django production deploy checks
         run: |

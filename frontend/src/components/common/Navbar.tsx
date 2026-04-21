@@ -569,7 +569,7 @@ export const Navbar: React.FC = () => {
   ) {
     pushUnique(desktopPrimaryLinks, {
       to: workspaceApplicationsPath,
-      label: "Cases",
+      label: "Vetting Dossiers",
     });
   }
 

@@ -1,0 +1,38 @@
+[run]
+source =
+    apps
+    ai_ml_services
+    config
+    documents
+
+omit =
+    */migrations/*
+    */tests*
+    */test_*.py
+    */__init__.py
+    */conftest.py
+    manage.py
+    config/wsgi.py
+    config/asgi.py
+    config/celery.py
+
+[report]
+show_missing = true
+skip_covered = false
+precision = 1
+fail_under = 65
+
+exclude_lines =
+    # Standard defensive patterns
+    pragma: no cover
+    raise NotImplementedError
+    if TYPE_CHECKING:
+    if __name__ == .__main__.:
+    \.\.\.
+    pass
+
+[html]
+directory = htmlcov
+
+[xml]
+output = coverage.xml

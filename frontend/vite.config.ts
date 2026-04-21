@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import path from "path"
 import tailwindcss from "@tailwindcss/vite"
+import type { UserConfig as VitestConfig } from 'vitest/config'
 
 const apiProxyTarget = process.env.VITE_API_PROXY_TARGET || "http://localhost:8000"
 
@@ -96,6 +97,29 @@ export default defineConfig({
       },
     },
   },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html', 'lcov'],
+      reportsDirectory: './coverage',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/**/*.d.ts',
+        'src/main.tsx',
+        'src/App.css',
+        'src/index.css',
+      ],
+      thresholds: {
+        lines: 40,
+        functions: 40,
+        branches: 35,
+        statements: 40,
+      },
+    },
+  } satisfies VitestConfig['test'],
 })
 
 

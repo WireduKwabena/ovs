@@ -190,9 +190,11 @@ export const ApplicationsPage: React.FC = () => {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Cases</h1>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Vetting Dossiers
+            </h1>
             <p className="mt-1 text-slate-700">
-              Review and manage vetting cases and nomination dossiers.
+              Review and manage vetting dossiers and nomination files.
             </p>
           </div>
         </div>
@@ -412,7 +414,7 @@ export const ApplicationsPage: React.FC = () => {
           <div className="bg-white rounded-lg shadow-sm p-12 text-center">
             <div className="text-6xl mb-4">📋</div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              No dossiers found
+              No vetting dossiers found
             </h3>
             <p className="mb-6 text-slate-700">
               {querySearch || statusFilter !== "all"
