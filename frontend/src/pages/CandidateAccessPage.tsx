@@ -1,32 +1,48 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { KeyRound, LogOut, RefreshCw, FileCheck2, ShieldAlert, Info, UploadCloud } from 'lucide-react';
-import { invitationService, type CandidatePortalDocument } from '@/services/invitation.service';
-import type { CandidateAccessContext, CandidateAccessResults, DocumentType, VettingCase } from '@/types';
-import { formatDateTime } from '@/utils/helper';
-import { FieldLabel, HelpTooltip } from '@/components/common/FieldHelp';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import {
+  KeyRound,
+  LogOut,
+  RefreshCw,
+  FileCheck2,
+  ShieldAlert,
+  Info,
+  UploadCloud,
+} from "lucide-react";
+import {
+  invitationService,
+  type CandidatePortalDocument,
+} from "@/services/invitation.service";
+import type {
+  CandidateAccessContext,
+  CandidateAccessResults,
+  DocumentType,
+  VettingCase,
+} from "@/types";
+import { formatDateTime } from "@/utils/helper";
+import { FieldLabel, HelpTooltip } from "@/components/common/FieldHelp";
 import {
   DOCUMENT_TYPE_OPTIONS,
   getDocumentTypeLabel,
   normalizeRequiredDocumentTypes,
-} from '@/constants/documentTypes';
+} from "@/constants/documentTypes";
 
-const terminalStatuses = new Set(['approved', 'rejected', 'escalated']);
+const terminalStatuses = new Set(["approved", "rejected", "escalated"]);
 const SELECT_FIELD_CLASS =
-  'w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-60';
+  "w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-60";
 
 const documentStatusClass = (status: string): string => {
-  const normalized = String(status || '').toLowerCase();
-  if (normalized === 'verified') return 'bg-emerald-100 text-emerald-800';
-  if (normalized === 'failed') return 'bg-rose-100 text-rose-800';
-  if (normalized === 'flagged') return 'bg-amber-100 text-amber-800';
-  if (normalized === 'processing') return 'bg-blue-100 text-blue-800';
-  return 'bg-slate-100 text-slate-800';
+  const normalized = String(status || "").toLowerCase();
+  if (normalized === "verified") return "bg-emerald-100 text-emerald-800";
+  if (normalized === "failed") return "bg-rose-100 text-rose-800";
+  if (normalized === "flagged") return "bg-amber-100 text-amber-800";
+  if (normalized === "processing") return "bg-blue-100 text-blue-800";
+  return "bg-slate-100 text-slate-800";
 };
 
 const isPendingDocumentStatus = (status: string): boolean => {
-  const normalized = String(status || '').toLowerCase();
-  return normalized === 'queued' || normalized === 'processing';
+  const normalized = String(status || "").toLowerCase();
+  return normalized === "queued" || normalized === "processing";
 };
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
@@ -34,7 +50,7 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
     return fallback;
   }
 
-  if (typeof error === 'string') {
+  if (typeof error === "string") {
     return error;
   }
 
@@ -64,19 +80,19 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
 
 function resolveTimelinePosition(enrollmentStatus: string): number {
   switch (enrollmentStatus) {
-    case 'invited':
+    case "invited":
       return 0;
-    case 'registered':
+    case "registered":
       return 1;
-    case 'in_progress':
+    case "in_progress":
       return 2;
-    case 'completed':
+    case "completed":
       return 3;
-    case 'reviewed':
+    case "reviewed":
       return 4;
-    case 'approved':
-    case 'rejected':
-    case 'escalated':
+    case "approved":
+    case "rejected":
+    case "escalated":
       return 5;
     default:
       return 0;
@@ -85,7 +101,7 @@ function resolveTimelinePosition(enrollmentStatus: string): number {
 
 const CandidateAccessPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tokenFromQuery = searchParams.get('token') || '';
+  const tokenFromQuery = searchParams.get("token") || "";
 
   const [tokenInput, setTokenInput] = useState(tokenFromQuery);
   const [context, setContext] = useState<CandidateAccessContext | null>(null);
@@ -97,91 +113,131 @@ const CandidateAccessPage: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [cases, setCases] = useState<VettingCase[]>([]);
   const [documents, setDocuments] = useState<CandidatePortalDocument[]>([]);
-  const [lastDocumentsRefreshAt, setLastDocumentsRefreshAt] = useState<string | null>(null);
-  const [selectedCaseId, setSelectedCaseId] = useState('');
-  const [selectedDocumentType, setSelectedDocumentType] = useState<DocumentType>('id_card');
+  const [lastDocumentsRefreshAt, setLastDocumentsRefreshAt] = useState<
+    string | null
+  >(null);
+  const [selectedCaseId, setSelectedCaseId] = useState("");
+  const [selectedDocumentType, setSelectedDocumentType] =
+    useState<DocumentType>("id_card");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const timelinePosition = context ? resolveTimelinePosition(context.enrollment_status) : 0;
+  const timelinePosition = context
+    ? resolveTimelinePosition(context.enrollment_status)
+    : 0;
   const timelinePercent = Math.round(((timelinePosition + 1) / 6) * 100);
   const outcomeLabel = context
     ? terminalStatuses.has(context.enrollment_status)
-      ? context.enrollment_status.replace('_', ' ')
-      : 'pending decision'
-    : 'pending decision';
+      ? context.enrollment_status.replace("_", " ")
+      : "pending decision"
+    : "pending decision";
   const timelineSteps = [
-    { key: 'invited', title: 'Invitation Sent', description: 'You were invited to start vetting.' },
-    { key: 'registered', title: 'Access Registered', description: 'Your candidate session is confirmed.' },
-    { key: 'in_progress', title: 'Vetting In Progress', description: 'Document/interview checks are running.' },
-    { key: 'completed', title: 'Evaluation Completed', description: 'Initial scoring has finished.' },
-    { key: 'reviewed', title: 'Reviewed By Initiator', description: 'An internal reviewer examined your results.' },
-    { key: 'decision', title: `Outcome (${outcomeLabel})`, description: 'Final decision and notification step.' },
+    {
+      key: "invited",
+      title: "Invitation Sent",
+      description: "You were invited to start vetting.",
+    },
+    {
+      key: "registered",
+      title: "Access Registered",
+      description: "Your candidate session is confirmed.",
+    },
+    {
+      key: "in_progress",
+      title: "Vetting In Progress",
+      description: "Document/interview checks are running.",
+    },
+    {
+      key: "completed",
+      title: "Evaluation Completed",
+      description: "Initial scoring has finished.",
+    },
+    {
+      key: "reviewed",
+      title: "Reviewed By Initiator",
+      description: "An internal reviewer examined your results.",
+    },
+    {
+      key: "decision",
+      title: `Outcome (${outcomeLabel})`,
+      description: "Final decision and notification step.",
+    },
   ];
   const requiredDocumentTypes = useMemo(
-    () => normalizeRequiredDocumentTypes(context?.campaign?.required_document_types),
+    () =>
+      normalizeRequiredDocumentTypes(
+        context?.campaign?.required_document_types,
+      ),
     [context?.campaign?.required_document_types],
   );
   const effectiveDocumentTypeOptions = useMemo(() => {
     if (requiredDocumentTypes.length === 0) {
       return DOCUMENT_TYPE_OPTIONS;
     }
-    return DOCUMENT_TYPE_OPTIONS.filter((option) => requiredDocumentTypes.includes(option.value));
+    return DOCUMENT_TYPE_OPTIONS.filter((option) =>
+      requiredDocumentTypes.includes(option.value),
+    );
   }, [requiredDocumentTypes]);
   const latestInterviewSnapshot = useMemo(() => {
     const payload = results?.latest_interview;
-    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
       return null;
     }
     const raw = payload as Record<string, unknown>;
     return {
-      id: typeof raw.id === 'string' ? raw.id : '',
-      session_id: typeof raw.session_id === 'string' ? raw.session_id : '',
-      status: typeof raw.status === 'string' ? raw.status : 'unknown',
-      started_at: typeof raw.started_at === 'string' ? raw.started_at : null,
-      completed_at: typeof raw.completed_at === 'string' ? raw.completed_at : null,
+      id: typeof raw.id === "string" ? raw.id : "",
+      session_id: typeof raw.session_id === "string" ? raw.session_id : "",
+      status: typeof raw.status === "string" ? raw.status : "unknown",
+      started_at: typeof raw.started_at === "string" ? raw.started_at : null,
+      completed_at:
+        typeof raw.completed_at === "string" ? raw.completed_at : null,
     };
   }, [results?.latest_interview]);
   const latestCaseSnapshot = useMemo(() => {
     const payload = results?.case;
-    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
       return null;
     }
     const raw = payload as Record<string, unknown>;
     return {
-      id: typeof raw.id === 'string' ? raw.id : '',
-      case_id: typeof raw.case_id === 'string' ? raw.case_id : '',
-      status: typeof raw.status === 'string' ? raw.status : '',
+      id: typeof raw.id === "string" ? raw.id : "",
+      case_id: typeof raw.case_id === "string" ? raw.case_id : "",
+      status: typeof raw.status === "string" ? raw.status : "",
     };
   }, [results?.case]);
   const interviewLaunchIdentifier = useMemo(() => {
     if (!latestCaseSnapshot) {
-      return '';
+      return "";
     }
-    return latestCaseSnapshot.case_id || latestCaseSnapshot.id || '';
+    return latestCaseSnapshot.case_id || latestCaseSnapshot.id || "";
   }, [latestCaseSnapshot]);
 
-  const consumeToken = useCallback(async (rawToken: string, syncQuery = true) => {
-    setLoading(true);
-    setError(null);
-    setMessage(null);
-    try {
-      const data = await invitationService.consumeAccessToken(rawToken, true);
-      setContext(data);
-      setTokenInput(rawToken);
-      if (syncQuery) {
-        setSearchParams({ token: rawToken }, { replace: true });
+  const consumeToken = useCallback(
+    async (rawToken: string, syncQuery = true) => {
+      setLoading(true);
+      setError(null);
+      setMessage(null);
+      try {
+        const data = await invitationService.consumeAccessToken(rawToken, true);
+        setContext(data);
+        setTokenInput(rawToken);
+        if (syncQuery) {
+          setSearchParams({ token: rawToken }, { replace: true });
+        }
+        setMessage(
+          "Access granted. You can now proceed with vetting and review your results later.",
+        );
+      } catch (err: unknown) {
+        setError(getErrorMessage(err, "Access failed."));
+        setContext(null);
+        setResults(null);
+      } finally {
+        setLoading(false);
       }
-      setMessage('Access granted. You can now proceed with vetting and review your results later.');
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Access failed.'));
-      setContext(null);
-      setResults(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [setSearchParams]);
+    },
+    [setSearchParams],
+  );
 
   const refreshContext = useCallback(async () => {
     setLoading(true);
@@ -190,7 +246,7 @@ const CandidateAccessPage: React.FC = () => {
       const data = await invitationService.getAccessContext();
       setContext(data);
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Session not found.'));
+      setError(getErrorMessage(err, "Session not found."));
       setContext(null);
     } finally {
       setLoading(false);
@@ -206,12 +262,12 @@ const CandidateAccessPage: React.FC = () => {
         if (current && rows.some((row) => row.id === current)) {
           return current;
         }
-        return rows[0]?.id || '';
+        return rows[0]?.id || "";
       });
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Could not load candidate cases.'));
+      setError(getErrorMessage(err, "Could not load candidate cases."));
       setCases([]);
-      setSelectedCaseId('');
+      setSelectedCaseId("");
     } finally {
       setCasesLoading(false);
     }
@@ -231,7 +287,7 @@ const CandidateAccessPage: React.FC = () => {
         setDocuments(rows);
         setLastDocumentsRefreshAt(new Date().toISOString());
       } catch (err: unknown) {
-        setError(getErrorMessage(err, 'Could not load uploaded documents.'));
+        setError(getErrorMessage(err, "Could not load uploaded documents."));
         setDocuments([]);
       } finally {
         setDocumentsLoading(false);
@@ -242,28 +298,40 @@ const CandidateAccessPage: React.FC = () => {
 
   const uploadDocument = useCallback(async () => {
     if (!selectedCaseId) {
-      setError('Select a case before uploading.');
+      setError("Select a case before uploading.");
       return;
     }
     if (!selectedFile) {
-      setError('Select a file to upload.');
+      setError("Select a file to upload.");
       return;
     }
 
     setUploading(true);
     setError(null);
     try {
-      await invitationService.uploadCandidateDocument(selectedCaseId, selectedFile, selectedDocumentType);
-      setMessage('Document uploaded successfully. Verification has been queued.');
+      await invitationService.uploadCandidateDocument(
+        selectedCaseId,
+        selectedFile,
+        selectedDocumentType,
+      );
+      setMessage(
+        "Document uploaded successfully. Verification has been queued.",
+      );
       setSelectedFile(null);
       await loadCases();
       await loadDocuments(selectedCaseId);
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Document upload failed.'));
+      setError(getErrorMessage(err, "Document upload failed."));
     } finally {
       setUploading(false);
     }
-  }, [selectedCaseId, selectedFile, selectedDocumentType, loadCases, loadDocuments]);
+  }, [
+    selectedCaseId,
+    selectedFile,
+    selectedDocumentType,
+    loadCases,
+    loadDocuments,
+  ]);
 
   const loadResults = useCallback(async (options?: { silent?: boolean }) => {
     setResultsLoading(true);
@@ -273,14 +341,14 @@ const CandidateAccessPage: React.FC = () => {
       setResults(payload);
       if (!options?.silent) {
         if (!payload.available) {
-          setMessage('Results are not available yet. Please check back later.');
+          setMessage("Results are not available yet. Please check back later.");
         } else {
-          setMessage('Results loaded.');
+          setMessage("Results loaded.");
         }
       }
     } catch (err: unknown) {
       if (!options?.silent) {
-        setError(getErrorMessage(err, 'Failed to load results.'));
+        setError(getErrorMessage(err, "Failed to load results."));
       }
     } finally {
       setResultsLoading(false);
@@ -296,13 +364,13 @@ const CandidateAccessPage: React.FC = () => {
       setCases([]);
       setDocuments([]);
       setLastDocumentsRefreshAt(null);
-      setSelectedCaseId('');
+      setSelectedCaseId("");
       setSelectedFile(null);
-      setTokenInput('');
+      setTokenInput("");
       setSearchParams({}, { replace: true });
-      setMessage('Session closed.');
+      setMessage("Session closed.");
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Could not close session.'));
+      setError(getErrorMessage(err, "Could not close session."));
     } finally {
       setLoading(false);
     }
@@ -321,7 +389,7 @@ const CandidateAccessPage: React.FC = () => {
       setCases([]);
       setDocuments([]);
       setLastDocumentsRefreshAt(null);
-      setSelectedCaseId('');
+      setSelectedCaseId("");
       return;
     }
     void loadCases();
@@ -336,13 +404,19 @@ const CandidateAccessPage: React.FC = () => {
     void loadDocuments(selectedCaseId);
   }, [context, selectedCaseId, loadDocuments]);
 
-  const hasPendingDocuments = documents.some((doc) => isPendingDocumentStatus(doc.status));
+  const hasPendingDocuments = documents.some((doc) =>
+    isPendingDocumentStatus(doc.status),
+  );
 
   useEffect(() => {
     if (effectiveDocumentTypeOptions.length === 0) {
       return;
     }
-    if (effectiveDocumentTypeOptions.some((option) => option.value === selectedDocumentType)) {
+    if (
+      effectiveDocumentTypeOptions.some(
+        (option) => option.value === selectedDocumentType,
+      )
+    ) {
       return;
     }
     setSelectedDocumentType(effectiveDocumentTypeOptions[0].value);
@@ -375,15 +449,20 @@ const CandidateAccessPage: React.FC = () => {
       <section className="rounded-2xl bg-slate-900 text-white p-6">
         <h1 className="text-2xl font-semibold">Candidate Access Portal</h1>
         <p className="mt-1 text-slate-200">
-          Use your tokenized URL to start vetting and return to view your results.
+          Use your tokenized URL to start vetting and return to view your
+          results.
         </p>
       </section>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">{error}</div>
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+          {error}
+        </div>
       )}
       {message && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700">{message}</div>
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700">
+          {message}
+        </div>
       )}
 
       {!context && (
@@ -393,14 +472,16 @@ const CandidateAccessPage: React.FC = () => {
             Enter Access Token
           </h2>
           <div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
-            Hover or focus the <Info className="mx-1 inline h-4 w-4 align-text-bottom" /> icons beside labels for guidance.
+            Hover or focus the{" "}
+            <Info className="mx-1 inline h-4 w-4 align-text-bottom" /> icons
+            beside labels for guidance.
           </div>
           <form
             className="mt-4 space-y-3"
             onSubmit={(event) => {
               event.preventDefault();
               if (!tokenInput.trim()) {
-                setError('Token is required.');
+                setError("Token is required.");
                 return;
               }
               void consumeToken(tokenInput.trim());
@@ -426,7 +507,7 @@ const CandidateAccessPage: React.FC = () => {
               disabled={loading}
               className="rounded-lg bg-indigo-600 text-white px-4 py-2 hover:bg-indigo-700 disabled:opacity-60"
             >
-              {loading ? 'Verifying...' : 'Access Portal'}
+              {loading ? "Verifying..." : "Access Portal"}
             </button>
           </form>
         </section>
@@ -460,15 +541,22 @@ const CandidateAccessPage: React.FC = () => {
               </div>
             </div>
             <p className="text-sm text-slate-700">
-              Candidate: <strong>{context.candidate.first_name} {context.candidate.last_name}</strong> ({context.candidate.email})
+              Candidate:{" "}
+              <strong>
+                {context.candidate.first_name} {context.candidate.last_name}
+              </strong>{" "}
+              ({context.candidate.email})
             </p>
             <p className="text-sm text-slate-700">
-              Campaign: <strong>{context.campaign.name}</strong> ({context.campaign.status})
+              Campaign: <strong>{context.campaign.name}</strong> (
+              {context.campaign.status})
             </p>
             <p className="text-sm text-slate-700">
               Enrollment Status: <strong>{context.enrollment_status}</strong>
             </p>
-            <p className="text-sm text-slate-700">Session expires: {formatDateTime(context.session_expires_at)}</p>
+            <p className="text-sm text-slate-700">
+              Session expires: {formatDateTime(context.session_expires_at)}
+            </p>
           </section>
 
           <section className="rounded-xl border border-slate-200 bg-white p-5">
@@ -492,22 +580,31 @@ const CandidateAccessPage: React.FC = () => {
                 const isDone = index < timelinePosition;
                 const isCurrent = index === timelinePosition;
                 const cardClass = isCurrent
-                  ? 'border-indigo-300 bg-indigo-50'
+                  ? "border-indigo-300 bg-indigo-50"
                   : isDone
-                    ? 'border-emerald-200 bg-emerald-50'
-                    : 'border-slate-200 bg-white';
+                    ? "border-emerald-200 bg-emerald-50"
+                    : "border-slate-200 bg-white";
                 const bulletClass = isCurrent
-                  ? 'bg-indigo-600'
+                  ? "bg-indigo-600"
                   : isDone
-                    ? 'bg-emerald-600'
-                    : 'bg-slate-300';
+                    ? "bg-emerald-600"
+                    : "bg-slate-300";
                 return (
-                  <article key={step.key} className={`rounded-lg border p-3 ${cardClass}`}>
+                  <article
+                    key={step.key}
+                    className={`rounded-lg border p-3 ${cardClass}`}
+                  >
                     <div className="flex items-start gap-3">
-                      <span className={`mt-1 inline-flex h-2.5 w-2.5 rounded-full ${bulletClass}`} />
+                      <span
+                        className={`mt-1 inline-flex h-2.5 w-2.5 rounded-full ${bulletClass}`}
+                      />
                       <div>
-                        <p className="text-sm font-medium text-slate-900">{step.title}</p>
-                        <p className="text-xs text-slate-700 mt-1">{step.description}</p>
+                        <p className="text-sm font-medium text-slate-900">
+                          {step.title}
+                        </p>
+                        <p className="text-xs text-slate-700 mt-1">
+                          {step.description}
+                        </p>
                       </div>
                     </div>
                   </article>
@@ -515,8 +612,10 @@ const CandidateAccessPage: React.FC = () => {
               })}
             </div>
             <div className="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-900">
-              AI interview does not auto-start immediately after upload. The interview step begins only after an
-              interview session is created/scheduled for your case. Use the section below to check interview status.
+              AI interview does not auto-start immediately after upload. The
+              interview step begins only after an interview session is
+              created/scheduled for your case. Use the section below to check
+              interview status.
             </div>
           </section>
 
@@ -528,14 +627,17 @@ const CandidateAccessPage: React.FC = () => {
                 <HelpTooltip text="Upload your verification documents for the active vetting case." />
               </h2>
               <span className="text-xs rounded-full bg-slate-100 text-slate-700 px-2.5 py-1">
-                {casesLoading ? 'Loading cases...' : `${cases.length} case(s)`}
+                {casesLoading ? "Loading cases..." : `${cases.length} case(s)`}
               </span>
             </div>
             <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Campaign Required Documents</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                Campaign Required Documents
+              </p>
               {requiredDocumentTypes.length === 0 ? (
                 <p className="mt-1 text-sm text-slate-700">
-                  No explicit requirement configured for this campaign. Any supported document type is allowed.
+                  No explicit requirement configured for this campaign. Any
+                  supported document type is allowed.
                 </p>
               ) : (
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -553,7 +655,8 @@ const CandidateAccessPage: React.FC = () => {
 
             {cases.length === 0 ? (
               <p className="mt-3 text-sm text-slate-700">
-                No candidate case is available yet. Contact the vetting initiator if this persists.
+                No candidate case is available yet. Contact the vetting
+                initiator if this persists.
               </p>
             ) : (
               <form
@@ -573,6 +676,7 @@ const CandidateAccessPage: React.FC = () => {
                     textClassName="block text-sm text-slate-700"
                   />
                   <select
+                    aria-label="Select candidate case for document upload"
                     id="candidate-case-id"
                     value={selectedCaseId}
                     onChange={(event) => setSelectedCaseId(event.target.value)}
@@ -593,16 +697,21 @@ const CandidateAccessPage: React.FC = () => {
                     required
                     help={
                       requiredDocumentTypes.length > 0
-                        ? 'Only campaign-required document types are selectable.'
-                        : 'Pick the closest document category for accurate vetting routing.'
+                        ? "Only campaign-required document types are selectable."
+                        : "Pick the closest document category for accurate vetting routing."
                     }
                     className="mb-1"
                     textClassName="block text-sm text-slate-700"
                   />
                   <select
+                    aria-label="Select document type for upload"
                     id="candidate-document-type"
                     value={selectedDocumentType}
-                    onChange={(event) => setSelectedDocumentType(event.target.value as DocumentType)}
+                    onChange={(event) =>
+                      setSelectedDocumentType(
+                        event.target.value as DocumentType,
+                      )
+                    }
                     className={SELECT_FIELD_CLASS}
                   >
                     {effectiveDocumentTypeOptions.map((option) => (
@@ -625,7 +734,10 @@ const CandidateAccessPage: React.FC = () => {
                   <input
                     id="candidate-document-file"
                     type="file"
-                    onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+                    aria-label="Upload candidate document file"
+                    onChange={(event) =>
+                      setSelectedFile(event.target.files?.[0] ?? null)
+                    }
                     className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-indigo-700"
                   />
                 </div>
@@ -636,7 +748,7 @@ const CandidateAccessPage: React.FC = () => {
                     disabled={uploading || !selectedCaseId || !selectedFile}
                     className="rounded-lg bg-indigo-600 text-white px-4 py-2 hover:bg-indigo-700 disabled:opacity-60"
                   >
-                    {uploading ? 'Uploading...' : 'Upload Document'}
+                    {uploading ? "Uploading..." : "Upload Document"}
                   </button>
                 </div>
               </form>
@@ -646,10 +758,16 @@ const CandidateAccessPage: React.FC = () => {
               <div className="mt-5 rounded-lg border border-slate-200">
                 <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
                   <div className="space-y-1">
-                    <h3 className="text-sm font-semibold text-slate-900">Uploaded Documents</h3>
+                    <h3 className="text-sm font-semibold text-slate-900">
+                      Uploaded Documents
+                    </h3>
                     <p className="text-xs text-slate-700">
-                      {lastDocumentsRefreshAt ? `Last updated ${formatDateTime(lastDocumentsRefreshAt)}` : 'Not fetched yet'}
-                      {hasPendingDocuments ? ' • Auto-refreshing every 10s' : ''}
+                      {lastDocumentsRefreshAt
+                        ? `Last updated ${formatDateTime(lastDocumentsRefreshAt)}`
+                        : "Not fetched yet"}
+                      {hasPendingDocuments
+                        ? " • Auto-refreshing every 10s"
+                        : ""}
                     </p>
                   </div>
                   <button
@@ -659,7 +777,7 @@ const CandidateAccessPage: React.FC = () => {
                     className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100 disabled:opacity-60"
                   >
                     <RefreshCw className="h-3.5 w-3.5" />
-                    {documentsLoading ? 'Refreshing...' : 'Refresh Documents'}
+                    {documentsLoading ? "Refreshing..." : "Refresh Documents"}
                   </button>
                 </div>
                 <div className="overflow-x-auto">
@@ -679,23 +797,42 @@ const CandidateAccessPage: React.FC = () => {
                         <tr>
                           <td className="px-4 py-4 text-slate-700" colSpan={6}>
                             {documentsLoading
-                              ? 'Loading uploaded documents...'
-                              : 'No documents uploaded for this case yet.'}
+                              ? "Loading uploaded documents..."
+                              : "No documents uploaded for this case yet."}
                           </td>
                         </tr>
                       ) : (
                         documents.map((doc) => (
-                          <tr key={doc.id} className="border-t border-slate-100 text-slate-800">
-                            <td className="px-4 py-2">{doc.original_filename || 'Document'}</td>
-                            <td className="px-4 py-2">{doc.document_type_display || doc.document_type}</td>
+                          <tr
+                            key={doc.id}
+                            className="border-t border-slate-100 text-slate-800"
+                          >
                             <td className="px-4 py-2">
-                              <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${documentStatusClass(doc.status)}`}>
+                              {doc.original_filename || "Document"}
+                            </td>
+                            <td className="px-4 py-2">
+                              {doc.document_type_display || doc.document_type}
+                            </td>
+                            <td className="px-4 py-2">
+                              <span
+                                className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${documentStatusClass(doc.status)}`}
+                              >
                                 {doc.status}
                               </span>
                             </td>
-                            <td className="px-4 py-2">{doc.uploaded_at ? formatDateTime(doc.uploaded_at) : 'N/A'}</td>
-                            <td className="px-4 py-2">{doc.processed_at ? formatDateTime(doc.processed_at) : 'Pending'}</td>
-                            <td className="px-4 py-2">{doc.processing_error || '-'}</td>
+                            <td className="px-4 py-2">
+                              {doc.uploaded_at
+                                ? formatDateTime(doc.uploaded_at)
+                                : "N/A"}
+                            </td>
+                            <td className="px-4 py-2">
+                              {doc.processed_at
+                                ? formatDateTime(doc.processed_at)
+                                : "Pending"}
+                            </td>
+                            <td className="px-4 py-2">
+                              {doc.processing_error || "-"}
+                            </td>
                           </tr>
                         ))
                       )}
@@ -719,7 +856,7 @@ const CandidateAccessPage: React.FC = () => {
                 disabled={resultsLoading}
                 className="rounded-lg bg-indigo-600 text-white px-4 py-2 hover:bg-indigo-700 disabled:opacity-60"
               >
-                {resultsLoading ? 'Loading...' : 'Refresh Status'}
+                {resultsLoading ? "Loading..." : "Refresh Status"}
               </button>
             </div>
 
@@ -730,26 +867,34 @@ const CandidateAccessPage: React.FC = () => {
                   {latestInterviewSnapshot ? (
                     <div className="mt-1 space-y-1 text-slate-800">
                       <p>
-                        Session: <strong>{latestInterviewSnapshot.session_id || latestInterviewSnapshot.id}</strong>
+                        Session:{" "}
+                        <strong>
+                          {latestInterviewSnapshot.session_id ||
+                            latestInterviewSnapshot.id}
+                        </strong>
                       </p>
                       <p>
-                        Status: <strong>{latestInterviewSnapshot.status}</strong>
+                        Status:{" "}
+                        <strong>{latestInterviewSnapshot.status}</strong>
                       </p>
                       <p>
-                        Started:{' '}
+                        Started:{" "}
                         <strong>
                           {latestInterviewSnapshot.started_at
                             ? formatDateTime(latestInterviewSnapshot.started_at)
-                            : 'Not started'}
+                            : "Not started"}
                         </strong>
                       </p>
                       {interviewLaunchIdentifier &&
-                        (latestInterviewSnapshot.status === 'created' || latestInterviewSnapshot.status === 'in_progress') && (
+                        (latestInterviewSnapshot.status === "created" ||
+                          latestInterviewSnapshot.status === "in_progress") && (
                           <Link
                             to={`/candidate/interview/${interviewLaunchIdentifier}`}
                             className="mt-2 inline-flex items-center rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
                           >
-                            {latestInterviewSnapshot.status === 'created' ? 'Start AI Interview' : 'Resume AI Interview'}
+                            {latestInterviewSnapshot.status === "created"
+                              ? "Start AI Interview"
+                              : "Resume AI Interview"}
                           </Link>
                         )}
                     </div>
@@ -760,13 +905,17 @@ const CandidateAccessPage: React.FC = () => {
                   )}
                 </div>
                 <p className="text-sm">
-                  Availability:{' '}
-                  <strong>{results.available ? 'Available' : 'Pending review / processing'}</strong>
+                  Availability:{" "}
+                  <strong>
+                    {results.available
+                      ? "Available"
+                      : "Pending review / processing"}
+                  </strong>
                 </p>
                 {results.available ? (
                   <>
                     <p className="text-sm">
-                      Decision: <strong>{results.decision || 'N/A'}</strong>
+                      Decision: <strong>{results.decision || "N/A"}</strong>
                     </p>
                     {results.review_notes && (
                       <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
@@ -776,7 +925,9 @@ const CandidateAccessPage: React.FC = () => {
                     )}
                     <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
                       <p className="font-medium mb-1">Result Payload</p>
-                      <pre className="overflow-auto text-xs">{JSON.stringify(results.results, null, 2)}</pre>
+                      <pre className="overflow-auto text-xs">
+                        {JSON.stringify(results.results, null, 2)}
+                      </pre>
                     </div>
                   </>
                 ) : (
@@ -792,12 +943,14 @@ const CandidateAccessPage: React.FC = () => {
       )}
 
       <section className="text-sm text-slate-700">
-        Received a legacy invitation link? Open{' '}
-        <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">/invite/&lt;token&gt;</code>.
+        Received a legacy invitation link? Open{" "}
+        <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">
+          /invite/&lt;token&gt;
+        </code>
+        .
       </section>
     </main>
   );
 };
 
 export default CandidateAccessPage;
-

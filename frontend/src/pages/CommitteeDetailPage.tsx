@@ -25,7 +25,11 @@ const SELECT_FIELD_CLASS =
 const CommitteeDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { committeeId = "" } = useParams<{ committeeId: string }>();
-  const { userType, activeOrganizationId, canManageActiveOrganizationGovernance } = useAuth();
+  const {
+    userType,
+    activeOrganizationId,
+    canManageActiveOrganizationGovernance,
+  } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -34,9 +38,15 @@ const CommitteeDetailPage: React.FC = () => {
   const [chairAssigning, setChairAssigning] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
   const [committee, setCommittee] = useState<GovernanceCommittee | null>(null);
-  const [memberships, setMemberships] = useState<GovernanceCommitteeMembership[]>([]);
-  const [memberOptions, setMemberOptions] = useState<GovernanceMemberOption[]>([]);
-  const [committeeRoleOptions, setCommitteeRoleOptions] = useState<GovernanceChoiceOption[]>([]);
+  const [memberships, setMemberships] = useState<
+    GovernanceCommitteeMembership[]
+  >([]);
+  const [memberOptions, setMemberOptions] = useState<GovernanceMemberOption[]>(
+    [],
+  );
+  const [committeeRoleOptions, setCommitteeRoleOptions] = useState<
+    GovernanceChoiceOption[]
+  >([]);
   const [drafts, setDrafts] = useState<Record<string, MembershipDraft>>({});
   const [createForm, setCreateForm] = useState({
     organization_membership_id: "",
@@ -46,7 +56,8 @@ const CommitteeDetailPage: React.FC = () => {
   const [chairTargetMembershipId, setChairTargetMembershipId] = useState("");
   const [chairCanVote, setChairCanVote] = useState(true);
 
-  const canManage = userType !== "applicant" && canManageActiveOrganizationGovernance;
+  const canManage =
+    userType !== "applicant" && canManageActiveOrganizationGovernance;
 
   const loadData = useCallback(async () => {
     if (!committeeId || !canManage || !activeOrganizationId) {
@@ -57,7 +68,12 @@ const CommitteeDetailPage: React.FC = () => {
       return;
     }
 
-    const [committeeResponse, membershipsResponse, memberOptionsResponse, choicesResponse] = await Promise.all([
+    const [
+      committeeResponse,
+      membershipsResponse,
+      memberOptionsResponse,
+      choicesResponse,
+    ] = await Promise.all([
       governanceService.getCommittee(committeeId),
       governanceService.listCommitteeMemberships({
         committee: committeeId,
@@ -87,10 +103,14 @@ const CommitteeDetailPage: React.FC = () => {
     setCreateForm((previous) => ({
       ...previous,
       organization_membership_id:
-        previous.organization_membership_id || memberOptionsResponse[0]?.organization_membership_id || "",
+        previous.organization_membership_id ||
+        memberOptionsResponse[0]?.organization_membership_id ||
+        "",
       committee_role:
         previous.committee_role ||
-        (choicesResponse.committee_roles || []).find((item) => item.value !== "chair")?.value ||
+        (choicesResponse.committee_roles || []).find(
+          (item) => item.value !== "chair",
+        )?.value ||
         "member",
     }));
   }, [activeOrganizationId, canManage, committeeId, showInactive]);
@@ -101,7 +121,11 @@ const CommitteeDetailPage: React.FC = () => {
       try {
         await loadData();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to load committee workspace.");
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to load committee workspace.",
+        );
       } finally {
         setLoading(false);
       }
@@ -115,7 +139,11 @@ const CommitteeDetailPage: React.FC = () => {
       await loadData();
       toast.success("Committee workspace refreshed.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to refresh committee workspace.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to refresh committee workspace.",
+      );
     } finally {
       setRefreshing(false);
     }
@@ -124,25 +152,34 @@ const CommitteeDetailPage: React.FC = () => {
   const selectedMemberOption = useMemo(
     () =>
       memberOptions.find(
-        (option) => option.organization_membership_id === createForm.organization_membership_id,
+        (option) =>
+          option.organization_membership_id ===
+          createForm.organization_membership_id,
       ) || null,
     [createForm.organization_membership_id, memberOptions],
   );
 
   const activeChair = useMemo(
-    () => memberships.find((membership) => membership.committee_role === "chair" && membership.is_active) || null,
+    () =>
+      memberships.find(
+        (membership) =>
+          membership.committee_role === "chair" && membership.is_active,
+      ) || null,
     [memberships],
   );
 
   const chairCandidates = useMemo(
     () =>
       memberships.filter(
-        (membership) => membership.is_active && membership.id !== activeChair?.id,
+        (membership) =>
+          membership.is_active && membership.id !== activeChair?.id,
       ),
     [activeChair?.id, memberships],
   );
 
-  const handleCreateMembership = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleCreateMembership = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
     event.preventDefault();
     if (!committeeId || !selectedMemberOption) {
       toast.error("Select an organization member to assign.");
@@ -157,27 +194,39 @@ const CommitteeDetailPage: React.FC = () => {
       await governanceService.createCommitteeMembership({
         committee: committeeId,
         user: selectedMemberOption.user_id,
-        organization_membership: selectedMemberOption.organization_membership_id,
+        organization_membership:
+          selectedMemberOption.organization_membership_id,
         committee_role: createForm.committee_role,
-        can_vote: createForm.committee_role === "observer" ? false : createForm.can_vote,
+        can_vote:
+          createForm.committee_role === "observer"
+            ? false
+            : createForm.can_vote,
         is_active: true,
       });
       toast.success("Committee membership created.");
       await loadData();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to create committee membership.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to create committee membership.",
+      );
     } finally {
       setCreating(false);
     }
   };
 
-  const handleSaveMembership = async (membership: GovernanceCommitteeMembership) => {
+  const handleSaveMembership = async (
+    membership: GovernanceCommitteeMembership,
+  ) => {
     const draft = drafts[membership.id];
     if (!draft) {
       return;
     }
     if (membership.committee_role === "chair") {
-      toast.info("Use dedicated chair reassignment flow to change committee chair.");
+      toast.info(
+        "Use dedicated chair reassignment flow to change committee chair.",
+      );
       return;
     }
 
@@ -191,20 +240,30 @@ const CommitteeDetailPage: React.FC = () => {
       toast.success("Committee membership updated.");
       await loadData();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to update committee membership.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to update committee membership.",
+      );
     } finally {
       setSavingId(null);
     }
   };
 
-  const handleDeactivateMembership = async (membership: GovernanceCommitteeMembership) => {
+  const handleDeactivateMembership = async (
+    membership: GovernanceCommitteeMembership,
+  ) => {
     setSavingId(membership.id);
     try {
       await governanceService.deactivateCommitteeMembership(membership.id);
       toast.success("Committee membership deactivated.");
       await loadData();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to deactivate committee membership.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to deactivate committee membership.",
+      );
     } finally {
       setSavingId(null);
     }
@@ -225,7 +284,11 @@ const CommitteeDetailPage: React.FC = () => {
       setChairTargetMembershipId("");
       await loadData();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to reassign committee chair.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to reassign committee chair.",
+      );
     } finally {
       setChairAssigning(false);
     }
@@ -235,7 +298,9 @@ const CommitteeDetailPage: React.FC = () => {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-10 sm:px-6 lg:px-6 xl:px-8">
         <section className="w-full max-w-xl rounded-2xl border border-amber-200 bg-white p-8 shadow-sm text-center">
-          <h1 className="text-2xl font-black text-slate-900">Organization Admin Access Required</h1>
+          <h1 className="text-2xl font-black text-slate-900">
+            Organization Admin Access Required
+          </h1>
           <p className="mt-3 text-sm text-slate-700">
             Committee workspace is restricted to organization admins.
           </p>
@@ -253,15 +318,24 @@ const CommitteeDetailPage: React.FC = () => {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-10 sm:px-6 lg:px-6 xl:px-8">
         <section className="w-full max-w-xl rounded-2xl border border-amber-200 bg-white p-8 shadow-sm text-center">
-          <h1 className="text-2xl font-black text-slate-900">Active Organization Required</h1>
+          <h1 className="text-2xl font-black text-slate-900">
+            Active Organization Required
+          </h1>
           <p className="mt-3 text-sm text-slate-700">
             Select an active organization before managing committee membership.
           </p>
           <div className="mt-6 flex items-center justify-center gap-3">
-            <Button type="button" onClick={() => navigate("/organization/setup")}>
+            <Button
+              type="button"
+              onClick={() => navigate("/organization/setup")}
+            >
               Organization Setup
             </Button>
-            <Button type="button" variant="outline" onClick={() => navigate("/organization/committees")}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate("/organization/committees")}
+            >
               Committees
             </Button>
           </div>
@@ -283,9 +357,13 @@ const CommitteeDetailPage: React.FC = () => {
               {committee?.name || "Committee"}
             </h1>
             <p className="mt-1 text-sm text-slate-700">
-              Code: <span className="font-semibold">{committee?.code || "N/A"}</span>
+              Code:{" "}
+              <span className="font-semibold">{committee?.code || "N/A"}</span>
               {" · "}
-              Type: <span className="font-semibold">{committee?.committee_type || "N/A"}</span>
+              Type:{" "}
+              <span className="font-semibold">
+                {committee?.committee_type || "N/A"}
+              </span>
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -295,8 +373,15 @@ const CommitteeDetailPage: React.FC = () => {
             >
               Back to Committees
             </Link>
-            <Button type="button" variant="outline" onClick={() => void handleRefresh()} disabled={refreshing || loading}>
-              <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleRefresh()}
+              disabled={refreshing || loading}
+            >
+              <RefreshCw
+                className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+              />
               Refresh
             </Button>
           </div>
@@ -313,10 +398,16 @@ const CommitteeDetailPage: React.FC = () => {
       ) : (
         <>
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-900">Assign Committee Member</h2>
-            <form className="mt-4 grid gap-3 md:grid-cols-4" onSubmit={handleCreateMembership}>
+            <h2 className="text-lg font-bold text-slate-900">
+              Assign Committee Member
+            </h2>
+            <form
+              className="mt-4 grid gap-3 md:grid-cols-4"
+              onSubmit={handleCreateMembership}
+            >
               <select
                 className={SELECT_FIELD_CLASS}
+                aria-label="Select organization member"
                 value={createForm.organization_membership_id}
                 onChange={(event) =>
                   setCreateForm((previous) => ({
@@ -326,13 +417,18 @@ const CommitteeDetailPage: React.FC = () => {
                 }
               >
                 {memberOptions.map((option) => (
-                  <option key={option.organization_membership_id} value={option.organization_membership_id}>
-                    {option.user_full_name || option.user_email} ({option.membership_role || "member"})
+                  <option
+                    key={option.organization_membership_id}
+                    value={option.organization_membership_id}
+                  >
+                    {option.user_full_name || option.user_email} (
+                    {option.membership_role || "member"})
                   </option>
                 ))}
               </select>
               <select
                 className={SELECT_FIELD_CLASS}
+                aria-label="Select committee role"
                 value={createForm.committee_role}
                 onChange={(event) =>
                   setCreateForm((previous) => {
@@ -340,7 +436,8 @@ const CommitteeDetailPage: React.FC = () => {
                     return {
                       ...previous,
                       committee_role: nextRole,
-                      can_vote: nextRole === "observer" ? false : previous.can_vote,
+                      can_vote:
+                        nextRole === "observer" ? false : previous.can_vote,
                     };
                   })
                 }
@@ -367,7 +464,10 @@ const CommitteeDetailPage: React.FC = () => {
                 />
                 Voting member
               </label>
-              <Button type="submit" disabled={creating || !selectedMemberOption}>
+              <Button
+                type="submit"
+                disabled={creating || !selectedMemberOption}
+              >
                 {creating ? "Assigning..." : "Assign Member"}
               </Button>
             </form>
@@ -375,16 +475,22 @@ const CommitteeDetailPage: React.FC = () => {
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-slate-900">Chair Reassignment</h2>
+              <h2 className="text-lg font-bold text-slate-900">
+                Chair Reassignment
+              </h2>
               <p className="text-xs text-slate-700">
-                Current chair: {activeChair?.user_email || "No active chair assigned"}
+                Current chair:{" "}
+                {activeChair?.user_email || "No active chair assigned"}
               </p>
             </div>
             <div className="mt-3 grid gap-3 md:grid-cols-3">
               <select
                 className={SELECT_FIELD_CLASS}
+                aria-label="Select member for chair reassignment"
                 value={chairTargetMembershipId}
-                onChange={(event) => setChairTargetMembershipId(event.target.value)}
+                onChange={(event) =>
+                  setChairTargetMembershipId(event.target.value)
+                }
               >
                 <option value="">Select member for chair reassignment</option>
                 {chairCandidates.map((membership) => (
@@ -401,7 +507,11 @@ const CommitteeDetailPage: React.FC = () => {
                 />
                 Chair can vote
               </label>
-              <Button type="button" onClick={() => void handleReassignChair()} disabled={chairAssigning || !chairTargetMembershipId}>
+              <Button
+                type="button"
+                onClick={() => void handleReassignChair()}
+                disabled={chairAssigning || !chairTargetMembershipId}
+              >
                 <UserRoundCheck className="mr-2 h-4 w-4" />
                 {chairAssigning ? "Reassigning..." : "Reassign Chair"}
               </Button>
@@ -410,7 +520,9 @@ const CommitteeDetailPage: React.FC = () => {
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-lg font-bold text-slate-900">Committee Memberships</h2>
+              <h2 className="text-lg font-bold text-slate-900">
+                Committee Memberships
+              </h2>
               <label className="inline-flex items-center gap-2 text-sm text-slate-700">
                 <input
                   type="checkbox"
@@ -449,12 +561,17 @@ const CommitteeDetailPage: React.FC = () => {
                       return (
                         <tr key={membership.id}>
                           <td className="px-3 py-3">
-                            <p className="font-semibold text-slate-900">{membership.user_email}</p>
-                            <p className="text-xs text-slate-700">{membership.organization_name}</p>
+                            <p className="font-semibold text-slate-900">
+                              {membership.user_email}
+                            </p>
+                            <p className="text-xs text-slate-700">
+                              {membership.organization_name}
+                            </p>
                           </td>
                           <td className="px-3 py-3">
                             <select
                               className={SELECT_FIELD_CLASS}
+                              aria-label={`Select committee role for ${membership.user_email}`}
                               value={draft.committee_role}
                               disabled={isSaving || isChair}
                               onChange={(event) =>
@@ -465,7 +582,10 @@ const CommitteeDetailPage: React.FC = () => {
                                     [membership.id]: {
                                       ...draft,
                                       committee_role: nextRole,
-                                      can_vote: nextRole === "observer" ? false : draft.can_vote,
+                                      can_vote:
+                                        nextRole === "observer"
+                                          ? false
+                                          : draft.can_vote,
                                     },
                                   };
                                 })
@@ -474,14 +594,18 @@ const CommitteeDetailPage: React.FC = () => {
                               {committeeRoleOptions
                                 .filter((option) => option.value !== "chair")
                                 .map((option) => (
-                                  <option key={option.value} value={option.value}>
+                                  <option
+                                    key={option.value}
+                                    value={option.value}
+                                  >
                                     {option.label}
                                   </option>
                                 ))}
                             </select>
                             {isChair ? (
                               <p className="mt-1 text-xs text-amber-700">
-                                Chair role can be changed only through reassignment.
+                                Chair role can be changed only through
+                                reassignment.
                               </p>
                             ) : null}
                           </td>
@@ -490,7 +614,11 @@ const CommitteeDetailPage: React.FC = () => {
                               <input
                                 type="checkbox"
                                 checked={draft.can_vote}
-                                disabled={isSaving || draft.committee_role === "observer" || isChair}
+                                disabled={
+                                  isSaving ||
+                                  draft.committee_role === "observer" ||
+                                  isChair
+                                }
                                 onChange={(event) =>
                                   setDrafts((previous) => ({
                                     ...previous,
@@ -507,7 +635,9 @@ const CommitteeDetailPage: React.FC = () => {
                           <td className="px-3 py-3">
                             <span
                               className={`inline-flex rounded px-2 py-1 text-xs font-semibold ${
-                                draft.is_active ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-700"
+                                draft.is_active
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : "bg-slate-100 text-slate-700"
                               }`}
                             >
                               {draft.is_active ? "Active" : "Inactive"}
@@ -519,7 +649,9 @@ const CommitteeDetailPage: React.FC = () => {
                                 type="button"
                                 size="sm"
                                 variant="outline"
-                                onClick={() => void handleSaveMembership(membership)}
+                                onClick={() =>
+                                  void handleSaveMembership(membership)
+                                }
                                 disabled={isSaving || isChair}
                               >
                                 Save
@@ -528,7 +660,9 @@ const CommitteeDetailPage: React.FC = () => {
                                 type="button"
                                 size="sm"
                                 variant="outline"
-                                onClick={() => void handleDeactivateMembership(membership)}
+                                onClick={() =>
+                                  void handleDeactivateMembership(membership)
+                                }
                                 disabled={isSaving || !membership.is_active}
                               >
                                 Deactivate

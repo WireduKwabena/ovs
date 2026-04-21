@@ -1,0 +1,2333 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.4 [39m[90mA:/projects/Django/OVS-Redo/frontend[39m
+
+ [32mΓ£ô[39m src/pages/CampaignsPage.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 4248[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hydrates list filters from URL and clears all active filters [33m 1516[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m disables the Apply button and select for an archived campaign [33m 562[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m calls updateStatus with correct args and reflects new status on success [33m 800[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows error when updateStatus rejects [33m 1185[2mms[22m[39m
+ [31mΓ¥»[39m src/App.governmentRoutes.test.tsx [2m([22m[2m22 tests[22m[2m | [22m[31m3 failed[39m[2m)[22m[33m 7667[2mms[22m[39m
+     [32mΓ£ô[39m redirects internal without role/capability grants away from government appointments route[32m 227[2mms[22m[39m
+     [32mΓ£ô[39m redirects internal with stale capability payload away from government appointments route[32m 83[2mms[22m[39m
+     [32mΓ£ô[39m allows explicit capability-bearing users to access government appointments route[32m 137[2mms[22m[39m
+     [32mΓ£ô[39m redirects applicant away from government appointments route[32m 109[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m allows org-admin scoped internal users to access organization dashboard route [33m 361[2mms[22m[39m
+     [32mΓ£ô[39m redirects non-org-admin internal users away from organization dashboard route[32m 58[2mms[22m[39m
+     [32mΓ£ô[39m redirects capability-only internal users away from organization dashboard route[32m 56[2mms[22m[39m
+     [32mΓ£ô[39m redirects legacy organization dashboard route to organization setup when active org is missing[32m 102[2mms[22m[39m
+[31m     [31m├ù[31m fails closed to organization setup when org dashboard route orgId is mismatched[39m[33m 1084[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m redirects platform admin away from organization dashboard route [33m 628[2mms[22m[39m
+     [32mΓ£ô[39m redirects platform admin away from organization setup routes[32m 223[2mms[22m[39m
+     [32mΓ£ô[39m redirects platform admin away from appointment exercise routes[32m 188[2mms[22m[39m
+     [32mΓ£ô[39m redirects platform admin away from appointment workflow routes[32m 185[2mms[22m[39m
+     [32mΓ£ô[39m redirects retired platform analytics routes back to the platform dashboard[32m 137[2mms[22m[39m
+     [32mΓ£ô[39m redirects retired platform registration routes back to the platform dashboard[32m 108[2mms[22m[39m
+[31m     [31m├ù[31m redirects legacy admin case routes away from platform admin and into org scope for org admins[39m[33m 1176[2mms[22m[39m
+[31m     [31m├ù[31m allows org-admin scoped internal users to access organization case review routes[39m[33m 1121[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m allows platform admins to access the platform-only organization users route [33m 408[2mms[22m[39m
+     [32mΓ£ô[39m redirects org-admin scoped internal users away from platform admin routes[32m 120[2mms[22m[39m
+     [32mΓ£ô[39m redirects org-admin scoped internal users away from the platform-only organization users route[32m 79[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows app navigation and content offset on internal dashboard routes [33m 489[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hides app navigation and shell offset on the homepage [33m 583[2mms[22m[39m
+ [31mΓ¥»[39m src/components/common/Navbar.test.tsx [2m([22m[2m15 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 15903[2mms[22m[39m
+[31m     [31m├ù[31m does not expose reminder runtime controls to platform admins[39m[32m 196[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m highlights the active navbar tab based on current route [33m 1432[2mms[22m[39m
+     [32mΓ£ô[39m renders fixed desktop sidebar and mobile top bar with the expected breakpoint classes[32m 48[2mms[22m[39m
+     [32mΓ£ô[39m does not poll reminder runtime for internal users[32m 260[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m keeps platform admin navigation scoped to subscriptions and organization status only [33m 1245[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hides appointment-exercise and rubrics links for applicants [33m 522[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes committee actors to shared workspace and hides campaign/rubric links without registry authority [33m 600[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows appointment-exercise and rubrics links for internal users [33m 1104[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hides government workflow links when internal lacks workflow capabilities [33m 879[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows government workflow links when internal has registry capability [33m 1102[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows organization admin workspace links for users with governance access [33m 4567[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hides organization admin workspace links when governance access is unavailable [33m 1810[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows audit link for internal users with audit capability [33m 923[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hides audit link for internal users without audit capability [33m 1082[2mms[22m[39m
+     [32mΓ£ô[39m shows organization switcher and dispatches active-organization selection[32m 125[2mms[22m[39m
+ [32mΓ£ô[39m src/components/admin/Dashboard.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 4626[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m navigates to appointment registry [33m 1583[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m navigates to position registry [33m 862[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m navigates to personnel registry [33m 1344[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders all government quick action buttons [33m 830[2mms[22m[39m
+ [31mΓ¥»[39m src/pages/PublicGazettePage.test.tsx [2m([22m[2m7 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 4168[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hydrates gazette filters from the URL query string and calls the public endpoint with them [33m 476[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m writes and clears gazette filters in the URL query string [33m 1465[2mms[22m[39m
+     [32mΓ£ô[39m applies the same filters when falling back to the legacy gazette feed[32m 96[2mms[22m[39m
+     [32mΓ£ô[39m preserves active filters on the transparency portal link[32m 227[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m preserves active filters on published detail links [33m 405[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows next-step actions when filtered gazette results are empty [33m 378[2mms[22m[39m
+[31m     [31m├ù[31m shows recovery actions when the gazette feed cannot be loaded[39m[33m 1114[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/VideoCallsPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 3179[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m keeps the meeting action cluster in xl-only inline mode [33m 540[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m uses a two-column reschedule grid before xl [33m 2634[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/BackgroundChecksPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 3303[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hydrates from URL filters and clears all active filters [33m 3297[2mms[22m[39m
+[90mstdout[2m | src/pages/OrganizationDashboardPage.test.tsx[2m > [22m[2mOrganizationDashboardPage[2m > [22m[2mrenders org-admin summary cards and onboarding context
+[22m[39m[api] No X-Organization-Slug found for /admin/dashboard/
+
+[90mstdout[2m | src/pages/OrganizationDashboardPage.test.tsx[2m > [22m[2mOrganizationDashboardPage[2m > [22m[2mshows active organization requirement when context is missing
+[22m[39m[api] No X-Organization-Slug found for /admin/dashboard/
+
+[90mstdout[2m | src/pages/OrganizationDashboardPage.test.tsx[2m > [22m[2mOrganizationDashboardPage[2m > [22m[2msurfaces billing trace links when organization billing needs attention
+[22m[39m[api] No X-Organization-Slug found for /admin/dashboard/
+
+ [31mΓ¥»[39m src/pages/OrganizationDashboardPage.test.tsx [2m([22m[2m3 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 4850[2mms[22m[39m
+[31m     [31m├ù[31m renders org-admin summary cards and onboarding context[39m[33m 1389[2mms[22m[39m
+     [32mΓ£ô[39m shows active organization requirement when context is missing[32m 33[2mms[22m[39m
+[31m     [31m├ù[31m surfaces billing trace links when organization billing needs attention[39m[33m 3421[2mms[22m[39m
+[90mstdout[2m | src/pages/platform-admin/PlatformDashboardPage.test.tsx[2m > [22m[2mPlatformDashboardPage[2m > [22m[2mrenders organization subscription oversight rows
+[22m[39m[api] No X-Organization-Slug found for /audit/logs/recent-activity/
+
+ [31mΓ¥»[39m src/pages/UserSettingsPage.test.tsx [2m([22m[2m3 tests[22m[2m | [22m[31m3 failed[39m[2m)[22m[32m 101[2mms[22m[39m
+[31m     [31m├ù[31m shows read-only subscription guidance for non-org-admin users when subscription is missing[39m[32m 69[2mms[22m[39m
+[31m     [31m├ù[31m shows organization administration links for authorized org admins[39m[32m 15[2mms[22m[39m
+[31m     [31m├ù[31m shows billing trace links when an org admin has a failing subscription[39m[32m 12[2mms[22m[39m
+[90mstdout[2m | src/pages/platform-admin/PlatformDashboardPage.test.tsx[2m > [22m[2mPlatformDashboardPage[2m > [22m[2mtoggles organization active status
+[22m[39m[api] No X-Organization-Slug found for /audit/logs/recent-activity/
+
+ [31mΓ¥»[39m src/pages/platform-admin/PlatformDashboardPage.test.tsx [2m([22m[2m2 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 2037[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders organization subscription oversight rows [33m 863[2mms[22m[39m
+[31m     [31m├ù[31m toggles organization active status[39m[33m 1167[2mms[22m[39m
+ [31mΓ¥»[39m src/pages/InvitationAcceptPage.test.tsx [2m([22m[2m3 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 343[2mms[22m[39m
+     [32mΓ£ô[39m shows validating state while accepting the invitation[32m 155[2mms[22m[39m
+[31m     [31m├ù[31m shows success payload after acceptance[39m[32m 116[2mms[22m[39m
+     [32mΓ£ô[39m shows error message when acceptance fails[32m 65[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/SubscriptionPlansPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 10371[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m starts Stripe checkout and redirects to Stripe URL [33m 3667[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m starts Paystack checkout for mobile money and redirects to Paystack URL [33m 5355[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m blocks checkout when organization context is missing [33m 1342[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/AuditLogsPage.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 7254[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m exports CSV and JSON when rows are available [33m 2173[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m does not export when there are no rows [33m 453[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m applies government entity type filter and refreshes rows [33m 1402[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m applies event key filter from backend catalog [33m 965[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m filters by actor using by_user endpoint when row action is clicked [33m 1933[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hydrates filters from URL query and applies them to list request [33m 320[2mms[22m[39m
+stderr | src/pages/HomePage.test.tsx > HomePage Get Started flow > updates the active section styling when the section observer reports a new section
+An update to HomePage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32mΓ£ô[39m src/pages/HomePage.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 22630[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes unauthenticated users to organization bootstrap signup [33m 3131[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes authenticated internal users without org context to organization setup [33m 2097[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes org-governance admins with active org to organization dashboard [33m 1303[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes non-governance internal users with active org to shared workspace [33m 1487[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes public observers to the transparency portal from the landing page [33m 1878[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes public observers to the gazette feed from the landing page [33m 1491[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes public observers to the published appointments section from the landing page [33m 1353[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m smooth scrolls to homepage sections from the top navigation [33m 1586[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m marks the requested section as active when the homepage opens with a hash [33m 1924[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m updates the active section styling when the section observer reports a new section [33m 3091[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m updates the homepage scroll progress rail as the page scroll position changes [33m 424[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m updates the homepage hero surface when the theme toggle is pressed [33m 1761[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/NotificationsPage.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 5810[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows Delete action on active list by default [33m 1572[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows Restore action when archived tab is selected [33m 939[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m disables join action on closed meeting notifications [33m 414[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m disables join action before join window opens [33m 769[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m applies trace filters through the notifications hook [33m 634[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m copies the trace key from the notification card [33m 964[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m respects the archived trace view from the URL [33m 457[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/PublicTransparencyPage.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 5628[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders public transparency sections from safe public endpoints [33m 1435[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows a partial availability banner while still rendering available public sections [33m 640[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m applies published appointment filters through the public search controls [33m 862[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m writes and clears published appointment filters in the URL query string [33m 1153[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m preserves active published filters on gazette links [33m 490[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m preserves active filters on published detail links [33m 517[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows next-step actions when filtered published results are empty [33m 441[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/AppointmentsRegistryPage.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 2111[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hides lifecycle transition controls for committee-bound records when actor lacks committee membership [33m 1085[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows lifecycle transition controls for committee members in scope [33m 499[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/CampaignWorkspacePage.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 5580[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m disables import submit when payload JSON is invalid [33m 2114[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m disables import submit when projected usage exceeds quota [33m 664[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders backend quota detail when import request is rejected [33m 809[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m updates quota badge from backend quota payload on rejected import [33m 784[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders backend subscription-required message when no active subscription exists [33m 1182[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/NotificationDetailPage.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 4223[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows Delete for active notification and archives it [33m 1566[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows Restore for archived notification and restores it [33m 630[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m linkifies URLs inside message text [33m 390[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m disables join action when meeting has already closed [33m 412[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m disables join action until meeting join window opens [33m 352[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m copies the trace key from notification detail [33m 336[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m builds an open trace view link with prefilled filters [33m 309[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/PublicAppointmentDetailPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 3200[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders published appointment detail from the public endpoint [33m 1796[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows a safe error message when the published detail cannot be loaded [33m 880[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m preserves current public filters on return links [33m 518[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/GovernmentPositionsPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 1893[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows read-only warning and disables create for non-registry users [33m 1301[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m enables create controls for registry operators with active organization [33m 586[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ApplicationDetailPage.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 4131[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders case ID and office title when loaded [33m 330[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m calls applicationService.update with approved status on Approve click [33m 1988[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m blocks rejection without notes and shows toast error [33m 844[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hides decision actions when user cannot manage governance [33m 737[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/GovernmentPersonnelPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 1891[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows read-only warning and disables create for non-registry users [33m 1474[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m enables create controls for registry operators with active organization [33m 411[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/BillingCheckoutResultPage.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[33m 2693[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m confirms stripe session and renders success state [33m 1241[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/OrganizationAdminSignupPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 2463[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m uses next query path for login redirect after successful signup [33m 1548[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows API error and does not navigate on failure [33m 837[2mms[22m[39m
+ [32mΓ£ô[39m src/components/billing/BillingAttentionPanel.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 1574[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m redirects to provider checkout when retry billing returns a checkout URL [33m 1186[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/org-admin/OrgUsersPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 1620[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hydrates URL filters and clears active user filters [33m 1614[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ApplicationsPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 1794[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m fetches admin scope as all [33m 688[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m fetches hr scope as assigned by default [33m 569[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m fetches hr scope as all when scope query is set [33m 529[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/RubricsPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 2742[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders read-only rubric view when management permission is missing [33m 1951[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows rubric management controls for authorized actors [33m 785[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/org-admin/OrgCasesPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 1751[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hydrates URL filters and clears active filter set [33m 1740[2mms[22m[39m
+stderr | src/pages/ForgotPasswordPage.test.tsx
+No reducer provided for key "auth"
+
+ [32mΓ£ô[39m src/pages/ForgotPasswordPage.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 2437[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders the forgot password form with email input [33m 1391[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows validation error when submitting with empty email [33m 412[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m dispatches requestPasswordReset on valid email submission [33m 330[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/FraudInsightsPage.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 1952[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows loading state on initial render before data arrives [33m 691[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders the page heading and result sections after successful load [33m 518[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows an error message when the API call fails [33m 507[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/NotFoundPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 1616[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m calls navigate(-1) when Go Back is clicked [33m 1170[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/OrganizationCommitteesPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 1065[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders committee registry and workspace links [33m 1058[2mms[22m[39m
+ [32mΓ£ô[39m src/components/admin/ReminderHealthCard.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 1345[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders a reminder trace link alongside health data [33m 1335[2mms[22m[39m
+ [32mΓ£ô[39m src/components/admin/BillingHealthCard.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 1248[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders billing runtime health data with refresh button [33m 1240[2mms[22m[39m
+ [32mΓ£ô[39m src/hooks/useTheme.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 909[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m toggles and persists theme choice [33m 736[2mms[22m[39m
+ [32mΓ£ô[39m src/components/common/FieldHelp.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 2444[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m opens tooltip on click and closes on outside click [33m 2212[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ErrorPage.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 1773[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders the error overlay when a message is present [33m 336[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows a Go Back button [33m 1344[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/OrganizationMembersPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 343[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders member list for org-admin users [33m 338[2mms[22m[39m
+stderr | src/pages/EmailSentPage.test.tsx > EmailSentPage > calls authService.requestPasswordReset when Resend email is clicked
+An update to EmailSentScreen inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32mΓ£ô[39m src/pages/EmailSentPage.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 1385[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows email-context-missing state when no email in location state [33m 980[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/OrganizationSetupPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 1172[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders the create organization form for staff users [33m 1012[2mms[22m[39m
+ [32mΓ£ô[39m src/components/auth/ProtectedRoute.test.tsx [2m([22m[2m32 tests[22m[2m)[22m[33m 654[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/AiInfrastructurePage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 642[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m calls aiMonitorService.health on mount [33m 320[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/SystemHealthPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 587[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m calls getReminderHealth on mount [33m 378[2mms[22m[39m
+stderr | src/pages/CommitteeDetailPage.test.tsx > CommitteeDetailPage > shows no committee when user cannot manage governance
+An update to CommitteeDetailPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32mΓ£ô[39m src/pages/CommitteeDetailPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 311[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/DashboardPage.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 242[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/BillingManagementPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 538[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/organization/CommitteeDashboardPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 270[2mms[22m[39m
+ [32mΓ£ô[39m src/components/auth/UnauthenticatedRoute.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[32m 251[2mms[22m[39m
+ [32mΓ£ô[39m src/components/admin/CaseReview.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 590[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders case detail without crashing when score fields are null [33m 373[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/OrganizationOnboardingPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 228[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/OrganizationRegistryPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 430[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/PlatformAuditLogsPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 232[2mms[22m[39m
+ [32mΓ£ô[39m src/utils/notificationActions.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 85[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/RegisterPage.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 284[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/SecurityPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 487[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/OrgDashboardPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 345[2mms[22m[39m
+stderr | src/pages/TwoFactorPage.test.tsx
+No reducer provided for key "auth"
+
+ [32mΓ£ô[39m src/pages/TwoFactorPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 314[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/WorkspaceHomePage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 287[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/WrapperPages.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 221[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/candidate/CandidateHomePage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 101[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/LoginPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 94[2mms[22m[39m
+ [32mΓ£ô[39m src/utils/organizationGovernance.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32mΓ£ô[39m src/services/governance.service.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32mΓ£ô[39m src/services/auth.service.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32mΓ£ô[39m src/services/subscription.service.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 50[2mms[22m[39m
+ [32mΓ£ô[39m src/utils/json.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32mΓ£ô[39m src/services/audit.service.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32mΓ£ô[39m src/services/application.service.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32mΓ£ô[39m src/services/government.service.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32mΓ£ô[39m src/utils/csv.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+ [32mΓ£ô[39m src/services/billing.service.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32mΓ£ô[39m src/services/admin.service.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+[90mstdout[2m | src/services/api.test.ts[2m > [22m[2mapi request interceptor[2m > [22m[2minjects bearer token and active organization header from store context
+[22m[39m[api] No X-Organization-Slug found for undefined
+
+[90mstdout[2m | src/services/api.test.ts[2m > [22m[2mapi request interceptor[2m > [22m[2mpreserves an explicit organization header instead of overwriting it from store context
+[22m[39m[api] No X-Organization-Slug found for undefined
+
+[90mstdout[2m | src/services/api.test.ts[2m > [22m[2mapi request interceptor[2m > [22m[2mremoves stale organization headers when no active organization context is available
+[22m[39m[api] No X-Organization-Slug found for undefined
+
+ [32mΓ£ô[39m src/services/api.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32mΓ£ô[39m src/utils/authRouting.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32mΓ£ô[39m src/services/candidate.service.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32mΓ£ô[39m src/services/campaign.service.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/campaignWorkspaceQuota.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32mΓ£ô[39m src/utils/notificationTrace.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32mΓ£ô[39m src/utils/queryParams.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ» Failed Tests 12 ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»
+
+ FAIL  src/App.governmentRoutes.test.tsx > App government route access > fails closed to organization setup when org dashboard route orgId is mismatched
+AssertionError: expected '/admin/org/org-2/dashboard' to be '/organization/setup' // Object.is equality
+
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div>
+      <div
+        class="min-h-screen bg-background text-foreground"
+      >
+        <div
+          data-testid="mock-navbar"
+        >
+          Mock Navbar
+        </div>
+        <main
+          class="relative lg:pl-64 xl:pl-72"
+        >
+          <div
+            class="relative flex min-h-[40vh] items-center justify-center"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-loader h-8 w-8 animate-spin"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M12 2v4"
+              />
+              <path
+                d="m16.2 7.8 2.9-2.9"
+              />
+              <path
+                d="M18 12h4"
+              />
+              <path
+                d="m16.2 16.2 2.9 2.9"
+              />
+              <path
+                d="M12 18v4"
+              />
+              <path
+                d="m4.9 19.1 2.9-2.9"
+              />
+              <path
+                d="M2 12h4"
+              />
+              <path
+                d="m4.9 4.9 2.9 2.9"
+              />
+            </svg>
+          </div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>...
+
+Expected: "/organization/setup"
+Received: "/admin/org/org-2/dashboard"
+
+ Γ¥» src/App.governmentRoutes.test.tsx:318:40
+    316|     });
+    317|     await waitFor(() => {
+    318|       expect(window.location.pathname).toBe("/organization/setup");
+       |                                        ^
+    319|       expect(decodeURIComponent(window.location.search)).toContain(
+    320|         "next=/admin/org/org-2/dashboard",
+ Γ¥» runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
+ Γ¥» checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ Γ¥» Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[1/12]ΓÄ»
+
+ FAIL  src/App.governmentRoutes.test.tsx > App government route access > redirects legacy admin case routes away from platform admin and into org scope for org admins
+AssertionError: expected '/dashboard' to be '/admin/org/org-1/cases' // Object.is equality
+
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div>
+      <div
+        class="min-h-screen bg-background text-foreground"
+      >
+        <div
+          data-testid="mock-navbar"
+        >
+          Mock Navbar
+        </div>
+        <main
+          class="relative lg:pl-64 xl:pl-72"
+        >
+          <div>
+            Mock Dashboard Page
+          </div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>...
+
+Expected: "/admin/org/org-1/cases"
+Received: "/dashboard"
+
+ Γ¥» src/App.governmentRoutes.test.tsx:387:40
+    385|
+    386|     await waitFor(() => {
+    387|       expect(window.location.pathname).toBe("/admin/org/org-1/cases");
+       |                                        ^
+    388|     });
+    389|   });
+ Γ¥» runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
+ Γ¥» checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ Γ¥» Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[2/12]ΓÄ»
+
+ FAIL  src/App.governmentRoutes.test.tsx > App government route access > allows org-admin scoped internal users to access organization case review routes
+TestingLibraryElementError: Unable to find an element with the text: Mock Case Review Page. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="min-h-screen bg-background text-foreground"
+    >
+      <div
+        data-testid="mock-navbar"
+      >
+        Mock Navbar
+      </div>
+      <main
+        class="relative lg:pl-64 xl:pl-72"
+      >
+        <div>
+          Mock Dashboard Page
+        </div>
+      </main>
+    </div>
+  </div>
+</body>
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="min-h-screen bg-background text-foreground"
+    >
+      <div
+        data-testid="mock-navbar"
+      >
+        Mock Navbar
+      </div>
+      <main
+        class="relative lg:pl-64 xl:pl-72"
+      >
+        <div>
+          Mock Dashboard Page
+        </div>
+      </main>
+    </div>
+  </div>
+</body>
+ Γ¥» waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ Γ¥» findByText node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ Γ¥» src/App.governmentRoutes.test.tsx:403:25
+    401|       ],
+    402|     });
+    403|     expect(await screen.findByText("Mock Case Review Page")).toBeTruthΓÇª
+       |                         ^
+    404|   });
+    405|
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[3/12]ΓÄ»
+
+ FAIL  src/pages/InvitationAcceptPage.test.tsx > InvitationAcceptPage > shows success payload after acceptance
+TestingLibraryElementError: Found multiple elements with the text: /registered/i
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+<h1
+  class="text-2xl font-semibold"
+>
+  You are registered for vetting
+</h1>
+
+Ignored nodes: comments, script, style
+<strong>
+  registered
+</strong>
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <main
+      class="max-w-2xl mx-auto px-4 py-12"
+    >
+      <section
+        class="rounded-2xl border border-slate-200 bg-white p-6 space-y-4"
+      >
+        <div
+          class="inline-flex items-center gap-2 rounded-lg bg-emerald-50 text-emerald-700 px-3 py-1.5 text-sm"
+        >
+          Invitation accepted
+        </div>
+        <h1
+          class="text-2xl font-semibold"
+        >
+          You are registered for vetting
+        </h1>
+        <p
+          class="text-slate-700"
+        >
+          Campaign: 
+          <strong>
+            VP Vetting 2025
+          </strong>
+        </p>
+        <p
+          class="text-slate-700"
+        >
+          Candidate: 
+          <strong>
+            alice@example.com
+          </strong>
+        </p>
+        <p
+          class="text-slate-700"
+        >
+          Enrollment status: 
+          <strong>
+            registered
+          </strong>
+        </p>
+        <div
+          class="pt-2"
+        >
+          <a
+            class="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700"
+            data-discover="true"
+            href="/candidate/access"
+          >
+            Continue to Candidate Access
+          </a>
+          <p
+            class="text-xs text-slate-700 mt-2"
+          >
+            Continue with the generated access link. If needed, you can also use your access URL from email/SMS.
+          </p>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+ Γ¥» Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ Γ¥» getElementError node_modules/@testing-library/dom/dist/query-helpers.js:20:35
+ Γ¥» getMultipleElementsFoundError node_modules/@testing-library/dom/dist/query-helpers.js:23:10
+ Γ¥» node_modules/@testing-library/dom/dist/query-helpers.js:55:13
+ Γ¥» getByText node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ Γ¥» src/pages/InvitationAcceptPage.test.tsx:64:19
+     62|     );
+     63|     expect(screen.getByText("alice@example.com")).toBeTruthy();
+     64|     expect(screen.getByText(/registered/i)).toBeTruthy();
+       |                   ^
+     65|   });
+     66|
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[4/12]ΓÄ»
+
+ FAIL  src/pages/OrganizationDashboardPage.test.tsx > OrganizationDashboardPage > renders org-admin summary cards and onboarding context
+TestingLibraryElementError: Unable to find an element with the text: /organization governance workspace/i. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="space-y-8 px-4 md:px-8 lg:px-12 pb-6 md:pb-8 lg:pb-10"
+    >
+      <div
+        class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"
+      >
+        <div>
+          <div
+            class="flex items-center gap-2 mb-1 p-4"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-building2 lucide-building-2 h-4 w-4 text-primary"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M10 12h4"
+              />
+              <path
+                d="M10 8h4"
+              />
+              <path
+                d="M14 21v-3a2 2 0 0 0-4 0v3"
+              />
+              <path
+                d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"
+              />
+              <path
+                d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"
+              />
+            </svg>
+            <span
+              class="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
+            >
+              agency
+            </span>
+          </div>
+          <h1
+            class="text-3xl font-bold tracking-tight"
+          >
+            Org One
+          </h1>
+          <p
+            class="text-muted-foreground mt-1 text-sm md:text-base"
+          >
+            Operational oversight of your organization's vetting pipeline and governance structure.
+          </p>
+        </div>
+        <div
+          class="flex items-center gap-3"
+        >
+          <button
+            class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2 has-[>svg]:px-3 rounded-xl gap-2 bg-card/50 backdrop-blur-sm"
+            data-slot="button"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-refresh-cw h-4 w-4"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
+              />
+              <path
+                d="M21 3v5h-5"
+              />
+              <path
+                d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
+              />
+              <path
+                d="M8 16H3v5"
+              />
+            </svg>
+            Sync Dashboard
+          </button>
+        </div>
+      </div>
+      <div
+        class="text-card-foreground flex flex-col gap-6 border p-5 rounded-2xl border-rose-500/30 bg-rose-500/5 shadow-sm"
+        data-slot="card"
+      >
+        <div
+          class="flex items-start gap-4"
+        >
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-circle-alert h-5 w-5 text-rose-600 mt-0.5 shrink-0"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle
+              cx="12"
+              cy="12"
+              r="10"
+            />
+            <line
+              x1="12"
+              x2="12"
+              y1="8"
+              y2="12"
+            />
+            <line
+              x1="12"
+              x2="12.01"
+              y1="16"
+              y2="16"
+            />
+          </svg>
+          <div
+            class="flex-1 min-w-0"
+          >
+            <h3
+              class="text-sm font-bold text-rose-700"
+            >
+              Billing Needs Attention
+            </h3>
+            <div
+              class="flex flex-wrap gap-3 mt-3"
+            >
+              <a
+                class="text-xs font-bold text-rose-700 underline hover:text-rose-800 flex items-center gap-1"
+                data-discover="true"
+            ...
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="space-y-8 px-4 md:px-8 lg:px-12 pb-6 md:pb-8 lg:pb-10"
+    >
+      <div
+        class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"
+      >
+        <div>
+          <div
+            class="flex items-center gap-2 mb-1 p-4"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-building2 lucide-building-2 h-4 w-4 text-primary"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M10 12h4"
+              />
+              <path
+                d="M10 8h4"
+              />
+              <path
+                d="M14 21v-3a2 2 0 0 0-4 0v3"
+              />
+              <path
+                d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"
+              />
+              <path
+                d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"
+              />
+            </svg>
+            <span
+              class="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
+            >
+              agency
+            </span>
+          </div>
+          <h1
+            class="text-3xl font-bold tracking-tight"
+          >
+            Org One
+          </h1>
+          <p
+            class="text-muted-foreground mt-1 text-sm md:text-base"
+          >
+            Operational oversight of your organization's vetting pipeline and governance structure.
+          </p>
+        </div>
+        <div
+          class="flex items-center gap-3"
+        >
+          <button
+            class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2 has-[>svg]:px-3 rounded-xl gap-2 bg-card/50 backdrop-blur-sm"
+            data-slot="button"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-refresh-cw h-4 w-4"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
+              />
+              <path
+                d="M21 3v5h-5"
+              />
+              <path
+                d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
+              />
+              <path
+                d="M8 16H3v5"
+              />
+            </svg>
+            Sync Dashboard
+          </button>
+        </div>
+      </div>
+      <div
+        class="text-card-foreground flex flex-col gap-6 border p-5 rounded-2xl border-rose-500/30 bg-rose-500/5 shadow-sm"
+        data-slot="card"
+      >
+        <div
+          class="flex items-start gap-4"
+        >
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-circle-alert h-5 w-5 text-rose-600 mt-0.5 shrink-0"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle
+              cx="12"
+              cy="12"
+              r="10"
+            />
+            <line
+              x1="12"
+              x2="12"
+              y1="8"
+              y2="12"
+            />
+            <line
+              x1="12"
+              x2="12.01"
+              y1="16"
+              y2="16"
+            />
+          </svg>
+          <div
+            class="flex-1 min-w-0"
+          >
+            <h3
+              class="text-sm font-bold text-rose-700"
+            >
+              Billing Needs Attention
+            </h3>
+            <div
+              class="flex flex-wrap gap-3 mt-3"
+            >
+              <a
+                class="text-xs font-bold text-rose-700 underline hover:text-rose-800 flex items-center gap-1"
+                data-discover="true"
+            ...
+ Γ¥» waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ Γ¥» findByText node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ Γ¥» src/pages/OrganizationDashboardPage.test.tsx:137:25
+    135|     );
+    136|
+    137|     expect(await screen.findByText(/organization governance workspace/ΓÇª
+       |                         ^
+    138|     expect(await screen.findByText("4")).toBeTruthy();
+    139|     expect(await screen.findByText(/token preview/i)).toBeTruthy();
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[5/12]ΓÄ»
+
+ FAIL  src/pages/OrganizationDashboardPage.test.tsx > OrganizationDashboardPage > surfaces billing trace links when organization billing needs attention
+TestingLibraryElementError: Unable to find an accessible element with the role "link" and name `/open payment failure trace/i`
+
+Here are the accessible roles:
+
+  heading:
+
+  Name "Org One":
+  <h1
+    class="text-3xl font-bold tracking-tight"
+  />
+
+  Name "Billing Needs Attention":
+  <h3
+    class="text-sm font-bold text-rose-700"
+  />
+
+  Name "Vetting Pipeline Pulse":
+  <h2
+    class="text-lg font-bold"
+  />
+
+  Name "Committee Health":
+  <h3
+    class="text-sm font-bold flex items-center gap-2"
+  />
+
+  Name "Onboarding":
+  <h3
+    class="text-sm font-bold flex items-center gap-2"
+  />
+
+  Name "Governance Hub":
+  <h2
+    class="text-xl font-bold mb-2"
+  />
+
+  Name "Recent Activity":
+  <h3
+    class="text-sm font-bold flex items-center gap-2 mb-4"
+  />
+
+  --------------------------------------------------
+  paragraph:
+
+  Name "":
+  <p
+    class="text-muted-foreground mt-1 text-sm md:text-base"
+  />
+
+  Name "":
+  <p
+    class="text-xs text-rose-600 mt-1"
+  />
+
+  Name "":
+  <p
+    class="text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+  />
+
+  Name "":
+  <p
+    class="text-2xl font-bold"
+  />
+
+  Name "":
+  <p
+    class="text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+  />
+
+  Name "":
+  <p
+    class="text-2xl font-bold"
+  />
+
+  Name "":
+  <p
+    class="text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+  />
+
+  Name "":
+  <p
+    class="text-2xl font-bold"
+  />
+
+  Name "":
+  <p
+    class="text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+  />
+
+  Name "":
+  <p
+    class="text-2xl font-bold"
+  />
+
+  Name "":
+  <p
+    class="text-xs text-muted-foreground"
+  />
+
+  Name "":
+  <p
+    class="text-xs text-muted-foreground mt-2"
+  />
+
+  Name "":
+  <p
+    class="text-sm text-primary-foreground/80 mb-6 leading-relaxed"
+  />
+
+  Name "":
+  <p
+    class="text-xs text-muted-foreground"
+  />
+
+  --------------------------------------------------
+  button:
+
+  Name "Sync Dashboard":
+  <button
+    class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2 has-[>svg]:px-3 rounded-xl gap-2 bg-card/50 backdrop-blur-sm"
+    data-slot="button"
+  />
+
+  Name "Manage Hub":
+  <button
+    class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive underline-offset-4 hover:underline has-[>svg]:px-3 text-[10px] font-bold uppercase tracking-widest text-primary p-0 h-auto"
+    data-slot="button"
+  />
+
+  Name "Manage Onboarding":
+  <button
+    aria-label="Manage Onboarding"
+    class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive underline-offset-4 hover:underline has-[>svg]:px-3 text-[10px] font-bold uppercase tracking-widest text-primary p-0 h-auto"
+    data-slot="button"
+  />
+
+  Name "Initiate Vetting Case":
+  <button
+    class="flex items-center justify-between w-full p-4 rounded-2xl bg-white/10 hover:bg-white/20 transition-all group/btn border border-white/5"
+  />
+
+  Name "Form New Committee":
+  <button
+    class="flex items-center justify-between w-full p-4 rounded-2xl bg-white/10 hover:bg-white/20 transition-all group/btn border border-white/5"
+  />
+
+  Name "Manage Members":
+  <button
+    class="flex items-center justify-between w-full p-4 rounded-2xl bg-white/10 hover:bg-white/20 transition-all group/btn border border-white/5"
+  />
+
+  --------------------------------------------------
+  link:
+
+  Name "View Payment Failure Alerts":
+  <a
+    class="text-xs font-bold text-rose-700 underline hover:text-rose-800 flex items-center gap-1"
+    data-discover="true"
+    href="/notifications?channel=all&event_type=billing_payment_failed&subsystem=billing"
+  />
+
+  Name "View Processing Error Alerts":
+  <a
+    class="text-xs font-bold text-rose-700 underline hover:text-rose-800 flex items-center gap-1"
+    data-discover="true"
+    href="/notifications?channel=all&event_type=processing_error&subsystem=billing"
+  />
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="space-y-8 px-4 md:px-8 lg:px-12 pb-6 md:pb-8 lg:pb-10"
+    >
+      <div
+        class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"
+      >
+        <div>
+          <div
+            class="flex items-center gap-2 mb-1 p-4"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-building2 lucide-building-2 h-4 w-4 text-primary"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M10 12h4"
+              />
+              <path
+                d="M10 8h4"
+              />
+              <path
+                d="M14 21v-3a2 2 0 0 0-4 0v3"
+              />
+              <path
+                d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"
+              />
+              <path
+                d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"
+              />
+            </svg>
+            <span
+              class="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
+            >
+              agency
+            </span>
+          </div>
+          <h1
+            class="text-3xl font-bold tracking-tight"
+          >
+            Org One
+          </h1>
+          <p
+            class="text-muted-foreground mt-1 text-sm md:text-base"
+          >
+            Operational oversight of your organization's vetting pipeline and governance structure.
+          </p>
+        </div>
+        <div
+          class="flex items-center gap-3"
+        >
+          <button
+            class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2 has-[>svg]:px-3 rounded-xl gap-2 bg-card/50 backdrop-blur-sm"
+            data-slot="button"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-refresh-cw h-4 w-4"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
+              />
+              <path
+                d="M21 3v5h-5"
+              />
+              <path
+                d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
+              />
+              <path
+                d="M8 16H3v5"
+              />
+            </svg>
+            Sync Dashboard
+          </button>
+        </div>
+      </div>
+      <div
+        class="text-card-foreground flex flex-col gap-6 border p-5 rounded-2xl border-rose-500/30 bg-rose-500/5 shadow-sm"
+        data-slot="card"
+      >
+        <div
+          class="flex items-start gap-4"
+        >
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-circle-alert h-5 w-5 text-rose-600 mt-0.5 shrink-0"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle
+              cx="12"
+              cy="12"
+              r="10"
+            />
+            <line
+              x1="12"
+              x2="12"
+              y1="8"
+              y2="12"
+            />
+            <line
+              x1="12"
+              x2="12.01"
+              y1="16"
+              y2="16"
+            />
+          </svg>
+          <div
+            class="flex-1 min-w-0"
+          >
+            <h3
+              class="text-sm font-bold text-rose-700"
+            >
+              Billing Needs Attention
+            </h3>
+            <p
+              class="text-xs text-rose-600 mt-1"
+            >
+              Stripe reported an invoice payment failure.
+            </p>
+            <div
+              class="flex flex-wrap gap-3 mt-3"
+            >
+              ...
+ Γ¥» Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ Γ¥» node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ Γ¥» node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ Γ¥» getByRole node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ Γ¥» src/pages/OrganizationDashboardPage.test.tsx:246:19
+    244|     expect(await screen.findByText(/billing needs attention/i)).toBeTrΓÇª
+    245|     expect(screen.getByText(/stripe reported an invoice payment failurΓÇª
+    246|     expect(screen.getByRole("link", { name: /open payment failure tracΓÇª
+       |                   ^
+    247|       "/notifications?channel=all&event_type=billing_payment_failed&suΓÇª
+    248|     );
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[6/12]ΓÄ»
+
+ FAIL  src/pages/PublicGazettePage.test.tsx > PublicGazettePage > shows recovery actions when the gazette feed cannot be loaded
+TestingLibraryElementError: Unable to find an element with the text: /gazette service offline\./i. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="min-h-screen bg-background text-foreground"
+    >
+      <header
+        class="border-b border-border bg-background"
+      >
+        <div
+          class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8"
+        >
+          <div>
+            <p
+              class="text-xs font-semibold uppercase tracking-wide text-primary"
+            >
+              Public Record
+            </p>
+            <h1
+              class="text-2xl font-bold text-foreground"
+            >
+              Government Gazette Feed
+            </h1>
+            <p
+              class="text-sm text-muted-foreground"
+            >
+              Published appointments only. Internal vetting data is not displayed.
+            </p>
+          </div>
+          <div
+            class="flex items-center gap-2"
+          >
+            <a
+              class="inline-flex items-center gap-2 rounded-md border border-border bg-transparent px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
+              data-discover="true"
+              href="/"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-arrow-left h-4 w-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="m12 19-7-7 7-7"
+                />
+                <path
+                  d="M19 12H5"
+                />
+              </svg>
+              Home
+            </a>
+            <a
+              class="inline-flex rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/20"
+              data-discover="true"
+              href="/transparency?search=finance&status=appointed"
+            >
+              Transparency Portal
+            </a>
+            <button
+              class="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-refresh-cw h-4 w-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
+                />
+                <path
+                  d="M21 3v5h-5"
+                />
+                <path
+                  d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
+                />
+                <path
+                  d="M8 16H3v5"
+                />
+              </svg>
+              Refresh
+            </button>
+          </div>
+        </div>
+      </header>
+      <main
+        class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8"
+      >
+        <form
+          class="mb-6 rounded-xl border border-border bg-card p-4 shadow-sm"
+        >
+          <div
+            class="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto_auto]"
+          >
+            <label
+              class="text-sm text-foreground"
+            >
+              <span
+                class="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+              >
+                Search gazette feed
+              </span>
+              <input
+                class="h-10 w-full rounded-md border border-border bg-input px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+                placeholder="Search office, institution, nominee, reference, or gazette number"
+                type="text"
+                value="finance"
+              />
+            </label>
+            <label
+              class="text-sm text-foreground"
+            >
+              <span
+                class="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+              >
+                Status
+              </span>
+              <select
+                class="h-10 w-full rounded-md border border-border bg-input px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+              >
+                <option
+                  value="all"
+                >
+                  All statuses
+                </option>
+                <option
+                  value="nominated"
+                >
+                  Nominated
+                </option>
+                <option
+                  value="under_vetting"
+                >
+                  Under vetting
+                </option>
+                <option
+                  value="committee_review"
+                >
+                  Committee review
+                </option>
+                <option
+                  value="confirmation_pending"
+                >
+                  Confirmation pending
+                </option>
+                <option
+                  value="appointed"
+                >
+                  Appointed
+                </option>
+                <option
+                  value="rejected"
+                >
+                  Rejected
+                </option>
+                <option
+                  value="withdrawn"
+                >
+                  Withdrawn
+                </option>
+                <option
+                  value="serving"
+                >
+                  Serving
+                </option>
+                <option
+                  value="exited"
+                >
+                  Exited
+                </option>
+              </select>
+            </label>
+            <button
+              class="h-10 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+              type="submit"
+            >
+              Apply Filters
+            </button>
+            <button
+              class="h-10 rounded-md border border-border bg-transparent px-4 text-sm font-semibold text-foreground transition hover:bg-muted"
+              type="button"
+            >
+              Clear
+            </button>
+          </div>
+          <p
+            class="mt-3 text-xs text-muted-foreground"
+          >
+            Use shareable filters to browse published gazette records without exposing internal vetting data.
+          </p>
+        </form>
+        <section
+          class="mb-6 grid gap-4 md:grid-cols-2"
+        >
+          <article
+            class="rounded-xl border border-border bg-card p-4"
+          >
+            <div
+              class="mb-2 inline-flex rounded-md bg-primary/10 p-2 text-primary"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-stamp h-4 w-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M14 13V8.5C14 7 15 7 15 5a3 3 0 0 0-6 0c0 2 1 2 1 3.5V13"
+                />
+                <path
+                  d="M20 15.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 4 15.5V17a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1z"
+                />
+                <path
+                  d="M5 22h14"
+                />
+              </svg>
+            </div>
+            <p
+              class="text-sm text-muted-foreground"
+            >
+              Gazette entries
+            </p>
+            <p
+              class="text-2xl font-bold text-foreground"
+            >
+              0
+            </p>
+          </article>
+          <article
+            class="rounded-xl border border-border bg-card p-4"
+          >
+            <div
+              class="mb-2 inline-flex rounded-md bg-muted p-2 text-muted-foreground"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-file-text h-4 w-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"
+                />
+                <path
+                  d="M14 2v5a1 1 0 0 0 1 1h5"
+                />
+                <path
+                  d="M10 9H8"
+                />
+                <path
+                  d="M16 13H8"
+                />
+                <path
+                  d="M16 17H8"
+                />
+              </svg>
+            </div>
+            <p
+              class="text-sm text-muted-foreground"
+            >
+              With gazette number
+            </p>
+            <p
+              class="text-2xl font-bold text-foreground"
+            >
+              0
+            </p>
+          </article>
+        </section>
+        <div
+          class="rounded-xl border border-rose-200 bg-rose-50 p-6"
+        >
+          <p
+            class="text-sm text-rose-800"
+          >
+            modern feed unavailable
+          </p>
+          <div
+            class="mt-3 flex flex-wrap gap-2"
+          >
+            <button
+              class="inline-flex items-center gap-2 rounded-md border border-rose-300 bg-white px-3 py-2 text-sm font-semibold text-rose-900 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-refresh-cw h-4 w-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
+                />
+                <path
+                  d="M21 3v5h-5"
+                />
+                <path
+                  d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
+                />
+                <path
+                  d="M8 16H3v5"
+                />
+              </svg>
+              Retry Gazette Load
+            </button>
+            <button
+              class="inline-flex rounded-md border border-rose-300 bg-white px-3 py-2 text-sm font-semibold text-rose-900 hover:bg-rose-100"
+              type="button"
+            >
+              Clear Gazette Filters
+            </button>
+            <a
+              class="inline-flex rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
+              data-discover="true"
+              href="/transparency?search=finance&status=appointed"
+            >
+              Open Transparency Portal
+            </a>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</body>
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="min-h-screen bg-background text-foreground"
+    >
+      <header
+        class="border-b border-border bg-background"
+      >
+        <div
+          class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8"
+        >
+          <div>
+            <p
+              class="text-xs font-semibold uppercase tracking-wide text-primary"
+            >
+              Public Record
+            </p>
+            <h1
+              class="text-2xl font-bold text-foreground"
+            >
+              Government Gazette Feed
+            </h1>
+            <p
+              class="text-sm text-muted-foreground"
+            >
+              Published appointments only. Internal vetting data is not displayed.
+            </p>
+          </div>
+          <div
+            class="flex items-center gap-2"
+          >
+            <a
+              class="inline-flex items-center gap-2 rounded-md border border-border bg-transparent px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
+              data-discover="true"
+              href="/"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-arrow-left h-4 w-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="m12 19-7-7 7-7"
+                />
+                <path
+                  d="M19 12H5"
+                />
+              </svg>
+              Home
+            </a>
+            <a
+              class="inline-flex rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/20"
+              data-discover="true"
+              href="/transparency?search=finance&status=appointed"
+            >
+              Transparency Portal
+            </a>
+            <button
+              class="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-refresh-cw h-4 w-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
+                />
+                <path
+                  d="M21 3v5h-5"
+                />
+                <path
+                  d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
+                />
+                <path
+                  d="M8 16H3v5"
+                />
+              </svg>
+              Refresh
+            </button>
+          </div>
+        </div>
+      </header>
+      <main
+        class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8"
+      >
+        <form
+          class="mb-6 rounded-xl border border-border bg-card p-4 shadow-sm"
+        >
+          <div
+            class="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto_auto]"
+          >
+            <label
+              class="text-sm text-foreground"
+            >
+              <span
+                class="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+              >
+                Search gazette feed
+              </span>
+              <input
+                class="h-10 w-full rounded-md border border-border bg-input px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+                placeholder="Search office, institution, nominee, reference, or gazette number"
+                type="text"
+                value="finance"
+              />
+            </label>
+            <label
+              class="text-sm text-foreground"
+            >
+              <span
+                class="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+              >
+                Status
+              </span>
+              <select
+                class="h-10 w-full rounded-md border border-border bg-input px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+              >
+                <option
+                  value="all"
+                >
+                  All statuses
+                </option>
+                <option
+                  value="nominated"
+                >
+                  Nominated
+                </option>
+                <option
+                  value="under_vetting"
+                >
+                  Under vetting
+                </option>
+                <option
+                  value="committee_review"
+                >
+                  Committee review
+                </option>
+                <option
+                  value="confirmation_pending"
+                >
+                  Confirmation pending
+                </option>
+                <option
+                  value="appointed"
+                >
+                  Appointed
+                </option>
+                <option
+                  value="rejected"
+                >
+                  Rejected
+                </option>
+                <option
+                  value="withdrawn"
+                >
+                  Withdrawn
+                </option>
+                <option
+                  value="serving"
+                >
+                  Serving
+                </option>
+                <option
+                  value="exited"
+                >
+                  Exited
+                </option>
+              </select>
+            </label>
+            <button
+              class="h-10 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+              type="submit"
+            >
+              Apply Filters
+            </button>
+            <button
+              class="h-10 rounded-md border border-border bg-transparent px-4 text-sm font-semibold text-foreground transition hover:bg-muted"
+              type="button"
+            >
+              Clear
+            </button>
+          </div>
+          <p
+            class="mt-3 text-xs text-muted-foreground"
+          >
+            Use shareable filters to browse published gazette records without exposing internal vetting data.
+          </p>
+        </form>
+        <section
+          class="mb-6 grid gap-4 md:grid-cols-2"
+        >
+          <article
+            class="rounded-xl border border-border bg-card p-4"
+          >
+            <div
+              class="mb-2 inline-flex rounded-md bg-primary/10 p-2 text-primary"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-stamp h-4 w-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M14 13V8.5C14 7 15 7 15 5a3 3 0 0 0-6 0c0 2 1 2 1 3.5V13"
+                />
+                <path
+                  d="M20 15.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 4 15.5V17a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1z"
+                />
+                <path
+                  d="M5 22h14"
+                />
+              </svg>
+            </div>
+            <p
+              class="text-sm text-muted-foreground"
+            >
+              Gazette entries
+            </p>
+            <p
+              class="text-2xl font-bold text-foreground"
+            >
+              0
+            </p>
+          </article>
+          <article
+            class="rounded-xl border border-border bg-card p-4"
+          >
+            <div
+              class="mb-2 inline-flex rounded-md bg-muted p-2 text-muted-foreground"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-file-text h-4 w-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"
+                />
+                <path
+                  d="M14 2v5a1 1 0 0 0 1 1h5"
+                />
+                <path
+                  d="M10 9H8"
+                />
+                <path
+                  d="M16 13H8"
+                />
+                <path
+                  d="M16 17H8"
+                />
+              </svg>
+            </div>
+            <p
+              class="text-sm text-muted-foreground"
+            >
+              With gazette number
+            </p>
+            <p
+              class="text-2xl font-bold text-foreground"
+            >
+              0
+            </p>
+          </article>
+        </section>
+        <div
+          class="rounded-xl border border-rose-200 bg-rose-50 p-6"
+        >
+          <p
+            class="text-sm text-rose-800"
+          >
+            modern feed unavailable
+          </p>
+          <div
+            class="mt-3 flex flex-wrap gap-2"
+          >
+            <button
+              class="inline-flex items-center gap-2 rounded-md border border-rose-300 bg-white px-3 py-2 text-sm font-semibold text-rose-900 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-refresh-cw h-4 w-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
+                />
+                <path
+                  d="M21 3v5h-5"
+                />
+                <path
+                  d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
+                />
+                <path
+                  d="M8 16H3v5"
+                />
+              </svg>
+              Retry Gazette Load
+            </button>
+            <button
+              class="inline-flex rounded-md border border-rose-300 bg-white px-3 py-2 text-sm font-semibold text-rose-900 hover:bg-rose-100"
+              type="button"
+            >
+              Clear Gazette Filters
+            </button>
+            <a
+              class="inline-flex rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
+              data-discover="true"
+              href="/transparency?search=finance&status=appointed"
+            >
+              Open Transparency Portal
+            </a>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</body>
+ Γ¥» waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ Γ¥» findByText node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ Γ¥» src/pages/PublicGazettePage.test.tsx:216:25
+    214|     renderPage("/gazette?search=finance&status=appointed");
+    215|
+    216|     expect(await screen.findByText(/gazette service offline\./i)).toBeΓÇª
+       |                         ^
+    217|     expect(screen.getByRole("button", { name: /retry gazette load/i })ΓÇª
+    218|     expect(screen.getByRole("button", { name: /clear gazette filters/iΓÇª
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[7/12]ΓÄ»
+
+ FAIL  src/pages/UserSettingsPage.test.tsx > UserSettingsPage billing empty-state > shows read-only subscription guidance for non-org-admin users when subscription is missing
+ FAIL  src/pages/UserSettingsPage.test.tsx > UserSettingsPage billing empty-state > shows organization administration links for authorized org admins
+ FAIL  src/pages/UserSettingsPage.test.tsx > UserSettingsPage billing empty-state > shows billing trace links when an org admin has a failing subscription
+TypeError: hasRole is not a function
+ Γ¥» UserSettingsPage src/pages/UserSettingsPage.tsx:101:27
+     99|   // Billing should only be visible to registry_admin or organization_ΓÇª
+    100|   // Not to superuser/platform admin, organization members, or applicaΓÇª
+    101|   const isRegistryAdmin = hasRole("registry_admin");
+       |                           ^
+    102|   const canViewBilling =
+    103|     (isOrgAdmin || isRegistryAdmin) &&
+ Γ¥» Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:25904:20
+ Γ¥» renderWithHooks node_modules/react-dom/cjs/react-dom-client.development.js:7662:22
+ Γ¥» updateFunctionComponent node_modules/react-dom/cjs/react-dom-client.development.js:10166:19
+ Γ¥» beginWork node_modules/react-dom/cjs/react-dom-client.development.js:11778:18
+ Γ¥» runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:874:13
+ Γ¥» performUnitOfWork node_modules/react-dom/cjs/react-dom-client.development.js:17641:22
+ Γ¥» workLoopSync node_modules/react-dom/cjs/react-dom-client.development.js:17469:41
+ Γ¥» renderRootSync node_modules/react-dom/cjs/react-dom-client.development.js:17450:11
+ Γ¥» performWorkOnRoot node_modules/react-dom/cjs/react-dom-client.development.js:16583:35
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[8/12]ΓÄ»
+
+ FAIL  src/components/common/Navbar.test.tsx > Navbar runtime + active tab behavior > does not expose reminder runtime controls to platform admins
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array []
+
+
+Number of calls: 1
+
+ Γ¥» src/components/common/Navbar.test.tsx:197:41
+    195|     });
+    196|
+    197|     expect(mocks.getReminderHealth).not.toHaveBeenCalled();
+       |                                         ^
+    198|     expect(screen.queryByRole("button", { name: /runtime/i })).toBeNulΓÇª
+    199|     expect(screen.queryByText(/reminder runtime/i)).toBeNull();
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[9/12]ΓÄ»
+
+ FAIL  src/pages/platform-admin/PlatformDashboardPage.test.tsx > PlatformDashboardPage > toggles organization active status
+TestingLibraryElementError: Unable to find role="button" and name `/deactivate organization/i`
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="space-y-8"
+    >
+      <div
+        class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"
+      >
+        <div>
+          <h1
+            class="text-3xl font-bold tracking-tight"
+          >
+            Command Center
+          </h1>
+          <p
+            class="text-muted-foreground mt-1 text-sm md:text-base"
+          >
+            Macro-oversight of the OVS Redo multi-tenant ecosystem and infrastructure health.
+          </p>
+        </div>
+        <div
+          class="flex items-center gap-3"
+        >
+          <button
+            class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2 has-[>svg]:px-3 rounded-xl gap-2 bg-card/50 backdrop-blur-sm"
+            data-slot="button"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-refresh-cw h-4 w-4"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
+              />
+              <path
+                d="M21 3v5h-5"
+              />
+              <path
+                d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
+              />
+              <path
+                d="M8 16H3v5"
+              />
+            </svg>
+            Sync Platform
+          </button>
+        </div>
+      </div>
+      <div
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+      >
+        <div
+          class="text-card-foreground flex flex-col gap-6 border p-5 rounded-2xl border-border/70 bg-card/50 shadow-sm backdrop-blur-sm"
+          data-slot="card"
+        >
+          <div
+            class="flex items-center gap-4"
+          >
+            <div
+              class="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-globe h-5 w-5"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="10"
+                />
+                <path
+                  d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"
+                />
+                <path
+                  d="M2 12h20"
+                />
+              </svg>
+            </div>
+            <div>
+              <p
+                class="text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+              >
+                Registered Tenants
+              </p>
+              <p
+                class="text-2xl font-bold"
+              >
+                0
+              </p>
+            </div>
+          </div>
+        </div>
+        <div
+          class="text-card-foreground flex flex-col gap-6 border p-5 rounded-2xl border-border/70 bg-card/50 shadow-sm backdrop-blur-sm"
+          data-slot="card"
+        >
+          <div
+            class="flex items-center gap-4"
+          >
+            <div
+              class="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-shield-check h-5 w-5"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+                />
+                <path
+                  d="m9 12 2 2 4-4"
+                />
+              </svg>
+            </div>
+            [36...
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="space-y-8"
+    >
+      <div
+        class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"
+      >
+        <div>
+          <h1
+            class="text-3xl font-bold tracking-tight"
+          >
+            Command Center
+          </h1>
+          <p
+            class="text-muted-foreground mt-1 text-sm md:text-base"
+          >
+            Macro-oversight of the OVS Redo multi-tenant ecosystem and infrastructure health.
+          </p>
+        </div>
+        <div
+          class="flex items-center gap-3"
+        >
+          <button
+            class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2 has-[>svg]:px-3 rounded-xl gap-2 bg-card/50 backdrop-blur-sm"
+            data-slot="button"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-refresh-cw h-4 w-4"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
+              />
+              <path
+                d="M21 3v5h-5"
+              />
+              <path
+                d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
+              />
+              <path
+                d="M8 16H3v5"
+              />
+            </svg>
+            Sync Platform
+          </button>
+        </div>
+      </div>
+      <div
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+      >
+        <div
+          class="text-card-foreground flex flex-col gap-6 border p-5 rounded-2xl border-border/70 bg-card/50 shadow-sm backdrop-blur-sm"
+          data-slot="card"
+        >
+          <div
+            class="flex items-center gap-4"
+          >
+            <div
+              class="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-globe h-5 w-5"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="10"
+                />
+                <path
+                  d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"
+                />
+                <path
+                  d="M2 12h20"
+                />
+              </svg>
+            </div>
+            <div>
+              <p
+                class="text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+              >
+                Registered Tenants
+              </p>
+              <p
+                class="text-2xl font-bold"
+              >
+                0
+              </p>
+            </div>
+          </div>
+        </div>
+        <div
+          class="text-card-foreground flex flex-col gap-6 border p-5 rounded-2xl border-border/70 bg-card/50 shadow-sm backdrop-blur-sm"
+          data-slot="card"
+        >
+          <div
+            class="flex items-center gap-4"
+          >
+            <div
+              class="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-shield-check h-5 w-5"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+                />
+                <path
+                  d="m9 12 2 2 4-4"
+                />
+              </svg>
+            </div>
+            [36...
+ Γ¥» waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ Γ¥» findByRole node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ Γ¥» src/pages/platform-admin/PlatformDashboardPage.test.tsx:121:34
+    119|     );
+    120|
+    121|     fireEvent.click(await screen.findByRole("button", { name: /deactivΓÇª
+       |                                  ^
+    122|
+    123|     await waitFor(() => {
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[10/12]ΓÄ»
+
+
+[2m Test Files [22m [1m[31m7 failed[39m[22m[2m | [22m[1m[32m74 passed[39m[22m[90m (81)[39m
+[2m      Tests [22m [1m[31m12 failed[39m[22m[2m | [22m[1m[32m356 passed[39m[22m[90m (368)[39m
+[2m   Start at [22m 11:37:25
+[2m   Duration [22m 230.26s[2m (transform 16.47s, setup 0ms, import 146.61s, tests 165.04s, environment 288.05s)[22m
+

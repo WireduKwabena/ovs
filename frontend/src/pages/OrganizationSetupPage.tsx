@@ -6,6 +6,13 @@ import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { governanceService } from "@/services/governance.service";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -153,19 +160,18 @@ const OrganizationSetupPage: React.FC = () => {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="organization-type">Organization Type</Label>
-            <select
-              id="organization-type"
-              value={organizationType}
-              onChange={(event) => setOrganizationType(event.target.value)}
-              disabled={submitting}
-              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900"
-            >
-              <option value="agency">Agency</option>
-              <option value="ministry">Ministry</option>
-              <option value="committee_secretariat">Committee Secretariat</option>
-              <option value="executive_office">Executive Office</option>
-              <option value="other">Other</option>
-            </select>
+            <Select value={organizationType} onValueChange={setOrganizationType} disabled={submitting}>
+              <SelectTrigger id="organization-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="agency">Agency</SelectItem>
+                <SelectItem value="ministry">Ministry</SelectItem>
+                <SelectItem value="committee_secretariat">Committee Secretariat</SelectItem>
+                <SelectItem value="executive_office">Executive Office</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
