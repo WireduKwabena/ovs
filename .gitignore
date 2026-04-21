@@ -9,7 +9,7 @@ venv/
 tmp_docs/
 docs/
 
-frontend/coverage/
+frontend/coverage/**
 
 frontend/coverage-verification.txt
 frontend/coverage-thresholds-checks.txt
