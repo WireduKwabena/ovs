@@ -9,6 +9,25 @@ venv/
 tmp_docs/
 docs/
 
+frontend/coverage/
+
+frontend/coverage-verification.txt
+frontend/coverage-thresholds-checks.txt
+frontend/coverage-scope-checks.txt
+frontend/coverage-run.txt
+frontend/coverage-run-final.txt
+frontend/test-results-new.txt
+frontend/test-results-updated.txt
+frontend/test-results.txt
+
+backend/coverage-docker-final.txt
+backend/coverage-docker.txt
+backend/coverage-latest.txt
+backend/coverage-run.txt
+backend/coverage.xml
+backend/.coverage
+backend/.coveragerc
+
 .env
 **/.env
 
