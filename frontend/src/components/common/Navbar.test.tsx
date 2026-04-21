@@ -194,7 +194,7 @@ describe("Navbar runtime + active tab behavior", () => {
       expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
     });
 
-    expect(mocks.getReminderHealth).not.toHaveBeenCalled();
+    expect(mocks.getReminderHealth).toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: /runtime/i })).toBeNull();
     expect(screen.queryByText(/reminder runtime/i)).toBeNull();
   });

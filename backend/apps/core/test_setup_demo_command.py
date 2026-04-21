@@ -15,7 +15,8 @@ from apps.users.models import User
 from apps.billing.models import BillingSubscription, OrganizationOnboardingToken
 from apps.campaigns.models import VettingCampaign
 from apps.core.management.commands.setup_demo import APPOINTMENT_ROLE_GROUPS
-from apps.governance.models import Committee, CommitteeMembership, Organization, OrganizationMembership
+from apps.governance.models import Committee, CommitteeMembership, OrganizationMembership
+from apps.tenants.models import Organization
 from apps.personnel.models import PersonnelRecord
 from apps.positions.models import GovernmentPosition
 

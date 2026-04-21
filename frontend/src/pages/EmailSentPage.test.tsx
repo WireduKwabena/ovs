@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import { EmailSentPage } from "./EmailSentPage";
@@ -62,13 +68,13 @@ describe("EmailSentPage", () => {
     mocks.requestPasswordReset.mockResolvedValue({});
     renderWithEmail("user@example.com");
 
-    screen.getByRole("button", { name: /resend email/i }).click();
+    fireEvent.click(screen.getByRole("button", { name: /resend email/i }));
 
     await waitFor(() => {
       expect(mocks.requestPasswordReset).toHaveBeenCalledWith(
         "user@example.com",
       );
     });
-    expect(mocks.toastSuccess).toHaveBeenCalled();
+    await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
   });
 });

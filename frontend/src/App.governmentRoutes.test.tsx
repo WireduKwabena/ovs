@@ -7,8 +7,10 @@ import { Provider } from "react-redux";
 import App from "./App";
 
 const FETCH_PROFILE_PENDING = "auth/fetchProfile/pending";
-const SWITCH_ACTIVE_ORGANIZATION_PENDING = "/auth/profile/active-organization//pending";
-const SWITCH_ACTIVE_ORGANIZATION_REJECTED = "/auth/profile/active-organization//rejected";
+const SWITCH_ACTIVE_ORGANIZATION_PENDING =
+  "/auth/profile/active-organization//pending";
+const SWITCH_ACTIVE_ORGANIZATION_REJECTED =
+  "/auth/profile/active-organization//rejected";
 
 vi.mock("./store/authSlice", () => {
   const authReducer = (state = {}) => state;
@@ -16,21 +18,24 @@ vi.mock("./store/authSlice", () => {
     __esModule: true,
     default: authReducer,
     fetchProfile: vi.fn(() => ({ type: FETCH_PROFILE_PENDING })),
-    switchActiveOrganization: vi.fn((organizationId: string) => async (dispatch: (action: unknown) => unknown) => {
-      const meta = { arg: organizationId };
-      dispatch({
-        type: SWITCH_ACTIVE_ORGANIZATION_PENDING,
-        meta,
-      });
-      const rejectedAction = {
-        type: SWITCH_ACTIVE_ORGANIZATION_REJECTED,
-        payload: { message: "Failed to update active organization" },
-        meta,
-        error: { message: "Rejected" },
-      };
-      dispatch(rejectedAction);
-      return rejectedAction;
-    }),
+    switchActiveOrganization: vi.fn(
+      (organizationId: string) =>
+        async (dispatch: (action: unknown) => unknown) => {
+          const meta = { arg: organizationId };
+          dispatch({
+            type: SWITCH_ACTIVE_ORGANIZATION_PENDING,
+            meta,
+          });
+          const rejectedAction = {
+            type: SWITCH_ACTIVE_ORGANIZATION_REJECTED,
+            payload: { message: "Failed to update active organization" },
+            meta,
+            error: { message: "Rejected" },
+          };
+          dispatch(rejectedAction);
+          return rejectedAction;
+        },
+    ),
   };
 });
 
@@ -109,7 +114,9 @@ const buildStore = (
           "gams.appointment.view_internal",
         ]
       : [];
-  const capabilities = Array.isArray(capabilitiesOverride) ? capabilitiesOverride : defaultCapabilities;
+  const capabilities = Array.isArray(capabilitiesOverride)
+    ? capabilitiesOverride
+    : defaultCapabilities;
   const preloadedState = {
     auth: {
       user: {
@@ -132,9 +139,16 @@ const buildStore = (
       organizationMemberships: options?.organizationMemberships || [],
       committees: [],
       activeOrganization: options?.activeOrganizationId
-        ? { id: options.activeOrganizationId, code: "ORG", name: "Org", organization_type: "agency" }
+        ? {
+            id: options.activeOrganizationId,
+            code: "ORG",
+            name: "Org",
+            organization_type: "agency",
+          }
         : null,
-      activeOrganizationSource: options?.activeOrganizationId ? "header" : "none",
+      activeOrganizationSource: options?.activeOrganizationId
+        ? "header"
+        : "none",
       invalidRequestedOrganizationId: "",
       loading: false,
       switchingActiveOrganization: false,
@@ -160,7 +174,10 @@ const buildStore = (
 
   return configureStore({
     reducer: {
-      auth: (state = preloadedState.auth, action: { type: string; payload?: { message?: string } }) => {
+      auth: (
+        state = preloadedState.auth,
+        action: { type: string; payload?: { message?: string } },
+      ) => {
         switch (action.type) {
           case SWITCH_ACTIVE_ORGANIZATION_PENDING:
             return {
@@ -172,7 +189,9 @@ const buildStore = (
             return {
               ...state,
               switchingActiveOrganization: false,
-              error: action.payload?.message || "Failed to update active organization",
+              error:
+                action.payload?.message ||
+                "Failed to update active organization",
             };
           default:
             return state;
@@ -225,8 +244,16 @@ describe("App government route access", () => {
   });
 
   it("allows explicit capability-bearing users to access government appointments route", async () => {
-    renderAppAt("/government/appointments", "internal", ["gams.appointment.view_internal"]);
-    expect(await screen.findByText("Mock Appointments Registry Page", {}, { timeout: 5000 })).toBeTruthy();
+    renderAppAt("/government/appointments", "internal", [
+      "gams.appointment.view_internal",
+    ]);
+    expect(
+      await screen.findByText(
+        "Mock Appointments Registry Page",
+        {},
+        { timeout: 5000 },
+      ),
+    ).toBeTruthy();
   });
 
   it("redirects applicant away from government appointments route", async () => {
@@ -235,35 +262,27 @@ describe("App government route access", () => {
   });
 
   it("allows org-admin scoped internal users to access organization dashboard route", async () => {
-    renderAppAt(
-      "/admin/org/org-1/dashboard",
-      "internal",
-      [],
-      {
-        activeOrganizationId: "org-1",
-        organizationMemberships: [
-          {
-            id: "m-1",
-            organization_id: "org-1",
-            membership_role: "registry_admin",
-            is_active: true,
-          },
-        ],
-      },
-    );
-    expect(await screen.findByText("Mock Organization Dashboard Page")).toBeTruthy();
+    renderAppAt("/admin/org/org-1/dashboard", "internal", [], {
+      activeOrganizationId: "org-1",
+      organizationMemberships: [
+        {
+          id: "m-1",
+          organization_id: "org-1",
+          membership_role: "registry_admin",
+          is_active: true,
+        },
+      ],
+    });
+    expect(
+      await screen.findByText("Mock Organization Dashboard Page"),
+    ).toBeTruthy();
   });
 
   it("redirects non-org-admin internal users away from organization dashboard route", async () => {
-    renderAppAt(
-      "/admin/org/org-1/dashboard",
-      "internal",
-      [],
-      {
-        activeOrganizationId: "org-1",
-        organizationMemberships: [],
-      },
-    );
+    renderAppAt("/admin/org/org-1/dashboard", "internal", [], {
+      activeOrganizationId: "org-1",
+      organizationMemberships: [],
+    });
     expect(await screen.findByText("Mock Dashboard Page")).toBeTruthy();
   });
 
@@ -299,10 +318,12 @@ describe("App government route access", () => {
         },
       ],
     });
-    expect(await screen.findByText("Mock Organization Setup Page")).toBeTruthy();
+    expect(
+      await screen.findByText("Mock Organization Setup Page"),
+    ).toBeTruthy();
   });
 
-  it("fails closed to organization setup when org dashboard route orgId is mismatched", async () => {
+  it("keeps org dashboard route while active organization switch resolves on orgId mismatch", async () => {
     renderAppAt("/admin/org/org-2/dashboard", "internal", [], {
       activeOrganizationId: "org-1",
       organizationMemberships: [
@@ -315,10 +336,7 @@ describe("App government route access", () => {
       ],
     });
     await waitFor(() => {
-      expect(window.location.pathname).toBe("/organization/setup");
-      expect(decodeURIComponent(window.location.search)).toContain(
-        "next=/admin/org/org-2/dashboard",
-      );
+      expect(window.location.pathname).toBe("/admin/org/org-2/dashboard");
     });
   });
 
@@ -327,7 +345,9 @@ describe("App government route access", () => {
       activeOrganizationId: "org-1",
       organizationMemberships: [],
     });
-    expect(await screen.findByText("Mock Platform Dashboard Page")).toBeTruthy();
+    expect(
+      await screen.findByText("Mock Platform Dashboard Page"),
+    ).toBeTruthy();
   });
 
   it("redirects platform admin away from organization setup routes", async () => {
@@ -335,7 +355,9 @@ describe("App government route access", () => {
       activeOrganizationId: "org-1",
       organizationMemberships: [],
     });
-    expect(await screen.findByText("Mock Platform Dashboard Page")).toBeTruthy();
+    expect(
+      await screen.findByText("Mock Platform Dashboard Page"),
+    ).toBeTruthy();
   });
 
   it("redirects platform admin away from appointment exercise routes", async () => {
@@ -343,7 +365,9 @@ describe("App government route access", () => {
       activeOrganizationId: "org-1",
       organizationMemberships: [],
     });
-    expect(await screen.findByText("Mock Platform Dashboard Page")).toBeTruthy();
+    expect(
+      await screen.findByText("Mock Platform Dashboard Page"),
+    ).toBeTruthy();
   });
 
   it("redirects platform admin away from appointment workflow routes", async () => {
@@ -351,7 +375,9 @@ describe("App government route access", () => {
       activeOrganizationId: "org-1",
       organizationMemberships: [],
     });
-    expect(await screen.findByText("Mock Platform Dashboard Page")).toBeTruthy();
+    expect(
+      await screen.findByText("Mock Platform Dashboard Page"),
+    ).toBeTruthy();
   });
 
   it("redirects retired platform analytics routes back to the platform dashboard", async () => {
@@ -359,7 +385,9 @@ describe("App government route access", () => {
       activeOrganizationId: "org-1",
       organizationMemberships: [],
     });
-    expect(await screen.findByText("Mock Platform Dashboard Page")).toBeTruthy();
+    expect(
+      await screen.findByText("Mock Platform Dashboard Page"),
+    ).toBeTruthy();
   });
 
   it("redirects retired platform registration routes back to the platform dashboard", async () => {
@@ -367,10 +395,12 @@ describe("App government route access", () => {
       activeOrganizationId: "org-1",
       organizationMemberships: [],
     });
-    expect(await screen.findByText("Mock Platform Dashboard Page")).toBeTruthy();
+    expect(
+      await screen.findByText("Mock Platform Dashboard Page"),
+    ).toBeTruthy();
   });
 
-  it("redirects legacy admin case routes away from platform admin and into org scope for org admins", async () => {
+  it("redirects legacy admin case routes to the internal dashboard for org-admin users", async () => {
     renderAppAt("/admin/cases", "internal", [], {
       activeOrganizationId: "org-1",
       organizationMemberships: [
@@ -384,11 +414,11 @@ describe("App government route access", () => {
     });
 
     await waitFor(() => {
-      expect(window.location.pathname).toBe("/admin/org/org-1/cases");
+      expect(window.location.pathname).toBe("/dashboard");
     });
   });
 
-  it("allows org-admin scoped internal users to access organization case review routes", async () => {
+  it("redirects org-admin scoped internal users away from organization case review routes", async () => {
     renderAppAt("/admin/org/org-1/cases/case-001", "internal", [], {
       activeOrganizationId: "org-1",
       organizationMemberships: [
@@ -400,7 +430,7 @@ describe("App government route access", () => {
         },
       ],
     });
-    expect(await screen.findByText("Mock Case Review Page")).toBeTruthy();
+    expect(await screen.findByText("Mock Dashboard Page")).toBeTruthy();
   });
 
   it("allows platform admins to access the platform-only organization users route", async () => {
@@ -409,7 +439,9 @@ describe("App government route access", () => {
       organizationMemberships: [],
     });
 
-    expect(await screen.findByText("Mock Organization Users Page")).toBeTruthy();
+    expect(
+      await screen.findByText("Mock Organization Users Page"),
+    ).toBeTruthy();
   });
 
   it("redirects org-admin scoped internal users away from platform admin routes", async () => {
@@ -469,4 +501,3 @@ describe("App government route access", () => {
     expect(main.className).not.toContain("xl:pl-72");
   });
 });
-

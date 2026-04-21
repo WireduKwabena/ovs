@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import { ThemeProvider } from "@/hooks/useTheme";
@@ -22,12 +29,24 @@ const renderHome = () =>
     <MemoryRouter initialEntries={["/"]}>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/organization/get-started" element={<div>Org Signup Route</div>} />
+        <Route
+          path="/organization/get-started"
+          element={<div>Org Signup Route</div>}
+        />
         <Route path="/login" element={<div>Login Route</div>} />
-        <Route path="/organization/setup" element={<div>Organization Setup Route</div>} />
-        <Route path="/admin/org/:orgId/dashboard" element={<div>Organization Dashboard Route</div>} />
+        <Route
+          path="/organization/setup"
+          element={<div>Organization Setup Route</div>}
+        />
+        <Route
+          path="/admin/org/:orgId/dashboard"
+          element={<div>Organization Dashboard Route</div>}
+        />
         <Route path="/workspace/home" element={<div>Workspace Route</div>} />
-        <Route path="/candidate/home" element={<div>Candidate Access Route</div>} />
+        <Route
+          path="/candidate/home"
+          element={<div>Candidate Access Route</div>}
+        />
         <Route path="/transparency" element={<div>Transparency Route</div>} />
         <Route path="/gazette" element={<div>Gazette Route</div>} />
       </Routes>
@@ -67,12 +86,24 @@ const renderHomeWithTheme = () =>
       <MemoryRouter initialEntries={["/"]}>
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/organization/get-started" element={<div>Org Signup Route</div>} />
+          <Route
+            path="/organization/get-started"
+            element={<div>Org Signup Route</div>}
+          />
           <Route path="/login" element={<div>Login Route</div>} />
-          <Route path="/organization/setup" element={<div>Organization Setup Route</div>} />
-          <Route path="/admin/org/:orgId/dashboard" element={<div>Organization Dashboard Route</div>} />
+          <Route
+            path="/organization/setup"
+            element={<div>Organization Setup Route</div>}
+          />
+          <Route
+            path="/admin/org/:orgId/dashboard"
+            element={<div>Organization Dashboard Route</div>}
+          />
           <Route path="/workspace/home" element={<div>Workspace Route</div>} />
-          <Route path="/candidate/home" element={<div>Candidate Access Route</div>} />
+          <Route
+            path="/candidate/home"
+            element={<div>Candidate Access Route</div>}
+          />
           <Route path="/transparency" element={<div>Transparency Route</div>} />
           <Route path="/gazette" element={<div>Gazette Route</div>} />
         </Routes>
@@ -143,7 +174,9 @@ describe("HomePage Get Started flow", () => {
     authState.canManageActiveOrganizationGovernance = false;
 
     renderHome();
-    fireEvent.click(screen.getAllByRole("button", { name: /open transparency portal/i })[0]);
+    fireEvent.click(
+      screen.getAllByRole("button", { name: /open transparency portal/i })[0],
+    );
     expect(screen.getByText("Transparency Route")).toBeTruthy();
   });
 
@@ -154,7 +187,9 @@ describe("HomePage Get Started flow", () => {
     authState.canManageActiveOrganizationGovernance = false;
 
     renderHome();
-    fireEvent.click(screen.getByRole("button", { name: /browse gazette feed/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /browse gazette feed/i }),
+    );
     expect(screen.getByText("Gazette Route")).toBeTruthy();
   });
 
@@ -165,7 +200,9 @@ describe("HomePage Get Started flow", () => {
     authState.canManageActiveOrganizationGovernance = false;
 
     renderHomeWithLocationProbe();
-    fireEvent.click(screen.getByRole("button", { name: /search published appointments/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /search published appointments/i }),
+    );
     expect(screen.getByText("Transparency Route")).toBeTruthy();
     expect(screen.getByText("Hash: #published-appointments")).toBeTruthy();
   });
@@ -182,7 +219,9 @@ describe("HomePage Get Started flow", () => {
 
     try {
       renderHome();
-      fireEvent.click(screen.getAllByRole("button", { name: /capabilities/i })[0]);
+      fireEvent.click(
+        screen.getAllByRole("button", { name: /capabilities/i })[0],
+      );
       expect(scrollIntoViewMock).toHaveBeenCalledWith({
         behavior: "smooth",
         block: "start",
@@ -229,8 +268,14 @@ describe("HomePage Get Started flow", () => {
       renderHomeAtHash("#workflow");
 
       await waitFor(() => {
-        const workflowButtons = screen.getAllByRole("button", { name: /^workflow$/i });
-        expect(workflowButtons.some((button) => button.getAttribute("aria-current") === "location")).toBe(true);
+        const workflowButtons = screen.getAllByRole("button", {
+          name: /^workflow$/i,
+        });
+        expect(
+          workflowButtons.some(
+            (button) => button.getAttribute("aria-current") === "location",
+          ),
+        ).toBe(true);
       });
     } finally {
       Element.prototype.scrollIntoView = originalScrollIntoView;
@@ -243,7 +288,11 @@ describe("HomePage Get Started flow", () => {
     authState.activeOrganizationId = null;
     authState.canManageActiveOrganizationGovernance = false;
 
-    type ObserverEntry = { target: Element; isIntersecting: boolean; intersectionRatio: number };
+    type ObserverEntry = {
+      target: Element;
+      isIntersecting: boolean;
+      intersectionRatio: number;
+    };
     const observers: Array<{
       callback: (entries: ObserverEntry[]) => void;
       observed: Element[];
@@ -256,9 +305,7 @@ describe("HomePage Get Started flow", () => {
         observed: Element[];
       };
 
-      constructor(
-        callback: (entries: ObserverEntry[]) => void,
-      ) {
+      constructor(callback: (entries: ObserverEntry[]) => void) {
         this.entry = { callback, observed: [] };
         observers.push(this.entry);
       }
@@ -268,7 +315,9 @@ describe("HomePage Get Started flow", () => {
       }
 
       unobserve(element: Element) {
-        this.entry.observed = this.entry.observed.filter((candidate) => candidate !== element);
+        this.entry.observed = this.entry.observed.filter(
+          (candidate) => candidate !== element,
+        );
       }
 
       disconnect() {
@@ -284,20 +333,30 @@ describe("HomePage Get Started flow", () => {
       renderHome();
 
       const governanceSection = screen.getByTestId("homepage-governance");
-      const sectionObserver = observers.find((observer) => observer.observed.includes(governanceSection));
+      const sectionObserver = observers.find((observer) =>
+        observer.observed.includes(governanceSection),
+      );
       expect(sectionObserver).toBeTruthy();
 
-      sectionObserver?.callback([
-        {
-          target: governanceSection,
-          isIntersecting: true,
-          intersectionRatio: 0.72,
-        },
-      ]);
+      await act(async () => {
+        sectionObserver?.callback([
+          {
+            target: governanceSection,
+            isIntersecting: true,
+            intersectionRatio: 0.72,
+          },
+        ]);
+      });
 
       await waitFor(() => {
-        const governanceButtons = screen.getAllByRole("button", { name: /^governance$/i });
-        expect(governanceButtons.some((button) => button.getAttribute("aria-current") === "location")).toBe(true);
+        const governanceButtons = screen.getAllByRole("button", {
+          name: /^governance$/i,
+        });
+        expect(
+          governanceButtons.some(
+            (button) => button.getAttribute("aria-current") === "location",
+          ),
+        ).toBe(true);
       });
     } finally {
       globalThis.IntersectionObserver = originalIntersectionObserver;
@@ -311,19 +370,37 @@ describe("HomePage Get Started flow", () => {
     authState.canManageActiveOrganizationGovernance = false;
 
     const observers: Array<{
-      callback: (entries: Array<{ target: Element; isIntersecting: boolean; intersectionRatio: number }>) => void;
+      callback: (
+        entries: Array<{
+          target: Element;
+          isIntersecting: boolean;
+          intersectionRatio: number;
+        }>,
+      ) => void;
       observed: Element[];
     }> = [];
 
     const originalIntersectionObserver = globalThis.IntersectionObserver;
     globalThis.IntersectionObserver = class {
       private readonly entry: {
-        callback: (entries: Array<{ target: Element; isIntersecting: boolean; intersectionRatio: number }>) => void;
+        callback: (
+          entries: Array<{
+            target: Element;
+            isIntersecting: boolean;
+            intersectionRatio: number;
+          }>,
+        ) => void;
         observed: Element[];
       };
 
       constructor(
-        callback: (entries: Array<{ target: Element; isIntersecting: boolean; intersectionRatio: number }>) => void,
+        callback: (
+          entries: Array<{
+            target: Element;
+            isIntersecting: boolean;
+            intersectionRatio: number;
+          }>,
+        ) => void,
       ) {
         this.entry = { callback, observed: [] };
         observers.push(this.entry);
@@ -334,7 +411,9 @@ describe("HomePage Get Started flow", () => {
       }
 
       unobserve(element: Element) {
-        this.entry.observed = this.entry.observed.filter((candidate) => candidate !== element);
+        this.entry.observed = this.entry.observed.filter(
+          (candidate) => candidate !== element,
+        );
       }
 
       disconnect() {
@@ -349,10 +428,14 @@ describe("HomePage Get Started flow", () => {
     try {
       renderHome();
 
-      const capabilitiesHeader = screen.getByTestId("homepage-capabilities-header");
+      const capabilitiesHeader = screen.getByTestId(
+        "homepage-capabilities-header",
+      );
       expect(capabilitiesHeader.className).toContain("home-reveal");
 
-      const revealObserver = observers.find((observer) => observer.observed.includes(capabilitiesHeader));
+      const revealObserver = observers.find((observer) =>
+        observer.observed.includes(capabilitiesHeader),
+      );
       expect(revealObserver).toBeTruthy();
 
       revealObserver?.callback([
@@ -364,7 +447,9 @@ describe("HomePage Get Started flow", () => {
       ]);
 
       await waitFor(() => {
-        expect(screen.getByTestId("homepage-capabilities-header").className).toContain("home-reveal-visible");
+        expect(
+          screen.getByTestId("homepage-capabilities-header").className,
+        ).toContain("home-reveal-visible");
       });
     } finally {
       globalThis.IntersectionObserver = originalIntersectionObserver;
@@ -378,8 +463,14 @@ describe("HomePage Get Started flow", () => {
     authState.canManageActiveOrganizationGovernance = false;
 
     const originalScrollY = window.scrollY;
-    const scrollHeightDescriptor = Object.getOwnPropertyDescriptor(document.documentElement, "scrollHeight");
-    const innerHeightDescriptor = Object.getOwnPropertyDescriptor(window, "innerHeight");
+    const scrollHeightDescriptor = Object.getOwnPropertyDescriptor(
+      document.documentElement,
+      "scrollHeight",
+    );
+    const innerHeightDescriptor = Object.getOwnPropertyDescriptor(
+      window,
+      "innerHeight",
+    );
 
     Object.defineProperty(document.documentElement, "scrollHeight", {
       configurable: true,
@@ -413,7 +504,11 @@ describe("HomePage Get Started flow", () => {
       });
     } finally {
       if (scrollHeightDescriptor) {
-        Object.defineProperty(document.documentElement, "scrollHeight", scrollHeightDescriptor);
+        Object.defineProperty(
+          document.documentElement,
+          "scrollHeight",
+          scrollHeightDescriptor,
+        );
       }
       if (innerHeightDescriptor) {
         Object.defineProperty(window, "innerHeight", innerHeightDescriptor);
@@ -455,9 +550,15 @@ describe("HomePage Get Started flow", () => {
     const mobileHighlightsGrid = screen.getByTestId("mobile-highlights-grid");
     expect(mobileHighlightsGrid.className).toContain("lg:hidden");
 
-    expect(screen.getByTestId("mobile-floating-highlight-1").className).toContain("home-floating-card-delay-0");
-    expect(screen.getByTestId("mobile-floating-highlight-2").className).toContain("home-floating-card-delay-1");
-    expect(screen.getByTestId("mobile-floating-highlight-3").className).toContain("home-floating-card-delay-2");
+    expect(
+      screen.getByTestId("mobile-floating-highlight-1").className,
+    ).toContain("home-floating-card-delay-0");
+    expect(
+      screen.getByTestId("mobile-floating-highlight-2").className,
+    ).toContain("home-floating-card-delay-1");
+    expect(
+      screen.getByTestId("mobile-floating-highlight-3").className,
+    ).toContain("home-floating-card-delay-2");
   });
 
   it("uses tablet-friendly grids for hero summaries, audiences, and footer", () => {
@@ -491,9 +592,15 @@ describe("HomePage Get Started flow", () => {
 
     renderHome();
 
-    expect(screen.getByTestId("homepage-section-divider-capabilities")).toBeTruthy();
-    expect(screen.getByTestId("homepage-section-divider-workflow")).toBeTruthy();
-    expect(screen.getByTestId("homepage-section-divider-governance")).toBeTruthy();
+    expect(
+      screen.getByTestId("homepage-section-divider-capabilities"),
+    ).toBeTruthy();
+    expect(
+      screen.getByTestId("homepage-section-divider-workflow"),
+    ).toBeTruthy();
+    expect(
+      screen.getByTestId("homepage-section-divider-governance"),
+    ).toBeTruthy();
     expect(screen.getByTestId("homepage-section-divider-cta")).toBeTruthy();
   });
 
@@ -510,17 +617,29 @@ describe("HomePage Get Started flow", () => {
     const governance = screen.getByTestId("homepage-governance");
     const footer = screen.getByTestId("homepage-footer");
 
-    expect(hero.className).toContain("bg-[linear-gradient(135deg,#f8fbff_0%,#e0f2fe_45%,#eef2ff_100%)]");
+    expect(hero.className).toContain(
+      "bg-[linear-gradient(135deg,#f8fbff_0%,#e0f2fe_45%,#eef2ff_100%)]",
+    );
     expect(audiences.className).toContain("rgba(248,250,252,0.96)");
     expect(governance.className).toContain("rgba(255,255,255,1)");
     expect(footer.className).toContain("bg-white");
 
-    fireEvent.click(screen.getByRole("button", { name: /switch to dark theme/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /switch to dark theme/i }),
+    );
 
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
-    expect(screen.getByTestId("homepage-hero").className).toContain("bg-slate-950");
-    expect(screen.getByTestId("homepage-audiences").className).toContain("rgba(15,23,42,0.96)");
-    expect(screen.getByTestId("homepage-governance").className).toContain("rgba(2,6,23,1)");
-    expect(screen.getByTestId("homepage-footer").className).toContain("bg-slate-950");
+    expect(screen.getByTestId("homepage-hero").className).toContain(
+      "bg-slate-950",
+    );
+    expect(screen.getByTestId("homepage-audiences").className).toContain(
+      "rgba(15,23,42,0.96)",
+    );
+    expect(screen.getByTestId("homepage-governance").className).toContain(
+      "rgba(2,6,23,1)",
+    );
+    expect(screen.getByTestId("homepage-footer").className).toContain(
+      "bg-slate-950",
+    );
   });
 });

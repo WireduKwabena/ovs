@@ -51,11 +51,15 @@ describe("CommitteeDetailPage", () => {
     vi.clearAllMocks();
   });
 
-  it("shows no committee when user cannot manage governance", () => {
+  it("shows no committee when user cannot manage governance", async () => {
     mocks.canManage = false;
     renderWithId();
-    // No loading or committee data should appear when canManage=false
-    expect(screen.queryByText(/loading/i)).toBeNull();
+    await waitFor(() =>
+      expect(
+        screen.getByText(/organization admin access required/i),
+      ).toBeTruthy(),
+    );
+    expect(mocks.getCommittee).not.toHaveBeenCalled();
     mocks.canManage = true;
   });
 

@@ -47,7 +47,12 @@ describe("OrganizationDashboardPage", () => {
   it("renders org-admin summary cards and onboarding context", async () => {
     mocks.useAuth.mockReturnValue({
       userType: "internal",
-      activeOrganization: { id: "org-1", code: "ORG1", name: "Org One", organization_type: "agency" },
+      activeOrganization: {
+        id: "org-1",
+        code: "ORG1",
+        name: "Org One",
+        organization_type: "agency",
+      },
       activeOrganizationId: "org-1",
       canManageActiveOrganizationGovernance: true,
     });
@@ -86,7 +91,14 @@ describe("OrganizationDashboardPage", () => {
         plan_name: "Growth",
         billing_cycle: "monthly",
         amount_usd: "399.00",
-        payment_method: { type: "card", display: "Card", brand: "visa", last4: "4242", exp_month: 1, exp_year: 2030 },
+        payment_method: {
+          type: "card",
+          display: "Card",
+          brand: "visa",
+          last4: "4242",
+          exp_month: 1,
+          exp_year: 2030,
+        },
         checkout_url: null,
         current_period_start: null,
         current_period_end: null,
@@ -134,10 +146,16 @@ describe("OrganizationDashboardPage", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText(/organization governance workspace/i)).toBeTruthy();
+    expect(
+      await screen.findByText(
+        /operational oversight of your organization's vetting pipeline/i,
+      ),
+    ).toBeTruthy();
     expect(await screen.findByText("4")).toBeTruthy();
     expect(await screen.findByText(/token preview/i)).toBeTruthy();
-    expect(await screen.findByRole("button", { name: /manage onboarding/i })).toBeTruthy();
+    expect(
+      await screen.findByRole("button", { name: /manage onboarding/i }),
+    ).toBeTruthy();
   });
 
   it("shows active organization requirement when context is missing", async () => {
@@ -154,13 +172,20 @@ describe("OrganizationDashboardPage", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText(/active organization required/i)).toBeTruthy();
+    expect(
+      await screen.findByText(/active organization required/i),
+    ).toBeTruthy();
   });
 
   it("surfaces billing trace links when organization billing needs attention", async () => {
     mocks.useAuth.mockReturnValue({
       userType: "internal",
-      activeOrganization: { id: "org-1", code: "ORG1", name: "Org One", organization_type: "agency" },
+      activeOrganization: {
+        id: "org-1",
+        code: "ORG1",
+        name: "Org One",
+        organization_type: "agency",
+      },
       activeOrganizationId: "org-1",
       canManageActiveOrganizationGovernance: true,
     });
@@ -201,7 +226,14 @@ describe("OrganizationDashboardPage", () => {
         plan_name: "Growth",
         billing_cycle: "monthly",
         amount_usd: "399.00",
-        payment_method: { type: "card", display: "Card", brand: "visa", last4: "4242", exp_month: 1, exp_year: 2030 },
+        payment_method: {
+          type: "card",
+          display: "Card",
+          brand: "visa",
+          last4: "4242",
+          exp_month: 1,
+          exp_year: 2030,
+        },
         checkout_url: null,
         current_period_start: null,
         current_period_end: null,
@@ -242,14 +274,22 @@ describe("OrganizationDashboardPage", () => {
     );
 
     expect(await screen.findByText(/billing needs attention/i)).toBeTruthy();
-    expect(screen.getByText(/stripe reported an invoice payment failure/i)).toBeTruthy();
-    expect(screen.getByRole("link", { name: /open payment failure trace/i }).getAttribute("href")).toBe(
+    expect(
+      screen.getByText(/stripe reported an invoice payment failure/i),
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole("link", { name: /view payment failure alerts/i })
+        .getAttribute("href"),
+    ).toBe(
       "/notifications?channel=all&event_type=billing_payment_failed&subsystem=billing",
     );
-    expect(screen.getByRole("link", { name: /open runtime error trace/i }).getAttribute("href")).toBe(
+    expect(
+      screen
+        .getByRole("link", { name: /view processing error alerts/i })
+        .getAttribute("href"),
+    ).toBe(
       "/notifications?channel=all&event_type=processing_error&subsystem=billing",
     );
   });
 });
-
-

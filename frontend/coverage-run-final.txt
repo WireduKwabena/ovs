@@ -1,0 +1,452 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.4 [39m[90mA:/projects/Django/OVS-Redo/frontend[39m
+      [2mCoverage enabled with [22m[33mv8[39m
+
+ [32mΓ£ô[39m src/pages/SubscriptionPlansPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 12105[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m starts Stripe checkout and redirects to Stripe URL [33m 3195[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m starts Paystack checkout for mobile money and redirects to Paystack URL [33m 6393[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m blocks checkout when organization context is missing [33m 2509[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/HomePage.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 26602[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes unauthenticated users to organization bootstrap signup [33m 2870[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes authenticated internal users without org context to organization setup [33m 1751[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes org-governance admins with active org to organization dashboard [33m 2235[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes non-governance internal users with active org to shared workspace [33m 1832[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes public observers to the transparency portal from the landing page [33m 2221[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes public observers to the gazette feed from the landing page [33m 2027[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes public observers to the published appointments section from the landing page [33m 2695[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m smooth scrolls to homepage sections from the top navigation [33m 3028[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m marks the requested section as active when the homepage opens with a hash [33m 2653[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m updates the active section styling when the section observer reports a new section [33m 2043[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m updates the homepage hero surface when the theme toggle is pressed [33m 2055[2mms[22m[39m
+ [32mΓ£ô[39m src/components/common/Navbar.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 26642[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m does not expose reminder runtime controls to platform admins [33m 1365[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m highlights the active navbar tab based on current route [33m 1200[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m does not poll reminder runtime for internal users [33m 327[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m keeps platform admin navigation scoped to subscriptions and organization status only [33m 2107[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hides appointment-exercise and rubrics links for applicants [33m 932[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes committee actors to shared workspace and hides campaign/rubric links without registry authority [33m 1391[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows appointment-exercise and rubrics links for internal users [33m 1638[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hides government workflow links when internal lacks workflow capabilities [33m 1430[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows government workflow links when internal has registry capability [33m 2258[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows organization admin workspace links for users with governance access [33m 8290[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hides organization admin workspace links when governance access is unavailable [33m 2274[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows audit link for internal users with audit capability [33m 1405[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hides audit link for internal users without audit capability [33m 1844[2mms[22m[39m
+ [32mΓ£ô[39m src/components/admin/Dashboard.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 7002[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m navigates to appointment registry [33m 2694[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m navigates to position registry [33m 1436[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m navigates to personnel registry [33m 1334[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders all government quick action buttons [33m 1532[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/CampaignsPage.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 7401[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hydrates list filters from URL and clears all active filters [33m 2919[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows allowed transitions for a draft campaign [33m 442[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m disables the Apply button and select for an archived campaign [33m 1314[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m calls updateStatus with correct args and reflects new status on success [33m 1579[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows error when updateStatus rejects [33m 1139[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/NotificationsPage.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 6565[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows Delete action on active list by default [33m 1893[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows Restore action when archived tab is selected [33m 1475[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m disables join action on closed meeting notifications [33m 609[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m disables join action before join window opens [33m 734[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m applies trace filters through the notifications hook [33m 800[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m copies the trace key from the notification card [33m 573[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m respects the archived trace view from the URL [33m 427[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/AuditLogsPage.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 7739[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m exports CSV and JSON when rows are available [33m 1883[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m does not export when there are no rows [33m 743[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m applies government entity type filter and refreshes rows [33m 1535[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m applies event key filter from backend catalog [33m 1438[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m filters by actor using by_user endpoint when row action is clicked [33m 1876[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/PublicGazettePage.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 6125[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hydrates gazette filters from the URL query string and calls the public endpoint with them [33m 575[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m writes and clears gazette filters in the URL query string [33m 2394[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m preserves active filters on the transparency portal link [33m 438[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m preserves active filters on published detail links [33m 977[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows next-step actions when filtered gazette results are empty [33m 711[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows recovery actions when the gazette feed cannot be loaded [33m 737[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/PublicTransparencyPage.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 8116[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders public transparency sections from safe public endpoints [33m 1738[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows a partial availability banner while still rendering available public sections [33m 1312[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m applies published appointment filters through the public search controls [33m 917[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m writes and clears published appointment filters in the URL query string [33m 1715[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m preserves active published filters on gazette links [33m 628[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m preserves active filters on published detail links [33m 843[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows next-step actions when filtered published results are empty [33m 718[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/CampaignWorkspacePage.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 7562[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m disables import submit when payload JSON is invalid [33m 2517[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m disables import submit when projected usage exceeds quota [33m 1600[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders backend quota detail when import request is rejected [33m 1238[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m updates quota badge from backend quota payload on rejected import [33m 1209[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders backend subscription-required message when no active subscription exists [33m 989[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/UserSettingsPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 3222[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows read-only subscription guidance for non-org-admin users when subscription is missing [33m 1465[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows organization administration links for authorized org admins [33m 1035[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows billing trace links when an org admin has a failing subscription [33m 714[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/NotificationDetailPage.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 3660[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows Delete for active notification and archives it [33m 1072[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows Restore for archived notification and restores it [33m 659[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m linkifies URLs inside message text [33m 372[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m disables join action until meeting join window opens [33m 311[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m copies the trace key from notification detail [33m 365[2mms[22m[39m
+ [32mΓ£ô[39m src/App.governmentRoutes.test.tsx [2m([22m[2m22 tests[22m[2m)[22m[33m 4697[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m redirects internal without role/capability grants away from government appointments route [33m 390[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m allows org-admin scoped internal users to access organization dashboard route [33m 404[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m redirects platform admin away from organization dashboard route [33m 398[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m allows platform admins to access the platform-only organization users route [33m 415[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows app navigation and content offset on internal dashboard routes [33m 522[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hides app navigation and shell offset on the homepage [33m 566[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/PublicAppointmentDetailPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 2876[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders published appointment detail from the public endpoint [33m 1512[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows a safe error message when the published detail cannot be loaded [33m 785[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m preserves current public filters on return links [33m 569[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ApplicationDetailPage.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 3672[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m calls applicationService.update with approved status on Approve click [33m 1940[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m blocks rejection without notes and shows toast error [33m 769[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hides decision actions when user cannot manage governance [33m 575[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/VideoCallsPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 3867[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m keeps the meeting action cluster in xl-only inline mode [33m 832[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m uses a two-column reschedule grid before xl [33m 3026[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/platform-admin/PlatformDashboardPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 2901[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders organization subscription oversight rows [33m 524[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m toggles organization active status [33m 2335[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/OrganizationAdminSignupPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 3277[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m uses next query path for login redirect after successful signup [33m 2476[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows API error and does not navigate on failure [33m 734[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/BackgroundChecksPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 4131[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hydrates from URL filters and clears all active filters [33m 4124[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/BillingCheckoutResultPage.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[33m 2779[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m confirms stripe session and renders success state [33m 1064[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m supports retry after failed confirmation and eventually succeeds [33m 301[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/GovernmentPersonnelPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 2029[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows read-only warning and disables create for non-registry users [33m 1169[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m enables create controls for registry operators with active organization [33m 852[2mms[22m[39m
+[90mstdout[2m | src/pages/OrganizationDashboardPage.test.tsx[2m > [22m[2mOrganizationDashboardPage[2m > [22m[2mrenders org-admin summary cards and onboarding context
+[22m[39m[api] No X-Organization-Slug found for /admin/dashboard/
+
+[90mstdout[2m | src/pages/OrganizationDashboardPage.test.tsx[2m > [22m[2mOrganizationDashboardPage[2m > [22m[2mshows active organization requirement when context is missing
+[22m[39m[api] No X-Organization-Slug found for /admin/dashboard/
+
+[90mstdout[2m | src/pages/OrganizationDashboardPage.test.tsx[2m > [22m[2mOrganizationDashboardPage[2m > [22m[2msurfaces billing trace links when organization billing needs attention
+[22m[39m[api] No X-Organization-Slug found for /admin/dashboard/
+
+ [32mΓ£ô[39m src/pages/GovernmentPositionsPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 2207[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows read-only warning and disables create for non-registry users [33m 1494[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m enables create controls for registry operators with active organization [33m 705[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/OrganizationDashboardPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 3183[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders org-admin summary cards and onboarding context [33m 2395[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m surfaces billing trace links when organization billing needs attention [33m 771[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/RubricsPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 2071[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders read-only rubric view when management permission is missing [33m 1269[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows rubric management controls for authorized actors [33m 796[2mms[22m[39m
+stderr | src/pages/ForgotPasswordPage.test.tsx
+No reducer provided for key "auth"
+
+ [32mΓ£ô[39m src/pages/AppointmentsRegistryPage.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 2558[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hides lifecycle transition controls for committee-bound records when actor lacks committee membership [33m 1179[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows lifecycle transition controls for committee members in scope [33m 644[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m uses the updated laptop-friendly stats and template grid classes [33m 308[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ForgotPasswordPage.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 2221[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders the forgot password form with email input [33m 1056[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows validation error when submitting with empty email [33m 419[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m dispatches requestPasswordReset on valid email submission [33m 424[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ApplicationsPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 1900[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m fetches admin scope as all [33m 833[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m fetches hr scope as assigned by default [33m 500[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m fetches hr scope as all when scope query is set [33m 559[2mms[22m[39m
+ [32mΓ£ô[39m src/hooks/useTheme.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 1051[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m toggles and persists theme choice [33m 782[2mms[22m[39m
+ [32mΓ£ô[39m src/components/admin/BillingHealthCard.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 1038[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders billing runtime health data with refresh button [33m 1032[2mms[22m[39m
+ [32mΓ£ô[39m src/components/billing/BillingAttentionPanel.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 1524[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m redirects to provider checkout when retry billing returns a checkout URL [33m 923[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/NotFoundPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 1355[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m calls navigate(-1) when Go Back is clicked [33m 887[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/org-admin/OrgUsersPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 1792[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hydrates URL filters and clears active user filters [33m 1785[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/EmailSentPage.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 1533[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows email-context-missing state when no email in location state [33m 841[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows check-your-inbox state when email is provided [33m 384[2mms[22m[39m
+ [32mΓ£ô[39m src/components/common/FieldHelp.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 1248[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m opens tooltip on click and closes on outside click [33m 1065[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/OrganizationCommitteesPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 1918[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders committee registry and workspace links [33m 1910[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/org-admin/OrgCasesPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 2030[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hydrates URL filters and clears active filter set [33m 2020[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/FraudInsightsPage.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 2147[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows loading state on initial render before data arrives [33m 938[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders the page heading and result sections after successful load [33m 534[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows an error message when the API call fails [33m 346[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m calls all six fraud service methods on mount [33m 314[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/BillingManagementPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 782[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m calls billingService.getHealth on mount [33m 365[2mms[22m[39m
+ [32mΓ£ô[39m src/components/admin/ReminderHealthCard.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 1076[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders a reminder trace link alongside health data [33m 1067[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ErrorPage.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 996[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows a Go Back button [33m 837[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/OrganizationSetupPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 1720[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders the create organization form for staff users [33m 1573[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/OrganizationRegistryPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 479[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/AiInfrastructurePage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 564[2mms[22m[39m
+ [32mΓ£ô[39m src/components/auth/ProtectedRoute.test.tsx [2m([22m[2m32 tests[22m[2m)[22m[33m 480[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/SystemHealthPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 954[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m calls getReminderHealth on mount [33m 509[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/OrganizationOnboardingPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 395[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders onboarding token state for org-admin users [33m 387[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/OrgDashboardPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 402[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/SecurityPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 397[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/organization/CommitteeDashboardPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 272[2mms[22m[39m
+ [32mΓ£ô[39m src/components/admin/CaseReview.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 474[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/CommitteeDetailPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 244[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/PlatformAuditLogsPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 295[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/WorkspaceHomePage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 432[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/OrganizationMembersPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 407[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders member list for org-admin users [33m 396[2mms[22m[39m
+ [32mΓ£ô[39m src/components/auth/UnauthenticatedRoute.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[32m 235[2mms[22m[39m
+stderr | src/pages/TwoFactorPage.test.tsx
+No reducer provided for key "auth"
+
+ [32mΓ£ô[39m src/pages/TwoFactorPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 239[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/DashboardPage.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 282[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/InvitationAcceptPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 368[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/RegisterPage.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 411[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/WrapperPages.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 130[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/LoginPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 79[2mms[22m[39m
+ [32mΓ£ô[39m src/utils/notificationActions.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 105[2mms[22m[39m
+ [32mΓ£ô[39m src/services/auth.service.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/candidate/CandidateHomePage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 89[2mms[22m[39m
+ [32mΓ£ô[39m src/services/subscription.service.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 46[2mms[22m[39m
+ [32mΓ£ô[39m src/services/billing.service.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32mΓ£ô[39m src/utils/csv.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 45[2mms[22m[39m
+ [32mΓ£ô[39m src/utils/json.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32mΓ£ô[39m src/services/government.service.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32mΓ£ô[39m src/services/audit.service.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32mΓ£ô[39m src/services/application.service.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32mΓ£ô[39m src/services/admin.service.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32mΓ£ô[39m src/services/campaign.service.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 15[2mms[22m[39m
+[90mstdout[2m | src/services/api.test.ts[2m > [22m[2mapi request interceptor[2m > [22m[2minjects bearer token and active organization header from store context
+[22m[39m[api] No X-Organization-Slug found for undefined
+
+[90mstdout[2m | src/services/api.test.ts[2m > [22m[2mapi request interceptor[2m > [22m[2mpreserves an explicit organization header instead of overwriting it from store context
+[22m[39m[api] No X-Organization-Slug found for undefined
+
+[90mstdout[2m | src/services/api.test.ts[2m > [22m[2mapi request interceptor[2m > [22m[2mremoves stale organization headers when no active organization context is available
+[22m[39m[api] No X-Organization-Slug found for undefined
+
+ [32mΓ£ô[39m src/services/api.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32mΓ£ô[39m src/services/governance.service.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/campaignWorkspaceQuota.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32mΓ£ô[39m src/utils/authRouting.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32mΓ£ô[39m src/services/candidate.service.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32mΓ£ô[39m src/utils/queryParams.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32mΓ£ô[39m src/utils/notificationTrace.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32mΓ£ô[39m src/utils/organizationGovernance.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m81 passed[39m[22m[90m (81)[39m
+[2m      Tests [22m [1m[32m368 passed[39m[22m[90m (368)[39m
+[2m   Start at [22m 12:38:15
+[2m   Duration [22m 235.79s[2m (transform 11.20s, setup 0ms, import 138.27s, tests 195.46s, environment 248.11s)[22m
+
+[34m % [39m[2mCoverage report from [22m[33mv8[39m
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   43.54 |    42.49 |   35.68 |   44.45 |                   
+ src               |   61.25 |    57.48 |    37.5 |    65.4 |                   
+  App.tsx          |   61.25 |    57.48 |    37.5 |    65.4 | ...1224,1233,1237 
+ src/app           |      80 |       25 |      75 |      80 |                   
+  store.ts         |      80 |       25 |      75 |      80 | 43-45,82          
+ ...mponents/admin |    36.8 |    33.54 |    30.5 |   37.47 |                   
+  Analytics.tsx    |       0 |        0 |       0 |       0 | 68-313            
+  ...Dashboard.tsx |       0 |        0 |       0 |       0 | 110-493           
+  ...ealthCard.tsx |   67.21 |    43.83 |      60 |   67.21 | ...96,104,117,157 
+  CaseReview.tsx   |   58.73 |    63.15 |   71.42 |   59.32 | ...35-236,272,512 
+  Dashboard.tsx    |   68.42 |       50 |   46.66 |   67.56 | ...94,116,211-327 
+  ...iewReview.tsx |       0 |        0 |       0 |       0 | 42-294            
+  ...tsSection.tsx |       0 |        0 |       0 |       0 | 42-176            
+  ...Analytics.tsx |       0 |        0 |       0 |       0 | 24-124            
+  ...ealthCard.tsx |      86 |    58.18 |      80 |   85.71 | ...6-78,84,97,139 
+ ...omponents/auth |   31.49 |    37.74 |   25.92 |   33.73 |                   
+  LoginForm.tsx    |       0 |        0 |       0 |       0 | 40-334            
+  ...ctedRoute.tsx |      92 |    87.34 |      80 |   93.75 | 63,106,110        
+  RegisterForm.tsx |       0 |        0 |       0 |       0 | 25-304            
+  ...atedRoute.tsx |     100 |    88.88 |     100 |     100 | 22                
+ ...nts/auth/admin |       0 |      100 |       0 |       0 |                   
+  ...isterForm.tsx |       0 |      100 |       0 |       0 | 5-6               
+ ...onents/billing |   72.22 |     64.7 |      90 |   80.32 |                   
+  ...tionPanel.tsx |   72.22 |     64.7 |      90 |   80.32 | ...10,122,126-127 
+ ...ponents/common |   50.72 |       44 |   38.28 |    52.5 |                   
+  ...rBoundary.tsx |   41.66 |    16.66 |      50 |   41.66 | 27-36,41-83       
+  ErrorDisplay.tsx |       0 |        0 |       0 |       0 | 19                
+  ErrorMessage.tsx |       0 |        0 |       0 |       0 | 11-17             
+  ...rtActions.tsx |      75 |     64.7 |     100 |      75 | 33                
+  FieldHelp.tsx    |   88.88 |    73.07 |   88.88 |   88.46 | 56-58             
+  FileUpload.tsx   |       0 |        0 |       0 |       0 | 32-301            
+  Footer.tsx       |       0 |      100 |       0 |       0 | 5-6               
+  Loader.tsx       |     100 |      100 |     100 |     100 |                   
+  Modal.tsx        |      75 |    57.14 |     100 |   66.66 | 26                
+  Navbar.tsx       |    65.1 |    54.13 |   51.56 |   64.89 | ...-759,1056-1285 
+  ProgressBar.tsx  |       0 |        0 |       0 |       0 | 11-12             
+  StatusBadge.tsx  |     100 |       50 |     100 |     100 | 31-33             
+  ThemeToggle.tsx  |     100 |    86.66 |     100 |     100 | 30,34             
+ ...ents/interview |       0 |        0 |       0 |       0 |                   
+  ...ewSession.tsx |       0 |        0 |       0 |       0 | 53-675            
+  ...tarPlayer.tsx |       0 |        0 |       0 |       0 | 15-327            
+ ...onents/layouts |   27.05 |       18 |   15.78 |   28.94 |                   
+  ...torLayout.tsx |    7.69 |        0 |       0 |    8.33 | 28-180            
+  ...minLayout.tsx |    3.12 |        0 |       0 |    3.57 | 33-206            
+  ...minLayout.tsx |   74.07 |    64.28 |      50 |   79.16 | 71,108,170-213    
+ ...ents/passwords |   39.13 |    32.67 |    28.2 |   42.62 |                   
+  ...swordForm.tsx |       0 |        0 |       0 |       0 | 16-203            
+  ...entScreen.tsx |   79.31 |    66.66 |     100 |   84.61 | 33-34,43-44       
+  ...swordForm.tsx |   83.78 |    70.83 |   88.88 |   88.23 | 51,70-72          
+  ...swordForm.tsx |       0 |        0 |       0 |       0 | 17-189            
+ ...onents/rubrics |       0 |        0 |       0 |       0 |                   
+  CriteriaCard.tsx |       0 |        0 |       0 |       0 | 16-61             
+  ...onResults.tsx |       0 |        0 |       0 |       0 | 12-118            
+  ...icBuilder.tsx |       0 |        0 |       0 |       0 | 73-841            
+  RubricList.tsx   |       0 |        0 |       0 |       0 | 12-134            
+ ...nents/security |       0 |        0 |       0 |       0 |                   
+  ...tionBadge.tsx |       0 |        0 |       0 |       0 | 10-29             
+  ...CodesCard.tsx |       0 |        0 |       0 |       0 | 16-100            
+  ...ingQrCard.tsx |       0 |        0 |       0 |       0 | 13-28             
+  ...ctorField.tsx |       0 |        0 |       0 |       0 | 25-59             
+ src/components/ui |   28.57 |       50 |      40 |   28.57 |                   
+  badge.tsx        |     100 |       75 |     100 |     100 | 36                
+  button.tsx       |     100 |      100 |     100 |     100 |                   
+  card.tsx         |   14.28 |      100 |   14.28 |   14.28 | 19-75             
+  form.tsx         |       0 |        0 |       0 |       0 | 1-146             
+  input.tsx        |     100 |      100 |     100 |     100 |                   
+  label.tsx        |     100 |      100 |     100 |     100 |                   
+  progress.tsx     |       0 |        0 |       0 |       0 | 11                
+  select.tsx       |      70 |      100 |      70 |      70 | 16,92,129         
+  textarea.tsx     |       0 |      100 |       0 |       0 | 6                 
+ src/config        |   59.25 |    34.78 |     100 |   57.69 |                   
+  env.ts           |   59.25 |    34.78 |     100 |   57.69 | 32-41,71-73       
+ src/constants     |   27.77 |        0 |      25 |   29.41 |                   
+  documentTypes.ts |   27.77 |        0 |      25 |   29.41 | 28-29,33-46       
+ src/hooks         |   22.71 |    20.96 |   21.42 |   22.61 |                   
+  ...plications.ts |       0 |        0 |       0 |       0 | 15-56             
+  useAuth.ts       |   76.81 |    71.42 |    40.9 |   78.78 | ...76,182,187,193 
+  ...Protection.ts |       0 |        0 |       0 |       0 | 7-71              
+  useInterview.ts  |       0 |        0 |       0 |       0 |                   
+  ...wWebSocket.ts |       0 |        0 |       0 |       0 | 19-412            
+  ...ifications.ts |       0 |        0 |       0 |       0 | 14-81             
+  useTheme.tsx     |   91.66 |    70.96 |   85.71 |   91.48 | 41,65,71,80       
+  useUser.ts       |       0 |      100 |       0 |       0 | 10-17             
+  ...actorInput.ts |       0 |        0 |       0 |       0 | 30-95             
+ src/lib           |     100 |      100 |     100 |     100 |                   
+  utils.ts         |     100 |      100 |     100 |     100 |                   
+ src/pages         |   52.94 |     49.3 |   44.48 |   54.32 |                   
+  ...etailPage.tsx |   53.73 |    44.82 |   30.76 |   56.25 | ...43,147,156-444 
+  ...tionsPage.tsx |   47.87 |     46.9 |   36.84 |   47.87 | ...93,249-298,441 
+  ...istryPage.tsx |   48.96 |    39.57 |    41.5 |   51.54 | ...1915,1941-2237 
+  ...tLogsPage.tsx |   78.73 |    64.16 |   75.43 |   77.16 | ...65,499-517,603 
+  ...hecksPage.tsx |   55.72 |     42.5 |   50.84 |   55.55 | ...11-644,720-751 
+  ...esultPage.tsx |   74.86 |    68.42 |      75 |   81.13 | ...85,350,404-411 
+  ...spacePage.tsx |   49.51 |    38.79 |   36.58 |      50 | ...19-609,721-881 
+  ...aignsPage.tsx |   68.53 |    68.07 |      56 |   70.23 | ...35,570-760,901 
+  ...ccessPage.tsx |       0 |        0 |       0 |       0 | 30-855            
+  ...swordPage.tsx |     100 |      100 |     100 |     100 |                   
+  ...etailPage.tsx |   40.26 |    39.31 |   20.45 |   40.68 | ...18-337,379-664 
+  ...boardPage.tsx |   88.23 |       64 |     100 |   88.23 | 31,67             
+  ...lSentPage.tsx |     100 |      100 |     100 |     100 |                   
+  ErrorPage.tsx    |      80 |      100 |   66.66 |   77.77 | 12-14             
+  ...swordPage.tsx |     100 |      100 |     100 |     100 |                   
+  ...ightsPage.tsx |   81.48 |    68.18 |   46.66 |   80.39 | 127-129,146-341   
+  ...onnelPage.tsx |    37.5 |    40.67 |   18.75 |   43.47 | ...07-113,137-292 
+  ...tionsPage.tsx |   38.82 |    42.59 |      20 |    45.2 | ...54-235,248-343 
+  HomePage.tsx     |   92.68 |    94.44 |   93.87 |   92.42 | ...6-327,649,1096 
+  ...cceptPage.tsx |   75.86 |    61.11 |     100 |   74.07 | 20-22,25,32-34    
+  LoginPage.tsx    |     100 |      100 |     100 |     100 |                   
+  NotFoundPage.tsx |     100 |      100 |     100 |     100 |                   
+  ...etailPage.tsx |   77.98 |    74.33 |      95 |   77.77 | ...97,212,243,409 
+  ...tionsPage.tsx |   66.66 |    69.48 |      60 |   67.42 | ...97-443,581-650 
+  ...ignupPage.tsx |   79.31 |    61.76 |   94.11 |   87.75 | ...1-72,77-78,246 
+  ...tteesPage.tsx |   44.28 |       50 |      25 |   47.24 | ...84-414,435-503 
+  ...boardPage.tsx |       0 |        0 |       0 |       0 |                   
+  ...mbersPage.tsx |   48.57 |    51.16 |   26.66 |      50 | ...50-258,304-394 
+  ...rdingPage.tsx |   29.26 |    35.11 |   11.76 |      32 | ...57-265,307-534 
+  ...SetupPage.tsx |   36.66 |    16.66 |      25 |   39.62 | ...02-116,146-189 
+  ...etailPage.tsx |   77.77 |    66.66 |   57.14 |   77.77 | ...0,62-64,94-116 
+  ...zettePage.tsx |   89.87 |    71.15 |      88 |   88.88 | ...22,127,164,252 
+  ...rencyPage.tsx |   79.43 |    65.68 |   65.71 |   84.44 | ...24,443,489,530 
+  RegisterPage.tsx |   71.23 |    52.45 |   71.42 |   73.23 | ...97-101,119-120 
+  ...swordPage.tsx |     100 |      100 |     100 |     100 |                   
+  ...ilderPage.tsx |     100 |      100 |     100 |     100 |                   
+  RubricsPage.tsx  |   48.21 |    60.52 |   35.29 |   49.09 | ...07-160,219-266 
+  SecurityPage.tsx |   41.17 |     42.5 |   33.33 |   41.17 | ...38,163,249-275 
+  ...PlansPage.tsx |   57.27 |    50.62 |   67.56 |   60.51 | ...88,510-616,642 
+  ...actorPage.tsx |   45.09 |    30.95 |      70 |      44 | ...12,119-123,201 
+  ...tingsPage.tsx |   52.34 |    53.28 |      25 |    54.6 | ...61,266,333-824 
+  ...CallsPage.tsx |    26.3 |     20.6 |   16.27 |   27.38 | ...1654,1675-2054 
+  ...spaceQuota.ts |   95.74 |       80 |     100 |   95.74 | 37,89             
+  ...ncyHelpers.ts |   96.29 |    91.66 |     100 |   96.29 | 26                
+ ...ages/candidate |     100 |      100 |     100 |     100 |                   
+  ...eHomePage.tsx |     100 |      100 |     100 |     100 |                   
+ ...ages/org-admin |   59.81 |    53.06 |   45.31 |   62.88 |                   
+  OrgCasesPage.tsx |   66.66 |     55.1 |   68.42 |   69.35 | ...34,151,169,221 
+  ...boardPage.tsx |   72.91 |    62.68 |    37.5 |   73.91 | ...76-241,333-485 
+  OrgUsersPage.tsx |   48.45 |    43.75 |   34.48 |   52.32 | ...23,245,349-396 
+ ...s/organization |   68.42 |    64.28 |   44.44 |   68.42 |                   
+  ...boardPage.tsx |   68.42 |    64.28 |   44.44 |   68.42 | 32-40,58,107-120  
+ ...platform-admin |   77.36 |    65.38 |    66.1 |   78.73 |                   
+  ...cturePage.tsx |    91.3 |    73.68 |   83.33 |    90.9 | 43,80             
+  ...ementPage.tsx |      85 |     86.2 |      80 |   84.21 | 25,31,63          
+  ...istryPage.tsx |   61.76 |       55 |   53.84 |   65.62 | ...56,128,190-199 
+  ...tLogsPage.tsx |   57.89 |    21.42 |      30 |   61.76 | ...9,63-67,84-135 
+  ...boardPage.tsx |   88.23 |    72.09 |   84.21 |   86.95 | ...,48,68,110,322 
+  ...ealthPage.tsx |    87.5 |    88.23 |   66.66 |   90.47 | 23,62             
+ ...ages/workspace |   80.76 |    68.18 |      50 |   79.16 |                   
+  ...eHomePage.tsx |   80.76 |    68.18 |      50 |   79.16 | 45,51,133-207     
+ src/services      |   26.51 |    25.73 |    18.5 |    26.7 |                   
+  admin.service.ts |   47.45 |       50 |   41.66 |   47.45 | ...41,149-153,170 
+  ...or.service.ts |       0 |        0 |       0 |       0 | 10-75             
+  api.ts           |   51.08 |    54.09 |   23.52 |   54.11 | ...04-205,225-229 
+  ...on.service.ts |   60.14 |    48.14 |   53.33 |   60.74 | ...91,415,424-463 
+  audit.service.ts |   72.22 |    69.23 |   77.77 |   72.22 | 46,57,73-86       
+  auth.schemas.ts  |   78.94 |       50 |   33.33 |   78.94 | 155,189-192       
+  auth.service.ts  |    9.72 |      100 |   10.52 |    9.72 | ...85,200,219-309 
+  ...ck.service.ts |       0 |        0 |       0 |       0 | 11-89             
+  ...ng.service.ts |   52.94 |      100 |   27.27 |   52.94 | ...87-191,195-196 
+  ...gn.service.ts |    7.69 |        0 |    8.33 |    7.69 | ...6,61-85,99-142 
+  ...te.service.ts |    8.47 |        0 |    6.66 |    8.47 | 11-14,21,28-153   
+  fraud.service.ts |       0 |        0 |       0 |       0 | 13-149            
+  ...ce.service.ts |    42.1 |        0 |   10.52 |    42.1 | ...15-219,223-226 
+  ...nt.service.ts |   37.85 |    52.08 |   36.11 |   37.85 | ...11-442,457-524 
+  ...ew.service.ts |       0 |        0 |       0 |       0 | 78-407            
+  ...on.service.ts |       0 |        0 |       0 |       0 | 26-107            
+  ...ng.service.ts |       0 |        0 |       0 |       0 | 4-63              
+  ...on.service.ts |    7.89 |        0 |       0 |    7.89 | ...6,30-43,73-150 
+  ...ic.service.ts |    2.22 |        0 |       0 |    2.22 | 12-15,21-241      
+  ...on.service.ts |   29.22 |    10.31 |   21.87 |   30.13 | ...64-386,394-424 
+  ...ll.service.ts |       0 |        0 |       0 |       0 | 17-237            
+ src/store         |   12.65 |     0.84 |     4.6 |   13.23 |                   
+  ...ationSlice.ts |      20 |     6.25 |   14.28 |      20 | ...43-144,150-154 
+  authSlice.ts     |    9.51 |        0 |     1.2 |    9.97 | ...50-679,687-966 
+  errorSlice.ts    |   66.66 |      100 |   33.33 |      75 | 23-24             
+  ...rviewSlice.ts |   11.11 |        0 |       0 |      12 | 27-74             
+  ...ationSlice.ts |   14.58 |        0 |    4.76 |   15.55 | ...8,58-68,73-124 
+  rubricSlice.ts   |      24 |        0 |      10 |      24 | ...32-35,45,51-72 
+ src/types         |       0 |        0 |       0 |       0 |                   
+  index.ts         |       0 |        0 |       0 |       0 |                   
+  ...view.types.ts |       0 |        0 |       0 |       0 |                   
+ src/utils         |   75.99 |    68.82 |   80.43 |   77.85 |                   
+  apiError.ts      |   60.93 |       54 |   83.33 |   61.29 | ...1,46,58-85,107 
+  appPaths.ts      |   94.44 |       75 |     100 |   94.44 | 23                
+  authRouting.ts   |     100 |      100 |     100 |     100 |                   
+  authUtils.ts     |     100 |       80 |     100 |     100 | 20,36             
+  ...gAttention.ts |      75 |    66.66 |     100 |      75 | 14,37,47,57       
+  constants.ts     |     100 |      100 |     100 |     100 |                   
+  csv.ts           |     100 |      100 |     100 |     100 |                   
+  frontendAuthz.ts |   73.07 |       50 |      40 |   79.16 | 56,63,70-73       
+  helper.ts        |   15.25 |        5 |      25 |      18 | ...0-71,79,83-125 
+  json.ts          |     100 |      100 |     100 |     100 |                   
+  ...ionActions.ts |   89.05 |    78.57 |   95.23 |   89.47 | ...16,238,272,297 
+  ...ationTrace.ts |     100 |    94.73 |     100 |     100 | 42                
+  ...Governance.ts |   88.57 |    55.88 |   88.88 |   87.87 | 57,60,85-89       
+  queryParams.ts   |     100 |      100 |     100 |     100 |                   
+  ...tionAccess.ts |       0 |        0 |       0 |       0 |                   
+  userDisplay.ts   |      80 |    60.71 |     100 |   84.21 | 24-28             
+  validators.ts    |       0 |      100 |     100 |       0 | 4-74              
+-------------------|---------|----------|---------|---------|-------------------
+ERROR: Coverage for functions (35.68%) does not meet global threshold (40%)

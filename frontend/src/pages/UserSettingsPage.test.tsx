@@ -13,7 +13,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("react-redux", async () => {
-  const actual = await vi.importActual<typeof import("react-redux")>("react-redux");
+  const actual =
+    await vi.importActual<typeof import("react-redux")>("react-redux");
   return {
     ...actual,
     useDispatch: () => mocks.dispatch,
@@ -59,6 +60,9 @@ describe("UserSettingsPage billing empty-state", () => {
     mocks.useAuth.mockReturnValue({
       userType: "internal",
       canManageActiveOrganizationGovernance: false,
+      hasRole: vi.fn(() => false),
+      isOrgAdmin: false,
+      isPlatformAdmin: false,
       organizations: [],
       activeOrganization: null,
       activeOrganizationId: null,
@@ -91,18 +95,34 @@ describe("UserSettingsPage billing empty-state", () => {
       </MemoryRouter>,
     );
 
+    expect(await screen.findByText(/account settings/i)).toBeTruthy();
+    expect(mocks.getSubscriptionManagement).not.toHaveBeenCalled();
     expect(
-      await screen.findByText(/subscription management is restricted to organization admins/i),
-    ).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /open organization billing/i })).toBeNull();
+      screen.queryByRole("button", { name: /open organization billing/i }),
+    ).toBeNull();
   });
 
   it("shows organization administration links for authorized org admins", async () => {
     mocks.useAuth.mockReturnValue({
       userType: "internal",
       canManageActiveOrganizationGovernance: true,
-      organizations: [{ id: "org-1", code: "ORG1", name: "Org One", organization_type: "agency" }],
-      activeOrganization: { id: "org-1", code: "ORG1", name: "Org One", organization_type: "agency" },
+      hasRole: vi.fn((role: string) => role === "registry_admin"),
+      isOrgAdmin: true,
+      isPlatformAdmin: false,
+      organizations: [
+        {
+          id: "org-1",
+          code: "ORG1",
+          name: "Org One",
+          organization_type: "agency",
+        },
+      ],
+      activeOrganization: {
+        id: "org-1",
+        code: "ORG1",
+        name: "Org One",
+        organization_type: "agency",
+      },
       activeOrganizationId: "org-1",
       user: {
         id: "user-1",
@@ -132,17 +152,40 @@ describe("UserSettingsPage billing empty-state", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole("button", { name: /open organization billing/i })).toBeTruthy();
-    expect(await screen.findByText(/organization administration/i)).toBeTruthy();
-    expect(await screen.findByRole("button", { name: /open organization dashboard/i })).toBeTruthy();
+    expect(
+      await screen.findByRole("button", { name: /open organization billing/i }),
+    ).toBeTruthy();
+    expect(
+      await screen.findByText(/organization administration/i),
+    ).toBeTruthy();
+    expect(
+      await screen.findByRole("button", {
+        name: /open organization dashboard/i,
+      }),
+    ).toBeTruthy();
   });
 
   it("shows billing trace links when an org admin has a failing subscription", async () => {
     mocks.useAuth.mockReturnValue({
       userType: "internal",
       canManageActiveOrganizationGovernance: true,
-      organizations: [{ id: "org-1", code: "ORG1", name: "Org One", organization_type: "agency" }],
-      activeOrganization: { id: "org-1", code: "ORG1", name: "Org One", organization_type: "agency" },
+      hasRole: vi.fn((role: string) => role === "registry_admin"),
+      isOrgAdmin: true,
+      isPlatformAdmin: false,
+      organizations: [
+        {
+          id: "org-1",
+          code: "ORG1",
+          name: "Org One",
+          organization_type: "agency",
+        },
+      ],
+      activeOrganization: {
+        id: "org-1",
+        code: "ORG1",
+        name: "Org One",
+        organization_type: "agency",
+      },
       activeOrganizationId: "org-1",
       user: {
         id: "user-1",
@@ -174,7 +217,14 @@ describe("UserSettingsPage billing empty-state", () => {
         plan_name: "Growth",
         billing_cycle: "monthly",
         amount_usd: "399.00",
-        payment_method: { type: "card", display: "Card", brand: "visa", last4: "4242", exp_month: 1, exp_year: 2030 },
+        payment_method: {
+          type: "card",
+          display: "Card",
+          brand: "visa",
+          last4: "4242",
+          exp_month: 1,
+          exp_year: 2030,
+        },
         checkout_url: null,
         current_period_start: null,
         current_period_end: null,
@@ -203,13 +253,22 @@ describe("UserSettingsPage billing empty-state", () => {
     );
 
     expect(await screen.findByText(/billing needs attention/i)).toBeTruthy();
-    expect(screen.getByText(/paystack reported a payment failure event/i)).toBeTruthy();
-    expect(screen.getByRole("link", { name: /open payment failure trace/i }).getAttribute("href")).toBe(
+    expect(
+      screen.getByText(/paystack reported a payment failure event/i),
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole("link", { name: /open payment failure trace/i })
+        .getAttribute("href"),
+    ).toBe(
       "/notifications?channel=all&event_type=billing_payment_failed&subsystem=billing",
     );
-    expect(screen.getByRole("link", { name: /open runtime error trace/i }).getAttribute("href")).toBe(
+    expect(
+      screen
+        .getByRole("link", { name: /open runtime error trace/i })
+        .getAttribute("href"),
+    ).toBe(
       "/notifications?channel=all&event_type=processing_error&subsystem=billing",
     );
   });
 });
-

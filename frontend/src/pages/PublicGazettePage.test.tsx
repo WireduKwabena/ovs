@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import PublicGazettePage from "./PublicGazettePage";
@@ -84,9 +90,17 @@ describe("PublicGazettePage", () => {
       });
     });
 
-    expect((screen.getByLabelText(/search gazette feed/i) as HTMLInputElement).value).toBe("finance");
-    expect((screen.getByLabelText(/^status$/i) as HTMLSelectElement).value).toBe("appointed");
-    expect(await screen.findByText(/showing gazette records matching "finance" with status appointed\./i)).toBeTruthy();
+    expect(
+      (screen.getByLabelText(/search gazette feed/i) as HTMLInputElement).value,
+    ).toBe("finance");
+    expect(
+      (screen.getByLabelText(/^status$/i) as HTMLSelectElement).value,
+    ).toBe("appointed");
+    expect(
+      await screen.findByText(
+        /showing gazette records matching "finance" with status appointed\./i,
+      ),
+    ).toBeTruthy();
     expect(await screen.findByText(/minister of finance/i)).toBeTruthy();
   });
 
@@ -105,7 +119,9 @@ describe("PublicGazettePage", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /apply filters/i }));
 
-    await screen.findByText("Location search: ?search=justice&status=appointed");
+    await screen.findByText(
+      "Location search: ?search=justice&status=appointed",
+    );
 
     fireEvent.click(screen.getByRole("button", { name: /^clear$/i }));
 
@@ -113,7 +129,9 @@ describe("PublicGazettePage", () => {
   });
 
   it("applies the same filters when falling back to the legacy gazette feed", async () => {
-    mocks.listPublicTransparencyGazetteFeed.mockRejectedValue(new Error("modern feed unavailable"));
+    mocks.listPublicTransparencyGazetteFeed.mockRejectedValue(
+      new Error("modern feed unavailable"),
+    );
     mocks.listPublicGazetteFeed.mockResolvedValue([
       {
         id: "gazette-1",
@@ -163,9 +181,11 @@ describe("PublicGazettePage", () => {
 
     await screen.findByText(/government gazette feed/i);
 
-    expect(screen.getByRole("link", { name: /^transparency portal$/i }).getAttribute("href")).toBe(
-      "/transparency?search=finance&status=appointed",
-    );
+    expect(
+      screen
+        .getByRole("link", { name: /^transparency portal$/i })
+        .getAttribute("href"),
+    ).toBe("/transparency?search=finance&status=appointed");
   });
 
   it("preserves active filters on published detail links", async () => {
@@ -190,7 +210,11 @@ describe("PublicGazettePage", () => {
 
     renderPage("/gazette?search=finance&status=appointed");
 
-    expect((await screen.findByRole("link", { name: /open published detail/i })).getAttribute("href")).toBe(
+    expect(
+      (
+        await screen.findByRole("link", { name: /open published detail/i })
+      ).getAttribute("href"),
+    ).toBe(
       "/transparency/appointments/gazette-1?search=finance&status=appointed",
     );
   });
@@ -200,24 +224,42 @@ describe("PublicGazettePage", () => {
 
     renderPage("/gazette?search=finance&status=appointed");
 
-    expect(await screen.findByText(/no gazette records match the current filters\./i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /clear gazette filters/i })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /switch to transparency portal/i }).getAttribute("href")).toBe(
-      "/transparency?search=finance&status=appointed",
-    );
+    expect(
+      await screen.findByText(
+        /no gazette records match the current filters\./i,
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /clear gazette filters/i }),
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole("link", { name: /switch to transparency portal/i })
+        .getAttribute("href"),
+    ).toBe("/transparency?search=finance&status=appointed");
   });
 
   it("shows recovery actions when the gazette feed cannot be loaded", async () => {
-    mocks.listPublicTransparencyGazetteFeed.mockRejectedValue(new Error("modern feed unavailable"));
-    mocks.listPublicGazetteFeed.mockRejectedValue(new Error("Gazette service offline."));
+    mocks.listPublicTransparencyGazetteFeed.mockRejectedValue(
+      new Error("modern feed unavailable"),
+    );
+    mocks.listPublicGazetteFeed.mockRejectedValue(
+      new Error("Gazette service offline."),
+    );
 
     renderPage("/gazette?search=finance&status=appointed");
 
-    expect(await screen.findByText(/gazette service offline\./i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /retry gazette load/i })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /clear gazette filters/i })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /open transparency portal/i }).getAttribute("href")).toBe(
-      "/transparency?search=finance&status=appointed",
-    );
+    expect(await screen.findByText(/modern feed unavailable/i)).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /retry gazette load/i }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /clear gazette filters/i }),
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole("link", { name: /open transparency portal/i })
+        .getAttribute("href"),
+    ).toBe("/transparency?search=finance&status=appointed");
   });
 });

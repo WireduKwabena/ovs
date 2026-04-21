@@ -15,7 +15,8 @@ from apps.core.policies.appointment_policy import (
 )
 from apps.core.policies.audit_policy import can_view_audit
 from apps.core.policies.registry_policy import can_manage_registry
-from apps.governance.models import Committee, CommitteeMembership, Organization, OrganizationMembership
+from apps.governance.models import Committee, CommitteeMembership, OrganizationMembership
+from apps.tenants.models import Organization
 
 
 class PolicyEngineTests(TestCase):

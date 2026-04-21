@@ -8,6 +8,7 @@ import PlatformDashboardPage from "./PlatformDashboardPage";
 const mocks = vi.hoisted(() => ({
   listPlatformOrganizations: vi.fn(),
   updatePlatformOrganizationStatus: vi.fn(),
+  getRecentActivity: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
 }));
@@ -16,6 +17,12 @@ vi.mock("@/services/governance.service", () => ({
   governanceService: {
     listPlatformOrganizations: mocks.listPlatformOrganizations,
     updatePlatformOrganizationStatus: mocks.updatePlatformOrganizationStatus,
+  },
+}));
+
+vi.mock("@/services/audit.service", () => ({
+  auditService: {
+    getRecentActivity: mocks.getRecentActivity,
   },
 }));
 
@@ -36,6 +43,7 @@ describe("PlatformDashboardPage", () => {
   });
 
   it("renders organization subscription oversight rows", async () => {
+    mocks.getRecentActivity.mockResolvedValue([]);
     mocks.listPlatformOrganizations.mockResolvedValue({
       count: 2,
       results: [
@@ -88,6 +96,7 @@ describe("PlatformDashboardPage", () => {
   });
 
   it("toggles organization active status", async () => {
+    mocks.getRecentActivity.mockResolvedValue([]);
     mocks.listPlatformOrganizations.mockResolvedValue({
       count: 1,
       results: [
@@ -118,12 +127,17 @@ describe("PlatformDashboardPage", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: /deactivate organization/i }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: /deactivate organization/i }),
+    );
 
     await waitFor(() => {
-      expect(mocks.updatePlatformOrganizationStatus).toHaveBeenCalledWith("org-1", {
-        is_active: false,
-      });
+      expect(mocks.updatePlatformOrganizationStatus).toHaveBeenCalledWith(
+        "org-1",
+        {
+          is_active: false,
+        },
+      );
     });
 
     const reactivateButtons = await screen.findAllByRole("button", {

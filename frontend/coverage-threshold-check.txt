@@ -1,0 +1,184 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.4 [39m[90mA:/projects/Django/OVS-Redo/frontend[39m
+      [2mCoverage enabled with [22m[33mv8[39m
+
+ [32mΓ£ô[39m src/pages/SubscriptionPlansPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 13860[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m starts Stripe checkout and redirects to Stripe URL [33m 4226[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m starts Paystack checkout for mobile money and redirects to Paystack URL [33m 7289[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m blocks checkout when organization context is missing [33m 2336[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/HomePage.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 27039[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes unauthenticated users to organization bootstrap signup [33m 3806[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes authenticated internal users without org context to organization setup [33m 2697[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes org-governance admins with active org to organization dashboard [33m 1892[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes non-governance internal users with active org to shared workspace [33m 1752[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes public observers to the transparency portal from the landing page [33m 1758[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes public observers to the gazette feed from the landing page [33m 2322[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes public observers to the published appointments section from the landing page [33m 2014[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m smooth scrolls to homepage sections from the top navigation [33m 2289[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m marks the requested section as active when the homepage opens with a hash [33m 2728[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m updates the active section styling when the section observer reports a new section [33m 2512[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m updates the homepage hero surface when the theme toggle is pressed [33m 1923[2mms[22m[39m
+ [32mΓ£ô[39m src/components/common/Navbar.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 27014[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m does not expose reminder runtime controls to platform admins [33m 1180[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m highlights the active navbar tab based on current route [33m 2104[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m does not poll reminder runtime for internal users [33m 675[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m keeps platform admin navigation scoped to subscriptions and organization status only [33m 2507[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hides appointment-exercise and rubrics links for applicants [33m 928[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m routes committee actors to shared workspace and hides campaign/rubric links without registry authority [33m 1199[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows appointment-exercise and rubrics links for internal users [33m 1401[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hides government workflow links when internal lacks workflow capabilities [33m 1226[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows government workflow links when internal has registry capability [33m 2630[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows organization admin workspace links for users with governance access [33m 7013[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hides organization admin workspace links when governance access is unavailable [33m 2631[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows audit link for internal users with audit capability [33m 1420[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hides audit link for internal users without audit capability [33m 1836[2mms[22m[39m
+ [32mΓ£ô[39m src/components/admin/Dashboard.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 6899[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m navigates to appointment registry [33m 2825[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m navigates to position registry [33m 1465[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m navigates to personnel registry [33m 1257[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders all government quick action buttons [33m 1344[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/PublicTransparencyPage.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 7923[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders public transparency sections from safe public endpoints [33m 2314[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows a partial availability banner while still rendering available public sections [33m 1194[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m applies published appointment filters through the public search controls [33m 1252[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m writes and clears published appointment filters in the URL query string [33m 1427[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m preserves active published filters on gazette links [33m 505[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m preserves active filters on published detail links [33m 530[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows next-step actions when filtered published results are empty [33m 504[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/AuditLogsPage.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 8788[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m exports CSV and JSON when rows are available [33m 2428[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m does not export when there are no rows [33m 854[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m applies government entity type filter and refreshes rows [33m 1763[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m applies event key filter from backend catalog [33m 1485[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m filters by actor using by_user endpoint when row action is clicked [33m 2020[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/CampaignsPage.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 7953[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hydrates list filters from URL and clears all active filters [33m 3897[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m disables the Apply button and select for an archived campaign [33m 1236[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m calls updateStatus with correct args and reflects new status on success [33m 1225[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows error when updateStatus rejects [33m 1307[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/NotificationDetailPage.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 8134[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows Delete for active notification and archives it [33m 2714[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows Restore for archived notification and restores it [33m 971[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m linkifies URLs inside message text [33m 720[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m disables join action when meeting has already closed [33m 825[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m disables join action until meeting join window opens [33m 744[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m copies the trace key from notification detail [33m 844[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m builds an open trace view link with prefilled filters [33m 809[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m preserves subsystem scope in the open trace view link [33m 440[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/CampaignWorkspacePage.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 6645[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m disables import submit when payload JSON is invalid [33m 3104[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m disables import submit when projected usage exceeds quota [33m 966[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders backend quota detail when import request is rejected [33m 875[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m updates quota badge from backend quota payload on rejected import [33m 948[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders backend subscription-required message when no active subscription exists [33m 738[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/NotificationsPage.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 7785[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows Delete action on active list by default [33m 2745[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows Restore action when archived tab is selected [33m 1998[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m disables join action on closed meeting notifications [33m 628[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m disables join action before join window opens [33m 622[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m applies trace filters through the notifications hook [33m 703[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m copies the trace key from the notification card [33m 562[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m respects the archived trace view from the URL [33m 453[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ApplicationDetailPage.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 5083[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m calls applicationService.update with approved status on Approve click [33m 2522[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m blocks rejection without notes and shows toast error [33m 1300[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hides decision actions when user cannot manage governance [33m 850[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/PublicGazettePage.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 5041[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hydrates gazette filters from the URL query string and calls the public endpoint with them [33m 551[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m writes and clears gazette filters in the URL query string [33m 1998[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m preserves active filters on the transparency portal link [33m 399[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m preserves active filters on published detail links [33m 767[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows next-step actions when filtered gazette results are empty [33m 615[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows recovery actions when the gazette feed cannot be loaded [33m 584[2mms[22m[39m
+ [32mΓ£ô[39m src/App.governmentRoutes.test.tsx [2m([22m[2m22 tests[22m[2m)[22m[33m 5523[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m redirects internal without role/capability grants away from government appointments route [33m 357[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m allows org-admin scoped internal users to access organization dashboard route [33m 366[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m redirects platform admin away from organization dashboard route [33m 493[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m allows platform admins to access the platform-only organization users route [33m 433[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows app navigation and content offset on internal dashboard routes [33m 784[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hides app navigation and shell offset on the homepage [33m 642[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/VideoCallsPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 4821[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m keeps the meeting action cluster in xl-only inline mode [33m 685[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m uses a two-column reschedule grid before xl [33m 4123[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/OrganizationAdminSignupPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 3183[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m uses next query path for login redirect after successful signup [33m 1984[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows API error and does not navigate on failure [33m 1013[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/UserSettingsPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 4700[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows read-only subscription guidance for non-org-admin users when subscription is missing [33m 1510[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows organization administration links for authorized org admins [33m 1653[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows billing trace links when an org admin has a failing subscription [33m 1528[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/AppointmentsRegistryPage.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 3116[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hides lifecycle transition controls for committee-bound records when actor lacks committee membership [33m 1550[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows lifecycle transition controls for committee members in scope [33m 847[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/BackgroundChecksPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 4354[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hydrates from URL filters and clears all active filters [33m 4347[2mms[22m[39m
+[90mstdout[2m | src/pages/OrganizationDashboardPage.test.tsx[2m > [22m[2mOrganizationDashboardPage[2m > [22m[2mrenders org-admin summary cards and onboarding context
+[22m[39m[api] No X-Organization-Slug found for /admin/dashboard/
+
+ [32mΓ£ô[39m src/pages/GovernmentPositionsPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 2443[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows read-only warning and disables create for non-registry users [33m 1635[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m enables create controls for registry operators with active organization [33m 801[2mms[22m[39m
+[90mstdout[2m | src/pages/OrganizationDashboardPage.test.tsx[2m > [22m[2mOrganizationDashboardPage[2m > [22m[2mshows active organization requirement when context is missing
+[22m[39m[api] No X-Organization-Slug found for /admin/dashboard/
+
+[90mstdout[2m | src/pages/OrganizationDashboardPage.test.tsx[2m > [22m[2mOrganizationDashboardPage[2m > [22m[2msurfaces billing trace links when organization billing needs attention
+[22m[39m[api] No X-Organization-Slug found for /admin/dashboard/
+
+ [32mΓ£ô[39m src/pages/GovernmentPersonnelPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 1790[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows read-only warning and disables create for non-registry users [33m 1258[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m enables create controls for registry operators with active organization [33m 525[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/OrganizationDashboardPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 3598[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders org-admin summary cards and onboarding context [33m 2893[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m surfaces billing trace links when organization billing needs attention [33m 674[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/BillingCheckoutResultPage.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[33m 4843[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m confirms stripe session and renders success state [33m 2036[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders registration-specific success guidance when checkout returns to register [33m 594[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders admin registration-specific success guidance when checkout returns to admin register [33m 408[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m supports retry after failed confirmation and eventually succeeds [33m 491[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows Resume Checkout link when backend returns checkout_url on confirmation failure [33m 617[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/FraudInsightsPage.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 2263[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows loading state on initial render before data arrives [33m 554[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders the page heading and result sections after successful load [33m 817[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows an error message when the API call fails [33m 521[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m calls all six fraud service methods on mount [33m 364[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/platform-admin/PlatformDashboardPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 2768[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders organization subscription oversight rows [33m 999[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m toggles organization active status [33m 1761[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/PublicAppointmentDetailPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 3811[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders published appointment detail from the public endpoint [33m 2169[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows a safe error message when the published detail cannot be loaded [33m 918[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m preserves current public filters on return links [33m 715[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/RubricsPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 3923[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders read-only rubric view when management permission is missing [33m 2250[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows rubric management controls for authorized actors [33m 1664[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/org-admin/OrgCasesPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 2063[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hydrates URL filters and clears active filter set [33m 2056[2mms[22m[39m
+ [32mΓ£ô[39m src/components/billing/BillingAttentionPanel.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 3433[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m redirects to provider checkout when retry billing returns a checkout URL [33m 2047[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m refreshes billing state after a sandbox retry without redirect [33m 664[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows a renewal path when cancellation is scheduled [33m 450[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/OrganizationCommitteesPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 2311[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders committee registry and workspace links [33m 2301[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ForgotPasswordPage.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 2820[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders the forgot password form with email input [33m 1332[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows validation error when submitting with empty email [33m 573[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m dispatches requestPasswordReset on valid email submission [33m 409[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows success state with Send another link button after email is sent [33m 403[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ApplicationsPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 2633[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m fetches admin scope as all [33m 1125[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m fetches hr scope as assigned by default [33m 592[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m fetches hr scope as all when scope query is set [33m 908[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/EmailSentPage.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 1738[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows email-context-missing state when no email in location state [33m 1113[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows check-your-inbox state when email is provided [33m 313[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/org-admin/OrgUsersPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 2402[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m hydrates URL filters and clears active user filters [33m 2394[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/NotFoundPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 1659[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m calls navigate(-1) when Go Back is clicked [33m 1184[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m navigates to / when Home Page is clicked [32m 300[2mms[22m[39m
+ [32mΓ£ô[39m src/components/admin/BillingHealthCard.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 1219[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders billing runtime health data with refresh button [33m 1212[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ErrorPage.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 1009[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows a Go Back button [33m 785[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/OrganizationSetupPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 1400[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders the create organization form for staff users [33m 1177[2mms[22m[39m
