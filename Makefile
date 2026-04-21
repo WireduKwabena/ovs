@@ -62,17 +62,15 @@ shell:
 # ---------------------------------------------------------------------------
 
 test:
-	$(BACKEND_DB) python manage.py test --keepdb
+	$(BACKEND_DB) pytest -q
 
-# Keep DB and run a single test path: make test-one PATH=apps.appointments.tests
+# Run a single test module/class/function: make test-one PATH=apps/appointments/tests.py::AppointmentTransitionServiceTests
 test-one:
-	$(BACKEND_DB) python manage.py test --keepdb $(PATH)
+	$(BACKEND_DB) pytest -q $(PATH)
 
 coverage:
 	$(BACKEND_DB) sh -lc \
-		"coverage run --rcfile=.coveragerc manage.py test --keepdb && \
-		 coverage report --rcfile=.coveragerc && \
-		 coverage html --rcfile=.coveragerc"
+		"pytest --cov --cov-config=.coveragerc --cov-report=term-missing --cov-report=html"
 	@echo "HTML report: backend/htmlcov/index.html"
 
 # ---------------------------------------------------------------------------

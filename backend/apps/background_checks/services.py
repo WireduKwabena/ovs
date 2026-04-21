@@ -17,7 +17,7 @@ from .providers import default_provider_registry
 try:
     from apps.audit.events import log_event
 except Exception:  # pragma: no cover - audit app may be optional in some setups
-    def log_event(**kwargs):  # type: ignore
+    def log_event(**kwargs: object) -> bool:
         return False
 
 

@@ -1,5 +1,5 @@
 // src/pages/ApplicationsPage.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { Search, Filter, Info } from "lucide-react";
 import { useApplications } from "@/hooks/useApplications";
@@ -60,12 +60,8 @@ export const ApplicationsPage: React.FC = () => {
   const querySearch = (searchParams.get("q") || "").trim();
   const queryExercise = (searchParams.get("exercise") || "").trim();
   const queryOffice = (searchParams.get("office") || "").trim();
-  const [priorityFilter, setPriorityFilter] = useState(
-    () => searchParams.get("priority") || "",
-  );
-  const [applicationTypeFilter, setApplicationTypeFilter] = useState(
-    () => searchParams.get("application_type") || "",
-  );
+  const priorityFilter = searchParams.get("priority") || "";
+  const applicationTypeFilter = searchParams.get("application_type") || "";
   const statusFromQuery = searchParams.get("status");
   const statusFilter = isValidStatusParam(statusFromQuery)
     ? statusFromQuery
@@ -118,6 +114,26 @@ export const ApplicationsPage: React.FC = () => {
       nextParams.delete("q");
     } else {
       nextParams.set("q", value);
+    }
+    setSearchParams(nextParams, { replace: true });
+  };
+
+  const handlePriorityChange = (value: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (value === "all") {
+      nextParams.delete("priority");
+    } else {
+      nextParams.set("priority", value);
+    }
+    setSearchParams(nextParams, { replace: true });
+  };
+
+  const handleApplicationTypeChange = (value: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (value === "all") {
+      nextParams.delete("application_type");
+    } else {
+      nextParams.set("application_type", value);
     }
     setSearchParams(nextParams, { replace: true });
   };
@@ -333,7 +349,7 @@ export const ApplicationsPage: React.FC = () => {
                 <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-700 w-5 h-5 z-10" />
                 <Select
                   value={priorityFilter || "all"}
-                  onValueChange={(v) => setPriorityFilter(v === "all" ? "" : v)}
+                  onValueChange={handlePriorityChange}
                 >
                   <SelectTrigger className="w-full rounded-lg border border-slate-700 py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     <SelectValue placeholder="All priorities" />
@@ -361,9 +377,7 @@ export const ApplicationsPage: React.FC = () => {
                 <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-700 w-5 h-5 z-10" />
                 <Select
                   value={applicationTypeFilter || "all"}
-                  onValueChange={(v) =>
-                    setApplicationTypeFilter(v === "all" ? "" : v)
-                  }
+                  onValueChange={handleApplicationTypeChange}
                 >
                   <SelectTrigger className="w-full rounded-lg border border-slate-700 py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     <SelectValue placeholder="All types" />

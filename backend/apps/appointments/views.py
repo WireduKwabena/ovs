@@ -15,7 +15,7 @@ from apps.audit.contracts import (
 try:
     from apps.audit.events import log_event
 except Exception:  # pragma: no cover - audit app may be optional in some setups
-    def log_event(**kwargs):  # type: ignore
+    def log_event(**kwargs: object) -> bool:
         return False
 
 from apps.core.permissions import (

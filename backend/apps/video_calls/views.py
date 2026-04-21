@@ -43,7 +43,7 @@ from apps.video_calls.services import (
 try:
     from drf_spectacular.utils import extend_schema
 except ModuleNotFoundError:  # pragma: no cover - optional dependency
-    def extend_schema(*args, **kwargs):  # type: ignore[override]
+    def extend_schema(*args: object, **kwargs: object):  # type: ignore[misc]
         def decorator(func):
             return func
 

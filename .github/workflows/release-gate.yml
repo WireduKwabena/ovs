@@ -127,7 +127,7 @@ jobs:
             -e POSTGRES_PASSWORD=postgres \
             -e CELERY_EAGER=true \
             -e SENTRY_DSN="" \
-            backend sh -lc "coverage run --rcfile=.coveragerc manage.py test --keepdb && coverage report --rcfile=.coveragerc && coverage xml --rcfile=.coveragerc -o /app/coverage.xml" 2>&1 | tee ci-artifacts/backend/backend-tests.log
+            backend sh -lc "pytest --cov --cov-config=.coveragerc --cov-report=term-missing --cov-report=xml:/app/coverage.xml -q 2>&1" | tee ci-artifacts/backend/backend-tests.log
 
       - name: Django production deploy checks
         run: |

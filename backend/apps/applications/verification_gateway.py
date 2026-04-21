@@ -22,7 +22,7 @@ except Exception:  # pragma: no cover - audit app may be optional in some setups
     VERIFICATION_GATEWAY_REQUEST_CREATED_EVENT = "verification_gateway_request_created"
     VERIFICATION_GATEWAY_RESULT_RECORDED_EVENT = "verification_gateway_result_recorded"
 
-    def log_event(**kwargs):  # type: ignore
+    def log_event(**kwargs: object) -> bool:
         return False
 from apps.billing.quotas import resolve_case_organization_id
 

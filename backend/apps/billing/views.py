@@ -22,7 +22,7 @@ import requests
 try:
     from drf_spectacular.utils import extend_schema
 except ModuleNotFoundError:  # pragma: no cover - optional in lightweight setups
-    def extend_schema(*args, **kwargs):  # type: ignore
+    def extend_schema(*args: object, **kwargs: object):  # type: ignore[misc]
         def decorator(func):
             return func
 
@@ -91,10 +91,10 @@ except ModuleNotFoundError:  # pragma: no cover - optional in lightweight setups
 try:
     from apps.audit.events import log_event, request_ip_address
 except Exception:  # pragma: no cover - audit app may be optional in some setups
-    def log_event(**kwargs):  # type: ignore
+    def log_event(**kwargs: object) -> bool:
         return False
 
-    def request_ip_address(request):  # type: ignore
+    def request_ip_address(request: object) -> str | None:  # type: ignore[misc]
         meta = getattr(request, "META", {}) or {}
         forwarded_for = str(meta.get("HTTP_X_FORWARDED_FOR", "") or "").strip()
         if forwarded_for:

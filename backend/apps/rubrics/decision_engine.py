@@ -21,7 +21,7 @@ try:  # pragma: no cover - optional gateway module import guard
         empty_external_verification_snapshot,
     )
 except Exception:  # pragma: no cover - keep decision engine resilient in slim installs
-    def empty_external_verification_snapshot():  # type: ignore
+    def empty_external_verification_snapshot() -> dict[str, Any]:
         return {
             "total_requests": 0,
             "pending": 0,
@@ -35,7 +35,7 @@ except Exception:  # pragma: no cover - keep decision engine resilient in slim i
             "advisory_only": True,
         }
 
-    def build_case_external_verification_snapshot(_case):  # type: ignore
+    def build_case_external_verification_snapshot(_case: object) -> dict[str, Any]:
         return empty_external_verification_snapshot()
 
 from .engine import RubricEvaluationEngine
