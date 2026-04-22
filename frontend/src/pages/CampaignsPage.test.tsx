@@ -195,7 +195,7 @@ describe("CampaignsPage status transitions", () => {
     expect(optionValues).not.toContain("closed");
   });
 
-  it("disables the Apply button and select for an archived campaign", async () => {
+  it("shows reopen transitions for an archived campaign", async () => {
     setup(makeCampaign({ status: "archived" }));
 
     await screen.findByText("Draft Exercise");
@@ -203,12 +203,16 @@ describe("CampaignsPage status transitions", () => {
     const select = screen.getByTitle(
       /select the next lifecycle status/i,
     ) as HTMLSelectElement;
-    expect(select.disabled).toBe(true);
+    expect(select.disabled).toBe(false);
+
+    const optionValues = Array.from(select.options).map((o) => o.value);
+    expect(optionValues).toContain("active");
+    expect(optionValues).toContain("closed");
 
     const applyButton = screen.getByRole("button", {
       name: /apply/i,
     }) as HTMLButtonElement;
-    expect(applyButton.disabled).toBe(true);
+    expect(applyButton.disabled).toBe(false);
   });
 
   it("calls updateStatus with correct args and reflects new status on success", async () => {
@@ -238,6 +242,27 @@ describe("CampaignsPage status transitions", () => {
     // After update the badge should show 'active'
     await waitFor(() => {
       expect(screen.getByText("active")).toBeTruthy();
+    });
+  });
+
+  it("applies default selected transition when user does not manually change dropdown", async () => {
+    const campaign = makeCampaign({ status: "closed" });
+    mocks.campaignService.updateStatus.mockResolvedValue({
+      ...campaign,
+      status: "active",
+    });
+    setup(campaign);
+
+    await screen.findByText("Draft Exercise");
+
+    const applyButton = screen.getByRole("button", { name: /apply/i });
+    fireEvent.click(applyButton);
+
+    await waitFor(() => {
+      expect(mocks.campaignService.updateStatus).toHaveBeenCalledWith(
+        "campaign-draft",
+        "active",
+      );
     });
   });
 

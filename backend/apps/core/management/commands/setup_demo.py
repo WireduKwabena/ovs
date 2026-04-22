@@ -187,37 +187,51 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        # ── Step 1: verify public-schema tables (Organisation lives in the shared schema) ──
-        self._ensure_schema_ready({Organization}, "tenant registry")
+        # ── Step 1/2: public-schema tenant registry setup ──
+        # Organization is a shared/public tenant model; always resolve it in
+        # public schema regardless of the current connection schema.
+        with schema_context("public"):
+            self._ensure_schema_ready({Organization}, "tenant registry")
 
-        # ── Step 2: ensure ALL demo organisations exist in the public schema.
-        #    Organisation is a TenantMixin model that lives in the *public* schema.
-        #    It must never be created inside a schema_context() block — doing so
-        #    causes django-tenants to raise "Can't create tenant outside the public schema".
-        primary_org = self._upsert_organization(
-            name="Public Service Commission",
-            code=options["org_slug"],
-            organization_type="agency",
-        )
-        secondary_org_specs = {
-            "vetting":   ("Appointments Secretariat",             "appointments-secretariat",            "agency"),
-            "committee": ("Parliamentary Appointments Committee", "parliamentary-appointments-committee", "committee_secretariat"),
-            "authority": ("Office of the President",              "office-of-the-president",             "executive_office"),
-            "registry":  ("Gazette and Records Office",           "gazette-and-records-office",          "agency"),
-            "auditor":   ("Audit Service",                        "audit-service",                       "audit"),
-        }
-        organizations: dict[str, Organization] = {
-            key: self._upsert_organization(name=name, code=code, organization_type=org_type)
-            for key, (name, code, org_type) in secondary_org_specs.items()
-        }
-        organizations["admin"] = primary_org
-        organizations["publication"] = organizations["registry"]
+            primary_org = self._upsert_organization(
+                name="Public Service Commission",
+                code=options["org_slug"],
+                organization_type="agency",
+            )
+            secondary_org_specs = {
+                "vetting":   ("Appointments Secretariat",             "appointments-secretariat",            "agency"),
+                "committee": ("Parliamentary Appointments Committee", "parliamentary-appointments-committee", "committee_secretariat"),
+                "authority": ("Office of the President",              "office-of-the-president",             "executive_office"),
+                "registry":  ("Gazette and Records Office",           "gazette-and-records-office",          "agency"),
+                "auditor":   ("Audit Service",                        "audit-service",                       "audit"),
+            }
+            organizations: dict[str, Organization] = {
+                key: self._upsert_organization(name=name, code=code, organization_type=org_type)
+                for key, (name, code, org_type) in secondary_org_specs.items()
+            }
+            organizations["admin"] = primary_org
+            organizations["publication"] = organizations["registry"]
 
         # ── Step 3: all tenant-app operations must run inside the org's schema context.
         #    Management commands have no HTTP request, so TenantMiddleware never fires;
         #    without schema_context the connection stays in the public schema where
         #    TENANT_APP tables (Committee, VettingCampaign, …) do not exist.
-        with schema_context(primary_org.schema_name):
+        # Determine which schema to use for tenant-app operations.
+        # In production, Organization.save() provisions a dedicated schema; in test
+        # environments that patch is suppressed, so fall back to the already-migrated
+        # active tenant schema rather than a non-existent org-specific schema.
+        with connection.cursor() as _cur:
+            _cur.execute("SELECT 1 FROM pg_namespace WHERE nspname = %s", [primary_org.schema_name])
+            if _cur.fetchone():
+                _tenant_schema = primary_org.schema_name
+            else:
+                # Fallback for test environments where org-specific schema isn't auto-provisioned.
+                # Use the currently active tenant if available, else fall back to public schema.
+                _tenant_schema = (
+                    connection.tenant.schema_name if connection.tenant else
+                    "public"
+                )
+        with schema_context(_tenant_schema):
             self._ensure_schema_ready(
                 {Committee, CommitteeMembership, OrganizationMembership},
                 "governance",
@@ -1037,23 +1051,29 @@ class Command(BaseCommand):
         organization: str,
         department: str,
     ) -> User:
-        user, created = User.objects.get_or_create(
-            email=email.lower().strip(),
-            defaults={
+        from django_tenants.utils import schema_context
+
+        # Users are shared-app records and must be created/updated in the public schema.
+        # Use the unscoped manager because the default manager hides users without an
+        # active tenant membership when called from tenant context.
+        with schema_context("public"):
+            user, created = User.all_objects.get_or_create(
+                email=email.lower().strip(),
+                defaults={
+                    "first_name": first_name, "last_name": last_name, "user_type": user_type,
+                    "is_staff": is_staff, "is_superuser": is_superuser, "email_verified": True,
+                    "organization": organization, "department": department,
+                },
+            )
+            changed = self._update_fields(user, {
                 "first_name": first_name, "last_name": last_name, "user_type": user_type,
-                "is_staff": is_staff, "is_superuser": is_superuser, "email_verified": True,
-                "organization": organization, "department": department,
-            },
-        )
-        changed = self._update_fields(user, {
-            "first_name": first_name, "last_name": last_name, "user_type": user_type,
-            "is_staff": is_staff, "is_superuser": is_superuser, "organization": organization,
-            "department": department, "email_verified": True, "is_active": True,
-        })
-        user.set_password(password)
-        changed.append("password")
-        if created:
-            user.save()
-        else:
-            user.save(update_fields=sorted(set(changed + ["updated_at"])))
+                "is_staff": is_staff, "is_superuser": is_superuser, "organization": organization,
+                "department": department, "email_verified": True, "is_active": True,
+            })
+            user.set_password(password)
+            changed.append("password")
+            if created:
+                user.save()
+            else:
+                user.save(update_fields=sorted(set(changed + ["updated_at"])))
         return user

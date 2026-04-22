@@ -45,8 +45,8 @@ const CAMPAIGN_STATUS_TRANSITIONS: Record<
 > = {
   draft: ["active", "archived"],
   active: ["closed", "archived"],
-  closed: ["archived"],
-  archived: [],
+  closed: ["active", "archived"],
+  archived: ["active", "closed"],
 };
 
 const parseCampaignListStatusFilter = (
@@ -309,7 +309,9 @@ const CampaignsPage: React.FC = () => {
   };
 
   const handleUpdateCampaignStatus = async (campaign: VettingCampaign) => {
-    const nextStatus = statusDraftByCampaignId[campaign.id] || campaign.status;
+    const transitions = CAMPAIGN_STATUS_TRANSITIONS[campaign.status] || [];
+    const nextStatus =
+      statusDraftByCampaignId[campaign.id] || transitions[0] || campaign.status;
     if (nextStatus === campaign.status) {
       return;
     }

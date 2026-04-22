@@ -329,11 +329,16 @@ const OrgDashboardPage: React.FC = () => {
               {pipelineData.map((item) => (
                 <button
                   key={item.name}
-                  onClick={() =>
+                  onClick={() => {
+                    const params = new URLSearchParams();
+                    params.set("status", item.status);
+                    // Clear other filters so pulse clicks always show status-focused results.
+                    params.set("priority", "");
+                    params.set("application_type", "");
                     navigate(
-                      `/admin/org/${activeOrganizationId}/cases?status=${item.status}`,
-                    )
-                  }
+                      `/admin/org/${activeOrganizationId}/cases?${params.toString()}`,
+                    );
+                  }}
                   className="flex items-center justify-between w-full p-3 rounded-xl bg-background/50 border border-border/50 hover:bg-muted/60 hover:border-border transition-colors group"
                 >
                   <span className="text-xs font-medium group-hover:text-primary transition-colors">

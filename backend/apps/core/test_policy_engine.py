@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import uuid
+
 from django.contrib.auth.models import Group
+from django.db import connection
 from django.test import TestCase
 
 from apps.users.models import User
@@ -21,6 +24,8 @@ from apps.tenants.models import Organization
 
 class PolicyEngineTests(TestCase):
     def setUp(self):
+        self.current_org_id = connection.tenant.id
+        self.other_org_id = uuid.uuid4()
         self.org_a = Organization.objects.create(code="policy-org-a", name="Policy Org A")
         self.org_b = Organization.objects.create(code="policy-org-b", name="Policy Org B")
         self.committee_a = Committee.objects.create(
@@ -127,47 +132,47 @@ class PolicyEngineTests(TestCase):
         self.assertTrue(
             can_manage_registry(
                 self.registry_admin,
-                organization_id=self.org_a.id,
+                organization_id=self.current_org_id,
                 allow_membershipless_fallback=False,
             )
         )
         self.assertFalse(
             can_manage_registry(
                 self.registry_admin,
-                organization_id=self.org_b.id,
+                organization_id=self.other_org_id,
                 allow_membershipless_fallback=False,
             )
         )
         self.assertFalse(
             can_manage_registry(
                 self.hr,
-                organization_id=self.org_a.id,
+                organization_id=self.current_org_id,
                 allow_membershipless_fallback=False,
             )
         )
 
     def test_appoint_and_publish_policies_preserve_role_requirements(self):
-        self.assertTrue(can_appoint(self.admin, organization_id=self.org_b.id))
-        self.assertTrue(can_appoint(self.authority, organization_id=self.org_a.id))
-        self.assertFalse(can_appoint(self.hr, organization_id=self.org_a.id))
+        self.assertTrue(can_appoint(self.admin, organization_id=self.other_org_id))
+        self.assertTrue(can_appoint(self.authority, organization_id=self.current_org_id))
+        self.assertFalse(can_appoint(self.hr, organization_id=self.current_org_id))
 
-        self.assertTrue(can_publish(self.publisher, organization_id=self.org_a.id))
-        self.assertTrue(can_publish(self.authority, organization_id=self.org_a.id))
-        self.assertFalse(can_publish(self.hr, organization_id=self.org_a.id))
+        self.assertTrue(can_publish(self.publisher, organization_id=self.current_org_id))
+        self.assertTrue(can_publish(self.authority, organization_id=self.current_org_id))
+        self.assertFalse(can_publish(self.hr, organization_id=self.current_org_id))
 
     def test_committee_action_policy_requires_active_membership(self):
         self.assertTrue(
             can_take_committee_action(
                 self.committee_member,
                 committee=self.committee_a,
-                appointment_organization_id=self.org_a.id,
+                appointment_organization_id=self.current_org_id,
             )
         )
         self.assertFalse(
             can_take_committee_action(
                 self.group_only_committee_user,
                 committee=self.committee_a,
-                appointment_organization_id=self.org_a.id,
+                appointment_organization_id=self.current_org_id,
             )
         )
         self.assertTrue(
@@ -181,19 +186,19 @@ class PolicyEngineTests(TestCase):
         self.assertTrue(
             can_view_internal_record(
                 self.registry_admin,
-                organization_id=self.org_a.id,
+                organization_id=self.current_org_id,
             )
         )
         self.assertFalse(
             can_view_internal_record(
                 self.registry_admin,
-                organization_id=self.org_b.id,
+                organization_id=self.other_org_id,
             )
         )
         self.assertFalse(
             can_view_internal_record(
                 self.hr,
-                organization_id=self.org_a.id,
+                organization_id=self.current_org_id,
             )
         )
         self.assertFalse(

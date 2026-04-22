@@ -36,7 +36,7 @@ class SetupDemoCommandTests(TestCase):
         for group_name in APPOINTMENT_ROLE_GROUPS:
             self.assertTrue(Group.objects.filter(name=group_name).exists())
 
-        admin_user = User.objects.get(email="gams.admin@demo.local")
+        admin_user = User.all_objects.get(email="gams.admin@demo.local")
         self.assertTrue(admin_user.is_superuser)
         self.assertTrue(admin_user.is_staff)
         self.assertFalse(admin_user.groups.filter(name__in=APPOINTMENT_ROLE_GROUPS).exists())
@@ -50,13 +50,13 @@ class SetupDemoCommandTests(TestCase):
         self.assertFalse(User.objects.get(email="gams.auditor@demo.local").is_staff)
 
         expected_org_codes = {
+            "test-tenant",
             "public-service-commission",
             "appointments-secretariat",
             "parliamentary-appointments-committee",
             "office-of-the-president",
             "gazette-and-records-office",
             "audit-service",
-            "legacy-unscoped",
         }
         self.assertSetEqual(set(Organization.objects.values_list("code", flat=True)), expected_org_codes)
 
@@ -75,7 +75,6 @@ class SetupDemoCommandTests(TestCase):
 
         committee = Committee.objects.get(
             code="parliamentary-appointments-main",
-            organization__code="public-service-commission",
         )
         committee_user = User.objects.get(email="gams.committee@demo.local")
         self.assertTrue(
@@ -124,7 +123,6 @@ class SetupDemoCommandTests(TestCase):
         self.assertIsNotNone(serving_record.publication.published_at)
         self.assertEqual(serving_record.publication.published_by.email, "gams.publication@demo.local")
 
-        workflow_org = Organization.objects.get(code="public-service-commission")
         self.assertTrue(
             BillingSubscription.objects.filter(
                 reference="GAMS-DEMO-ORG-SUBSCRIPTION",
@@ -134,6 +132,7 @@ class SetupDemoCommandTests(TestCase):
         )
         self.assertTrue(
             OrganizationOnboardingToken.objects.filter(
+                subscription__reference="GAMS-DEMO-ORG-SUBSCRIPTION",
                 is_active=True,
             ).exists()
         )
@@ -176,7 +175,7 @@ class SetupDemoCommandTests(TestCase):
         minister_position.is_vacant = False
         minister_position.save(update_fields=["current_holder", "is_vacant", "updated_at"])
 
-        admin_user = User.objects.get(email="gams.admin@demo.local")
+        admin_user = User.all_objects.get(email="gams.admin@demo.local")
         admin_user.groups.add(*Group.objects.filter(name__in=APPOINTMENT_ROLE_GROUPS))
         OrganizationMembership.objects.create(
             user=admin_user,
@@ -210,7 +209,7 @@ class SetupDemoCommandTests(TestCase):
         self.assertIsNone(minister_position.current_holder)
 
         self.assertEqual(VettingCampaign.objects.filter(name="GAMS Demo Ministerial Exercise").count(), 1)
-        self.assertEqual(User.objects.filter(email="gams.admin@demo.local").count(), 1)
+        self.assertEqual(User.all_objects.filter(email="gams.admin@demo.local").count(), 1)
         self.assertEqual(Organization.objects.filter(code="public-service-commission").count(), 1)
         self.assertEqual(
             OrganizationMembership.objects.filter(user__email="gams.admin@demo.local").count(),
@@ -237,14 +236,13 @@ class SetupDemoCommandTests(TestCase):
         )
         self.assertEqual(
             BillingSubscription.objects.filter(
-                organization__code="public-service-commission",
                 reference="GAMS-DEMO-ORG-SUBSCRIPTION",
             ).count(),
             1,
         )
         self.assertEqual(
             OrganizationOnboardingToken.objects.filter(
-                organization__code="public-service-commission",
+                subscription__reference="GAMS-DEMO-ORG-SUBSCRIPTION",
                 is_active=True,
             ).count(),
             1,

@@ -33,6 +33,18 @@ from .serializers import (
     VettingCaseAdminSerializer,
 )
 
+
+# Pipeline-aligned in-flight dossier statuses used by the org dashboard pulse and
+# corresponding admin cases status filter.
+ACTIVE_DOSSIER_STATUSES = (
+    "document_upload",
+    "document_analysis",
+    "interview_scheduled",
+    "interview_in_progress",
+    "under_review",
+    "on_hold",
+)
+
 try:
     from drf_spectacular.utils import extend_schema
 except ModuleNotFoundError:  # pragma: no cover - optional dependency
@@ -201,7 +213,7 @@ def admin_dashboard(request):
     status_counts = cases.aggregate(
         total=Count('id'),
         pending=Count('id', filter=Q(status='pending')),
-        under_review=Count('id', filter=Q(status='under_review')),
+        under_review=Count('id', filter=Q(status__in=ACTIVE_DOSSIER_STATUSES)),
         approved=Count('id', filter=Q(status='approved')),
         rejected=Count('id', filter=Q(status='rejected')),
     )
@@ -352,7 +364,11 @@ def admin_cases(request):
     # Apply filters
     status_filter = request.query_params.get('status')
     if status_filter:
-        cases = cases.filter(status=status_filter)
+        normalized_status_filter = str(status_filter).strip().lower()
+        if normalized_status_filter == "under_review":
+            cases = cases.filter(status__in=ACTIVE_DOSSIER_STATUSES)
+        else:
+            cases = cases.filter(status=normalized_status_filter)
     
     app_type_filter = request.query_params.get('application_type')
     if app_type_filter:

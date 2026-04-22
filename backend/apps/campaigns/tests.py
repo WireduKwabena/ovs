@@ -134,6 +134,36 @@ class CampaignAuthorizationTests(APITestCase):
         payload = response.json()
         self.assertIn("status", payload)
 
+    def test_internal_can_reopen_closed_campaign_to_active(self):
+        self.campaign_one.status = "closed"
+        self.campaign_one.save(update_fields=["status"])
+
+        self.client.force_authenticate(self.internal_one)
+        response = self.client.patch(
+            f"/api/campaigns/{self.campaign_one.id}/",
+            {"status": "active"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.campaign_one.refresh_from_db()
+        self.assertEqual(self.campaign_one.status, "active")
+
+    def test_internal_can_reopen_archived_campaign(self):
+        self.campaign_one.status = "archived"
+        self.campaign_one.save(update_fields=["status"])
+
+        self.client.force_authenticate(self.internal_one)
+        response = self.client.patch(
+            f"/api/campaigns/{self.campaign_one.id}/",
+            {"status": "active"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.campaign_one.refresh_from_db()
+        self.assertEqual(self.campaign_one.status, "active")
+
     def test_plain_internal_without_operational_role_cannot_list_campaigns(self):
         plain_internal = User.objects.create_user(
             email="plain_internal_campaign@example.com",

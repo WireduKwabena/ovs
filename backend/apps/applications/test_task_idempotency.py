@@ -1,7 +1,7 @@
 """Tests for verify_document_async idempotency and placeholder pipeline warning."""
 
 from io import BytesIO
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -281,7 +281,7 @@ class RunDocumentAnalysisTests(TestCase):
     @patch("apps.applications.tasks.ImproperlyConfigured", ImproperlyConfigured)
     @patch("ai_ml_services.service.verify_document", return_value=_AI_ML_SUCCESS_RESULT)
     def test_returns_structured_analysis_on_success(self, mock_verify):
-        with patch.object(self.doc.file, "path", "/tmp/passport.pdf"):
+        with patch.object(type(self.doc.file), "path", new_callable=PropertyMock, return_value="/tmp/passport.pdf"):
             result = _run_document_analysis(self.doc)
         self.assertIn("authenticity_score", result)
         self.assertAlmostEqual(result["authenticity_score"], 91.5)
@@ -293,7 +293,7 @@ class RunDocumentAnalysisTests(TestCase):
     @patch("apps.applications.tasks.ImproperlyConfigured", ImproperlyConfigured)
     @patch("ai_ml_services.service.verify_document", return_value=_AI_ML_SUCCESS_RESULT)
     def test_maps_approve_to_legitimate_fraud_prediction(self, mock_verify):
-        with patch.object(self.doc.file, "path", "/tmp/passport.pdf"):
+        with patch.object(type(self.doc.file), "path", new_callable=PropertyMock, return_value="/tmp/passport.pdf"):
             result = _run_document_analysis(self.doc)
         self.assertEqual(result["fraud_prediction"], "legitimate")
 
@@ -303,7 +303,7 @@ class RunDocumentAnalysisTests(TestCase):
         "results": {**_AI_ML_SUCCESS_RESULT["results"], "recommendation": "REJECT"},
     })
     def test_maps_reject_to_fraudulent_fraud_prediction(self, mock_verify):
-        with patch.object(self.doc.file, "path", "/tmp/passport.pdf"):
+        with patch.object(type(self.doc.file), "path", new_callable=PropertyMock, return_value="/tmp/passport.pdf"):
             result = _run_document_analysis(self.doc)
         self.assertEqual(result["fraud_prediction"], "fraudulent")
         self.assertFalse(result["is_authentic"])
@@ -314,21 +314,21 @@ class RunDocumentAnalysisTests(TestCase):
         "results": {**_AI_ML_SUCCESS_RESULT["results"], "recommendation": "MANUAL_REVIEW"},
     })
     def test_maps_manual_review_to_suspicious_fraud_prediction(self, mock_verify):
-        with patch.object(self.doc.file, "path", "/tmp/passport.pdf"):
+        with patch.object(type(self.doc.file), "path", new_callable=PropertyMock, return_value="/tmp/passport.pdf"):
             result = _run_document_analysis(self.doc)
         self.assertEqual(result["fraud_prediction"], "suspicious")
 
     @override_settings(PLACEHOLDER_ML_ENABLED=False)
     def test_raises_improperly_configured_when_ml_fails_and_placeholder_disabled(self):
         with patch("ai_ml_services.service.verify_document", side_effect=RuntimeError("model not loaded")):
-            with patch.object(self.doc.file, "path", "/tmp/passport.pdf"):
+            with patch.object(type(self.doc.file), "path", new_callable=PropertyMock, return_value="/tmp/passport.pdf"):
                 with self.assertRaises(ImproperlyConfigured):
                     _run_document_analysis(self.doc)
 
     @override_settings(PLACEHOLDER_ML_ENABLED=True)
     def test_falls_back_to_placeholder_when_ml_fails_and_placeholder_enabled(self):
         with patch("ai_ml_services.service.verify_document", side_effect=RuntimeError("model not loaded")):
-            with patch.object(self.doc.file, "path", "/tmp/passport.pdf"):
+            with patch.object(type(self.doc.file), "path", new_callable=PropertyMock, return_value="/tmp/passport.pdf"):
                 with self.assertLogs("apps.applications.tasks", level="WARNING"):
                     result = _run_document_analysis(self.doc)
         self.assertEqual(result["detailed_results"]["pipeline"], "placeholder")
@@ -365,7 +365,7 @@ class VerifyDocumentAsyncAiMlIntegrationTests(TestCase):
     @patch("ai_ml_services.service.verify_document", return_value=_AI_ML_SUCCESS_RESULT)
     def test_task_creates_verification_result_via_ai_ml(self, mock_verify):
         doc = _make_document(self.case, filename="id_card.pdf")
-        with patch.object(doc.file, "path", "/tmp/id_card.pdf"):
+        with patch.object(type(doc.file), "path", new_callable=PropertyMock, return_value="/tmp/id_card.pdf"):
             result = verify_document_async(doc.id)
         self.assertTrue(result["success"])
         vr = VerificationResult.objects.get(document=doc)
@@ -376,6 +376,6 @@ class VerifyDocumentAsyncAiMlIntegrationTests(TestCase):
     @patch("ai_ml_services.service.verify_document", side_effect=RuntimeError("no model"))
     def test_task_fails_when_ai_ml_errors_and_placeholder_disabled(self, mock_verify):
         doc = _make_document(self.case, filename="bad_doc.pdf")
-        with patch.object(doc.file, "path", "/tmp/bad_doc.pdf"):
+        with patch.object(type(doc.file), "path", new_callable=PropertyMock, return_value="/tmp/bad_doc.pdf"):
             with self.assertRaises(ImproperlyConfigured):
                 verify_document_async(doc.id)

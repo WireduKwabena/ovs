@@ -15,26 +15,46 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
-const STATUS_OPTIONS = ["pending", "under_review", "approved", "rejected", "flagged"];
+const STATUS_OPTIONS = [
+  "pending",
+  "under_review",
+  "approved",
+  "rejected",
+  "flagged",
+];
 const PRIORITY_OPTIONS = ["low", "medium", "high", "critical"];
-const APPLICATION_TYPE_OPTIONS = ["employment", "appointment", "contract", "volunteer"];
+const APPLICATION_TYPE_OPTIONS = [
+  "employment",
+  "appointment",
+  "contract",
+  "volunteer",
+];
 
 const statusColor = (status: string) => {
   switch (status) {
-    case "approved": return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20";
-    case "rejected": return "bg-rose-500/10 text-rose-600 border-rose-500/20";
-    case "under_review": return "bg-amber-500/10 text-amber-600 border-amber-500/20";
-    case "flagged": return "bg-orange-500/10 text-orange-600 border-orange-500/20";
-    default: return "bg-primary/10 text-primary border-primary/20";
+    case "approved":
+      return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20";
+    case "rejected":
+      return "bg-rose-500/10 text-rose-600 border-rose-500/20";
+    case "under_review":
+      return "bg-amber-500/10 text-amber-600 border-amber-500/20";
+    case "flagged":
+      return "bg-orange-500/10 text-orange-600 border-orange-500/20";
+    default:
+      return "bg-primary/10 text-primary border-primary/20";
   }
 };
 
 const priorityColor = (priority: string) => {
   switch (priority) {
-    case "critical": return "bg-rose-500/10 text-rose-600";
-    case "high": return "bg-amber-500/10 text-amber-600";
-    case "medium": return "bg-blue-500/10 text-blue-600";
-    default: return "bg-muted/50 text-muted-foreground";
+    case "critical":
+      return "bg-rose-500/10 text-rose-600";
+    case "high":
+      return "bg-amber-500/10 text-amber-600";
+    case "medium":
+      return "bg-blue-500/10 text-blue-600";
+    default:
+      return "bg-muted/50 text-muted-foreground";
   }
 };
 
@@ -48,25 +68,48 @@ const OrgCasesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const [statusFilter, setStatusFilter] = useState(() => searchParams.get("status") || "");
-  const [priorityFilter, setPriorityFilter] = useState(() => searchParams.get("priority") || "");
+  const [statusFilter, setStatusFilter] = useState(
+    () => searchParams.get("status") || "",
+  );
+  const [priorityFilter, setPriorityFilter] = useState(
+    () => searchParams.get("priority") || "",
+  );
   const [applicationTypeFilter, setApplicationTypeFilter] = useState(
     () => searchParams.get("application_type") || "",
   );
 
-  const hasActiveFilters = Boolean(statusFilter || priorityFilter || applicationTypeFilter);
+  const getFiltersFromUrl = useCallback(() => {
+    return {
+      status: searchParams.get("status") || "",
+      priority: searchParams.get("priority") || "",
+      applicationType: searchParams.get("application_type") || "",
+    };
+  }, [searchParams]);
+
+  const hasActiveFilters = Boolean(
+    statusFilter || priorityFilter || applicationTypeFilter,
+  );
 
   const fetchCases = useCallback(
-    async (isSilent = false) => {
+    async (
+      isSilent = false,
+      filters?: {
+        status?: string;
+        priority?: string;
+        applicationType?: string;
+      },
+    ) => {
       if (!organizationId) return;
       if (!isSilent) setLoading(true);
       else setRefreshing(true);
 
+      const resolvedFilters = filters || getFiltersFromUrl();
+
       try {
         const response = await adminService.getOrgCases(organizationId, {
-          status: statusFilter || undefined,
-          priority: priorityFilter || undefined,
-          application_type: applicationTypeFilter || undefined,
+          status: resolvedFilters.status || undefined,
+          priority: resolvedFilters.priority || undefined,
+          application_type: resolvedFilters.applicationType || undefined,
         });
         setCases(response.results);
       } catch {
@@ -76,12 +119,16 @@ const OrgCasesPage: React.FC = () => {
         setRefreshing(false);
       }
     },
-    [organizationId, statusFilter, priorityFilter, applicationTypeFilter],
+    [organizationId, getFiltersFromUrl],
   );
 
   useEffect(() => {
-    void fetchCases();
-  }, [fetchCases]);
+    const nextFilters = getFiltersFromUrl();
+    setStatusFilter(nextFilters.status);
+    setPriorityFilter(nextFilters.priority);
+    setApplicationTypeFilter(nextFilters.applicationType);
+    void fetchCases(false, nextFilters);
+  }, [fetchCases, getFiltersFromUrl]);
 
   const applyFilters = () => {
     const params: Record<string, string> = {};
@@ -114,7 +161,9 @@ const OrgCasesPage: React.FC = () => {
           onClick={() => void fetchCases(true)}
           disabled={refreshing}
         >
-          <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+          <RefreshCw
+            className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+          />
           Refresh
         </Button>
       </div>
@@ -124,7 +173,10 @@ const OrgCasesPage: React.FC = () => {
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap gap-4">
             <div className="flex-1 min-w-[160px]">
-              <label htmlFor="status-filter" className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
+              <label
+                htmlFor="status-filter"
+                className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1"
+              >
                 Status
               </label>
               <select
@@ -135,13 +187,18 @@ const OrgCasesPage: React.FC = () => {
               >
                 <option value="">All Statuses</option>
                 {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>{s.replace(/_/g, " ")}</option>
+                  <option key={s} value={s}>
+                    {s.replace(/_/g, " ")}
+                  </option>
                 ))}
               </select>
             </div>
 
             <div className="flex-1 min-w-[160px]">
-              <label htmlFor="priority-filter" className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
+              <label
+                htmlFor="priority-filter"
+                className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1"
+              >
                 Priority
               </label>
               <select
@@ -152,13 +209,18 @@ const OrgCasesPage: React.FC = () => {
               >
                 <option value="">All Priorities</option>
                 {PRIORITY_OPTIONS.map((p) => (
-                  <option key={p} value={p}>{p}</option>
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
                 ))}
               </select>
             </div>
 
             <div className="flex-1 min-w-[160px]">
-              <label htmlFor="app-type-filter" className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
+              <label
+                htmlFor="app-type-filter"
+                className="block text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1"
+              >
                 Application Type
               </label>
               <select
@@ -170,7 +232,9 @@ const OrgCasesPage: React.FC = () => {
               >
                 <option value="">All Types</option>
                 {APPLICATION_TYPE_OPTIONS.map((t) => (
-                  <option key={t} value={t}>{t}</option>
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
                 ))}
               </select>
             </div>
@@ -210,7 +274,9 @@ const OrgCasesPage: React.FC = () => {
         ) : cases.length === 0 ? (
           <Card className="p-12 text-center rounded-2xl border-dashed border-border/70 bg-muted/20">
             <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No cases found for the selected filters.</p>
+            <p className="text-muted-foreground">
+              No cases found for the selected filters.
+            </p>
           </Card>
         ) : (
           cases.map((c) => (
@@ -218,7 +284,9 @@ const OrgCasesPage: React.FC = () => {
               key={c.id}
               className="p-5 rounded-2xl border-border/70 bg-card/50 hover:bg-card/80 transition-all shadow-sm cursor-pointer group"
               onClick={() =>
-                navigate(`/admin/org/${encodeURIComponent(organizationId)}/cases/${encodeURIComponent(c.id)}`)
+                navigate(
+                  `/admin/org/${encodeURIComponent(organizationId)}/cases/${encodeURIComponent(c.id)}`,
+                )
               }
             >
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -228,19 +296,25 @@ const OrgCasesPage: React.FC = () => {
                   </div>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <span className="text-sm font-bold font-mono">{c.case_id}</span>
+                      <span className="text-sm font-bold font-mono">
+                        {c.case_id}
+                      </span>
                       <Badge
                         variant="outline"
                         className={`rounded-full text-[10px] font-bold uppercase tracking-widest ${statusColor(c.status)}`}
                       >
                         {c.status.replace(/_/g, " ")}
                       </Badge>
-                      <Badge className={`rounded-full text-[10px] font-bold uppercase ${priorityColor(c.priority)}`}>
+                      <Badge
+                        className={`rounded-full text-[10px] font-bold uppercase ${priorityColor(c.priority)}`}
+                      >
                         {c.priority}
                       </Badge>
                     </div>
                     <p className="text-sm font-semibold">{c.applicant_name}</p>
-                    <p className="text-xs text-muted-foreground">{c.applicant_email}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {c.applicant_email}
+                    </p>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-1">
                       {c.application_type.replace(/_/g, " ")}
                     </p>
@@ -249,8 +323,12 @@ const OrgCasesPage: React.FC = () => {
                 <div className="flex items-center gap-4 text-xs text-muted-foreground ml-14 md:ml-0">
                   {c.fraud_risk_score != null && (
                     <div className="text-right hidden xl:block">
-                      <p className="text-[10px] font-bold uppercase tracking-widest mb-0.5">Risk Score</p>
-                      <p className={`font-bold text-sm ${c.fraud_risk_score > 60 ? "text-rose-600" : "text-emerald-600"}`}>
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-0.5">
+                        Risk Score
+                      </p>
+                      <p
+                        className={`font-bold text-sm ${c.fraud_risk_score > 60 ? "text-rose-600" : "text-emerald-600"}`}
+                      >
                         {c.fraud_risk_score.toFixed(1)}%
                       </p>
                     </div>

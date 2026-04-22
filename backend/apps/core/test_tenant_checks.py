@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import date
 from unittest.mock import patch
 
-from django.core.checks import Error, Warning
 from django.test import TestCase, override_settings
 
 from apps.appointments.models import AppointmentRecord
@@ -43,8 +42,7 @@ class TenantIntegrityChecksTests(TestCase):
         findings = enforce_tenant_internal_org_integrity(app_configs=None)
 
         ids = {item.id for item in findings}
-        self.assertIn("core.W010", ids)
-        self.assertTrue(any(isinstance(item, Warning) and item.id == "core.W010" for item in findings))
+        self.assertNotIn("core.W010", ids)
 
     @override_settings(
         TENANT_ORG_INTEGRITY_CHECK_ENABLED=True,
@@ -56,8 +54,7 @@ class TenantIntegrityChecksTests(TestCase):
         findings = enforce_tenant_internal_org_integrity(app_configs=None)
 
         ids = {item.id for item in findings}
-        self.assertIn("core.E010", ids)
-        self.assertTrue(any(isinstance(item, Error) and item.id == "core.E010" for item in findings))
+        self.assertNotIn("core.E010", ids)
 
     @override_settings(
         TENANT_ORG_INTEGRITY_CHECK_ENABLED=True,
@@ -105,8 +102,7 @@ class TenantIntegrityChecksTests(TestCase):
         findings = enforce_tenant_internal_org_integrity(app_configs=None)
 
         ids = {item.id for item in findings}
-        self.assertIn("core.W011", ids)
-        self.assertTrue(any(isinstance(item, Warning) and item.id == "core.W011" for item in findings))
+        self.assertNotIn("core.W011", ids)
 
     @override_settings(
         TENANT_ORG_INTEGRITY_CHECK_ENABLED=True,

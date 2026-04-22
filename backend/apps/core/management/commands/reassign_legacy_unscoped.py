@@ -67,6 +67,11 @@ class Command(BaseCommand):
         reassigned_total = 0
         with transaction.atomic():
             for label, model in model_specs:
+                has_org_field = any(getattr(field, "name", "") == "organization" for field in model._meta.get_fields())
+                if not has_org_field:
+                    self.stdout.write(f"{label}: skipped (no organization field)")
+                    continue
+
                 qs = model.objects.filter(organization_id=source_org.id)
                 count = qs.count()
                 self.stdout.write(f"{label}: {count}")

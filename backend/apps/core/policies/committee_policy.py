@@ -29,7 +29,6 @@ def get_active_committee_membership(
         committee_id=committee_id,
         is_active=True,
         committee__is_active=True,
-        committee__organization__is_active=True,
     )
     if not allow_observer:
         queryset = queryset.exclude(committee_role="observer")
@@ -73,7 +72,6 @@ def has_active_membership_for_any_committee_ids(
         committee_id__in=normalized_committee_ids,
         is_active=True,
         committee__is_active=True,
-        committee__organization__is_active=True,
     )
     if not allow_observer:
         queryset = queryset.exclude(committee_role="observer")

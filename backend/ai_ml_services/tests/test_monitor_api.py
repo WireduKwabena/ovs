@@ -23,7 +23,19 @@ _HAS_CV2_NUMPY = bool(cv2 is not None and np is not None)
 _CV2_NUMPY_MISSING_REASON = "Optional dependency missing for monitor API tests: cv2/numpy"
 
 
-@override_settings(ROOT_URLCONF="ai_ml_services.tests.urls")
+@override_settings(
+    ROOT_URLCONF="ai_ml_services.tests.urls",
+    MIDDLEWARE=[
+        "corsheaders.middleware.CorsMiddleware",
+        "django.middleware.security.SecurityMiddleware",
+        "django.contrib.sessions.middleware.SessionMiddleware",
+        "django.middleware.common.CommonMiddleware",
+        "django.middleware.csrf.CsrfViewMiddleware",
+        "django.contrib.auth.middleware.AuthenticationMiddleware",
+        "django.contrib.messages.middleware.MessageMiddleware",
+        "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    ],
+)
 @unittest.skipUnless(_HAS_CV2_NUMPY, _CV2_NUMPY_MISSING_REASON)
 class MonitorApiBaseTests(APITestCase):
     def setUp(self):
@@ -57,7 +69,19 @@ class MonitorApiBaseTests(APITestCase):
         return SimpleUploadedFile(name, encoded.tobytes(), content_type="image/png")
 
 
-@override_settings(ROOT_URLCONF="ai_ml_services.tests.urls")
+@override_settings(
+    ROOT_URLCONF="ai_ml_services.tests.urls",
+    MIDDLEWARE=[
+        "corsheaders.middleware.CorsMiddleware",
+        "django.middleware.security.SecurityMiddleware",
+        "django.contrib.sessions.middleware.SessionMiddleware",
+        "django.middleware.common.CommonMiddleware",
+        "django.middleware.csrf.CsrfViewMiddleware",
+        "django.contrib.auth.middleware.AuthenticationMiddleware",
+        "django.contrib.messages.middleware.MessageMiddleware",
+        "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    ],
+)
 @unittest.skipUnless(_HAS_CV2_NUMPY, _CV2_NUMPY_MISSING_REASON)
 class MonitorHealthApiTests(MonitorApiBaseTests):
     @patch("ai_ml_services.views.model_monitor")
@@ -111,7 +135,19 @@ class MonitorHealthApiTests(MonitorApiBaseTests):
         mock_log_event.assert_not_called()
 
 
-@override_settings(ROOT_URLCONF="ai_ml_services.tests.urls")
+@override_settings(
+    ROOT_URLCONF="ai_ml_services.tests.urls",
+    MIDDLEWARE=[
+        "corsheaders.middleware.CorsMiddleware",
+        "django.middleware.security.SecurityMiddleware",
+        "django.contrib.sessions.middleware.SessionMiddleware",
+        "django.middleware.common.CommonMiddleware",
+        "django.middleware.csrf.CsrfViewMiddleware",
+        "django.contrib.auth.middleware.AuthenticationMiddleware",
+        "django.contrib.messages.middleware.MessageMiddleware",
+        "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    ],
+)
 class MonitorPublicRouteTests(APITestCase):
     _public_host = {"SERVER_NAME": "public.testserver"}
 
@@ -153,7 +189,19 @@ class MonitorPublicRouteTests(APITestCase):
         mock_log_event.assert_called_once()
 
 
-@override_settings(ROOT_URLCONF="ai_ml_services.tests.urls")
+@override_settings(
+    ROOT_URLCONF="ai_ml_services.tests.urls",
+    MIDDLEWARE=[
+        "corsheaders.middleware.CorsMiddleware",
+        "django.middleware.security.SecurityMiddleware",
+        "django.contrib.sessions.middleware.SessionMiddleware",
+        "django.middleware.common.CommonMiddleware",
+        "django.middleware.csrf.CsrfViewMiddleware",
+        "django.contrib.auth.middleware.AuthenticationMiddleware",
+        "django.contrib.messages.middleware.MessageMiddleware",
+        "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    ],
+)
 @unittest.skipUnless(_HAS_CV2_NUMPY, _CV2_NUMPY_MISSING_REASON)
 class MonitorDocumentClassificationApiTests(MonitorApiBaseTests):
     @patch("ai_ml_services.views.get_ai_service")
@@ -238,7 +286,19 @@ class MonitorDocumentClassificationApiTests(MonitorApiBaseTests):
         mock_log_event.assert_not_called()
 
 
-@override_settings(ROOT_URLCONF="ai_ml_services.tests.urls")
+@override_settings(
+    ROOT_URLCONF="ai_ml_services.tests.urls",
+    MIDDLEWARE=[
+        "corsheaders.middleware.CorsMiddleware",
+        "django.middleware.security.SecurityMiddleware",
+        "django.contrib.sessions.middleware.SessionMiddleware",
+        "django.middleware.common.CommonMiddleware",
+        "django.middleware.csrf.CsrfViewMiddleware",
+        "django.contrib.auth.middleware.AuthenticationMiddleware",
+        "django.contrib.messages.middleware.MessageMiddleware",
+        "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    ],
+)
 @unittest.skipUnless(_HAS_CV2_NUMPY, _CV2_NUMPY_MISSING_REASON)
 class MonitorSocialProfileApiTests(MonitorApiBaseTests):
     @patch("ai_ml_services.views.get_ai_service")

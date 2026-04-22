@@ -8,8 +8,8 @@ from .models import CampaignRubricVersion, VettingCampaign
 ALLOWED_STATUS_TRANSITIONS: dict[str, set[str]] = {
     "draft": {"active", "archived"},
     "active": {"closed", "archived"},
-    "closed": {"archived"},
-    "archived": set(),
+    "closed": {"active", "archived"},
+    "archived": {"active", "closed"},
 }
 
 
