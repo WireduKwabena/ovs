@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useReducer, useRef } from "react";
+import React, { Suspense, useEffect, useRef, useState } from "react";
 import {
   BrowserRouter as Router,
   Navigate,
@@ -369,10 +369,9 @@ const OrganizationScopedRoute: React.FC<{ children: React.ReactNode }> = ({
   );
   const loading = useSelector((state: RootState) => state.auth.loading);
   const attemptedOrganizationIdRef = useRef<string | null>(null);
-  const [, forceAttemptSyncRender] = useReducer(
-    (count: number) => count + 1,
-    0,
-  );
+  const [attemptedOrganizationId, setAttemptedOrganizationId] = useState<
+    string | null
+  >(null);
   const normalizedOrganizationId = String(orgId || "").trim();
 
   useEffect(() => {
@@ -389,21 +388,13 @@ const OrganizationScopedRoute: React.FC<{ children: React.ReactNode }> = ({
     }
 
     attemptedOrganizationIdRef.current = normalizedOrganizationId;
-    let isSubscribed = true;
-    // Keep the guard fail-closed even if the org-switch thunk exits without a visible store update.
     queueMicrotask(() => {
-      if (isSubscribed) {
-        forceAttemptSyncRender();
-      }
+      setAttemptedOrganizationId(normalizedOrganizationId);
     });
     void dispatch(switchActiveOrganization(normalizedOrganizationId));
-    return () => {
-      isSubscribed = false;
-    };
   }, [
     activeOrganizationId,
     dispatch,
-    forceAttemptSyncRender,
     hasAccessToken,
     isAuthenticated,
     normalizedOrganizationId,
@@ -413,8 +404,7 @@ const OrganizationScopedRoute: React.FC<{ children: React.ReactNode }> = ({
 
   const routePath = `${location.pathname}${location.search || ""}`;
   const setupRedirectPath = getOrganizationSetupPath(routePath);
-  const syncAttempted =
-    attemptedOrganizationIdRef.current === normalizedOrganizationId;
+  const syncAttempted = attemptedOrganizationId === normalizedOrganizationId;
   const isOrganizationSynced =
     normalizedOrganizationId.length > 0 &&
     activeOrganizationId === normalizedOrganizationId;
@@ -505,7 +495,7 @@ const AppRoutes: React.FC = () => (
     />
     <Route
       path="/admin/org/:orgId/cases"
-      element={<Navigate to={getWorkspacePath("applications")} replace />}
+      element={<LegacyWorkspaceRedirect segment="applications" />}
     />
     <Route
       path="/admin/org/:orgId/members"
@@ -1094,7 +1084,7 @@ const AppRoutes: React.FC = () => (
     />
     <Route
       path="/admin/org/:orgId/cases"
-      element={<Navigate to={getWorkspacePath("applications")} replace />}
+      element={<LegacyWorkspaceRedirect segment="applications" />}
     />
     <Route
       path="/admin/cases/:caseId"
