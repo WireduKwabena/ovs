@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   FolderOpen,
@@ -29,6 +29,15 @@ const APPLICATION_TYPE_OPTIONS = [
   "contract",
   "volunteer",
 ];
+
+const ACTIVE_DOSSIER_STATUSES = new Set([
+  "document_upload",
+  "document_analysis",
+  "interview_scheduled",
+  "interview_in_progress",
+  "under_review",
+  "on_hold",
+]);
 
 const statusColor = (status: string) => {
   switch (status) {
@@ -89,6 +98,34 @@ const OrgCasesPage: React.FC = () => {
   const hasActiveFilters = Boolean(
     statusFilter || priorityFilter || applicationTypeFilter,
   );
+
+  const filteredCases = useMemo(() => {
+    return cases.filter((c) => {
+      const normalizedStatus = String(c.status || "")
+        .trim()
+        .toLowerCase();
+      const normalizedPriority = String(c.priority || "")
+        .trim()
+        .toLowerCase();
+      const normalizedType = String(c.application_type || "")
+        .trim()
+        .toLowerCase();
+
+      const matchesStatus = !statusFilter
+        ? true
+        : statusFilter === "under_review"
+          ? ACTIVE_DOSSIER_STATUSES.has(normalizedStatus)
+          : normalizedStatus === statusFilter;
+
+      const matchesPriority =
+        !priorityFilter || normalizedPriority === priorityFilter;
+      const matchesType =
+        !applicationTypeFilter ||
+        normalizedType.includes(applicationTypeFilter);
+
+      return matchesStatus && matchesPriority && matchesType;
+    });
+  }, [cases, statusFilter, priorityFilter, applicationTypeFilter]);
 
   const fetchCases = useCallback(
     async (
@@ -271,7 +308,7 @@ const OrgCasesPage: React.FC = () => {
           <div className="flex justify-center p-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
           </div>
-        ) : cases.length === 0 ? (
+        ) : filteredCases.length === 0 ? (
           <Card className="p-12 text-center rounded-2xl border-dashed border-border/70 bg-muted/20">
             <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground">
@@ -279,7 +316,7 @@ const OrgCasesPage: React.FC = () => {
             </p>
           </Card>
         ) : (
-          cases.map((c) => (
+          filteredCases.map((c) => (
             <Card
               key={c.id}
               className="p-5 rounded-2xl border-border/70 bg-card/50 hover:bg-card/80 transition-all shadow-sm cursor-pointer group"

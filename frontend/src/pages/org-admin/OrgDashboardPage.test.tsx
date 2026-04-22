@@ -59,7 +59,7 @@ describe("OrgDashboardPage pipeline navigation", () => {
     vi.clearAllMocks();
   });
 
-  it("navigates to org cases with status filter and resets priority/type when pulse is clicked", async () => {
+  it("navigates to workspace applications with status filter when pulse is clicked", async () => {
     mocks.useAuth.mockReturnValue({
       activeOrganization: {
         id: "org-1",
@@ -115,7 +115,7 @@ describe("OrgDashboardPage pipeline navigation", () => {
 
     await waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith(
-        "/admin/org/org-1/cases?status=under_review&priority=&application_type=",
+        "/workspace/applications?status=under_review",
       );
     });
   });

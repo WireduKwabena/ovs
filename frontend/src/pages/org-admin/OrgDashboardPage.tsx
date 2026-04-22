@@ -18,6 +18,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import { useAuth } from "@/hooks/useAuth";
+import { getWorkspacePath } from "@/utils/appPaths";
 import { adminService } from "@/services/admin.service";
 import { governanceService } from "@/services/governance.service";
 import { billingService } from "@/services/billing.service";
@@ -330,13 +331,8 @@ const OrgDashboardPage: React.FC = () => {
                 <button
                   key={item.name}
                   onClick={() => {
-                    const params = new URLSearchParams();
-                    params.set("status", item.status);
-                    // Clear other filters so pulse clicks always show status-focused results.
-                    params.set("priority", "");
-                    params.set("application_type", "");
                     navigate(
-                      `/admin/org/${activeOrganizationId}/cases?${params.toString()}`,
+                      `${getWorkspacePath("applications")}?status=${encodeURIComponent(item.status)}`,
                     );
                   }}
                   className="flex items-center justify-between w-full p-3 rounded-xl bg-background/50 border border-border/50 hover:bg-muted/60 hover:border-border transition-colors group"

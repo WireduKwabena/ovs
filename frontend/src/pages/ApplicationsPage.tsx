@@ -18,6 +18,17 @@ import { useAuth } from "@/hooks/useAuth";
 import { formatDate } from "@/utils/helper";
 
 const PRIORITY_OPTIONS = ["low", "medium", "high", "critical"] as const;
+
+// Mirrors the backend ACTIVE_DOSSIER_STATUSES — all pipeline-in-flight statuses
+// that the dashboard groups under the "Under Review" pulse.
+const ACTIVE_DOSSIER_STATUSES = new Set([
+  "document_upload",
+  "document_analysis",
+  "interview_scheduled",
+  "interview_in_progress",
+  "under_review",
+  "on_hold",
+]);
 const APPLICATION_TYPE_OPTIONS = [
   "employment",
   "appointment",
@@ -182,7 +193,12 @@ export const ApplicationsPage: React.FC = () => {
         .toLowerCase()
         .includes(normalizedSearchTerm) ||
       officeDisplay.includes(normalizedSearchTerm);
-    const matchesStatus = statusFilter === "all" || app.status === statusFilter;
+    const matchesStatus =
+      statusFilter === "all"
+        ? true
+        : statusFilter === "under_review"
+          ? ACTIVE_DOSSIER_STATUSES.has(app.status)
+          : app.status === statusFilter;
     const matchesPriority = !priorityFilter || app.priority === priorityFilter;
     const matchesAppType =
       !applicationTypeFilter || app.application_type === applicationTypeFilter;

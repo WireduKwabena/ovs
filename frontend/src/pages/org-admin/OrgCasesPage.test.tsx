@@ -1,9 +1,15 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 
-import OrgCasesPage from './OrgCasesPage';
+import OrgCasesPage from "./OrgCasesPage";
 
 const mocks = vi.hoisted(() => ({
   adminService: {
@@ -12,31 +18,31 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('@/services/admin.service', () => ({
+vi.mock("@/services/admin.service", () => ({
   adminService: mocks.adminService,
 }));
 
-describe('OrgCasesPage filters', () => {
+describe("OrgCasesPage filters", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
   });
 
-  it('hydrates URL filters and clears active filter set', async () => {
+  it("hydrates URL filters and clears active filter set", async () => {
     mocks.adminService.getOrgCases.mockResolvedValue({
       results: [
         {
-          id: 'case-row-1',
-          case_id: 'CASE-001',
-          applicant_name: 'Jane Candidate',
-          applicant_email: 'jane@example.com',
-          status: 'pending',
-          application_type: 'employment',
-          priority: 'high',
+          id: "case-row-1",
+          case_id: "CASE-001",
+          applicant_name: "Jane Candidate",
+          applicant_email: "jane@example.com",
+          status: "pending",
+          application_type: "employment",
+          priority: "high",
           consistency_score: 83.4,
           fraud_risk_score: 22.1,
-          created_at: '2026-03-01T10:00:00Z',
-          updated_at: '2026-03-01T10:00:00Z',
+          created_at: "2026-03-01T10:00:00Z",
+          updated_at: "2026-03-01T10:00:00Z",
           admin: null,
         },
       ],
@@ -44,12 +50,14 @@ describe('OrgCasesPage filters', () => {
       page: 1,
       page_size: 20,
       total_pages: 1,
-      ordering: '-created_at',
+      ordering: "-created_at",
     });
 
     render(
       <MemoryRouter
-        initialEntries={['/admin/org/org-1/cases?status=pending&priority=high&application_type=employment']}
+        initialEntries={[
+          "/admin/org/org-1/cases?status=pending&priority=high&application_type=employment",
+        ]}
       >
         <Routes>
           <Route path="/admin/org/:orgId/cases" element={<OrgCasesPage />} />
@@ -59,23 +67,27 @@ describe('OrgCasesPage filters', () => {
 
     await waitFor(() => {
       expect(mocks.adminService.getOrgCases).toHaveBeenCalledWith(
-        'org-1',
+        "org-1",
         expect.objectContaining({
-          status: 'pending',
-          priority: 'high',
-          application_type: 'employment',
+          status: "pending",
+          priority: "high",
+          application_type: "employment",
         }),
       );
     });
 
     expect(await screen.findByText(/active filters/i)).toBeTruthy();
-    expect(await screen.findByRole('button', { name: /clear case filters/i })).toBeTruthy();
+    expect(
+      await screen.findByRole("button", { name: /clear case filters/i }),
+    ).toBeTruthy();
 
-    fireEvent.click(await screen.findByRole('button', { name: /clear case filters/i }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: /clear case filters/i }),
+    );
 
     await waitFor(() => {
       expect(mocks.adminService.getOrgCases).toHaveBeenLastCalledWith(
-        'org-1',
+        "org-1",
         expect.objectContaining({
           status: undefined,
           priority: undefined,
@@ -85,10 +97,61 @@ describe('OrgCasesPage filters', () => {
     });
 
     const typeInput = await screen.findByLabelText(/application type/i);
-    expect((typeInput as HTMLInputElement).value).toBe('');
+    expect((typeInput as HTMLInputElement).value).toBe("");
 
     await waitFor(() => {
       expect(screen.queryByText(/active filters/i)).toBeNull();
     });
+  });
+
+  it("shows only status-matching dossiers even if API returns mixed statuses", async () => {
+    mocks.adminService.getOrgCases.mockResolvedValue({
+      results: [
+        {
+          id: "case-row-1",
+          case_id: "CASE-001",
+          applicant_name: "Jane Candidate",
+          applicant_email: "jane@example.com",
+          status: "pending",
+          application_type: "employment",
+          priority: "high",
+          consistency_score: 83.4,
+          fraud_risk_score: 22.1,
+          created_at: "2026-03-01T10:00:00Z",
+          updated_at: "2026-03-01T10:00:00Z",
+          admin: null,
+        },
+        {
+          id: "case-row-2",
+          case_id: "CASE-002",
+          applicant_name: "John Candidate",
+          applicant_email: "john@example.com",
+          status: "approved",
+          application_type: "appointment",
+          priority: "medium",
+          consistency_score: 71.2,
+          fraud_risk_score: 11.4,
+          created_at: "2026-03-02T10:00:00Z",
+          updated_at: "2026-03-02T10:00:00Z",
+          admin: null,
+        },
+      ],
+      count: 2,
+      page: 1,
+      page_size: 20,
+      total_pages: 1,
+      ordering: "-created_at",
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/admin/org/org-1/cases?status=pending"]}>
+        <Routes>
+          <Route path="/admin/org/:orgId/cases" element={<OrgCasesPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("CASE-001")).toBeTruthy();
+    expect(screen.queryByText("CASE-002")).toBeNull();
   });
 });
