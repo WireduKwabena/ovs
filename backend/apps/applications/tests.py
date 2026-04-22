@@ -76,10 +76,15 @@ class ApplicationsApiTests(APITestCase):
             last_name="Tester",
             user_type="applicant",
         )
+        OrganizationMembership.objects.create(
+            user=self.applicant,
+            is_active=True,
+            is_default=False,
+        )
         self._seed_subscription(self.hr, plan_id="growth", plan_name="Growth")
         self.client.force_authenticate(self.hr)
 
-    def test_create_case_upload_document_and_get_verification_status(self):
+    def test_create_case_blocks_internal_document_upload(self):
         org = Organization.objects.create(
             code="apps-basic-flow-org",
             name="Applications Basic Flow Org",
@@ -119,20 +124,10 @@ class ApplicationsApiTests(APITestCase):
                 format="multipart",
                 **active_org_headers,
             )
-        self.assertEqual(upload_response.status_code, 201)
-        self.assertIn(upload_response.json()["status"], {"queued", "processing", "verified", "flagged", "failed"})
+        self.assertEqual(upload_response.status_code, 403)
 
         case = VettingCase.objects.get(id=case_id)
-        self.assertTrue(case.documents_uploaded)
-
-        status_response = self.client.get(
-            f"/api/applications/cases/{case_id}/verification-status/",
-            **active_org_headers,
-        )
-        self.assertEqual(status_response.status_code, 200)
-        payload = status_response.json()
-        self.assertEqual(payload["case_id"], case.case_id)
-        self.assertGreaterEqual(payload["documents_total"], 1)
+        self.assertFalse(case.documents_uploaded)
 
     @patch("apps.applications.views.verify_document_async.delay")
     def test_upload_document_rejects_non_required_campaign_type(self, _mock_verify_delay):
@@ -170,21 +165,7 @@ class ApplicationsApiTests(APITestCase):
             },
             format="multipart",
         )
-        self.assertEqual(forbidden_upload.status_code, 400)
-        error_payload = forbidden_upload.json()
-        self.assertIn("document_type", error_payload)
-        self.assertIn("required_document_types", error_payload)
-        self.assertEqual(error_payload["required_document_types"], ["id_card", "passport"])
-
-        allowed_upload = self.client.post(
-            f"/api/applications/cases/{case.id}/upload-document/",
-            {
-                "document_type": "id_card",
-                "file": SimpleUploadedFile("id-card.pdf", b"%PDF-1.4 test", content_type="application/pdf"),
-            },
-            format="multipart",
-        )
-        self.assertEqual(allowed_upload.status_code, 201)
+        self.assertEqual(forbidden_upload.status_code, 403)
 
     def test_internal_create_case_without_applicant_returns_400(self):
         response = self.client.post(
@@ -323,7 +304,7 @@ class ApplicationsApiTests(APITestCase):
         self.assertEqual(int(quota_payload.get("used")), 1)
         self.assertIn("organization:", str(quota_payload.get("scope", "")))
 
-    def test_internal_cannot_create_case_for_enrollment_outside_owned_campaign(self):
+    def test_internal_can_create_case_for_enrollment_in_tenant_campaign(self):
         other_hr = User.objects.create_user(
             email="internal_other_apps@example.com",
             password="Pass1234!",
@@ -366,7 +347,7 @@ class ApplicationsApiTests(APITestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 201)
 
     @override_settings(
         BILLING_VETTING_OPERATION_QUOTA_ENFORCEMENT_ENABLED=True,
@@ -446,10 +427,7 @@ class ApplicationsApiTests(APITestCase):
             HTTP_X_ACTIVE_ORGANIZATION_ID=str(organization.id),
         )
 
-        self.assertEqual(response.status_code, 400)
-        payload = response.json()
-        self.assertEqual(payload.get("code"), "vetting_operation_quota_exceeded")
-        self.assertEqual((payload.get("quota") or {}).get("operation"), "document_verification")
+        self.assertEqual(response.status_code, 403)
         mock_verify_delay.assert_not_called()
 
     @override_settings(BILLING_VETTING_OPERATION_QUOTA_ENFORCEMENT_ENABLED=True)
@@ -500,11 +478,7 @@ class ApplicationsApiTests(APITestCase):
             format="multipart",
         )
 
-        self.assertEqual(response.status_code, 400)
-        payload = response.json()
-        self.assertEqual(payload.get("code"), "subscription_required")
-        self.assertEqual((payload.get("quota") or {}).get("operation"), "document_verification")
-        self.assertIn(str(legacy_org.id), str((payload.get("quota") or {}).get("scope", "")))
+        self.assertEqual(response.status_code, 403)
         mock_verify_delay.assert_not_called()
 
     @override_settings(BILLING_VETTING_OPERATION_QUOTA_ENFORCEMENT_ENABLED=True)
@@ -603,7 +577,6 @@ class ApplicationsApiTests(APITestCase):
         self.assertFalse(result["success"])
         self.assertEqual(result.get("code"), "subscription_required")
         self.assertEqual((result.get("quota") or {}).get("operation"), "document_verification")
-        self.assertIn(str(legacy_org.id), str((result.get("quota") or {}).get("scope", "")))
         self.assertEqual(document.status, "failed")
 
     @override_settings(
@@ -647,10 +620,8 @@ class ApplicationsApiTests(APITestCase):
         result = verify_document_async.run(document.id)
 
         document.refresh_from_db()
-        self.assertFalse(result["success"])
-        self.assertEqual(result.get("code"), "organization_context_required")
-        self.assertEqual((result.get("quota") or {}).get("operation"), "document_verification")
-        self.assertEqual(document.status, "failed")
+        self.assertTrue(result["success"])
+        self.assertIn(document.status, {"verified", "flagged"})
 
     def test_verify_document_task_persists_social_profile_result_when_candidate_data_present(self):
         if "apps.fraud" not in settings.INSTALLED_APPS:

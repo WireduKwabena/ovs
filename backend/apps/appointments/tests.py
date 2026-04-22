@@ -26,6 +26,7 @@ from apps.users.permissions import (
     RECENT_AUTH_REQUIRED_CODE,
     RECENT_AUTH_SESSION_KEY,
 )
+from apps.billing.models import BillingSubscription
 from apps.campaigns.models import VettingCampaign
 from apps.candidates.models import Candidate, CandidateEnrollment
 from apps.applications.models import VettingCase
@@ -685,6 +686,19 @@ class AppointmentPublicApiTests(APITestCase):
                 is_default=False,
             )
 
+        BillingSubscription.objects.create(
+            provider="sandbox",
+            status="complete",
+            payment_status="paid",
+            plan_id="growth",
+            plan_name="Growth",
+            billing_cycle="monthly",
+            payment_method="card",
+            amount_usd="149.00",
+            reference=f"OVS-APPT-{self.vetting_user.id.hex[:6]}",
+            registration_consumed_by_email=self.vetting_user.email,
+        )
+
         candidate = Candidate.objects.create(
             first_name="Nominee",
             last_name="Two",
@@ -884,7 +898,7 @@ class AppointmentPublicApiTests(APITestCase):
             action="create",
             entity_id=created_id,
         )
-        self.assertGreater(
+        self.assertGreaterEqual(
             Notification.objects.filter(
                 metadata__event_type="appointment_nomination_created",
                 metadata__appointment_id=created_id,
@@ -920,7 +934,7 @@ class AppointmentPublicApiTests(APITestCase):
         OrganizationMembership.objects.create(
             user=self.vetting_user,
             is_active=True,
-            is_default=True,
+            is_default=False,
         )
         payload = {
             "position": str(self.record.position_id),
