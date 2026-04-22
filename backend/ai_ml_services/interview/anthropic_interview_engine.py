@@ -59,7 +59,23 @@ class InterviewFlag:
     status: str = "pending"
 
 
-def _anthropic_client():
+def _get_chat_client():
+    """Return (provider, client, model, max_tokens) based on LLM_PROVIDER setting."""
+    provider = str(getattr(settings, "LLM_PROVIDER", "anthropic")).strip().lower()
+
+    if provider == "ollama":
+        try:
+            from openai import OpenAI  # type: ignore[import]
+        except ModuleNotFoundError as exc:
+            raise RuntimeError(
+                "openai package is required for the Ollama provider. Install `openai`."
+            ) from exc
+        base_url = str(getattr(settings, "OLLAMA_BASE_URL", "http://localhost:11434/v1")).strip()
+        model = str(getattr(settings, "OLLAMA_MODEL", "llama3.1:8b")).strip()
+        max_tokens = int(getattr(settings, "OLLAMA_MAX_TOKENS", 1024))
+        return "ollama", OpenAI(base_url=base_url, api_key="ollama"), model, max_tokens
+
+    # Default: anthropic
     try:
         import anthropic  # type: ignore[import]
     except ModuleNotFoundError as exc:
@@ -69,7 +85,32 @@ def _anthropic_client():
     api_key = str(getattr(settings, "ANTHROPIC_API_KEY", "")).strip()
     if not api_key:
         raise RuntimeError("ANTHROPIC_API_KEY is not configured.")
-    return anthropic.Anthropic(api_key=api_key)
+    model = str(getattr(settings, "ANTHROPIC_INTERVIEW_MODEL", "claude-sonnet-4-6"))
+    max_tokens = int(getattr(settings, "ANTHROPIC_INTERVIEW_MAX_TOKENS", 1024))
+    return "anthropic", anthropic.Anthropic(api_key=api_key), model, max_tokens
+
+
+def _call_llm(system: str, messages: list[dict]) -> str:
+    """Dispatch a chat request to the configured LLM provider and return the reply text."""
+    provider, client, model, max_tokens = _get_chat_client()
+
+    if provider == "ollama":
+        full_messages = [{"role": "system", "content": system}] + messages
+        response = client.chat.completions.create(
+            model=model,
+            max_tokens=max_tokens,
+            messages=full_messages,
+        )
+        return response.choices[0].message.content
+
+    # Anthropic
+    response = client.messages.create(
+        model=model,
+        max_tokens=max_tokens,
+        system=system,
+        messages=messages,
+    )
+    return response.content[0].text
 
 
 # ---------------------------------------------------------------------------
@@ -78,27 +119,15 @@ def _anthropic_client():
 
 def handle_tavus_llm_request(messages: list[dict], *, session_context: dict | None = None) -> str:
     """
-    Process an OpenAI-compatible chat request from Tavus and return Claude's reply.
+    Process an OpenAI-compatible chat request from Tavus and return the LLM reply.
 
     Tavus calls this endpoint (via `layers.llm.base_url`) with the conversation
     so far and expects back the next interviewer turn.
     """
-    client = _anthropic_client()
-    model = str(getattr(settings, "ANTHROPIC_INTERVIEW_MODEL", "claude-sonnet-4-6"))
-    max_tokens = int(getattr(settings, "ANTHROPIC_INTERVIEW_MAX_TOKENS", 1024))
-
     system_prompt = _build_system_prompt(session_context or {})
-
     # Strip any existing system messages — we supply our own
     filtered = [m for m in messages if m.get("role") != "system"]
-
-    response = client.messages.create(
-        model=model,
-        max_tokens=max_tokens,
-        system=system_prompt,
-        messages=filtered,
-    )
-    return response.content[0].text
+    return _call_llm(system_prompt, filtered)
 
 
 def _build_system_prompt(context: dict) -> str:
@@ -151,7 +180,11 @@ class AnthropicInterviewEngine:
         self.max_questions = int(self.session_data.get("max_questions", 12))
         self.min_questions = int(self.session_data.get("min_questions", 5))
         self.flags = self._normalize_flags(self.session_data.get("interrogation_flags", []))
-        self._use_ai = bool(str(getattr(settings, "ANTHROPIC_API_KEY", "")).strip())
+        _provider = str(getattr(settings, "LLM_PROVIDER", "anthropic")).strip().lower()
+        if _provider == "ollama":
+            self._use_ai = bool(str(getattr(settings, "OLLAMA_BASE_URL", "")).strip())
+        else:
+            self._use_ai = bool(str(getattr(settings, "ANTHROPIC_API_KEY", "")).strip())
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -214,17 +247,14 @@ class AnthropicInterviewEngine:
         return messages
 
     def _ai_generate_question(self) -> Optional[dict[str, Any]]:
-        """Call Claude to generate the next question. Returns None to end the interview."""
+        """Call the configured LLM to generate the next question. Returns None to end the interview."""
         try:
-            client = _anthropic_client()
+            _get_chat_client()  # validate provider config early
         except RuntimeError as exc:
-            logger.warning("Anthropic unavailable, using fallback: %s", exc)
+            logger.warning("LLM provider unavailable, using fallback: %s", exc)
             return self._fallback_generate_question()
 
-        model = str(getattr(settings, "ANTHROPIC_INTERVIEW_MODEL", "claude-sonnet-4-6"))
-        max_tokens = int(getattr(settings, "ANTHROPIC_INTERVIEW_MAX_TOKENS", 1024))
-
-        # Ask Claude to decide what to do next (continue or close)
+        # Ask the LLM to decide what to do next (continue or close)
         pending = self._next_pending_flag()
         context_summary = json.dumps(self.get_interview_context())
         history_summary = json.dumps(
@@ -252,18 +282,13 @@ class AnthropicInterviewEngine:
         )
 
         try:
-            response = client.messages.create(
-                model=model,
-                max_tokens=max_tokens,
-                system=system,
-                messages=[{"role": "user", "content": decision_prompt}],
-            )
-            data = _extract_json(response.content[0].text)
+            text = _call_llm(system, [{"role": "user", "content": decision_prompt}])
+            data = _extract_json(text)
         except (RuntimeError, ValueError, KeyError) as exc:
-            logger.warning("Claude question generation unavailable, using heuristics: %s", exc)
+            logger.warning("LLM question generation unavailable, using heuristics: %s", exc)
             return self._fallback_generate_question()
         except Exception as exc:  # noqa: BLE001 — unexpected errors still fall back, but are logged fully
-            logger.error("Unexpected error in Claude question generation: %s", exc, exc_info=True)
+            logger.error("Unexpected error in LLM question generation: %s", exc, exc_info=True)
             return self._fallback_generate_question()
 
         if not data.get("continue", True):

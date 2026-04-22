@@ -31,7 +31,8 @@ class LLMEvaluator:
         self,
         model: str = 'gpt-4',
         api_key: str = None,
-        temperature: float = 0.3
+        temperature: float = 0.3,
+        base_url: str = None,
     ):
         """
         Initialize LLM evaluator.
@@ -40,6 +41,7 @@ class LLMEvaluator:
             model: 'gpt-4', 'gpt-3.5-turbo', 'claude-3-5-sonnet'
             api_key: API key (or from environment)
             temperature: Randomness (0=deterministic, 1=creative)
+            base_url: Custom base URL (used for Ollama: 'http://localhost:11434/v1')
         """
         self.model = model
         self.temperature = temperature
@@ -56,6 +58,10 @@ class LLMEvaluator:
                 ) from exc
             self.client = anthropic.Anthropic(api_key=api_key)
             self.provider = 'anthropic'
+        elif 'ollama' in model.lower() or base_url is not None:
+            _url = base_url or 'http://localhost:11434/v1'
+            self.client = OpenAI(base_url=_url, api_key='ollama')
+            self.provider = 'openai'  # Ollama is OpenAI-compatible; reuse _call_openai
         else:
             raise ValueError(f"Unknown model: {model}")
     

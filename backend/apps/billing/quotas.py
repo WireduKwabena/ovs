@@ -751,7 +751,7 @@ def _scope_has_subscription_history(*, organization_id: str | None, emails: list
         # isolation already scopes this to the current tenant.
         if BillingSubscription.objects.exists():
             return True
-        scoped_emails = emails or sorted(_active_org_member_emails(organization_id=normalized_org_id))
+        scoped_emails = emails or sorted(_active_org_member_emails())
         legacy_ids = _legacy_subscription_ids_for_organization(
             organization_id=normalized_org_id,
             emails=scoped_emails,

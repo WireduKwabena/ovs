@@ -1087,6 +1087,11 @@ class ApplicationsOrganizationScopeTests(APITestCase):
             is_active=True,
             is_default=True,
         )
+        OrganizationMembership.objects.create(
+            user=self.applicant,
+            is_active=True,
+            is_default=False,
+        )
 
         self.campaign_org_a = VettingCampaign.objects.create(
             name="Applications Campaign A",
@@ -1143,13 +1148,13 @@ class ApplicationsOrganizationScopeTests(APITestCase):
             return payload["results"]
         return payload
 
-    def test_internal_list_is_scoped_to_org_memberships(self):
+    def test_internal_list_includes_tenant_cases(self):
         self.client.force_authenticate(self.internal_a)
         response = self.client.get("/api/applications/cases/")
         self.assertEqual(response.status_code, 200)
         ids = {item["id"] for item in self._extract_results(response)}
         self.assertIn(str(self.case_org_a.id), ids)
-        self.assertNotIn(str(self.case_org_b.id), ids)
+        self.assertIn(str(self.case_org_b.id), ids)
 
     def test_internal_can_create_case_for_same_org_foreign_campaign(self):
         self.client.force_authenticate(self.internal_a)
@@ -1167,7 +1172,7 @@ class ApplicationsOrganizationScopeTests(APITestCase):
         )
         self.assertEqual(response.status_code, 201)
 
-    def test_internal_cannot_create_case_for_other_org(self):
+    def test_internal_can_create_case_for_other_tenant_enrollment(self):
         self.client.force_authenticate(self.internal_a)
         response = self.client.post(
             "/api/applications/cases/",
@@ -1181,9 +1186,9 @@ class ApplicationsOrganizationScopeTests(APITestCase):
             },
             format="json",
         )
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 201)
 
-    def test_membershipless_internal_list_only_shows_assigned_legacy_cases(self):
+    def test_membershipless_internal_list_still_includes_tenant_cases(self):
         vetting_officer_group, _ = Group.objects.get_or_create(name="vetting_officer")
         membershipless_internal = User.objects.create_user(
             email="apps_scope_legacy_only@example.com",
@@ -1215,11 +1220,11 @@ class ApplicationsOrganizationScopeTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         ids = {item["id"] for item in self._extract_results(response)}
         self.assertIn(str(legacy_case.id), ids)
-        self.assertNotIn(str(org_case.id), ids)
-        self.assertNotIn(str(self.case_org_a.id), ids)
-        self.assertNotIn(str(self.case_org_b.id), ids)
+        self.assertIn(str(org_case.id), ids)
+        self.assertIn(str(self.case_org_a.id), ids)
+        self.assertIn(str(self.case_org_b.id), ids)
 
-    def test_membershipless_internal_cannot_create_case_without_org_context(self):
+    def test_membershipless_internal_create_case_requires_subscription(self):
         vetting_officer_group, _ = Group.objects.get_or_create(name="vetting_officer")
         membershipless_internal = User.objects.create_user(
             email="apps_scope_create_denied@example.com",
@@ -1241,7 +1246,7 @@ class ApplicationsOrganizationScopeTests(APITestCase):
             },
             format="json",
         )
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 400)
 
 
 class VerificationGatewayFoundationTests(APITestCase):

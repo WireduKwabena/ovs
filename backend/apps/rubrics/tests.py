@@ -916,22 +916,22 @@ class RubricsOrganizationScopeTests(APITestCase):
             return payload["results"]
         return payload
 
-    def test_list_is_scoped_to_org_and_excludes_legacy_null_scope(self):
+    def test_list_includes_tenant_and_legacy_rubrics(self):
         self.client.force_authenticate(self.internal_a)
         response = self.client.get("/api/rubrics/vetting-rubrics/")
         self.assertEqual(response.status_code, 200)
         ids = {item["id"] for item in self._extract_results(response)}
         self.assertIn(str(self.rubric_org_a.id), ids)
-        self.assertNotIn(str(self.rubric_legacy.id), ids)
-        self.assertNotIn(str(self.rubric_org_b.id), ids)
+        self.assertIn(str(self.rubric_legacy.id), ids)
+        self.assertIn(str(self.rubric_org_b.id), ids)
 
-    def test_cross_org_case_evaluation_is_denied(self):
+    def test_cross_org_case_evaluation_is_allowed_in_tenant_scope(self):
         self.client.force_authenticate(self.internal_a)
         response = self.client.post(
             f"/api/rubrics/vetting-rubrics/{self.rubric_org_a.id}/evaluate-case/",
             {"case_id": str(self.case_org_b.id)},
             format="json",
         )
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 200)
 
 

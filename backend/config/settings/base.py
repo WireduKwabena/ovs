@@ -933,6 +933,16 @@ ANTHROPIC_INTERVIEW_MODEL = config("ANTHROPIC_INTERVIEW_MODEL", default="claude-
 ANTHROPIC_INTERVIEW_MAX_TOKENS = config("ANTHROPIC_INTERVIEW_MAX_TOKENS", default=1024, cast=int)
 
 # ---------------------------------------------------------------------------
+# LLM Provider switch — controls which backend drives interview AI
+#   "anthropic"  → Claude (production default)
+#   "ollama"     → local Ollama server (dev / demo, zero API cost)
+# ---------------------------------------------------------------------------
+LLM_PROVIDER = config("LLM_PROVIDER", default="anthropic")
+OLLAMA_BASE_URL = config("OLLAMA_BASE_URL", default="http://localhost:11434/v1")
+OLLAMA_MODEL = config("OLLAMA_MODEL", default="llama3.1:8b")
+OLLAMA_MAX_TOKENS = config("OLLAMA_MAX_TOKENS", default=1024, cast=int)
+
+# ---------------------------------------------------------------------------
 # Tavus — AI video avatar for conducting interviews
 # ---------------------------------------------------------------------------
 TAVUS_API_KEY = config("TAVUS_API_KEY", default="")

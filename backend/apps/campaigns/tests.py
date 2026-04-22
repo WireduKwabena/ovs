@@ -388,11 +388,104 @@ class CampaignAuthorizationTests(APITestCase):
         self.assertEqual(Candidate.objects.count(), 0)
         self.assertEqual(CandidateEnrollment.objects.count(), 0)
 
+    @override_settings(BILLING_QUOTA_ENFORCEMENT_ENABLED=False)
+    def test_import_candidates_handles_malformed_rows_without_failing_request(self):
+        self.client.force_authenticate(self.internal_one)
+
+        payload = {
+            "send_invites": False,
+            "candidates": [
+                "not-a-dict-row",
+                {
+                    "email": "valid_candidate@example.com",
+                    "first_name": "Valid",
+                    "last_name": "Candidate",
+                    "preferred_channel": "email",
+                },
+            ],
+        }
+
+        response = self.client.post(
+            f"/api/campaigns/{self.campaign_one.id}/candidates/import/",
+            payload,
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(int(body.get("created_candidates", 0)), 1)
+        self.assertEqual(int(body.get("created_enrollments", 0)), 1)
+        self.assertEqual(len(body.get("errors", [])), 1)
+        self.assertEqual(body["errors"][0].get("row"), 1)
+        self.assertIn("must be an object", body["errors"][0].get("error", ""))
+
+    @override_settings(BILLING_QUOTA_ENFORCEMENT_ENABLED=False)
+    def test_import_candidates_rejects_invalid_email_and_continues(self):
+        self.client.force_authenticate(self.internal_one)
+
+        payload = {
+            "send_invites": False,
+            "candidates": [
+                {
+                    "email": "invalid-email",
+                    "first_name": "Broken",
+                    "last_name": "Address",
+                    "preferred_channel": "email",
+                },
+                {
+                    "email": "valid_followup@example.com",
+                    "first_name": "Valid",
+                    "last_name": "Followup",
+                    "preferred_channel": "email",
+                },
+            ],
+        }
+
+        response = self.client.post(
+            f"/api/campaigns/{self.campaign_one.id}/candidates/import/",
+            payload,
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(int(body.get("created_candidates", 0)), 1)
+        self.assertEqual(len(body.get("errors", [])), 1)
+        self.assertEqual(body["errors"][0].get("row"), 1)
+        self.assertIn("email is invalid", body["errors"][0].get("error", ""))
+
+    @override_settings(BILLING_QUOTA_ENFORCEMENT_ENABLED=False)
+    def test_import_candidates_rejects_invalid_preferred_channel(self):
+        self.client.force_authenticate(self.internal_one)
+
+        payload = {
+            "send_invites": False,
+            "candidates": [
+                {
+                    "email": "bad_channel@example.com",
+                    "first_name": "Bad",
+                    "last_name": "Channel",
+                    "preferred_channel": "fax",
+                },
+            ],
+        }
+
+        response = self.client.post(
+            f"/api/campaigns/{self.campaign_one.id}/candidates/import/",
+            payload,
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(int(body.get("created_candidates", 0)), 0)
+        self.assertEqual(int(body.get("created_enrollments", 0)), 0)
+        self.assertEqual(len(body.get("errors", [])), 1)
+        self.assertEqual(body["errors"][0].get("row"), 1)
+        self.assertIn("preferred_channel", body["errors"][0].get("error", ""))
+
 
 class CampaignOrganizationScopeTests(APITestCase):
     def setUp(self):
-        self.org_a = Organization.objects.create(code="camp-org-a", name="Campaign Org A")
-        self.org_b = Organization.objects.create(code="camp-org-b", name="Campaign Org B")
+        self.active_org = Organization.objects.create(code="camp-org-a", name="Campaign Org A")
+        self.other_org = Organization.objects.create(code="camp-org-b", name="Campaign Org B")
 
         self.internal_a = User.objects.create_user(
             email="campaign_scope_a@example.com",
@@ -422,12 +515,12 @@ class CampaignOrganizationScopeTests(APITestCase):
             is_default=True,
         )
 
-        self.same_org_foreign_owner_campaign = VettingCampaign.objects.create(
-            name="Org A Campaign (Owned by B)",
+        self.foreign_owner_campaign = VettingCampaign.objects.create(
+            name="Tenant Campaign (Owned by B)",
             initiated_by=self.internal_b,
         )
-        self.other_org_campaign = VettingCampaign.objects.create(
-            name="Org B Campaign",
+        self.tenant_campaign_two = VettingCampaign.objects.create(
+            name="Tenant Campaign 2",
             initiated_by=self.internal_b,
         )
 
@@ -436,21 +529,21 @@ class CampaignOrganizationScopeTests(APITestCase):
             return payload
         return payload.get("results", [])
 
-    def test_internal_with_org_membership_can_view_same_org_campaigns(self):
+    def test_internal_with_org_membership_can_view_tenant_campaigns(self):
         self.client.force_authenticate(self.internal_a)
         response = self.client.get("/api/campaigns/")
         self.assertEqual(response.status_code, 200)
         ids = {item["id"] for item in self._items(response.json())}
-        self.assertIn(str(self.same_org_foreign_owner_campaign.id), ids)
-        self.assertNotIn(str(self.other_org_campaign.id), ids)
+        self.assertIn(str(self.foreign_owner_campaign.id), ids)
+        self.assertIn(str(self.tenant_campaign_two.id), ids)
 
-    def test_internal_cannot_create_campaign_for_other_org(self):
+    def test_internal_cannot_create_campaign_with_explicit_org_payload(self):
         self.client.force_authenticate(self.internal_a)
         response = self.client.post(
             "/api/campaigns/",
             {
                 "name": "Cross Org Campaign",
-                "organization": str(self.org_b.id),
+                "organization": str(self.other_org.id),
             },
             format="json",
         )
@@ -472,28 +565,28 @@ class CampaignOrganizationScopeTests(APITestCase):
         )
         self.assertEqual(response.status_code, 403)
 
-    def test_non_registry_member_cannot_create_campaign_within_active_org(self):
+    def test_non_registry_member_cannot_create_campaign_with_active_org_context(self):
         self.client.force_authenticate(self.internal_a)
         response = self.client.post(
             "/api/campaigns/",
             {"name": "Insufficient Role Campaign"},
             format="json",
-            HTTP_X_ACTIVE_ORGANIZATION_ID=str(self.org_a.id),
+            HTTP_X_ACTIVE_ORGANIZATION_ID=str(self.active_org.id),
         )
         self.assertEqual(response.status_code, 403)
 
-    def test_non_registry_member_cannot_update_same_org_campaign(self):
+    def test_non_registry_member_cannot_update_tenant_campaign(self):
         self.client.force_authenticate(self.internal_a)
         response = self.client.patch(
-            f"/api/campaigns/{self.same_org_foreign_owner_campaign.id}/",
+            f"/api/campaigns/{self.foreign_owner_campaign.id}/",
             {"description": "Updated by non-registry actor"},
             format="json",
         )
         self.assertEqual(response.status_code, 403)
 
-    def test_non_registry_member_cannot_delete_same_org_campaign(self):
+    def test_non_registry_member_cannot_delete_tenant_campaign(self):
         self.client.force_authenticate(self.internal_a)
-        response = self.client.delete(f"/api/campaigns/{self.same_org_foreign_owner_campaign.id}/")
+        response = self.client.delete(f"/api/campaigns/{self.foreign_owner_campaign.id}/")
         self.assertEqual(response.status_code, 403)
 
 

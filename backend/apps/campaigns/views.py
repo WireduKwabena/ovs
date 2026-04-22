@@ -1,5 +1,8 @@
 from datetime import timedelta
 
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import validate_email
+from django.db import IntegrityError
 from django.db.models import Max
 from django.utils import timezone
 from rest_framework import status, viewsets
@@ -9,6 +12,7 @@ from rest_framework.response import Response
 
 from apps.billing.quotas import enforce_candidate_quota, resolve_case_organization_id
 from apps.candidates.models import Candidate, CandidateEnrollment
+from apps.core.authz import CAPABILITY_REGISTRY_MANAGE, has_capability
 from apps.core.permissions import (
     is_platform_admin_user,
 )
@@ -25,6 +29,8 @@ def _project_new_enrollment_count(campaign, candidates_data) -> int:
     """Estimate how many enrollment rows would be newly created by bulk import."""
     normalized_rows = []
     for row in candidates_data:
+        if not isinstance(row, dict):
+            continue
         email = (row.get("email") or "").strip().lower()
         first_name = (row.get("first_name") or "").strip()
         if not email or not first_name:
@@ -69,6 +75,21 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if not getattr(user, "is_authenticated", False):
             return VettingCampaign.objects.none()
+        if is_platform_admin_user(user):
+            return VettingCampaign.objects.all().order_by("-created_at")
+        # Registry managers without an active org membership are scoped to their
+        # own campaigns only.  Users with an org membership (or without registry
+        # capability) retain access to all campaigns so that write-operations can
+        # still produce the correct 403 via _require_registry_manage.
+        if has_capability(user, CAPABILITY_REGISTRY_MANAGE):
+            from apps.governance.models import OrganizationMembership
+            has_membership = OrganizationMembership.objects.filter(
+                user=user, is_active=True
+            ).exists()
+            if not has_membership:
+                return VettingCampaign.objects.filter(
+                    initiated_by=user
+                ).order_by("-created_at")
         return VettingCampaign.objects.all().order_by("-created_at")
 
     def perform_create(self, serializer):
@@ -168,7 +189,11 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
         created_invitations = 0
         errors = []
 
-        for row in candidates_data:
+        for row_index, row in enumerate(candidates_data, start=1):
+            if not isinstance(row, dict):
+                errors.append({"row": row_index, "error": "each candidate entry must be an object"})
+                continue
+
             email = (row.get("email") or "").strip().lower()
             first_name = (row.get("first_name") or "").strip()
             last_name = (row.get("last_name") or "").strip()
@@ -176,64 +201,79 @@ class VettingCampaignViewSet(viewsets.ModelViewSet):
             channel = (row.get("preferred_channel") or "email").strip().lower()
 
             if not email or not first_name:
-                errors.append({"email": email or None, "error": "email and first_name are required"})
+                errors.append({"row": row_index, "email": email or None, "error": "email and first_name are required"})
                 continue
 
-            candidate, candidate_created = Candidate.objects.get_or_create(
-                email=email,
-                defaults={
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "phone_number": phone,
-                    "preferred_channel": "sms" if channel == "sms" else "email",
-                },
-            )
-            if candidate_created:
-                created_candidates += 1
-            else:
-                updated = False
-                if first_name and candidate.first_name != first_name:
-                    candidate.first_name = first_name
-                    updated = True
-                if last_name and candidate.last_name != last_name:
-                    candidate.last_name = last_name
-                    updated = True
-                if phone and candidate.phone_number != phone:
-                    candidate.phone_number = phone
-                    updated = True
-                if channel in {"email", "sms"} and candidate.preferred_channel != channel:
-                    candidate.preferred_channel = channel
-                    updated = True
-                if updated:
-                    candidate.save()
+            try:
+                validate_email(email)
+            except DjangoValidationError:
+                errors.append({"row": row_index, "email": email, "error": "email is invalid"})
+                continue
 
-            enrollment, enrollment_created = CandidateEnrollment.objects.get_or_create(
-                campaign=campaign,
-                candidate=candidate,
-                defaults={
-                    "status": "invited",
-                    "invited_at": timezone.now(),
-                },
-            )
-            if enrollment_created:
-                created_enrollments += 1
+            if channel not in {"email", "sms"}:
+                errors.append({"row": row_index, "email": email, "error": "preferred_channel must be 'email' or 'sms'"})
+                continue
 
-            if send_invites:
-                invite_channel = "sms" if channel == "sms" else "email"
-                send_to = candidate.phone_number if invite_channel == "sms" else candidate.email
-                if not send_to:
-                    errors.append({"email": candidate.email, "error": "missing contact channel for invite"})
-                    continue
-
-                invitation = Invitation.objects.create(
-                    enrollment=enrollment,
-                    channel=invite_channel,
-                    send_to=send_to,
-                    expires_at=timezone.now() + timedelta(hours=72),
-                    created_by=request.user,
+            try:
+                candidate, candidate_created = Candidate.objects.get_or_create(
+                    email=email,
+                    defaults={
+                        "first_name": first_name,
+                        "last_name": last_name,
+                        "phone_number": phone,
+                        "preferred_channel": "sms" if channel == "sms" else "email",
+                    },
                 )
-                created_invitations += 1
-                send_invitation_task.delay(invitation.id)
+                if candidate_created:
+                    created_candidates += 1
+                else:
+                    updated = False
+                    if first_name and candidate.first_name != first_name:
+                        candidate.first_name = first_name
+                        updated = True
+                    if last_name and candidate.last_name != last_name:
+                        candidate.last_name = last_name
+                        updated = True
+                    if phone and candidate.phone_number != phone:
+                        candidate.phone_number = phone
+                        updated = True
+                    if candidate.preferred_channel != channel:
+                        candidate.preferred_channel = channel
+                        updated = True
+                    if updated:
+                        candidate.save()
+
+                enrollment, enrollment_created = CandidateEnrollment.objects.get_or_create(
+                    campaign=campaign,
+                    candidate=candidate,
+                    defaults={
+                        "status": "invited",
+                        "invited_at": timezone.now(),
+                    },
+                )
+                if enrollment_created:
+                    created_enrollments += 1
+
+                if send_invites:
+                    invite_channel = "sms" if channel == "sms" else "email"
+                    send_to = candidate.phone_number if invite_channel == "sms" else candidate.email
+                    if not send_to:
+                        errors.append({"row": row_index, "email": candidate.email, "error": "missing contact channel for invite"})
+                        continue
+
+                    invitation = Invitation.objects.create(
+                        enrollment=enrollment,
+                        channel=invite_channel,
+                        send_to=send_to,
+                        expires_at=timezone.now() + timedelta(hours=72),
+                        created_by=request.user,
+                    )
+                    created_invitations += 1
+                    send_invitation_task.delay(invitation.id)
+            except IntegrityError:
+                errors.append({"row": row_index, "email": email, "error": "candidate row could not be imported due to a data conflict"})
+            except Exception as exc:
+                errors.append({"row": row_index, "email": email or None, "error": f"candidate row import failed: {exc}"})
 
         return Response(
             {

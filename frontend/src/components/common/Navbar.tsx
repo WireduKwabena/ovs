@@ -86,6 +86,7 @@ const navIconMap: Record<string, NavIcon> = {
   [getWorkspacePath("government/positions")]: Building2,
   [getWorkspacePath("government/personnel")]: UserRound,
   "/settings": CreditCard,
+  "/settings/subscription": CreditCard,
   [getWorkspacePath("fraud-insights")]: ShieldAlert,
   [getWorkspacePath("background-checks")]: Search,
   [getWorkspacePath("audit-logs")]: FileSearch,
@@ -634,7 +635,7 @@ export const Navbar: React.FC = () => {
     });
     if (canManageOrganizationBilling) {
       pushUnique(desktopSecondaryLinks, {
-        to: "/settings",
+        to: "/settings/subscription",
         label: "Subscription",
       });
     }

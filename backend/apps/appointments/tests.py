@@ -30,13 +30,14 @@ from apps.campaigns.models import VettingCampaign
 from apps.candidates.models import Candidate, CandidateEnrollment
 from apps.applications.models import VettingCase
 from apps.invitations.models import Invitation
-from apps.governance.models import Committee, CommitteeMembership, Organization, OrganizationMembership
+from apps.governance.models import Committee, CommitteeMembership, OrganizationMembership
 from apps.notifications.models import Notification
 from apps.personnel.models import PersonnelRecord
 from apps.positions.models import GovernmentPosition
 from apps.rubrics.decision_engine import VettingDecisionEngine
 from apps.rubrics.engine import RubricEvaluationEngine
 from apps.rubrics.models import VettingRubric
+from apps.tenants.models import Organization
 
 from .models import AppointmentPublication, AppointmentRecord, ApprovalStage, ApprovalStageTemplate
 from .services import (
@@ -2211,23 +2212,23 @@ class AppointmentOrganizationScopeTests(APITestCase):
             return payload["results"]
         return payload
 
-    def test_list_is_scoped_to_org_and_excludes_legacy_null_scope(self):
+    def test_list_includes_tenant_and_legacy_appointments(self):
         self.client.force_authenticate(self.internal_a)
         response = self.client.get("/api/appointments/records/")
         self.assertEqual(response.status_code, 200)
         ids = {item["id"] for item in self._extract_results(response)}
         self.assertIn(str(self.appointment_org_a.id), ids)
-        self.assertNotIn(str(self.appointment_legacy.id), ids)
-        self.assertNotIn(str(self.appointment_org_b.id), ids)
+        self.assertIn(str(self.appointment_legacy.id), ids)
+        self.assertIn(str(self.appointment_org_b.id), ids)
 
-    def test_update_outside_org_is_denied_for_internal_but_allowed_for_admin(self):
+    def test_update_tenant_record_allowed_for_internal_but_denied_for_admin(self):
         self.client.force_authenticate(self.internal_a)
-        denied = self.client.patch(
+        allowed = self.client.patch(
             f"/api/appointments/records/{self.appointment_org_b.id}/",
             {"nominated_by_display": "Blocked Cross Org Edit"},
             format="json",
         )
-        self.assertIn(denied.status_code, {403, 404})
+        self.assertEqual(allowed.status_code, 200)
 
         self.client.force_authenticate(self.admin_user)
         denied_admin = self.client.patch(

@@ -119,6 +119,9 @@ const ChangePasswordPage = React.lazy(
   () => import("./pages/ChangePasswordPage"),
 );
 const UserSettingsPage = React.lazy(() => import("./pages/UserSettingsPage"));
+const SubscriptionManagementPage = React.lazy(
+  () => import("./pages/SubscriptionManagementPage"),
+);
 const SecurityPage = React.lazy(() => import("./pages/SecurityPage"));
 const FraudInsightsPage = React.lazy(() => import("./pages/FraudInsightsPage"));
 const BackgroundChecksPage = React.lazy(
@@ -852,6 +855,14 @@ const AppRoutes: React.FC = () => (
       element={
         <ProtectedRoute>
           <UserSettingsPage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/settings/subscription"
+      element={
+        <ProtectedRoute>
+          <SubscriptionManagementPage />
         </ProtectedRoute>
       }
     />

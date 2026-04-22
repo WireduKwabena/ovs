@@ -12,47 +12,12 @@ import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
 
 import type { AppDispatch } from "@/app/store";
-import BillingAttentionPanel from "@/components/billing/BillingAttentionPanel";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  billingService,
-  type BillingSubscriptionManageResponse,
-} from "@/services/billing.service";
 import { fetchProfile, updateUserProfile } from "@/store/authSlice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getUserDisplayName } from "@/utils/userDisplay";
-
-const getErrorMessage = (error: unknown, fallback: string): string => {
-  if (!error) return fallback;
-  if (typeof error === "string") return error;
-  if (error instanceof Error && error.message) return error.message;
-  const payload = error as {
-    response?: { data?: { detail?: string; error?: string; message?: string } };
-    message?: string;
-  };
-  return (
-    payload.response?.data?.detail ||
-    payload.response?.data?.error ||
-    payload.response?.data?.message ||
-    payload.message ||
-    fallback
-  );
-};
-
-const formatDateTimeLabel = (value: string | null | undefined): string => {
-  if (!value) return "N/A";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "N/A";
-  return parsed.toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
 
 const UserSettingsPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -87,9 +52,6 @@ const UserSettingsPage: React.FC = () => {
   const [bio, setBio] = useState("");
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [billingData, setBillingData] =
-    useState<BillingSubscriptionManageResponse | null>(null);
-  const [billingLoading, setBillingLoading] = useState(false);
 
   const resolvedOrganizations = Array.isArray(organizations)
     ? organizations
@@ -125,25 +87,6 @@ const UserSettingsPage: React.FC = () => {
       day: "numeric",
     });
   }, [user]);
-
-  const managedSubscription = billingData?.subscription ?? null;
-
-  const fetchBillingManagement = useCallback(async () => {
-    if (!canViewBilling) {
-      setBillingData(null);
-      return;
-    }
-    setBillingLoading(true);
-    try {
-      const response = await billingService.getSubscriptionManagement();
-      setBillingData(response);
-    } catch (error) {
-      toast.error(getErrorMessage(error, "Failed to load billing details."));
-      setBillingData(null);
-    } finally {
-      setBillingLoading(false);
-    }
-  }, [canViewBilling]);
 
   useEffect(() => {
     setEmail(user?.email || "");
@@ -187,15 +130,10 @@ const UserSettingsPage: React.FC = () => {
     user,
   ]);
 
-  useEffect(() => {
-    void fetchBillingManagement();
-  }, [activeOrganizationId, fetchBillingManagement, user?.email]);
-
   const handleRefreshProfile = async () => {
     setRefreshing(true);
     try {
       await dispatch(fetchProfile()).unwrap();
-      await fetchBillingManagement();
       toast.success("Profile refreshed.");
     } catch (error) {
       const message =
@@ -678,126 +616,20 @@ const UserSettingsPage: React.FC = () => {
 
           {canViewBilling ? (
             <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Organization Subscription
-                </h3>
-                <CreditCard className="h-4 w-4 text-cyan-700" />
-              </div>
-              <p className="mt-2 text-[11px] text-slate-700">
-                Active organization scope:{" "}
-                {activeOrganization?.name || "Default"}
-              </p>
-
-              {billingLoading ? (
-                <p className="mt-3 text-xs text-slate-700">
-                  Loading billing details...
-                </p>
-              ) : !managedSubscription ? (
-                <div className="mt-3 space-y-3">
-                  <p className="text-xs text-slate-700">
-                    {billingData?.message ||
-                      "No active subscription found for this workspace."}
-                  </p>
-                  {canManageOrganizationBilling ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full"
-                      onClick={() =>
-                        navigate(
-                          activeOrganizationId
-                            ? "/organization/dashboard"
-                            : "/organization/setup?next=/organization/dashboard",
-                        )
-                      }
-                    >
-                      Open Organization Billing
-                    </Button>
-                  ) : (
-                    <p className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
-                      Subscription management is restricted to organization
-                      admins.
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <div className="mt-3 space-y-3">
-                  <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-800">
-                    <p>
-                      <span className="font-semibold">Plan:</span>{" "}
-                      {managedSubscription.plan_name} (
-                      {managedSubscription.billing_cycle})
-                    </p>
-                    <p className="mt-1">
-                      <span className="font-semibold">
-                        Subscription organization:
-                      </span>{" "}
-                      {managedSubscription.organization_name ||
-                        managedSubscription.organization_id ||
-                        "Scoped by active organization"}
-                    </p>
-                    <p className="mt-1">
-                      <span className="font-semibold">Status:</span>{" "}
-                      {managedSubscription.status} /{" "}
-                      {managedSubscription.payment_status}
-                    </p>
-                    <p className="mt-1">
-                      <span className="font-semibold">Payment method:</span>{" "}
-                      {managedSubscription.payment_method?.display ||
-                        "Not available"}
-                    </p>
-                    <p className="mt-1">
-                      <span className="font-semibold">Current period end:</span>{" "}
-                      {formatDateTimeLabel(
-                        managedSubscription.current_period_end,
-                      )}
-                    </p>
-                    {managedSubscription.cancel_at_period_end ? (
-                      <p className="mt-1 text-amber-700">
-                        Cancellation scheduled for{" "}
-                        {formatDateTimeLabel(
-                          managedSubscription.cancellation_effective_at,
-                        )}
-                        . Access remains active until then.
-                      </p>
-                    ) : null}
-                  </div>
-
-                  <p className="text-[11px] text-slate-700">
-                    Organization billing and onboarding administration is
-                    handled in the organization dashboard.
-                  </p>
-                  {canManageOrganizationBilling ? (
-                    <BillingAttentionPanel
-                      subscription={managedSubscription}
-                      onAfterAction={fetchBillingManagement}
-                      renewHref="/subscribe?returnTo=%2Fsettings"
-                    />
-                  ) : null}
-                  {canManageOrganizationBilling ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full"
-                      onClick={() =>
-                        navigate(
-                          activeOrganizationId
-                            ? "/organization/dashboard"
-                            : "/organization/setup?next=/organization/dashboard",
-                        )
-                      }
-                    >
-                      Open Organization Administration
-                    </Button>
-                  ) : (
-                    <p className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
-                      Organization administration remains restricted to
-                      organization admins.
-                    </p>
-                  )}
-                </div>
-              )}
+              <Link
+                to="/settings/subscription"
+                className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:border-cyan-300 hover:bg-cyan-50"
+              >
+                <CreditCard className="mt-0.5 h-5 w-5 text-cyan-700" />
+                <span>
+                  <span className="block text-sm font-semibold text-slate-900">
+                    Manage Subscription
+                  </span>
+                  <span className="block text-xs text-slate-700">
+                    Open billing plans, payment methods, and renewal settings.
+                  </span>
+                </span>
+              </Link>
             </div>
           ) : null}
 
