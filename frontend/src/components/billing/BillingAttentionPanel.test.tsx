@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 import BillingAttentionPanel from "./BillingAttentionPanel";
@@ -13,9 +19,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/services/billing.service", async () => {
-  const actual = await vi.importActual<typeof import("@/services/billing.service")>(
-    "@/services/billing.service",
-  );
+  const actual = await vi.importActual<
+    typeof import("@/services/billing.service")
+  >("@/services/billing.service");
   return {
     ...actual,
     billingService: {
@@ -80,7 +86,8 @@ describe("BillingAttentionPanel", () => {
             retry_reason: "payment_failed",
             latest_incident: {
               code: "payment_failed",
-              message: "Paystack reported a payment failure event (charge.failed).",
+              message:
+                "Paystack reported a payment failure event (charge.failed).",
               detected_at: "2026-01-02T10:30:00Z",
               source: "paystack",
               event_type: "charge.failed",
@@ -92,13 +99,36 @@ describe("BillingAttentionPanel", () => {
     );
 
     expect(screen.getByText(/provider: paystack/i)).toBeTruthy();
-    expect(screen.getByText(/retry opens a new paystack hosted checkout/i)).toBeTruthy();
+    expect(
+      screen.getByText(/retry opens a new paystack hosted checkout/i),
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole("link", {
+          name: /view payment failure notifications/i,
+        })
+        .getAttribute("href"),
+    ).toBe(
+      "/notifications?channel=all&event_type=billing_payment_failed&subsystem=billing",
+    );
+    expect(
+      screen
+        .getByRole("link", {
+          name: /view billing error notifications/i,
+        })
+        .getAttribute("href"),
+    ).toBe(
+      "/notifications?channel=all&event_type=processing_error&subsystem=billing",
+    );
     fireEvent.click(screen.getByRole("button", { name: /retry billing/i }));
 
     await waitFor(() => {
       expect(mocks.retrySubscription).toHaveBeenCalledTimes(1);
     });
-    expect(openSpy).toHaveBeenCalledWith("https://checkout.example.com/retry", "_self");
+    expect(openSpy).toHaveBeenCalledWith(
+      "https://checkout.example.com/retry",
+      "_self",
+    );
   });
 
   it("refreshes billing state after a sandbox retry without redirect", async () => {
@@ -149,7 +179,11 @@ describe("BillingAttentionPanel", () => {
     );
 
     expect(screen.getByText(/provider: sandbox/i)).toBeTruthy();
-    expect(screen.getByText(/retry completes in-app and refreshes the current billing state/i)).toBeTruthy();
+    expect(
+      screen.getByText(
+        /retry completes in-app and refreshes the current billing state/i,
+      ),
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /retry billing/i }));
 
     await waitFor(() => {
@@ -211,13 +245,22 @@ describe("BillingAttentionPanel", () => {
     );
 
     expect(screen.getByText(/provider: stripe/i)).toBeTruthy();
-    expect(screen.getByText(/update payment method opens the stripe billing portal/i)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /update payment method/i }));
+    expect(
+      screen.getByText(
+        /update payment method opens the stripe billing portal/i,
+      ),
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", { name: /update payment method/i }),
+    );
 
     await waitFor(() => {
       expect(mocks.createPaymentMethodUpdateSession).toHaveBeenCalledTimes(1);
     });
-    expect(openSpy).toHaveBeenCalledWith("https://billing.example.com/portal", "_self");
+    expect(openSpy).toHaveBeenCalledWith(
+      "https://billing.example.com/portal",
+      "_self",
+    );
   });
 
   it("shows a renewal path when cancellation is scheduled", () => {
@@ -253,7 +296,8 @@ describe("BillingAttentionPanel", () => {
             retry_reason: null,
             latest_incident: {
               code: "cancellation_scheduled",
-              message: "Cancellation is scheduled at the end of the current billing period.",
+              message:
+                "Cancellation is scheduled at the end of the current billing period.",
               detected_at: "2026-02-01T00:00:00Z",
               source: "stripe",
               event_type: null,
@@ -266,11 +310,15 @@ describe("BillingAttentionPanel", () => {
     );
 
     expect(screen.getByText(/provider: stripe/i)).toBeTruthy();
-    expect(screen.getByText(/renew before cutoff to start a fresh stripe checkout/i)).toBeTruthy();
+    expect(
+      screen.getByText(/renew before cutoff to start a fresh stripe checkout/i),
+    ).toBeTruthy();
     expect(screen.getByText(/cancellation timeline/i)).toBeTruthy();
     expect(screen.getByText(/current access ends/i)).toBeTruthy();
-    expect(screen.getByRole("link", { name: /renew before cutoff/i }).getAttribute("href")).toBe(
-      "/subscribe?returnTo=%2Forganization%2Fdashboard",
-    );
+    expect(
+      screen
+        .getByRole("link", { name: /renew before cutoff/i })
+        .getAttribute("href"),
+    ).toBe("/subscribe?returnTo=%2Forganization%2Fdashboard");
   });
 });

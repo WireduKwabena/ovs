@@ -50,11 +50,15 @@ const formatDateTimeLabel = (value: string | null | undefined): string => {
 };
 
 const getProviderLabel = (provider: string | null | undefined): string => {
-  const normalized = String(provider || "").trim().toLowerCase();
+  const normalized = String(provider || "")
+    .trim()
+    .toLowerCase();
   if (normalized === "stripe") return "Stripe";
   if (normalized === "paystack") return "Paystack";
   if (normalized === "sandbox") return "Sandbox";
-  return normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : "Billing";
+  return normalized
+    ? normalized.charAt(0).toUpperCase() + normalized.slice(1)
+    : "Billing";
 };
 
 const BillingAttentionPanel: React.FC<BillingAttentionPanelProps> = ({
@@ -62,7 +66,9 @@ const BillingAttentionPanel: React.FC<BillingAttentionPanelProps> = ({
   onAfterAction,
   renewHref,
 }) => {
-  const [activeAction, setActiveAction] = useState<"retry" | "payment" | null>(null);
+  const [activeAction, setActiveAction] = useState<"retry" | "payment" | null>(
+    null,
+  );
   const attention = useMemo(
     () => getBillingAttentionSummary(subscription),
     [subscription],
@@ -89,7 +95,10 @@ const BillingAttentionPanel: React.FC<BillingAttentionPanelProps> = ({
       }
       return `Retry opens a new ${providerLabel} hosted checkout for this subscription.`;
     }
-    if (subscription.can_update_payment_method && subscription.provider === "stripe") {
+    if (
+      subscription.can_update_payment_method &&
+      subscription.provider === "stripe"
+    ) {
       return "Update payment method opens the Stripe billing portal in a hosted flow.";
     }
     return null;
@@ -114,7 +123,11 @@ const BillingAttentionPanel: React.FC<BillingAttentionPanelProps> = ({
   };
 
   const handleUpdatePaymentMethod = async () => {
-    if (!subscription?.can_update_payment_method || subscription.provider !== "stripe") return;
+    if (
+      !subscription?.can_update_payment_method ||
+      subscription.provider !== "stripe"
+    )
+      return;
     setActiveAction("payment");
     try {
       const response = await billingService.createPaymentMethodUpdateSession();
@@ -123,7 +136,9 @@ const BillingAttentionPanel: React.FC<BillingAttentionPanelProps> = ({
       }
       window.open(response.url, "_self");
     } catch (error) {
-      toast.error(getErrorMessage(error, "Unable to open payment method update flow."));
+      toast.error(
+        getErrorMessage(error, "Unable to open payment method update flow."),
+      );
       setActiveAction(null);
     }
   };
@@ -149,7 +164,8 @@ const BillingAttentionPanel: React.FC<BillingAttentionPanelProps> = ({
           <p className="font-semibold">Latest issue</p>
           <p className="mt-1">{subscription.latest_incident.message}</p>
           <p className="mt-1 text-[11px] opacity-80">
-            Detected: {formatDateTimeLabel(subscription.latest_incident.detected_at)}
+            Detected:{" "}
+            {formatDateTimeLabel(subscription.latest_incident.detected_at)}
           </p>
         </div>
       ) : null}
@@ -159,7 +175,8 @@ const BillingAttentionPanel: React.FC<BillingAttentionPanelProps> = ({
           <p className="mt-1">
             Current access ends{" "}
             {formatDateTimeLabel(
-              subscription.cancellation_effective_at || subscription.current_period_end,
+              subscription.cancellation_effective_at ||
+                subscription.current_period_end,
             )}
             .
           </p>
@@ -170,13 +187,13 @@ const BillingAttentionPanel: React.FC<BillingAttentionPanelProps> = ({
           to={buildBillingPaymentFailureNotificationTraceHref()}
           className="inline-flex items-center rounded-md border border-current/25 bg-white/70 px-2.5 py-1 font-medium hover:bg-white"
         >
-          Open payment failure trace
+          View payment failure notifications
         </Link>
         <Link
           to={buildBillingProcessingErrorNotificationTraceHref()}
           className="inline-flex items-center rounded-md border border-current/25 bg-white/70 px-2.5 py-1 font-medium hover:bg-white"
         >
-          Open runtime error trace
+          View billing error notifications
         </Link>
       </div>
       {subscription ? (
@@ -200,7 +217,8 @@ const BillingAttentionPanel: React.FC<BillingAttentionPanelProps> = ({
               {activeAction === "retry" ? "Retrying..." : "Retry billing"}
             </Button>
           ) : null}
-          {subscription.can_update_payment_method && subscription.provider === "stripe" ? (
+          {subscription.can_update_payment_method &&
+          subscription.provider === "stripe" ? (
             <Button
               type="button"
               variant="outline"
@@ -208,7 +226,9 @@ const BillingAttentionPanel: React.FC<BillingAttentionPanelProps> = ({
               onClick={() => void handleUpdatePaymentMethod()}
               className="border-current/25 bg-white/70 text-current hover:bg-white"
             >
-              {activeAction === "payment" ? "Opening..." : "Update payment method"}
+              {activeAction === "payment"
+                ? "Opening..."
+                : "Update payment method"}
             </Button>
           ) : null}
         </div>
