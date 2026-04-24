@@ -1,6 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ClipboardCopy, Clock3, RefreshCw, Search, ShieldCheck } from "lucide-react";
+import {
+  ClipboardCopy,
+  Clock3,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+} from "lucide-react";
 import { toast } from "react-toastify";
 
 import ExportActions from "@/components/common/ExportActions";
@@ -30,13 +36,14 @@ import { applyQueryUpdates, normalizeQueryValue } from "@/utils/queryParams";
 type CheckTypeFilter = BackgroundCheckType | "all";
 type CheckStatusFilter = BackgroundCheckStatus | "all";
 
-const CHECK_TYPE_OPTIONS: Array<{ value: BackgroundCheckType; label: string }> = [
-  { value: "criminal", label: "Criminal Records" },
-  { value: "employment", label: "Employment History" },
-  { value: "education", label: "Education Verification" },
-  { value: "kyc_aml", label: "KYC/AML" },
-  { value: "identity", label: "Identity Verification" },
-];
+const CHECK_TYPE_OPTIONS: Array<{ value: BackgroundCheckType; label: string }> =
+  [
+    { value: "criminal", label: "Criminal Records" },
+    { value: "employment", label: "Employment History" },
+    { value: "education", label: "Education Verification" },
+    { value: "kyc_aml", label: "KYC/AML" },
+    { value: "identity", label: "Identity Verification" },
+  ];
 
 const STATUS_OPTIONS: Array<{ value: CheckStatusFilter; label: string }> = [
   { value: "all", label: "All Statuses" },
@@ -49,8 +56,13 @@ const STATUS_OPTIONS: Array<{ value: CheckStatusFilter; label: string }> = [
   { value: "cancelled", label: "Cancelled" },
 ];
 
-const CHECK_TYPE_FILTER_VALUES: CheckTypeFilter[] = ["all", ...CHECK_TYPE_OPTIONS.map((option) => option.value)];
-const STATUS_FILTER_VALUES: CheckStatusFilter[] = STATUS_OPTIONS.map((option) => option.value);
+const CHECK_TYPE_FILTER_VALUES: CheckTypeFilter[] = [
+  "all",
+  ...CHECK_TYPE_OPTIONS.map((option) => option.value),
+];
+const STATUS_FILTER_VALUES: CheckStatusFilter[] = STATUS_OPTIONS.map(
+  (option) => option.value,
+);
 
 const parseCaseFilter = (value: string | null): string => {
   const normalized = normalizeQueryValue(value);
@@ -59,12 +71,16 @@ const parseCaseFilter = (value: string | null): string => {
 
 const parseCheckTypeFilter = (value: string | null): CheckTypeFilter => {
   const normalized = normalizeQueryValue(value);
-  return CHECK_TYPE_FILTER_VALUES.includes(normalized as CheckTypeFilter) ? (normalized as CheckTypeFilter) : "all";
+  return CHECK_TYPE_FILTER_VALUES.includes(normalized as CheckTypeFilter)
+    ? (normalized as CheckTypeFilter)
+    : "all";
 };
 
 const parseStatusFilter = (value: string | null): CheckStatusFilter => {
   const normalized = normalizeQueryValue(value);
-  return STATUS_FILTER_VALUES.includes(normalized as CheckStatusFilter) ? (normalized as CheckStatusFilter) : "all";
+  return STATUS_FILTER_VALUES.includes(normalized as CheckStatusFilter)
+    ? (normalized as CheckStatusFilter)
+    : "all";
 };
 
 const statusPillClass: Record<BackgroundCheckStatus, string> = {
@@ -78,7 +94,10 @@ const statusPillClass: Record<BackgroundCheckStatus, string> = {
 };
 
 const getApiBaseUrl = (): string => {
-  const configured = ((import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_URL || "").trim();
+  const configured = (
+    (import.meta as unknown as { env?: Record<string, string> }).env
+      ?.VITE_API_URL || ""
+  ).trim();
   return configured || "http://localhost:8000/api";
 };
 
@@ -92,7 +111,9 @@ const BackgroundChecksPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [checks, setChecks] = useState<BackgroundCheck[]>([]);
   const [cases, setCases] = useState<ApplicationWithDocuments[]>([]);
-  const [eventsByCheck, setEventsByCheck] = useState<Record<string, BackgroundCheckEvent[]>>({});
+  const [eventsByCheck, setEventsByCheck] = useState<
+    Record<string, BackgroundCheckEvent[]>
+  >({});
   const [expandedCheckId, setExpandedCheckId] = useState<string | null>(null);
 
   const [loadingChecks, setLoadingChecks] = useState(true);
@@ -102,7 +123,9 @@ const BackgroundChecksPage: React.FC = () => {
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const [caseFilter, setCaseFilter] = useState<string>(() => parseCaseFilter(searchParams.get("case_id")));
+  const [caseFilter, setCaseFilter] = useState<string>(() =>
+    parseCaseFilter(searchParams.get("case_id")),
+  );
   const [checkTypeFilter, setCheckTypeFilter] = useState<CheckTypeFilter>(() =>
     parseCheckTypeFilter(searchParams.get("check_type")),
   );
@@ -111,7 +134,8 @@ const BackgroundChecksPage: React.FC = () => {
   );
 
   const [selectedCase, setSelectedCase] = useState<string>("");
-  const [selectedCheckType, setSelectedCheckType] = useState<BackgroundCheckType>("criminal");
+  const [selectedCheckType, setSelectedCheckType] =
+    useState<BackgroundCheckType>("criminal");
   const [providerKey, setProviderKey] = useState("mock");
   const [runAsync, setRunAsync] = useState(true);
   const [consentNotes, setConsentNotes] = useState("");
@@ -130,24 +154,23 @@ const BackgroundChecksPage: React.FC = () => {
   );
   const checkTypeLabelByValue = useMemo(
     () =>
-      Object.fromEntries(CHECK_TYPE_OPTIONS.map((option) => [option.value, option.label])) as Record<
-        BackgroundCheckType,
-        string
-      >,
+      Object.fromEntries(
+        CHECK_TYPE_OPTIONS.map((option) => [option.value, option.label]),
+      ) as Record<BackgroundCheckType, string>,
     [],
   );
   const statusLabelByValue = useMemo(
     () =>
-      Object.fromEntries(STATUS_OPTIONS.map((option) => [option.value, option.label])) as Record<
-        CheckStatusFilter,
-        string
-      >,
+      Object.fromEntries(
+        STATUS_OPTIONS.map((option) => [option.value, option.label]),
+      ) as Record<CheckStatusFilter, string>,
     [],
   );
   const isCaseFilterActive = caseFilter !== "all";
   const isCheckTypeFilterActive = checkTypeFilter !== "all";
   const isStatusFilterActive = statusFilter !== "all";
-  const hasActiveFilters = isCaseFilterActive || isCheckTypeFilterActive || isStatusFilterActive;
+  const hasActiveFilters =
+    isCaseFilterActive || isCheckTypeFilterActive || isStatusFilterActive;
 
   const loadChecks = useCallback(async () => {
     try {
@@ -159,16 +182,25 @@ const BackgroundChecksPage: React.FC = () => {
       });
       setChecks(data);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to fetch background checks.";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch background checks.";
       setErrorMessage(message);
     }
   }, [caseFilter, checkTypeFilter, statusFilter]);
 
   useEffect(() => {
     const currentCase = parseCaseFilter(searchParams.get("case_id"));
-    const currentCheckType = parseCheckTypeFilter(searchParams.get("check_type"));
+    const currentCheckType = parseCheckTypeFilter(
+      searchParams.get("check_type"),
+    );
     const currentStatus = parseStatusFilter(searchParams.get("status"));
-    if (currentCase === caseFilter && currentCheckType === checkTypeFilter && currentStatus === statusFilter) {
+    if (
+      currentCase === caseFilter &&
+      currentCheckType === checkTypeFilter &&
+      currentStatus === statusFilter
+    ) {
       return;
     }
 
@@ -182,7 +214,13 @@ const BackgroundChecksPage: React.FC = () => {
       { keepPage: true },
     );
     setSearchParams(nextParams, { replace: true });
-  }, [caseFilter, checkTypeFilter, searchParams, setSearchParams, statusFilter]);
+  }, [
+    caseFilter,
+    checkTypeFilter,
+    searchParams,
+    setSearchParams,
+    statusFilter,
+  ]);
 
   const loadCaseOptions = useCallback(async () => {
     try {
@@ -227,6 +265,7 @@ const BackgroundChecksPage: React.FC = () => {
         provider_key: providerKey.trim() || "mock",
         request_payload: {},
         consent_evidence: {
+          granted: true,
           consent_recorded: true,
           recorded_at: new Date().toISOString(),
           notes: consentNotes.trim(),
@@ -238,7 +277,10 @@ const BackgroundChecksPage: React.FC = () => {
       setConsentNotes("");
       toast.success("Background check submitted successfully.");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to create background check.";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to create background check.";
       toast.error(message);
     } finally {
       setSubmitting(false);
@@ -249,10 +291,15 @@ const BackgroundChecksPage: React.FC = () => {
     setRefreshingId(checkId);
     try {
       const refreshed = await backgroundCheckService.refresh(checkId);
-      setChecks((current) => current.map((item) => (item.id === checkId ? refreshed : item)));
+      setChecks((current) =>
+        current.map((item) => (item.id === checkId ? refreshed : item)),
+      );
       toast.success("Background check refreshed.");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to refresh background check.";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to refresh background check.";
       toast.error(message);
     } finally {
       setRefreshingId(null);
@@ -271,7 +318,10 @@ const BackgroundChecksPage: React.FC = () => {
         const events = await backgroundCheckService.getEvents(checkId);
         setEventsByCheck((current) => ({ ...current, [checkId]: events }));
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to fetch check events.";
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch check events.";
         toast.error(message);
       }
     }
@@ -347,7 +397,10 @@ const BackgroundChecksPage: React.FC = () => {
     toast.success(`Exported ${checks.length} background check row(s) as JSON.`);
   };
 
-  const webhookUrl = useMemo(() => buildProviderWebhookUrl(providerKey), [providerKey]);
+  const webhookUrl = useMemo(
+    () => buildProviderWebhookUrl(providerKey),
+    [providerKey],
+  );
 
   const handleCopyWebhookUrl = async () => {
     try {
@@ -364,7 +417,9 @@ const BackgroundChecksPage: React.FC = () => {
   const handleCopyWebhookHeader = async () => {
     try {
       setCopyingHeader(true);
-      await navigator.clipboard.writeText("X-Background-Webhook-Token: <token>");
+      await navigator.clipboard.writeText(
+        "X-Background-Webhook-Token: <token>",
+      );
       toast.success("Webhook header template copied.");
     } catch {
       toast.error("Unable to copy webhook header template.");
@@ -378,9 +433,12 @@ const BackgroundChecksPage: React.FC = () => {
       <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900">Background Checks</h1>
+            <h1 className="text-3xl font-black tracking-tight text-slate-900">
+              Background Checks
+            </h1>
             <p className="mt-1 text-sm text-slate-700">
-              Submit and monitor third-party verification checks tied to vetting cases.
+              Submit and monitor third-party verification checks tied to vetting
+              cases.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -396,7 +454,9 @@ const BackgroundChecksPage: React.FC = () => {
               onClick={() => void handleRefreshList()}
               disabled={refreshingList}
             >
-              <RefreshCw className={`mr-2 h-4 w-4 ${refreshingList ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`mr-2 h-4 w-4 ${refreshingList ? "animate-spin" : ""}`}
+              />
               Refresh
             </Button>
           </div>
@@ -404,15 +464,22 @@ const BackgroundChecksPage: React.FC = () => {
       </header>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-slate-900">Provider Operations</h2>
+        <h2 className="text-lg font-bold text-slate-900">
+          Provider Operations
+        </h2>
         <p className="mt-1 text-sm text-slate-700">
-          Use this webhook endpoint for provider callbacks. The backend validates provider key and optional token header.
+          Use this webhook endpoint for provider callbacks. The backend
+          validates provider key and optional token header.
         </p>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <article className="rounded-xl border border-slate-200 p-4">
-            <p className="text-xs font-semibold uppercase text-slate-700">Webhook URL</p>
-            <p className="mt-2 break-all text-sm text-slate-800">{webhookUrl}</p>
+            <p className="text-xs font-semibold uppercase text-slate-700">
+              Webhook URL
+            </p>
+            <p className="mt-2 break-all text-sm text-slate-800">
+              {webhookUrl}
+            </p>
             <Button
               type="button"
               variant="outline"
@@ -426,8 +493,12 @@ const BackgroundChecksPage: React.FC = () => {
           </article>
 
           <article className="rounded-xl border border-slate-200 p-4">
-            <p className="text-xs font-semibold uppercase text-slate-700">Auth Header Template</p>
-            <p className="mt-2 text-sm text-slate-800">X-Background-Webhook-Token: &lt;token&gt;</p>
+            <p className="text-xs font-semibold uppercase text-slate-700">
+              Auth Header Template
+            </p>
+            <p className="mt-2 text-sm text-slate-800">
+              X-Background-Webhook-Token: &lt;token&gt;
+            </p>
             <Button
               type="button"
               variant="outline"
@@ -442,10 +513,13 @@ const BackgroundChecksPage: React.FC = () => {
         </div>
 
         <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-700">
-          <p className="font-semibold text-slate-800">Expected webhook payload keys</p>
+          <p className="font-semibold text-slate-800">
+            Expected webhook payload keys
+          </p>
           <p className="mt-1">
-            Include `external_reference` and provider result fields (for example status and result summary) so the
-            backend can map updates to the correct background check.
+            Include `external_reference` and provider result fields (for example
+            status and result summary) so the backend can map updates to the
+            correct background check.
           </p>
         </div>
       </section>
@@ -454,7 +528,10 @@ const BackgroundChecksPage: React.FC = () => {
         <h2 className="text-lg font-bold text-slate-900">Filters</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <div>
-            <label htmlFor="bg-check-case-filter" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
+            <label
+              htmlFor="bg-check-case-filter"
+              className="mb-1 block text-xs font-semibold uppercase text-slate-700"
+            >
               Case
             </label>
             <Select value={caseFilter} onValueChange={setCaseFilter}>
@@ -473,10 +550,18 @@ const BackgroundChecksPage: React.FC = () => {
           </div>
 
           <div>
-            <label htmlFor="bg-check-type-filter" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
+            <label
+              htmlFor="bg-check-type-filter"
+              className="mb-1 block text-xs font-semibold uppercase text-slate-700"
+            >
               Check Type
             </label>
-            <Select value={checkTypeFilter} onValueChange={(value) => setCheckTypeFilter(value as CheckTypeFilter)}>
+            <Select
+              value={checkTypeFilter}
+              onValueChange={(value) =>
+                setCheckTypeFilter(value as CheckTypeFilter)
+              }
+            >
               <SelectTrigger id="bg-check-type-filter" className="w-full">
                 <SelectValue placeholder="All types" />
               </SelectTrigger>
@@ -492,10 +577,18 @@ const BackgroundChecksPage: React.FC = () => {
           </div>
 
           <div>
-            <label htmlFor="bg-check-status-filter" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
+            <label
+              htmlFor="bg-check-status-filter"
+              className="mb-1 block text-xs font-semibold uppercase text-slate-700"
+            >
               Status
             </label>
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as CheckStatusFilter)}>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) =>
+                setStatusFilter(value as CheckStatusFilter)
+              }
+            >
               <SelectTrigger id="bg-check-status-filter" className="w-full">
                 <SelectValue placeholder="All statuses" />
               </SelectTrigger>
@@ -514,7 +607,9 @@ const BackgroundChecksPage: React.FC = () => {
       {hasActiveFilters ? (
         <section className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-700">Active filters</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+              Active filters
+            </span>
             {isCaseFilterActive ? (
               <button
                 type="button"
@@ -530,7 +625,11 @@ const BackgroundChecksPage: React.FC = () => {
                 onClick={() => setCheckTypeFilter("all")}
                 className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800 hover:bg-slate-200"
               >
-                Type: {checkTypeLabelByValue[checkTypeFilter as BackgroundCheckType] || checkTypeFilter} x
+                Type:{" "}
+                {checkTypeLabelByValue[
+                  checkTypeFilter as BackgroundCheckType
+                ] || checkTypeFilter}{" "}
+                x
               </button>
             ) : null}
             {isStatusFilterActive ? (
@@ -559,15 +658,31 @@ const BackgroundChecksPage: React.FC = () => {
       ) : null}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-slate-900">Submit Background Check</h2>
-        <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={handleCreateCheck}>
+        <h2 className="text-lg font-bold text-slate-900">
+          Submit Background Check
+        </h2>
+        <form
+          className="mt-4 grid gap-3 md:grid-cols-2"
+          onSubmit={handleCreateCheck}
+        >
           <div>
-            <label htmlFor="bg-check-case" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
+            <label
+              htmlFor="bg-check-case"
+              className="mb-1 block text-xs font-semibold uppercase text-slate-700"
+            >
               Case
             </label>
-            <Select value={selectedCase} onValueChange={setSelectedCase} disabled={loadingCases || submitting}>
+            <Select
+              value={selectedCase}
+              onValueChange={setSelectedCase}
+              disabled={loadingCases || submitting}
+            >
               <SelectTrigger id="bg-check-case" className="w-full">
-                <SelectValue placeholder={loadingCases ? "Loading cases..." : "Select case"} />
+                <SelectValue
+                  placeholder={
+                    loadingCases ? "Loading cases..." : "Select case"
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
                 {caseOptions.map((option) => (
@@ -580,12 +695,17 @@ const BackgroundChecksPage: React.FC = () => {
           </div>
 
           <div>
-            <label htmlFor="bg-check-type" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
+            <label
+              htmlFor="bg-check-type"
+              className="mb-1 block text-xs font-semibold uppercase text-slate-700"
+            >
               Check Type
             </label>
             <Select
               value={selectedCheckType}
-              onValueChange={(value) => setSelectedCheckType(value as BackgroundCheckType)}
+              onValueChange={(value) =>
+                setSelectedCheckType(value as BackgroundCheckType)
+              }
               disabled={submitting}
             >
               <SelectTrigger id="bg-check-type" className="w-full">
@@ -602,7 +722,10 @@ const BackgroundChecksPage: React.FC = () => {
           </div>
 
           <div>
-            <label htmlFor="bg-check-provider" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
+            <label
+              htmlFor="bg-check-provider"
+              className="mb-1 block text-xs font-semibold uppercase text-slate-700"
+            >
               Provider Key
             </label>
             <Input
@@ -615,7 +738,10 @@ const BackgroundChecksPage: React.FC = () => {
           </div>
 
           <div>
-            <label htmlFor="bg-check-consent-notes" className="mb-1 block text-xs font-semibold uppercase text-slate-700">
+            <label
+              htmlFor="bg-check-consent-notes"
+              className="mb-1 block text-xs font-semibold uppercase text-slate-700"
+            >
               Consent Notes
             </label>
             <Input
@@ -655,12 +781,16 @@ const BackgroundChecksPage: React.FC = () => {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-900">Background Check Runs</h2>
+          <h2 className="text-lg font-bold text-slate-900">
+            Background Check Runs
+          </h2>
           <p className="text-sm text-slate-700">{checks.length} records</p>
         </div>
 
         {loadingChecks ? (
-          <div className="py-10 text-center text-slate-700">Loading checks...</div>
+          <div className="py-10 text-center text-slate-700">
+            Loading checks...
+          </div>
         ) : errorMessage ? (
           <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
             {errorMessage}
@@ -672,14 +802,21 @@ const BackgroundChecksPage: React.FC = () => {
         ) : (
           <div className="space-y-3">
             {checks.map((check) => (
-              <article key={check.id} className="rounded-xl border border-slate-200 p-4">
+              <article
+                key={check.id}
+                className="rounded-xl border border-slate-200 p-4"
+              >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">{check.case_id}</p>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {check.case_id}
+                    </p>
                     <p className="text-xs text-slate-700">
                       {check.check_type} | provider: {check.provider_key}
                     </p>
-                    <p className="text-xs text-slate-700 mt-1">Submitted: {formatDate(check.created_at)}</p>
+                    <p className="text-xs text-slate-700 mt-1">
+                      Submitted: {formatDate(check.created_at)}
+                    </p>
                   </div>
                   <span
                     className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
@@ -701,15 +838,23 @@ const BackgroundChecksPage: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-slate-700">Score</p>
-                    <p className="font-semibold">{typeof check.score === "number" ? check.score.toFixed(1) : "-"}</p>
+                    <p className="font-semibold">
+                      {typeof check.score === "number"
+                        ? check.score.toFixed(1)
+                        : "-"}
+                    </p>
                   </div>
                   <div>
                     <p className="text-slate-700">Applicant</p>
-                    <p className="font-semibold">{check.applicant_email || "-"}</p>
+                    <p className="font-semibold">
+                      {check.applicant_email || "-"}
+                    </p>
                   </div>
                   <div>
                     <p className="text-slate-700">External Ref</p>
-                    <p className="font-semibold">{check.external_reference || "-"}</p>
+                    <p className="font-semibold">
+                      {check.external_reference || "-"}
+                    </p>
                   </div>
                 </div>
 
@@ -720,12 +865,20 @@ const BackgroundChecksPage: React.FC = () => {
                     onClick={() => void handleRefreshCheck(check.id)}
                     disabled={refreshingId === check.id}
                   >
-                    <RefreshCw className={`mr-2 h-4 w-4 ${refreshingId === check.id ? "animate-spin" : ""}`} />
+                    <RefreshCw
+                      className={`mr-2 h-4 w-4 ${refreshingId === check.id ? "animate-spin" : ""}`}
+                    />
                     Refresh Check
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => void toggleEvents(check.id)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void toggleEvents(check.id)}
+                  >
                     <Clock3 className="mr-2 h-4 w-4" />
-                    {expandedCheckId === check.id ? "Hide Events" : "View Events"}
+                    {expandedCheckId === check.id
+                      ? "Hide Events"
+                      : "View Events"}
                   </Button>
                   <Button asChild variant="outline">
                     <Link to={`/applications/${check.case_id}`}>
@@ -743,19 +896,33 @@ const BackgroundChecksPage: React.FC = () => {
 
                 {expandedCheckId === check.id ? (
                   <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs font-semibold uppercase text-slate-700">Events</p>
+                    <p className="text-xs font-semibold uppercase text-slate-700">
+                      Events
+                    </p>
                     {(eventsByCheck[check.id] || []).length === 0 ? (
-                      <p className="mt-2 text-sm text-slate-700">No events recorded yet.</p>
+                      <p className="mt-2 text-sm text-slate-700">
+                        No events recorded yet.
+                      </p>
                     ) : (
                       <ul className="mt-2 space-y-2">
                         {(eventsByCheck[check.id] || []).map((item) => (
-                          <li key={item.id} className="rounded-md border border-slate-200 bg-white px-3 py-2">
-                            <p className="text-sm font-medium text-slate-800">{item.event_type}</p>
+                          <li
+                            key={item.id}
+                            className="rounded-md border border-slate-200 bg-white px-3 py-2"
+                          >
+                            <p className="text-sm font-medium text-slate-800">
+                              {item.event_type}
+                            </p>
                             <p className="text-xs text-slate-700">
-                              {item.status_before || "-"} {"->"} {item.status_after || "-"} at{" "}
+                              {item.status_before || "-"} {"->"}{" "}
+                              {item.status_after || "-"} at{" "}
                               {formatDate(item.created_at)}
                             </p>
-                            {item.message ? <p className="mt-1 text-xs text-slate-700">{item.message}</p> : null}
+                            {item.message ? (
+                              <p className="mt-1 text-xs text-slate-700">
+                                {item.message}
+                              </p>
+                            ) : null}
                           </li>
                         ))}
                       </ul>

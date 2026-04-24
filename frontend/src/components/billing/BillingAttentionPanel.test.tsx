@@ -112,14 +112,10 @@ describe("BillingAttentionPanel", () => {
       "/notifications?channel=all&event_type=billing_payment_failed&subsystem=billing",
     );
     expect(
-      screen
-        .getByRole("link", {
-          name: /view billing error notifications/i,
-        })
-        .getAttribute("href"),
-    ).toBe(
-      "/notifications?channel=all&event_type=processing_error&subsystem=billing",
-    );
+      screen.queryByRole("link", {
+        name: /view billing error notifications/i,
+      }),
+    ).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /retry billing/i }));
 
     await waitFor(() => {
@@ -320,5 +316,76 @@ describe("BillingAttentionPanel", () => {
         .getByRole("link", { name: /renew before cutoff/i })
         .getAttribute("href"),
     ).toBe("/subscribe?returnTo=%2Forganization%2Fdashboard");
+    expect(
+      screen.queryByRole("link", {
+        name: /view payment failure notifications/i,
+      }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("link", {
+        name: /view billing error notifications/i,
+      }),
+    ).toBeNull();
+  });
+
+  it("shows only the runtime-error notifications link for processing-error incidents", () => {
+    render(
+      <MemoryRouter>
+        <BillingAttentionPanel
+          subscription={{
+            id: "sub-5",
+            provider: "paystack",
+            status: "failed",
+            payment_status: "unpaid",
+            plan_id: "growth",
+            plan_name: "Growth",
+            billing_cycle: "monthly",
+            amount_usd: "399.00",
+            payment_method: {
+              type: "card",
+              display: "Card",
+              brand: null,
+              last4: null,
+              exp_month: null,
+              exp_year: null,
+            },
+            checkout_url: null,
+            current_period_start: null,
+            current_period_end: null,
+            cancel_at_period_end: false,
+            cancellation_requested_at: null,
+            cancellation_effective_at: null,
+            can_update_payment_method: false,
+            can_delete_payment_method: true,
+            retry_available: false,
+            retry_reason: null,
+            latest_incident: {
+              code: "processing_error",
+              message:
+                "Billing runtime processing error occurred while handling webhook event.",
+              detected_at: "2026-01-02T10:30:00Z",
+              source: "paystack",
+              event_type: "processing_error",
+            },
+            updated_at: "2026-01-01T00:00:00Z",
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.queryByRole("link", {
+        name: /view payment failure notifications/i,
+      }),
+    ).toBeNull();
+    expect(
+      screen
+        .getByRole("link", {
+          name: /view billing error notifications/i,
+        })
+        .getAttribute("href"),
+    ).toBe(
+      "/notifications?channel=all&event_type=processing_error&subsystem=billing",
+    );
   });
 });

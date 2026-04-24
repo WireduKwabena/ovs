@@ -77,15 +77,20 @@ def is_subscription_active(subscription: BillingSubscription | None, *, now=None
         return False
 
     moment = now or timezone.now()
-    if subscription.status != "complete":
-        return False
-    if subscription.payment_status not in {"paid", "no_payment_required"}:
-        return False
+    
+    # Reject explicitly failed/cancelled/expired subscriptions
     if subscription.status in {"failed", "canceled", "expired"}:
         return False
-    if subscription.ticket_expires_at and subscription.ticket_expires_at <= moment:
+    
+    # Subscription must be complete status
+    if subscription.status != "complete":
+        return False
+    
+    # Reject subscriptions with explicitly failed or unpaid status
+    if subscription.payment_status in {"unpaid", "failed"}:
         return False
 
+    # Check cancellation effective date
     metadata = subscription.metadata if isinstance(subscription.metadata, dict) else {}
     cancellation_effective_raw = metadata.get("cancellation_effective_at")
     cancellation_effective = parse_datetime(str(cancellation_effective_raw or "")) if cancellation_effective_raw else None
@@ -93,6 +98,7 @@ def is_subscription_active(subscription: BillingSubscription | None, *, now=None
         cancellation_effective = timezone.make_aware(cancellation_effective, timezone=dt_timezone.utc)
     if cancellation_effective and cancellation_effective <= moment:
         return False
+    
     return True
 
 

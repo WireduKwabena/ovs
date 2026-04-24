@@ -338,6 +338,25 @@ class BackgroundCheckApiTests(APITestCase):
         self.assertEqual(response.data["status"], "submitted")
 
     @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True)
+    def test_internal_can_create_background_check_with_consent_recorded_flag(self):
+        self.client.force_authenticate(self.internal_user)
+        response = self.client.post(
+            "/api/background-checks/checks/",
+            {
+                "case": self.case.id,
+                "check_type": "kyc_aml",
+                "provider_key": "mock",
+                "request_payload": {"country": "US"},
+                "consent_evidence": {"consent_recorded": True},
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["case"], self.case.id)
+        self.assertEqual(response.data["status"], "submitted")
+
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True)
     def test_plain_internal_without_operational_role_cannot_create_background_check(self):
         plain_internal = User.objects.create_user(
             email="bg-plain-hr@example.com",

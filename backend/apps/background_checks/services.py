@@ -99,6 +99,7 @@ def _consent_granted(consent_evidence):
     return bool(
         consent_evidence.get("granted")
         or consent_evidence.get("consent_granted")
+        or consent_evidence.get("consent_recorded")
         or consent_evidence.get("accepted")
     )
 

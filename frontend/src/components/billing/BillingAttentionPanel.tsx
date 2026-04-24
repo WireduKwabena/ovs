@@ -61,6 +61,11 @@ const getProviderLabel = (provider: string | null | undefined): string => {
     : "Billing";
 };
 
+const normalizeValue = (value: string | null | undefined): string =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
+
 const BillingAttentionPanel: React.FC<BillingAttentionPanelProps> = ({
   subscription,
   onAfterAction,
@@ -103,6 +108,30 @@ const BillingAttentionPanel: React.FC<BillingAttentionPanelProps> = ({
     }
     return null;
   }, [providerLabel, renewHref, subscription]);
+
+  const incidentCode = normalizeValue(subscription?.latest_incident?.code);
+  const incidentEventType = normalizeValue(
+    subscription?.latest_incident?.event_type,
+  );
+  const incidentMessage = normalizeValue(
+    subscription?.latest_incident?.message,
+  );
+  const retryReason = normalizeValue(subscription?.retry_reason);
+
+  const showPaymentFailureTraceLink =
+    Boolean(subscription) &&
+    (retryReason === "payment_failed" ||
+      incidentCode === "payment_failed" ||
+      incidentEventType === "billing_payment_failed" ||
+      incidentMessage.includes("payment failure") ||
+      incidentMessage.includes("payment failed"));
+
+  const showRuntimeErrorTraceLink =
+    Boolean(subscription) &&
+    (incidentCode === "processing_error" ||
+      incidentEventType === "processing_error" ||
+      incidentMessage.includes("processing error") ||
+      incidentMessage.includes("runtime error"));
 
   const handleRetry = async () => {
     if (!subscription?.retry_available) return;
@@ -182,20 +211,26 @@ const BillingAttentionPanel: React.FC<BillingAttentionPanelProps> = ({
           </p>
         </div>
       ) : null}
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Link
-          to={buildBillingPaymentFailureNotificationTraceHref()}
-          className="inline-flex items-center rounded-md border border-current/25 bg-white/70 px-2.5 py-1 font-medium hover:bg-white"
-        >
-          View payment failure notifications
-        </Link>
-        <Link
-          to={buildBillingProcessingErrorNotificationTraceHref()}
-          className="inline-flex items-center rounded-md border border-current/25 bg-white/70 px-2.5 py-1 font-medium hover:bg-white"
-        >
-          View billing error notifications
-        </Link>
-      </div>
+      {showPaymentFailureTraceLink || showRuntimeErrorTraceLink ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {showPaymentFailureTraceLink ? (
+            <Link
+              to={buildBillingPaymentFailureNotificationTraceHref()}
+              className="inline-flex items-center rounded-md border border-current/25 bg-white/70 px-2.5 py-1 font-medium hover:bg-white"
+            >
+              View payment failure notifications
+            </Link>
+          ) : null}
+          {showRuntimeErrorTraceLink ? (
+            <Link
+              to={buildBillingProcessingErrorNotificationTraceHref()}
+              className="inline-flex items-center rounded-md border border-current/25 bg-white/70 px-2.5 py-1 font-medium hover:bg-white"
+            >
+              View billing error notifications
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
       {subscription ? (
         <div className="mt-3 flex flex-wrap gap-2">
           {subscription.cancel_at_period_end && renewHref ? (
