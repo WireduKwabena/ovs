@@ -8,7 +8,7 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from django.conf import settings
 from django.core.cache import cache
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import Q
 from django.utils.dateparse import parse_datetime
 from django.utils import timezone
@@ -889,6 +889,42 @@ def _request_explicit_billing_organization_id(request) -> str | None:
     return None
 
 
+def _billing_schema_exists(schema_name: str | None) -> bool:
+    normalized_schema = str(schema_name or "").strip()
+    if not normalized_schema:
+        return False
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT 1 FROM pg_namespace WHERE nspname = %s", [normalized_schema])
+        return cursor.fetchone() is not None
+
+
+def _resolve_billing_schema_organization(organization_id: str | None):
+    from apps.tenants.models import Organization
+
+    def _current_schema_organization():
+        current_schema = str(getattr(connection, "schema_name", "") or "")
+        if not current_schema or current_schema == "public":
+            return None
+
+        current_tenant = getattr(connection, "tenant", None)
+        if (
+            current_tenant is not None
+            and str(getattr(current_tenant, "schema_name", "") or "") == current_schema
+            and getattr(current_tenant, "is_active", True) is not False
+        ):
+            return current_tenant
+
+        return Organization.objects.filter(schema_name=current_schema, is_active=True).first()
+
+    if organization_id:
+        organization = Organization.objects.filter(id=organization_id, is_active=True).first()
+        if organization is not None and _billing_schema_exists(getattr(organization, "schema_name", "")):
+            return organization
+        return _current_schema_organization()
+
+    return _current_schema_organization()
+
+
 def _can_manage_governance_billing_scope(user, *, organization_id=None) -> bool:
     return can_manage_registry_governance(
         user,
@@ -1155,7 +1191,7 @@ def _billing_alert_recipients(*, organization_id: str | None = None):
         organization_memberships__is_active=True,
         organization_memberships__membership_role__in=tuple(ORG_GOVERNANCE_ADMIN_MEMBERSHIP_ROLES),
     )
-    return User.objects.filter(is_active=True).filter(
+    return User.all_objects.filter(is_active=True).filter(
         platform_alert_filter | governance_alert_filter
     ).distinct()
 
@@ -2580,9 +2616,8 @@ class SubscriptionAccessVerifyAPIView(APIView):
         org_id = _normalized_organization_id(serializer.validated_data.get("organization_id"))
 
         # Billing tables are TENANT_APPS — switch to the org's schema before querying.
-        from apps.tenants.models import Organization as _Organization  # noqa: PLC0415
         from django_tenants.utils import schema_context as _schema_context  # noqa: PLC0415
-        organization = _Organization.objects.filter(id=org_id, is_active=True).first() if org_id else None
+        organization = _resolve_billing_schema_organization(org_id)
         if organization is None:
             _audit_subscription_access_verify(
                 request=request,
@@ -2697,7 +2732,7 @@ class StripeCheckoutSessionCreateAPIView(APIView):
         except Exception as exc:
             raise ValidationError(f"Unable to create Stripe checkout session: {exc}") from exc
 
-        session_dict = session._to_dict_recursive()
+        session_dict = session._to_dict_recursive() if hasattr(session, "_to_dict_recursive") else dict(session)
         _persist_stripe_session(
             session_dict,
             checkout_url=session_dict.get("url"),
@@ -2754,7 +2789,7 @@ class StripeCheckoutSessionConfirmAPIView(APIView):
         except Exception as exc:
             raise ValidationError(f"Unable to retrieve Stripe session: {exc}") from exc
 
-        session_payload = session._to_dict_recursive()
+        session_payload = session._to_dict_recursive() if hasattr(session, "_to_dict_recursive") else dict(session)
         session_status = session_payload.get("status")
         payment_status = session_payload.get("payment_status")
         if session_status != "complete" or payment_status not in {"paid", "no_payment_required"}:
@@ -2764,9 +2799,8 @@ class StripeCheckoutSessionConfirmAPIView(APIView):
         # embedded in the session metadata before any ORM calls.
         session_metadata = dict(session_payload.get("metadata") or {})
         org_id = _normalized_organization_id(session_metadata.get("organization_id"))
-        from apps.tenants.models import Organization as _Organization  # noqa: PLC0415
         from django_tenants.utils import schema_context as _schema_context  # noqa: PLC0415
-        organization = _Organization.objects.filter(id=org_id, is_active=True).first() if org_id else None
+        organization = _resolve_billing_schema_organization(org_id)
         if organization is None:
             raise ValidationError("Unable to resolve organization for this Stripe session.")
 
@@ -2912,9 +2946,8 @@ class PaystackCheckoutSessionConfirmAPIView(APIView):
         transaction_data = _paystack_verify_transaction(reference)
         tx_metadata = dict(transaction_data.get("metadata") or {})
         org_id = _normalized_organization_id(tx_metadata.get("organization_id"))
-        from apps.tenants.models import Organization as _Organization  # noqa: PLC0415
         from django_tenants.utils import schema_context as _schema_context  # noqa: PLC0415
-        organization = _Organization.objects.filter(id=org_id, is_active=True).first() if org_id else None
+        organization = _resolve_billing_schema_organization(org_id)
         if organization is None:
             raise ValidationError("Unable to resolve organization for this Paystack transaction.")
 
@@ -2992,9 +3025,8 @@ class PaystackWebhookAPIView(APIView):
         # initiation time, then switch the DB search_path before any ORM operations.
         event_metadata = dict(event_data.get("metadata") or {})
         org_id = _normalized_organization_id(event_metadata.get("organization_id"))
-        from apps.tenants.models import Organization as _Organization  # noqa: PLC0415
         from django_tenants.utils import schema_context as _schema_context  # noqa: PLC0415
-        organization = _Organization.objects.filter(id=org_id, is_active=True).first() if org_id else None
+        organization = _resolve_billing_schema_organization(org_id)
         if organization is None:
             # Acknowledge receipt but take no DB action — we have no tenant to write to.
             return Response(
@@ -3142,9 +3174,8 @@ class StripeWebhookAPIView(APIView):
         # Billing tables are TENANT_APPS — resolve the tenant from the organization_id
         # embedded in the event metadata before any ORM calls.
         org_id = _stripe_event_organization_id(event_type, event_data)
-        from apps.tenants.models import Organization as _Organization  # noqa: PLC0415
         from django_tenants.utils import schema_context as _schema_context  # noqa: PLC0415
-        organization = _Organization.objects.filter(id=org_id, is_active=True).first() if org_id else None
+        organization = _resolve_billing_schema_organization(org_id)
         if organization is None:
             return Response(
                 {"received": True, "event_type": event_type, "detail": "no_tenant_context"},

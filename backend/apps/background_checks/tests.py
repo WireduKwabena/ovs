@@ -72,6 +72,18 @@ class BackgroundCheckServiceTests(TestCase):
                 consent_evidence={"granted": False},
             )
 
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True, BACKGROUND_CHECK_DEFAULT_PROVIDER="mock")
+    def test_submit_accepts_consent_recorded_flag(self):
+        check = submit_background_check(
+            case=self.case,
+            check_type="kyc_aml",
+            submitted_by=self.user,
+            consent_evidence={"consent_recorded": True},
+        )
+
+        self.assertEqual(check.status, "submitted")
+        self.assertTrue(bool(check.external_reference))
+
     @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True, BILLING_VETTING_OPERATION_QUOTA_ENFORCEMENT_ENABLED=True)
     def test_submit_blocks_when_org_subscription_is_inactive(self):
         organization = Organization.objects.create(
@@ -329,25 +341,6 @@ class BackgroundCheckApiTests(APITestCase):
                 "provider_key": "mock",
                 "request_payload": {"country": "US"},
                 "consent_evidence": {"granted": True},
-            },
-            format="json",
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data["case"], self.case.id)
-        self.assertEqual(response.data["status"], "submitted")
-
-    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True)
-    def test_internal_can_create_background_check_with_consent_recorded_flag(self):
-        self.client.force_authenticate(self.internal_user)
-        response = self.client.post(
-            "/api/background-checks/checks/",
-            {
-                "case": self.case.id,
-                "check_type": "kyc_aml",
-                "provider_key": "mock",
-                "request_payload": {"country": "US"},
-                "consent_evidence": {"consent_recorded": True},
             },
             format="json",
         )

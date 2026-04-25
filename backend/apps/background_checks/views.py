@@ -63,8 +63,6 @@ class BackgroundCheckViewSet(viewsets.ModelViewSet):
         if not is_platform_admin_actor(request.user) and not can_view_internal_record(
             request.user,
             organization_id=getattr(case, "organization_id", None),
-            allow_membershipless_fallback=False,
-            enforce_org_scope_for_null=True,
         ):
             raise ValidationError("You cannot submit background checks outside your organization scope.")
 
