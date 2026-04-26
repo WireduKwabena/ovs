@@ -19,7 +19,8 @@ from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from apps.users.models import User, UserProfile
 from apps.billing.models import BillingSubscription
 from apps.billing.services import create_organization_onboarding_token
-from apps.governance.models import Committee, CommitteeMembership, Organization, OrganizationMembership
+from apps.governance.models import Committee, CommitteeMembership, OrganizationMembership
+from apps.tenants.models import Organization
 
 
 class EmailAuthEndpointTests(APITestCase):
@@ -926,6 +927,39 @@ class EmailAuthEndpointTests(APITestCase):
         self.assertGreater(profile.profile_completion_percentage, 0)
         self.assertEqual(response.data["profile"]["city"], "Accra")
 
+    def test_profile_update_rejects_duplicate_email(self):
+        self.client.force_authenticate(user=self.user)
+        existing_user = User.objects.create_user(
+            email="duplicate@example.com",
+            password="OtherPass123!",
+            first_name="Duplicate",
+            last_name="Owner",
+            user_type="internal",
+        )
+
+        response = self.client.put(
+            "/api/auth/profile/update/",
+            {"email": existing_user.email},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("email", response.data)
+
+    @patch("apps.authentication.views.send_mail")
+    @patch("apps.authentication.views.User.all_objects.get")
+    def test_password_reset_request_sends_email_for_known_user(self, mock_get_user, mock_send_mail):
+        mock_get_user.return_value = self.user
+        response = self.client.post(
+            "/api/auth/password-reset/",
+            {"email": self.user.email},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        mock_get_user.assert_called_once_with(email__iexact=self.user.email)
+        mock_send_mail.assert_called_once()
+
     def test_password_reset_confirm_with_signed_token_changes_password(self):
         raw_token = default_token_generator.make_token(self.user)
         signed_token = Signer().sign(f"{self.user.pk}:{raw_token}")
@@ -1185,52 +1219,86 @@ class EmailAuthEndpointTests(APITestCase):
     def test_active_organization_switching_supports_multi_org_user(self):
         org_one = Organization.objects.create(code="org-one", name="Organization One", organization_type="agency")
         org_two = Organization.objects.create(code="org-two", name="Organization Two", organization_type="agency")
-        OrganizationMembership.objects.create(
-            user=self.user,
-            is_active=True,
-            is_default=True,
-            membership_role="member",
-        )
-        second_membership = OrganizationMembership.objects.create(
-            user=self.user,
-            is_active=True,
-            is_default=False,
-            membership_role="member",
-        )
-        committee = Committee.objects.create(
-            code="org-two-committee",
-            name="Org Two Committee",
-            committee_type="approval",
-        )
-        CommitteeMembership.objects.create(
-            committee=committee,
-            user=self.user,
-            organization_membership=second_membership,
-            committee_role="member",
-            can_vote=True,
-            is_active=True,
-        )
         self.client.force_authenticate(user=self.user)
 
-        initial_profile = self.client.get("/api/auth/profile/")
-        self.assertEqual(initial_profile.status_code, status.HTTP_200_OK)
-        self.assertEqual(initial_profile.data["active_organization"]["id"], str(org_one.id))
-        self.assertEqual(initial_profile.data["active_organization_source"], "default")
+        membership_one = {
+            "id": str(uuid4()),
+            "organization_id": str(org_one.id),
+            "organization_code": org_one.code,
+            "organization_name": org_one.name,
+            "organization_type": org_one.organization_type,
+            "tier": str(getattr(org_one, "tier", "") or ""),
+            "title": "Operations",
+            "membership_role": "member",
+            "is_default": True,
+            "is_active": True,
+            "joined_at": None,
+            "left_at": None,
+        }
+        membership_two = {
+            "id": str(uuid4()),
+            "organization_id": str(org_two.id),
+            "organization_code": org_two.code,
+            "organization_name": org_two.name,
+            "organization_type": org_two.organization_type,
+            "tier": str(getattr(org_two, "tier", "") or ""),
+            "title": "Approvals",
+            "membership_role": "member",
+            "is_default": False,
+            "is_active": True,
+            "joined_at": None,
+            "left_at": None,
+        }
+        committee_record = {
+            "id": str(uuid4()),
+            "committee_id": str(uuid4()),
+            "committee_code": "org-two-committee",
+            "committee_name": "Org Two Committee",
+            "committee_type": "approval",
+            "organization_id": str(org_two.id),
+            "organization_code": org_two.code,
+            "organization_name": org_two.name,
+            "committee_role": "member",
+            "can_vote": True,
+            "joined_at": None,
+            "left_at": None,
+        }
 
-        switch_response = self.client.post(
-            "/api/auth/profile/active-organization/",
-            {"organization_id": str(org_two.id)},
-            format="json",
-        )
-        self.assertEqual(switch_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(switch_response.data["active_organization"]["id"], str(org_two.id))
+        with patch(
+            "apps.core.authz._load_active_organization_memberships_for_user",
+            side_effect=lambda _user_id, organization: (
+                [dict(membership_one)]
+                if organization.id == org_one.id
+                else [dict(membership_two)]
+                if organization.id == org_two.id
+                else []
+            ),
+        ), patch(
+            "apps.core.authz._load_active_committee_memberships_for_user",
+            side_effect=lambda _user_id, organization: (
+                [dict(committee_record)] if organization.id == org_two.id else []
+            ),
+        ):
+            initial_profile = self.client.get("/api/auth/profile/")
+            self.assertEqual(initial_profile.status_code, status.HTTP_200_OK)
+            self.assertEqual(len(initial_profile.data["organizations"]), 2)
+            self.assertEqual(initial_profile.data["active_organization"]["id"], str(org_one.id))
+            self.assertEqual(initial_profile.data["active_organization_source"], "default")
 
-        switched_profile = self.client.get("/api/auth/profile/")
-        self.assertEqual(switched_profile.status_code, status.HTTP_200_OK)
-        self.assertEqual(switched_profile.data["active_organization"]["id"], str(org_two.id))
-        self.assertEqual(switched_profile.data["active_organization_source"], "session")
-        self.assertEqual(len(switched_profile.data["committees"]), 1)
-        self.assertEqual(switched_profile.data["committees"][0]["committee_id"], str(committee.id))
+            switch_response = self.client.post(
+                "/api/auth/profile/active-organization/",
+                {"organization_id": str(org_two.id)},
+                format="json",
+            )
+            self.assertEqual(switch_response.status_code, status.HTTP_200_OK)
+            self.assertEqual(switch_response.data["active_organization"]["id"], str(org_two.id))
+
+            switched_profile = self.client.get("/api/auth/profile/")
+            self.assertEqual(switched_profile.status_code, status.HTTP_200_OK)
+            self.assertEqual(switched_profile.data["active_organization"]["id"], str(org_two.id))
+            self.assertEqual(switched_profile.data["active_organization_source"], "session")
+            self.assertEqual(len(switched_profile.data["committees"]), 1)
+            self.assertEqual(switched_profile.data["committees"][0]["committee_id"], committee_record["committee_id"])
 
     def test_profile_view_for_applicant_without_org_membership_has_empty_context(self):
         applicant = User.objects.create_user(

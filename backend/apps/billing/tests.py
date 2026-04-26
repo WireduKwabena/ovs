@@ -1250,6 +1250,16 @@ class BillingApiTests(APITestCase):
                 is_active=True,
             ).exists()
         )
+        revoked_token = OrganizationOnboardingToken.objects.get()
+        self.assertEqual(revoked_token.created_by_id, internal_user.id)
+        self.assertEqual(
+            revoked_token.metadata.get("revoked_by_id"),
+            str(internal_user.id),
+        )
+        self.assertEqual(
+            revoked_token.metadata.get("revoked_by_email"),
+            internal_user.email,
+        )
 
     def test_onboarding_token_audit_payload_excludes_raw_token_value(self):
         internal_user = self._create_internal_user(email="onboarding-audit-safety@example.com")
@@ -3130,7 +3140,6 @@ class BillingApiTests(APITestCase):
         self.assertEqual(subscription.status, "canceled")
         self.assertEqual(subscription.payment_status, "unpaid")
         self.assertIn("cancellation_effective_at", subscription.metadata)
-
 
 
 

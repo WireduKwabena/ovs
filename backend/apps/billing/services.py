@@ -111,6 +111,20 @@ def get_active_subscription_for_organization(*, organization_id: str | None = No
     return None
 
 
+def _revocation_metadata(*, metadata: dict | None, revoked_by=None) -> dict:
+    payload = dict(metadata) if isinstance(metadata, dict) else {}
+    if revoked_by is None:
+        return payload
+
+    revoked_by_id = str(getattr(revoked_by, "pk", "") or "").strip()
+    revoked_by_email = str(getattr(revoked_by, "email", "") or "").strip().lower()
+    if revoked_by_id:
+        payload["revoked_by_id"] = revoked_by_id
+    if revoked_by_email:
+        payload["revoked_by_email"] = revoked_by_email
+    return payload
+
+
 def deactivate_active_onboarding_tokens(
     *,
     organization_id: str | None = None,
@@ -120,18 +134,27 @@ def deactivate_active_onboarding_tokens(
 ) -> int:
     # In django-tenants all queries are automatically schema-scoped; org_id param kept for API compatibility.
     now = when or timezone.now()
-    update_kwargs = {
-        "is_active": False,
-        "revoked_at": now,
-        "revoked_reason": str(reason or "")[:255],
-        "updated_at": now,
-    }
-    if revoked_by is not None:
-        update_kwargs["created_by"] = revoked_by
-    return (
-        OrganizationOnboardingToken.objects.filter(is_active=True)
-        .update(**update_kwargs)
-    )
+    normalized_reason = str(reason or "")[:255]
+    active_tokens = list(OrganizationOnboardingToken.objects.filter(is_active=True))
+
+    for token_record in active_tokens:
+        token_record.is_active = False
+        token_record.revoked_at = now
+        token_record.revoked_reason = normalized_reason
+        update_fields = ["is_active", "revoked_at", "revoked_reason", "updated_at"]
+
+        next_metadata = _revocation_metadata(
+            metadata=token_record.metadata,
+            revoked_by=revoked_by,
+        )
+        current_metadata = token_record.metadata if isinstance(token_record.metadata, dict) else {}
+        if next_metadata != current_metadata:
+            token_record.metadata = next_metadata
+            update_fields.append("metadata")
+
+        token_record.save(update_fields=update_fields)
+
+    return len(active_tokens)
 
 
 def create_organization_onboarding_token(

@@ -1054,6 +1054,7 @@ def _send_onboarding_invite_email(
 def _serialize_onboarding_token_state(token_record):
     if token_record is None:
         return None
+    metadata = token_record.metadata if isinstance(token_record.metadata, dict) else {}
     remaining_uses = None
     if token_record.max_uses is not None:
         remaining_uses = max(int(token_record.max_uses) - int(token_record.uses), 0)
@@ -1070,6 +1071,7 @@ def _serialize_onboarding_token_state(token_record):
         "last_used_at": token_record.last_used_at,
         "revoked_at": token_record.revoked_at,
         "revoked_reason": str(token_record.revoked_reason or ""),
+        "revoked_by_email": str(metadata.get("revoked_by_email", "") or ""),
         "created_at": token_record.created_at,
         "updated_at": token_record.updated_at,
     }
@@ -3353,7 +3355,6 @@ class StripeWebhookAPIView(APIView):
             )
 
         return Response(response_payload, status=status.HTTP_200_OK)
-
 
 
 

@@ -278,6 +278,75 @@ const EMPTY_ORG_CONTEXT = {
   invalid_requested_organization_id: "",
 } as const;
 
+const persistOrganizationSlug = (slug: string | null): string | null => {
+  const normalized = String(slug ?? "").trim();
+  if (normalized) {
+    sessionStorage.setItem("organization_slug", normalized);
+    return normalized;
+  }
+  sessionStorage.removeItem("organization_slug");
+  return null;
+};
+
+const shouldClearOrganizationSlug = (payload: {
+  user?: User | AdminUser;
+  user_type?: unknown;
+}): boolean => {
+  const userType =
+    typeof payload.user_type === "string"
+      ? payload.user_type
+      : typeof (payload.user as { user_type?: unknown } | undefined)?.user_type === "string"
+        ? String((payload.user as { user_type?: unknown }).user_type)
+        : "";
+  return (
+    userType === "admin" ||
+    userType === "platform_admin" ||
+    Boolean(payload.user?.is_superuser)
+  );
+};
+
+const syncOrganizationSlugFromPayload = (
+  state: AuthState,
+  payload: {
+    user?: User | AdminUser;
+    user_type?: unknown;
+    organizations?: unknown;
+    organization_memberships?: unknown;
+    active_organization?: unknown;
+  },
+) => {
+  if (shouldClearOrganizationSlug(payload)) {
+    state.organizationSlug = persistOrganizationSlug(null);
+    return;
+  }
+
+  const activeOrganization = normalizeOrganizationSummary(payload.active_organization);
+  if (activeOrganization?.code) {
+    state.organizationSlug = persistOrganizationSlug(activeOrganization.code);
+    return;
+  }
+
+  const organizations = normalizeOrganizationSummaryList(payload.organizations);
+  if (organizations.length === 1 && organizations[0]?.code) {
+    state.organizationSlug = persistOrganizationSlug(organizations[0].code);
+    return;
+  }
+
+  const membershipCodes = Array.from(
+    new Set(
+      normalizeOrganizationMembershipList(payload.organization_memberships)
+        .map((membership) => membership.organization_code)
+        .filter((code) => code.length > 0),
+    ),
+  );
+  if (membershipCodes.length === 1) {
+    state.organizationSlug = persistOrganizationSlug(membershipCodes[0]);
+    return;
+  }
+
+  state.organizationSlug = persistOrganizationSlug(state.organizationSlug);
+};
+
 const applyOrganizationContext = (
   state: AuthState,
   payload: {
@@ -631,6 +700,7 @@ const applyLoginFulfilled = (state: AuthState, payload: LoginAttemptResponse) =>
   state.roles = resolveRoles(payload);
   state.capabilities = resolveCapabilities(payload);
   state.isAuthenticated = true;
+  syncOrganizationSlugFromPayload(state, payload);
   applyOrganizationContext(state, EMPTY_ORG_CONTEXT);
   clearTwoFactorState(state);
   if (payload.tokens?.refresh) {
@@ -664,12 +734,7 @@ const authSlice = createSlice({
     },
     // Called by LoginForm after resolveTenant succeeds, before login is dispatched
     setOrganizationSlug: (state, action: PayloadAction<string | null>) => {
-      state.organizationSlug = action.payload;
-      if (action.payload) {
-        sessionStorage.setItem("organization_slug", action.payload);
-      } else {
-        sessionStorage.removeItem("organization_slug");
-      }
+      state.organizationSlug = persistOrganizationSlug(action.payload);
     },
     setResolvedLoginType: (state, action: PayloadAction<"admin" | "member" | null>) => {
       state.resolvedLoginType = action.payload;
@@ -690,13 +755,7 @@ const authSlice = createSlice({
       .addCase(resolveTenant.fulfilled, (state, action) => {
         state.loading = false;
         state.resolvedLoginType = action.payload.login_type;
-        state.organizationSlug = action.payload.organization_slug ?? null;
-        // Persist to sessionStorage so api.ts interceptor can pick it up
-        if (action.payload.organization_slug) {
-          sessionStorage.setItem("organization_slug", action.payload.organization_slug);
-        } else {
-          sessionStorage.removeItem("organization_slug");
-        }
+        state.organizationSlug = persistOrganizationSlug(action.payload.organization_slug ?? null);
         sessionStorage.setItem("resolved_login_type", action.payload.login_type);
       })
       .addCase(resolveTenant.rejected, (state, action) => {
@@ -753,6 +812,7 @@ const authSlice = createSlice({
         state.capabilities = resolveCapabilities(action.payload);
         state.isAuthenticated = true;
         state.loading = false;
+        syncOrganizationSlugFromPayload(state, action.payload);
         applyOrganizationContext(state, EMPTY_ORG_CONTEXT);
         clearTwoFactorState(state);
         if (action.payload.tokens?.refresh) {
@@ -781,6 +841,7 @@ const authSlice = createSlice({
         state.capabilities = resolveCapabilities(action.payload);
         state.isAuthenticated = true;
         state.loading = false;
+        syncOrganizationSlugFromPayload(state, action.payload);
         applyOrganizationContext(state, EMPTY_ORG_CONTEXT);
         clearTwoFactorState(state);
         if (action.payload.tokens?.refresh) {
@@ -842,6 +903,7 @@ const authSlice = createSlice({
         });
         state.roles = resolveRoles(action.payload);
         state.capabilities = resolveCapabilities(action.payload);
+        syncOrganizationSlugFromPayload(state, action.payload);
         applyOrganizationContext(state, action.payload);
         state.isAuthenticated = true;
         state.loading = false;
@@ -880,6 +942,7 @@ const authSlice = createSlice({
         });
         state.roles = resolveRoles(action.payload);
         state.capabilities = resolveCapabilities(action.payload);
+        syncOrganizationSlugFromPayload(state, action.payload);
         applyOrganizationContext(state, action.payload);
         state.isAuthenticated = true;
         state.switchingActiveOrganization = false;

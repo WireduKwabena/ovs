@@ -20,7 +20,12 @@ from apps.users.models import User
 from apps.billing.models import BillingSubscription
 from apps.billing.services import is_subscription_active
 from apps.core.authz import get_user_organization_by_id
-from apps.core.permissions import get_request_active_organization_id, get_request_tenant_context, is_platform_admin_user
+from apps.core.permissions import (
+    get_request_active_organization_id,
+    get_request_tenant_context,
+    is_platform_admin_user,
+    request_active_organization_matches_routed_tenant,
+)
 from apps.core.policies.registry_policy import can_manage_registry_governance
 from apps.tenants.models import Organization
 
@@ -92,14 +97,19 @@ class GovernanceScopeMixin:
         return organization
 
     def _resolve_non_admin_active_organization(self) -> Organization:
-        # In the django-tenants setup, the current tenant IS the organization.
-        try:
-            organization = connection.tenant
-        except Exception:
-            organization = None
+        organization = getattr(self.request, "tenant", None)
+        if organization is None:
+            try:
+                organization = connection.tenant
+            except Exception:
+                organization = None
 
         if organization is None or not getattr(organization, "is_active", False):
             raise ValidationError("Select an active organization before accessing governance resources.")
+        if not request_active_organization_matches_routed_tenant(self.request):
+            raise ValidationError(
+                "Active organization context does not match the routed tenant. Refresh and try again."
+            )
 
         if not can_manage_registry_governance(
             self.request.user,

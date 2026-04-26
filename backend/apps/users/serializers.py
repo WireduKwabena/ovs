@@ -129,6 +129,19 @@ class ProfileUpdateSerializer(serializers.Serializer):
     linkedin_url = serializers.URLField(required=False, allow_blank=True)
     bio = serializers.CharField(required=False, allow_blank=True, max_length=500)
 
+    def validate_email(self, value: str) -> str:
+        normalized = str(value or "").strip().lower()
+        request = self.context.get("request")
+        current_user_id = getattr(getattr(request, "user", None), "pk", None)
+
+        existing_user_qs = User.all_objects.filter(email__iexact=normalized)
+        if current_user_id is not None:
+            existing_user_qs = existing_user_qs.exclude(pk=current_user_id)
+
+        if existing_user_qs.exists():
+            raise serializers.ValidationError("A user with that email already exists.")
+        return normalized
+
 
 class OrganizationSummarySerializer(serializers.Serializer):
     id = serializers.CharField()

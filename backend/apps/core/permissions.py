@@ -33,6 +33,33 @@ ACTIVE_ORGANIZATION_CONTEXT_CACHE_ATTR = "_active_organization_context"
 TENANT_CONTEXT_CACHE_ATTR = "_tenant_context"
 
 
+def request_active_organization_matches_routed_tenant(request) -> bool:
+    """
+    Ensure the resolved active organization does not drift from the routed tenant.
+
+    Tenant-app querysets read from the current schema, so requests routed to a
+    non-public tenant must not authorize against a different active org context.
+    """
+    tenant = getattr(request, "tenant", None)
+    tenant_id = str(getattr(tenant, "id", "") or "").strip()
+    tenant_schema = str(getattr(tenant, "schema_name", "") or "").strip()
+    if not tenant_id:
+        return True
+
+    try:
+        from django_tenants.utils import get_public_schema_name
+    except Exception:  # pragma: no cover - tenancy app may be unavailable
+        return True
+
+    if tenant_schema == get_public_schema_name():
+        return True
+
+    active_org_id = get_request_active_organization_id(request)
+    if not active_org_id:
+        return True
+    return str(active_org_id).strip() == tenant_id
+
+
 def is_internal_or_admin_user(user) -> bool:
     """
     Legacy compatibility helper.
@@ -123,6 +150,8 @@ class IsGovernmentWorkflowOperator(BasePermission):
     message = "Only internal government workflow actors can access this resource."
 
     def has_permission(self, request, view):
+        if not request_active_organization_matches_routed_tenant(request):
+            return False
         return is_government_workflow_operator(
             getattr(request, "user", None),
             organization_id=get_request_active_organization_id(request),
@@ -133,6 +162,8 @@ class IsRegistryOperatorOrAdmin(BasePermission):
     message = "Only registry operators or admins can access this resource."
 
     def has_permission(self, request, view):
+        if not request_active_organization_matches_routed_tenant(request):
+            return False
         user = getattr(request, "user", None)
         if is_platform_admin_user(user):
             return True
@@ -157,6 +188,8 @@ class IsRegistryGovernanceAdmin(BasePermission):
     message = "Only organization registry administrators or platform administrators can access this resource."
 
     def has_permission(self, request, view):
+        if not request_active_organization_matches_routed_tenant(request):
+            return False
         user = getattr(request, "user", None)
         organization_id = get_request_active_organization_id(request)
         return is_registry_governance_admin(
@@ -373,6 +406,8 @@ def scope_queryset_to_user_organizations(
     user = getattr(request, "user", None)
     if user is None or not getattr(user, "is_authenticated", False):
         return queryset.none()
+    if not request_active_organization_matches_routed_tenant(request):
+        return queryset.none()
     return queryset
 
 
@@ -393,5 +428,6 @@ def scope_internal_queryset_to_tenant(
     user = getattr(request, "user", None)
     if user is None or not getattr(user, "is_authenticated", False):
         return queryset.none()
+    if not request_active_organization_matches_routed_tenant(request):
+        return queryset.none()
     return queryset
-

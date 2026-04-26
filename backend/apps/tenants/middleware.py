@@ -3,16 +3,37 @@ from django.db import connection
 from django.urls import set_urlconf, clear_url_caches
 from django.conf import settings
 
+
 class TenantMiddleware(TenantMainMiddleware):
-    '''
+    """
     Extended tenant middleware that supports both subdomain routing and
-    X-Organization-Slug header routing (for mobile clients and local dev).
+    request-scoped tenant routing for mobile clients and local dev.
 
     Resolution order:
       1. Subdomain (vvu.iconnect.app) — via TenantMainMiddleware
       2. X-Organization-Slug header — for mobile / direct API calls
-      3. Public schema fallback — unauthenticated/admin endpoints
-    '''
+      3. X-Active-Organization-ID header / active_organization_id query param
+      4. Public schema fallback — unauthenticated/admin endpoints
+    """
+
+    def _activate_tenant(self, request, organization):
+        request.tenant = organization
+        connection.set_tenant(organization)
+        request.urlconf = settings.ROOT_URLCONF
+        set_urlconf(request.urlconf)
+        clear_url_caches()
+
+    def _resolve_tenant_from_slug(self, organization_model, slug):
+        normalized_slug = str(slug or "").strip()
+        if not normalized_slug:
+            return None
+        return organization_model.objects.filter(code=normalized_slug, is_active=True).first()
+
+    def _resolve_tenant_from_organization_id(self, organization_model, organization_id):
+        normalized_id = str(organization_id or "").strip()
+        if not normalized_id:
+            return None
+        return organization_model.objects.filter(id=normalized_id, is_active=True).first()
 
     def process_request(self, request):
         from django_tenants.utils import get_tenant_model, get_public_schema_name
@@ -32,28 +53,26 @@ class TenantMiddleware(TenantMainMiddleware):
         ):
             return
 
-        # Try X-Organization-Slug header
-        slug = request.headers.get('X-Organization-Slug')
-        if slug:
-            
-            Organization = get_tenant_model()
-            # from apps.tenants.models import Organization
-            try:
-                organization = Organization.objects.get(code=slug, is_active=True)
-                request.tenant = organization
-                connection.set_tenant(organization)
-                request.urlconf = settings.ROOT_URLCONF 
-                set_urlconf(request.urlconf) # Explicitly set for the current thread
-                clear_url_caches() 
-                return
-            except Organization.DoesNotExist:
-                pass
+        Organization = get_tenant_model()
+
+        organization = self._resolve_tenant_from_slug(
+            Organization,
+            request.headers.get("X-Organization-Slug"),
+        )
+        if organization is None:
+            organization = self._resolve_tenant_from_organization_id(
+                Organization,
+                request.headers.get("X-Active-Organization-ID") or request.GET.get("active_organization_id"),
+            )
+        if organization is not None:
+            self._activate_tenant(request, organization)
+            return
+
         # 4. Fallback: If we reach here and no tenant is set, ensure Public URLConf
-        if not hasattr(request, 'tenant') or request.tenant.schema_name == get_public_schema_name():
+        if not hasattr(request, "tenant") or request.tenant.schema_name == get_public_schema_name():
             request.urlconf = settings.PUBLIC_SCHEMA_URLCONF
 
         # Fall back to public schema (for /admin/, /api/health/, etc.)
-        # from django_tenants.utils import get_public_schema_name
         from apps.tenants.models import Organization
         try:
             public = Organization.objects.get(schema_name=get_public_schema_name())
@@ -65,7 +84,7 @@ class TenantMiddleware(TenantMainMiddleware):
 
 
 class TenantHeaderFallbackMiddleware:
-    '''Kept for backwards compatibility — logic is now in TenantMiddleware.'''
+    """Kept for backwards compatibility — logic is now in TenantMiddleware."""
 
     def __init__(self, get_response):
         self.get_response = get_response

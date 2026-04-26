@@ -53,3 +53,5 @@ backend/ai_ml_services/datasets/processed/
 .tmp_ai_training_fast/
 .tmp_ai_training_full/
 .tmp_ai_training_prod/
+
+./docs/A Comprehensive Blueprint for the Development of an Online Vetting System (1).docx

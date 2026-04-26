@@ -13,6 +13,7 @@ import secrets
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
 from django.core import signing
 from django.core.cache import cache
 from django.core.signing import BadSignature, SignatureExpired, Signer
@@ -304,7 +305,7 @@ class ResolveTenantView(APIView):
         from apps.users.models import User
 
         try:
-            user = User.objects.get(email=email)
+            user = User.all_objects.get(email__iexact=email)
         except User.DoesNotExist:
             return Response(
                 {"error": "No account found for this email address."},
@@ -643,7 +644,7 @@ def password_reset_request_view(request):
         email = serializer.data.get('email')
         
         try:
-            user = User.objects.get(email=email)
+            user = User.all_objects.get(email__iexact=email)
             
             # Generate reset token
             token = default_token_generator.make_token(user)
@@ -698,7 +699,7 @@ def password_reset_confirm_view(request):
         try:
             payload = signer.unsign(signed_token)
             user_id_str, reset_token = payload.split(":", 1)
-            user = User.objects.get(pk=user_id_str)
+            user = User.all_objects.get(pk=user_id_str)
         except (BadSignature, User.DoesNotExist):
             return Response(
                 {'error': 'Invalid or expired reset token.'},

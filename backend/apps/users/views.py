@@ -1,9 +1,10 @@
 """User profile and management views."""
 
 import logging
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -177,7 +178,11 @@ def update_profile_view(request):
     PUT/PATCH /api/v1/auth/profile/update/  (also /api/v1/users/profile/update/)
     """
     user = request.user
-    serializer = ProfileUpdateSerializer(data=request.data, partial=True)
+    serializer = ProfileUpdateSerializer(
+        data=request.data,
+        partial=True,
+        context={"request": request},
+    )
     serializer.is_valid(raise_exception=True)
 
     validated = serializer.validated_data
@@ -213,7 +218,14 @@ def update_profile_view(request):
                 continue
             setattr(user, field, validated[field])
         if update_user_fields:
-            user.save(update_fields=sorted(set(update_user_fields + ["updated_at"])))
+            try:
+                user.save(update_fields=sorted(set(update_user_fields + ["updated_at"])))
+            except IntegrityError as exc:
+                if "email" in update_user_fields:
+                    raise ValidationError(
+                        {"email": ["A user with that email already exists."]}
+                    ) from exc
+                raise
 
         profile, _ = UserProfile.objects.get_or_create(user=user)
         for field in update_profile_fields:

@@ -243,6 +243,7 @@ class OnboardingTokenStateSerializer(serializers.Serializer):
     last_used_at = serializers.DateTimeField(allow_null=True)
     revoked_at = serializers.DateTimeField(allow_null=True)
     revoked_reason = serializers.CharField(allow_blank=True)
+    revoked_by_email = serializers.EmailField(required=False, allow_blank=True)
     created_at = serializers.DateTimeField()
     updated_at = serializers.DateTimeField()
 
