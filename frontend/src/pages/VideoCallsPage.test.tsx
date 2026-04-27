@@ -94,6 +94,11 @@ const toDatetimeLocal = (value: Date): string => {
 };
 
 describe("VideoCallsPage layout regression", () => {
+  Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
+    writable: true,
+    value: vi.fn(),
+  });
+
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
@@ -234,6 +239,39 @@ describe("VideoCallsPage layout regression", () => {
     });
 
     fireEvent.click(await screen.findByRole("button", { name: /^join$/i }));
+
+    await waitFor(() => {
+      expect(serviceMocks.getJoinToken).toHaveBeenCalledWith("meeting-1");
+    });
+
+    expect(
+      await screen.findByText(/in call: budget review interview/i),
+    ).toBeTruthy();
+    expect(await screen.findByText(/room: room-budget-review/i)).toBeTruthy();
+    expect(await screen.findByText("Mock Conference")).toBeTruthy();
+  });
+
+  it("autojoin query parameter enters the room for the focused meeting", async () => {
+    serviceMocks.list.mockResolvedValue([scheduledMeeting]);
+    serviceMocks.getAllCases.mockResolvedValue([]);
+    serviceMocks.getJoinToken.mockResolvedValue({
+      token: "autojoin-token",
+      ws_url: "wss://livekit.example.test",
+      room_name: scheduledMeeting.livekit_room_name,
+      expires_in: 3600,
+    });
+
+    render(
+      <MemoryRouter
+        initialEntries={["/workspace/video-calls?meeting=meeting-1&autojoin=1"]}
+      >
+        <VideoCallsPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(serviceMocks.list).toHaveBeenCalledTimes(1);
+    });
 
     await waitFor(() => {
       expect(serviceMocks.getJoinToken).toHaveBeenCalledWith("meeting-1");
