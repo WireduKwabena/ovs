@@ -483,8 +483,7 @@ describe("App government route access", () => {
 
     const main = screen.getByRole("main");
     expect(main.className).toContain("relative");
-    expect(main.className).toContain("lg:pl-64");
-    expect(main.className).toContain("xl:pl-72");
+    expect(main.className).toContain("lg:pl-[68px]");
   });
 
   it("hides app navigation and shell offset on the homepage", async () => {
@@ -497,7 +496,6 @@ describe("App government route access", () => {
 
     const main = screen.getByRole("main");
     expect(main.className).not.toContain("relative");
-    expect(main.className).not.toContain("lg:pl-64");
-    expect(main.className).not.toContain("xl:pl-72");
+    expect(main.className).not.toContain("lg:pl-[68px]");
   });
 });

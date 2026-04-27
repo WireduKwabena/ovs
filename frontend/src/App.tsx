@@ -1193,7 +1193,7 @@ const AppShell: React.FC = () => {
         </Suspense>
       ) : null}
 
-      <main className={showTopNavbar ? "relative lg:pl-64 xl:pl-72" : ""}>
+      <main className={showTopNavbar ? "relative lg:pl-[68px]" : ""}>
         <Suspense fallback={<RouteLoader />}>
           <AppRoutes />
         </Suspense>

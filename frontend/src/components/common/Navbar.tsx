@@ -131,6 +131,10 @@ export const Navbar: React.FC = () => {
   >(null);
   const [reminderRuntimeRefreshing, setReminderRuntimeRefreshing] =
     useState(false);
+  const [sidebarExpanded, setSidebarExpanded] = useState(false);
+  const sidebarCollapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   const runtimePopoverRef = useRef<HTMLDivElement>(null);
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
@@ -384,6 +388,19 @@ export const Navbar: React.FC = () => {
     navigate("/login");
   };
 
+  const handleSidebarMouseEnter = () => {
+    if (sidebarCollapseTimerRef.current) {
+      clearTimeout(sidebarCollapseTimerRef.current);
+    }
+    setSidebarExpanded(true);
+  };
+
+  const handleSidebarMouseLeave = () => {
+    sidebarCollapseTimerRef.current = window.setTimeout(() => {
+      setSidebarExpanded(false);
+    }, 200);
+  };
+
   if (!isAuthenticated) {
     return null;
   }
@@ -506,8 +523,9 @@ export const Navbar: React.FC = () => {
   const sidebarSectionClass = "mt-6 border-t border-border/70 pt-5";
   const sidebarSectionLabelClass =
     "text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground";
-  const sidebarLinkBaseClass =
-    "group flex w-full items-center justify-between rounded-[1rem] px-3 py-2.5 text-sm font-medium transition-all duration-200";
+  const sidebarLinkBaseClass = sidebarExpanded
+    ? "group flex w-full items-center justify-between rounded-[1rem] px-3 py-2.5 text-sm font-medium transition-all duration-200"
+    : "group flex w-full items-center justify-center rounded-[1rem] py-2.5 text-sm font-medium transition-all duration-200";
   const sidebarIconClass = (active: boolean): string =>
     [
       "inline-flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200",
@@ -515,12 +533,13 @@ export const Navbar: React.FC = () => {
         ? "bg-primary/12 text-primary shadow-sm"
         : "bg-muted/70 text-muted-foreground group-hover:bg-background group-hover:text-foreground",
     ].join(" ");
-  const renderSectionHeader = (label: string) => (
-    <div className="mb-2 flex items-center gap-3 px-2">
-      <p className={sidebarSectionLabelClass}>{label}</p>
-      <span className="h-px flex-1 bg-border/70" />
-    </div>
-  );
+  const renderSectionHeader = (label: string) =>
+    !sidebarExpanded ? null : (
+      <div className="mb-2 flex items-center gap-3 px-2">
+        <p className={sidebarSectionLabelClass}>{label}</p>
+        <span className="h-px flex-1 bg-border/70" />
+      </div>
+    );
 
   const desktopNavClass = (to: string): string =>
     [
@@ -789,55 +808,80 @@ export const Navbar: React.FC = () => {
     <>
       <aside
         data-testid="desktop-sidebar"
-        className="app-sidebar-scroll fixed inset-y-0 left-0 z-40 hidden w-64 overflow-y-auto overscroll-y-contain border-r border-border/70 bg-background/95 shadow-[18px_0_48px_rgba(15,23,42,0.08)] backdrop-blur-xl [scrollbar-gutter:stable] lg:flex xl:w-72"
+        onMouseEnter={handleSidebarMouseEnter}
+        onMouseLeave={handleSidebarMouseLeave}
+        className={[
+          "app-sidebar-scroll fixed inset-y-0 left-0 z-40 hidden overflow-y-auto overscroll-y-contain border-r border-border/70 bg-background/95 shadow-[18px_0_48px_rgba(15,23,42,0.08)] backdrop-blur-xl [scrollbar-gutter:stable] lg:flex transition-[width] duration-300 ease-in-out",
+          sidebarExpanded ? "w-64 xl:w-72" : "w-[68px]",
+        ].join(" ")}
       >
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 top-0 h-44 bg-linear-to-b from-primary/12 via-primary/6 to-transparent"
         />
         <div className="relative flex min-h-full w-full flex-col px-3 py-4 lg:px-3.5 xl:px-4">
-          <div className="px-2 pb-5">
-            <Link to={homeItem.to} className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-linear-to-br from-cyan-500 via-blue-500 to-indigo-500 text-white shadow-[0_14px_32px_rgba(59,130,246,0.25)]">
+          <div
+            className={[
+              "pb-5",
+              sidebarExpanded ? "px-2" : "flex justify-center",
+            ].join(" ")}
+          >
+            <Link
+              to={homeItem.to}
+              className={[
+                "flex items-center",
+                sidebarExpanded ? "gap-3" : "justify-center",
+              ].join(" ")}
+            >
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-cyan-500 via-blue-500 to-indigo-500 text-white shadow-[0_14px_32px_rgba(59,130,246,0.25)]">
                 <Shield className="h-6 w-6" />
               </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">
-                  Workspace
-                </p>
-                <p className="text-xl font-bold tracking-tight text-foreground">
-                  CAVP
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Government appointments and vetting
-                </p>
-              </div>
+              {sidebarExpanded && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">
+                    Workspace
+                  </p>
+                  <p className="text-xl font-bold tracking-tight text-foreground">
+                    CAVP
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Government appointments and vetting
+                  </p>
+                </div>
+              )}
             </Link>
           </div>
 
           <section className={sidebarSurfaceClass}>
-            <div className="flex items-center gap-3">
+            <div
+              className={[
+                "flex items-center",
+                sidebarExpanded ? "gap-3" : "justify-center",
+              ].join(" ")}
+            >
               {profilePictureUrl ? (
                 <img
                   src={profilePictureUrl}
                   alt={displayName || "user"}
-                  className="h-11 w-11 rounded-2xl object-cover"
+                  className="h-11 w-11 shrink-0 rounded-2xl object-cover"
                 />
               ) : (
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-linear-to-br from-cyan-500 via-blue-500 to-indigo-500 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(59,130,246,0.2)]">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-cyan-500 via-blue-500 to-indigo-500 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(59,130,246,0.2)]">
                   {initial}
                 </div>
               )}
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-foreground">
-                  {displayName}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {(user as User | null)?.email || "Signed in"}
-                </p>
-              </div>
+              {sidebarExpanded && (
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-foreground">
+                    {displayName}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {(user as User | null)?.email || "Signed in"}
+                  </p>
+                </div>
+              )}
             </div>
-            {canShowOrganizationContext ? (
+            {sidebarExpanded && canShowOrganizationContext ? (
               <div className="mt-4">
                 <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                   Active Organization
@@ -879,27 +923,37 @@ export const Navbar: React.FC = () => {
                     key={navItem.to}
                     to={navItem.to}
                     className={desktopNavClass(navItem.to)}
+                    title={!sidebarExpanded ? navItem.label : undefined}
                   >
-                    <span className="inline-flex min-w-0 items-center gap-3">
+                    <span
+                      className={[
+                        "inline-flex min-w-0 items-center",
+                        sidebarExpanded ? "gap-3" : "w-full justify-center",
+                      ].join(" ")}
+                    >
                       <span className={sidebarIconClass(active)}>
                         <NavIcon className="h-4 w-4 shrink-0" />
                       </span>
-                      <span className="truncate">{navItem.label}</span>
+                      {sidebarExpanded && (
+                        <span className="truncate">{navItem.label}</span>
+                      )}
                     </span>
-                    <span
-                      aria-hidden="true"
-                      className={[
-                        "h-2 w-2 rounded-full transition-all duration-200",
-                        active
-                          ? "bg-primary opacity-100"
-                          : "bg-transparent opacity-0 group-hover:opacity-30",
-                      ].join(" ")}
-                    />
+                    {sidebarExpanded && (
+                      <span
+                        aria-hidden="true"
+                        className={[
+                          "h-2 w-2 rounded-full transition-all duration-200",
+                          active
+                            ? "bg-primary opacity-100"
+                            : "bg-transparent opacity-0 group-hover:opacity-30",
+                        ].join(" ")}
+                      />
+                    )}
                   </Link>
                 );
               })}
 
-              {desktopSecondaryLinks.length > 0 && (
+              {desktopSecondaryLinks.length > 0 && sidebarExpanded && (
                 <button
                   type="button"
                   aria-label="More"
@@ -920,8 +974,8 @@ export const Navbar: React.FC = () => {
                 </button>
               )}
 
-              {moreExpanded &&
-                desktopSecondaryLinks.length > 0 &&
+              {desktopSecondaryLinks.length > 0 &&
+                (!sidebarExpanded || moreExpanded) &&
                 desktopSecondaryLinks.map((navItem) => {
                   const NavIcon = getNavIcon(navItem);
                   const active = isRouteActive(navItem.to);
@@ -930,12 +984,20 @@ export const Navbar: React.FC = () => {
                       key={navItem.to}
                       to={navItem.to}
                       className={desktopNavClass(navItem.to)}
+                      title={!sidebarExpanded ? navItem.label : undefined}
                     >
-                      <span className="inline-flex min-w-0 items-center gap-3">
+                      <span
+                        className={[
+                          "inline-flex min-w-0 items-center",
+                          sidebarExpanded ? "gap-3" : "w-full justify-center",
+                        ].join(" ")}
+                      >
                         <span className={sidebarIconClass(active)}>
                           <NavIcon className="h-4 w-4 shrink-0" />
                         </span>
-                        <span className="truncate">{navItem.label}</span>
+                        {sidebarExpanded && (
+                          <span className="truncate">{navItem.label}</span>
+                        )}
                       </span>
                     </Link>
                   );
@@ -952,18 +1014,32 @@ export const Navbar: React.FC = () => {
                   className={desktopUtilityLinkClass(
                     workspaceNotificationsPath,
                   )}
+                  title={!sidebarExpanded ? "Notifications" : undefined}
                 >
-                  <span className="inline-flex items-center gap-2">
+                  <span
+                    className={[
+                      "inline-flex items-center",
+                      sidebarExpanded ? "gap-2" : "w-full justify-center",
+                    ].join(" ")}
+                  >
                     <span
-                      className={sidebarIconClass(
-                        isRouteActive(workspaceNotificationsPath),
-                      )}
+                      className={[
+                        "relative",
+                        sidebarIconClass(
+                          isRouteActive(workspaceNotificationsPath),
+                        ),
+                      ].join(" ")}
                     >
                       <Bell className="h-4 w-4" />
+                      {!sidebarExpanded && unreadCount > 0 && (
+                        <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground">
+                          {unreadCount > 9 ? "9+" : unreadCount}
+                        </span>
+                      )}
                     </span>
-                    Notifications
+                    {sidebarExpanded && "Notifications"}
                   </span>
-                  {unreadCount > 0 ? (
+                  {sidebarExpanded && unreadCount > 0 ? (
                     <span className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
                       {unreadCount > 99 ? "99+" : unreadCount}
                     </span>
@@ -971,7 +1047,15 @@ export const Navbar: React.FC = () => {
                 </Link>
               ) : null}
 
-              <ThemeToggle className="w-full justify-between rounded-[1rem] border-0 bg-transparent px-3 py-2.5 font-medium text-foreground shadow-none hover:bg-accent/80 hover:text-accent-foreground" />
+              <ThemeToggle
+                compact={!sidebarExpanded}
+                className={[
+                  "w-full rounded-[1rem] border-0 bg-transparent py-2.5 font-medium text-foreground shadow-none hover:bg-accent/80 hover:text-accent-foreground",
+                  sidebarExpanded
+                    ? "justify-between px-3"
+                    : "justify-center px-0",
+                ].join(" ")}
+              />
 
               {renderRuntimePopover()}
             </div>
@@ -983,36 +1067,54 @@ export const Navbar: React.FC = () => {
               <Link
                 to="/settings"
                 className={desktopUtilityLinkClass("/settings")}
+                title={!sidebarExpanded ? "Profile & Settings" : undefined}
               >
-                <span className="inline-flex items-center gap-2">
+                <span
+                  className={[
+                    "inline-flex items-center",
+                    sidebarExpanded ? "gap-2" : "w-full justify-center",
+                  ].join(" ")}
+                >
                   <span
                     className={sidebarIconClass(isRouteActive("/settings"))}
                   >
                     <Settings2 className="h-4 w-4" />
                   </span>
-                  Profile & Settings
+                  {sidebarExpanded && "Profile & Settings"}
                 </span>
               </Link>
               {canManageTwoFactor ? (
                 <Link
                   to="/security"
                   className={desktopUtilityLinkClass("/security")}
+                  title={!sidebarExpanded ? "Security" : undefined}
                 >
-                  <span className="inline-flex items-center gap-2">
+                  <span
+                    className={[
+                      "inline-flex items-center",
+                      sidebarExpanded ? "gap-2" : "w-full justify-center",
+                    ].join(" ")}
+                  >
                     <span
                       className={sidebarIconClass(isRouteActive("/security"))}
                     >
                       <ShieldCheck className="h-4 w-4" />
                     </span>
-                    Security
+                    {sidebarExpanded && "Security"}
                   </span>
                 </Link>
               ) : null}
               <Link
                 to="/change-password"
                 className={desktopUtilityLinkClass("/change-password")}
+                title={!sidebarExpanded ? "Change Password" : undefined}
               >
-                <span className="inline-flex items-center gap-2">
+                <span
+                  className={[
+                    "inline-flex items-center",
+                    sidebarExpanded ? "gap-2" : "w-full justify-center",
+                  ].join(" ")}
+                >
                   <span
                     className={sidebarIconClass(
                       isRouteActive("/change-password"),
@@ -1020,16 +1122,22 @@ export const Navbar: React.FC = () => {
                   >
                     <KeyRound className="h-4 w-4" />
                   </span>
-                  Change Password
+                  {sidebarExpanded && "Change Password"}
                 </span>
               </Link>
               <button
                 type="button"
                 onClick={handleLogout}
-                className="flex w-full items-center gap-2 rounded-[1rem] bg-destructive/10 px-3 py-2.5 text-sm font-semibold text-destructive transition-all duration-200 hover:bg-destructive/15"
+                title={!sidebarExpanded ? "Logout" : undefined}
+                className={[
+                  "flex w-full rounded-[1rem] bg-destructive/10 py-2.5 text-sm font-semibold text-destructive transition-all duration-200 hover:bg-destructive/15",
+                  sidebarExpanded
+                    ? "items-center gap-2 px-3"
+                    : "items-center justify-center px-0",
+                ].join(" ")}
               >
-                <LogOut className="h-4 w-4" />
-                Logout
+                <LogOut className="h-4 w-4 shrink-0" />
+                {sidebarExpanded && "Logout"}
               </button>
             </div>
           </section>
