@@ -5,7 +5,8 @@
 .vscode
 .DS_Store
 Thumbs.db
-
+./docs/*
+./docs/A Comprehensive Blueprint for the Development of an Online Vetting System (1).docx
 # Virtual envs
 .venv
 .venv/

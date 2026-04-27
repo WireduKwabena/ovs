@@ -142,6 +142,20 @@ _AUTHZ_ORG_MEMBERSHIPS_CACHE_ATTR = "_authz_organization_memberships_cache"
 _AUTHZ_COMMITTEES_CACHE_ATTR = "_authz_committees_cache"
 
 
+def _schema_exists(schema_name: str) -> bool:
+    """Return True if *schema_name* exists in the PostgreSQL catalog."""
+    try:
+        from django.db import connection
+        with connection.cursor() as cur:
+            cur.execute(
+                "SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname = %s",
+                [schema_name],
+            )
+            return cur.fetchone() is not None
+    except Exception:
+        return False
+
+
 def _list_active_tenant_organizations():
     try:
         from django.db import connection
@@ -343,6 +357,8 @@ def _get_user_organization_membership_records(user) -> list[dict]:
         records: list[dict] = []
         seen: set[tuple[str, str]] = set()
         for organization in _list_active_tenant_organizations():
+            if not _schema_exists(organization.schema_name):
+                continue
             try:
                 organization_records = _load_active_organization_memberships_for_user(
                     user.id,
@@ -382,6 +398,8 @@ def _get_user_committee_records(user) -> list[dict]:
         records: list[dict] = []
         seen: set[tuple[str, str]] = set()
         for organization in _list_active_tenant_organizations():
+            if not _schema_exists(organization.schema_name):
+                continue
             try:
                 organization_records = _load_active_committee_memberships_for_user(
                     user.id,

@@ -1,116 +1,129 @@
 # 2) Roles, Permissions, and Navigation
 
-## 2.1 Supported Account Types
+## 2.1 Identity Types and Operational Roles
 
-OVS user types:
+The platform uses two layers:
 
-- `admin` (system administrator),
-- `internal` (firm-side vetting operator),
-- `applicant` (candidate participant).
+- Identity type (`user_type`): `admin`, `internal`, `applicant`
+- Operational role(s): capability-bearing governance/vetting roles
 
-## 2.2 Route Access Logic (Frontend)
+Operational roles currently enforced include:
 
-The frontend enforces role-aware route guards:
+- `registry_admin`
+- `vetting_officer`
+- `committee_member`
+- `committee_chair`
+- `appointing_authority`
+- `publication_officer`
+- `auditor`
+- `nominee`
 
-- Admin-only routes: e.g. `/admin/*`, `/audit-logs`, `/ml-monitoring`, `/ai-monitor`.
-- Internal-staff routes: campaigns, rubrics, applications, video calls, background checks.
-- Applicant-restricted routes:
-  - cannot access admin dashboards,
-  - cannot access staff-only security pages.
+Important:
 
-## 2.3 Major Navigation Areas
+- `internal` alone is not enough for sensitive governance actions.
+- Capability and scope checks must pass together.
 
-Public pages:
+## 2.2 Route Layers (Current Frontend)
 
-- `/` landing page,
-- `/subscribe`,
-- `/login`,
-- `/register`,
-- `/forgot-password`,
-- `/reset-password/:token`,
-- billing callback routes.
+Primary application route zones:
 
-Authenticated pages:
+- `/admin/platform/*`: platform superadmin dashboards and controls
+- `/admin/org/:orgId/*`: organization admin operations (users, members, committees, onboarding)
+- `/workspace/*`: internal vetting and operations workspace
+- `/candidate/*`: candidate access and interview flow
+- `/government/*`: government positions, personnel, and appointments registry
 
-- `/dashboard`,
-- `/settings`,
-- `/security`,
-- `/campaigns`,
-- `/rubrics`,
-- `/applications`,
-- `/video-calls`,
-- `/notifications`,
-- monitoring and admin pages based on role.
+Public and auth-adjacent routes (selected):
 
-## 2.4 Admin Responsibilities
+- `/`, `/login`, `/register`, `/subscribe`
+- `/forgot-password`, `/reset-password/:token`
+- invitation acceptance and billing callback routes
 
-Admins can:
+## 2.3 Role-to-Navigation Expectations
 
-- Access platform-wide dashboards and analytics.
-- Manage users and high-level case oversight.
-- View operational audit and monitoring surfaces.
-- Control governance-sensitive areas.
+### Platform admin (`admin`)
 
-Typical admin routes:
+Typical paths:
 
-- `/admin/dashboard`
-- `/admin/analytics`
-- `/admin/users`
-- `/admin/control-center`
-- `/admin/cases`
-- `/audit-logs`
-- `/ml-monitoring`
-- `/ai-monitor`
+- `/admin/platform/dashboard`
+- `/admin/platform/analytics`
+- `/admin/platform/ai-engine`
+- `/admin/platform/registry`
+- `/admin/platform/billing`
+- `/admin/platform/health`
+- `/admin/platform/logs`
 
-## 2.5 Operations User Responsibilities
+Can operate cross-organization oversight paths as policy permits.
 
-Operations users can:
+### Organization admin (`registry_admin`-capable)
 
-- Build and run vetting campaigns.
-- Create and apply rubrics.
-- Import and manage candidate lists.
-- Monitor candidate progress and case outcomes.
-- Schedule and manage video meeting workflows.
+Typical paths:
 
-Typical operations routes:
+- `/admin/org/:orgId/dashboard`
+- `/admin/org/:orgId/users`
+- `/admin/org/:orgId/members`
+- `/admin/org/:orgId/committees`
+- `/admin/org/:orgId/onboarding`
+- `/admin/org/:orgId/cases`
 
-- `/dashboard`
-- `/campaigns`
-- `/rubrics`
-- `/applications`
-- `/video-calls`
-- `/background-checks`
-- `/fraud-insights`
-- `/notifications`
+Expected responsibilities:
 
-## 2.6 Candidate Responsibilities
+- org member and committee management
+- onboarding token lifecycle and invitations
+- organization-scoped governance oversight
 
-Candidates typically interact through:
+### Internal operators (`vetting_officer`, committee roles, appointing/publication authority)
 
-- invitation acceptance links,
-- candidate access routes,
-- application/document submission pages,
-- interview session routes,
-- result visibility routes.
+Typical paths:
 
-Typical candidate entry points:
+- `/workspace`
+- `/workspace/campaigns`
+- `/workspace/applications`
+- `/workspace/rubrics`
+- `/workspace/video-calls`
+- `/government/positions`
+- `/government/personnel`
+- `/government/appointments`
 
-- `/invite/:token`
+Scope-dependent actions:
+
+- stage actions require stage role + org scope
+- committee actions require active committee membership
+- appoint/reject requires appointing authority capability
+- publication actions require publication capability
+
+### Candidate / nominee (`applicant` identity)
+
+Typical paths:
+
 - `/candidate/access`
-- limited application-interaction paths
+- `/candidate/interview/:applicationId`
+- invitation entry routes (`/invite/:token` and related)
 
-## 2.7 Permission Design Notes
+Candidates do not get internal governance navigation.
 
-- Role checks run both in frontend route guards and backend permissions.
-- UI visibility is not treated as sufficient security.
-- API permissions remain authoritative for data access control.
+## 2.4 Permission Design Notes
 
-## 2.8 Navigation Troubleshooting
+- Route guards improve UX but do not replace backend authorization.
+- Backend capability + scope enforcement is authoritative.
+- Sensitive actions may require recent-auth re-verification.
+- Internal operators are subject to 2FA policy.
 
-If a user cannot see expected menu items:
+## 2.5 Multi-Organization Navigation Behavior
 
-1. Confirm account role in profile.
-2. Confirm successful authentication and profile fetch.
-3. Confirm no pending 2FA challenge state.
-4. Check backend permissions or token freshness.
+When users have multiple organization memberships:
+
+- Active org context drives visible org-admin pages and permitted actions.
+- Org context is validated server-side using membership and role mapping.
+- Switching org context can change available menus and action buttons.
+
+## 2.6 Navigation Troubleshooting
+
+If expected menus/routes are missing:
+
+1. Confirm authenticated profile and role/capability payload.
+2. Confirm active organization selection is valid.
+3. Confirm committee assignment for committee-bound actions.
+4. Check for pending 2FA or recent-auth requirements.
+5. Verify token freshness and retry profile fetch.
 

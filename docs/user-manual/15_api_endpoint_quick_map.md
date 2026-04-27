@@ -1,7 +1,10 @@
 # 15) API Endpoint Quick Map
 
 This is a quick operational map of the active backend API groups.  
-Base prefix: `/api/`
+Base prefixes:
+
+- Preferred: `/api/v1/`
+- Legacy compatibility: `/api/`
 
 ## 15.1 System and Core
 
@@ -188,6 +191,11 @@ Billing:
 - `/api/billing/health/`
 - `/api/billing/exchange-rate/`
 - `/api/billing/quotas/`
+- `/api/billing/onboarding-token/`
+- `/api/billing/onboarding-token/generate/`
+- `/api/billing/onboarding-token/revoke/`
+- `/api/billing/onboarding-token/send-invite/`
+- `/api/billing/onboarding-token/validate/`
 - `/api/billing/subscriptions/manage/`
 - `/api/billing/subscriptions/manage/payment-method/update-session/`
 - `/api/billing/subscriptions/manage/retry/`
@@ -258,3 +266,39 @@ Public feeds:
 - `/api/public/transparency/officeholders/`
 - `/api/appointments/records/gazette-feed/` (legacy compatibility, deprecated)
 - `/api/appointments/records/open/` (legacy compatibility, deprecated)
+
+## 15.10 Governance and Organization Management
+
+Platform oversight:
+
+- `/api/governance/platform/organizations/`
+- `/api/governance/platform/organizations/{organization_id}/`
+
+Organization setup and lookups:
+
+- `/api/governance/organization/bootstrap/`
+- `/api/governance/organization/summary/`
+- `/api/governance/organization/lookups/member-options/`
+- `/api/governance/organization/lookups/choices/`
+
+Organization members and committees:
+
+- `/api/governance/organization/members/`
+- `/api/governance/organization/members/{id}/`
+- `/api/governance/organization/committees/`
+- `/api/governance/organization/committees/{id}/`
+- `/api/governance/organization/committee-memberships/`
+- `/api/governance/organization/committee-memberships/{id}/`
+
+## 15.11 Government Alias Endpoints
+
+These alias endpoints support government-domain naming while mapping to core resources:
+
+- `/api/government/exercises/`
+- `/api/government/exercises/{id}/`
+- `/api/government/vetting-dossiers/`
+- `/api/government/vetting-dossiers/{id}/`
+- `/api/government/nominations/`
+- `/api/government/nominations/{id}/`
+- `/api/government/offices/`
+- `/api/government/offices/{id}/`
