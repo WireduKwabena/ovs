@@ -744,6 +744,96 @@ class NotificationService:
         return True
 
     @staticmethod
+    def send_case_info_requested(case, info_request):
+        """Notify applicant that reviewers need additional information."""
+        recipient = getattr(case, "applicant", None)
+        if recipient is None:
+            logger.warning("Skipping send_case_info_requested: case has no applicant.")
+            return None
+
+        subject = "Additional Information Requested - Online Vetting System"
+        message = (
+            f"Reviewers requested additional information for application {case.case_id}. "
+            "Open your application to view details and submit a response."
+        )
+        metadata = {
+            "case_id": case.case_id,
+            "event_type": "case_info_requested",
+            "info_request_id": str(getattr(info_request, "id", "")),
+            "request_message": str(getattr(info_request, "message", "") or ""),
+        }
+        idempotency_key = f"case_info_requested:{case.id}:{getattr(info_request, 'id', '')}"
+
+        NotificationService._create_in_app_notification(
+            recipient=recipient,
+            subject=subject,
+            message=message,
+            related_case=case,
+            metadata=metadata,
+            priority="high",
+            idempotency_key=idempotency_key,
+        )
+        NotificationService._send_email_notification(
+            recipient=recipient,
+            subject=subject,
+            fallback_message=message,
+            related_case=case,
+            metadata=metadata,
+            priority="high",
+            idempotency_key=idempotency_key,
+        )
+        NotificationService._send_sms_notification_record(
+            recipient=recipient,
+            subject=subject,
+            message=message,
+            related_case=case,
+            metadata=metadata,
+            priority="high",
+            idempotency_key=idempotency_key,
+        )
+        return True
+
+    @staticmethod
+    def send_case_info_response_submitted(case, info_request):
+        """Notify reviewer that applicant submitted requested information."""
+        recipient = getattr(info_request, "requested_by", None)
+        if recipient is None:
+            logger.warning("Skipping send_case_info_response_submitted: missing requester.")
+            return None
+
+        subject = "Applicant Responded to Info Request"
+        message = (
+            f"Applicant responded to your information request for application {case.case_id}. "
+            "Open the case review page to continue assessment."
+        )
+        metadata = {
+            "case_id": case.case_id,
+            "event_type": "case_info_response_submitted",
+            "info_request_id": str(getattr(info_request, "id", "")),
+        }
+        idempotency_key = f"case_info_response_submitted:{case.id}:{getattr(info_request, 'id', '')}"
+
+        NotificationService._create_in_app_notification(
+            recipient=recipient,
+            subject=subject,
+            message=message,
+            related_case=case,
+            metadata=metadata,
+            priority="high",
+            idempotency_key=idempotency_key,
+        )
+        NotificationService._send_email_notification(
+            recipient=recipient,
+            subject=subject,
+            fallback_message=message,
+            related_case=case,
+            metadata=metadata,
+            priority="high",
+            idempotency_key=idempotency_key,
+        )
+        return True
+
+    @staticmethod
     def send_interview_scheduled(session):
         """Notify candidate when an interview session is created/scheduled."""
         case = getattr(session, "case", None)

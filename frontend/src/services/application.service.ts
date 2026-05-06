@@ -4,6 +4,7 @@ import type {
   ApplicationStatus,
   ApplicationType,
   ApplicationWithDocuments,
+  CaseInfoRequest,
   Document,
   DocumentType,
   Priority,
@@ -50,6 +51,7 @@ const APPLICATION_STATUSES = new Set<ApplicationStatus>([
   "interview_scheduled",
   "interview_in_progress",
   "under_review",
+  "info_requested",
   "approved",
   "rejected",
   "on_hold",
@@ -333,6 +335,28 @@ const normalizeCase = (raw: unknown): ApplicationWithDocuments => {
   };
 };
 
+const normalizeInfoRequest = (raw: unknown): CaseInfoRequest => {
+  const payload = asObject(raw);
+  const createdAt = asOptionalString(payload.created_at) || new Date().toISOString();
+  const updatedAt = asOptionalString(payload.updated_at) || createdAt;
+  const statusRaw = asString(payload.status).trim().toLowerCase();
+  const status: CaseInfoRequest["status"] =
+    statusRaw === "responded" || statusRaw === "closed" ? statusRaw : "open";
+
+  return {
+    id: asString(payload.id),
+    case: asString(payload.case),
+    requested_by: asOptionalString(payload.requested_by),
+    requested_by_email: asOptionalString(payload.requested_by_email),
+    message: asString(payload.message),
+    status,
+    response: asOptionalString(payload.response),
+    responded_at: asOptionalString(payload.responded_at) || null,
+    created_at: createdAt,
+    updated_at: updatedAt,
+  };
+};
+
 export const applicationService = {
   async create(data: CreateApplicationData): Promise<VettingCase> {
     try {
@@ -443,6 +467,40 @@ export const applicationService = {
       return response.data;
     } catch (error) {
       throw toServiceError(error, "Social profile recheck failed");
+    }
+  },
+
+  async listInfoRequests(caseId: string): Promise<CaseInfoRequest[]> {
+    try {
+      const response = await api.get<CaseInfoRequest[]>(`/applications/cases/${caseId}/info-requests/`);
+      return Array.isArray(response.data)
+        ? response.data.map((item) => normalizeInfoRequest(item))
+        : [];
+    } catch (error) {
+      throw toServiceError(error, "Info request fetch failed");
+    }
+  },
+
+  async requestMoreInfo(caseId: string, message: string): Promise<CaseInfoRequest> {
+    try {
+      const response = await api.post<CaseInfoRequest>(`/applications/cases/${caseId}/info-requests/`, {
+        message,
+      });
+      return normalizeInfoRequest(response.data);
+    } catch (error) {
+      throw toServiceError(error, "Failed to request more information");
+    }
+  },
+
+  async respondToInfoRequest(caseId: string, infoRequestId: string, responseText: string): Promise<CaseInfoRequest> {
+    try {
+      const response = await api.patch<CaseInfoRequest>(
+        `/applications/cases/${caseId}/info-requests/${infoRequestId}/respond/`,
+        { response: responseText },
+      );
+      return normalizeInfoRequest(response.data);
+    } catch (error) {
+      throw toServiceError(error, "Failed to submit information");
     }
   },
 

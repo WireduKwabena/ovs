@@ -31,9 +31,17 @@ from apps.core.permissions import (
 )
 from apps.tenants.models import Organization
 from apps.invitations.permissions import IsAuthenticatedOrCandidateAccessSession
+from apps.notifications.services import NotificationService
 
-from .models import Document, VettingCase
-from .serializers import DocumentSerializer, DocumentUploadSerializer, VettingCaseSerializer
+from .models import CaseInfoRequest, Document, VettingCase
+from .serializers import (
+    CaseInfoRequestCreateSerializer,
+    CaseInfoRequestRespondSerializer,
+    CaseInfoRequestSerializer,
+    DocumentSerializer,
+    DocumentUploadSerializer,
+    VettingCaseSerializer,
+)
 from .social_checks import run_case_social_profile_check
 from .tasks import verify_document_async
 from .verification_gateway import build_case_external_verification_snapshot
@@ -163,6 +171,77 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         super().perform_destroy(instance)
+
+    @action(detail=True, methods=["get", "post"], url_path="info-requests")
+    def info_requests(self, request, pk=None):
+        case = self.get_object()
+        enrollment_id = _candidate_enrollment_id(request)
+        user = request.user
+        is_authenticated = bool(getattr(user, "is_authenticated", False))
+        is_operator = is_authenticated and is_government_workflow_operator(user)
+        is_admin = is_authenticated and is_platform_admin_user(user)
+        is_case_applicant = is_authenticated and case.applicant_id == getattr(user, "id", None)
+
+        if request.method.lower() == "get":
+            if not (enrollment_id or is_operator or is_admin or is_case_applicant):
+                raise PermissionDenied("You do not have permission to view case info requests.")
+            queryset = case.info_requests.select_related("requested_by").order_by("-created_at")
+            serializer = CaseInfoRequestSerializer(queryset, many=True)
+            return Response(serializer.data)
+
+        if not (is_operator or is_admin):
+            raise PermissionDenied("Only internal reviewers can request additional information.")
+
+        serializer = CaseInfoRequestCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        info_request = CaseInfoRequest.objects.create(
+            case=case,
+            requested_by=user,
+            message=serializer.validated_data["message"],
+        )
+
+        if case.status not in {"approved", "rejected"}:
+            case.status = "info_requested"
+            case.save(update_fields=["status", "updated_at"])
+
+        NotificationService.send_case_info_requested(case, info_request)
+        output = CaseInfoRequestSerializer(info_request)
+        return Response(output.data, status=status.HTTP_201_CREATED)
+
+    @action(
+        detail=True,
+        methods=["patch"],
+        url_path=r"info-requests/(?P<request_id>[^/.]+)/respond",
+    )
+    def respond_to_info_request(self, request, pk=None, request_id=None):
+        case = self.get_object()
+        user = request.user
+        enrollment_id = _candidate_enrollment_id(request)
+
+        is_authenticated = bool(getattr(user, "is_authenticated", False))
+        is_case_applicant = is_authenticated and case.applicant_id == getattr(user, "id", None)
+        if not (enrollment_id or is_case_applicant):
+            raise PermissionDenied("Only the applicant can respond to an info request.")
+
+        info_request = get_object_or_404(case.info_requests, id=request_id)
+        if info_request.status != CaseInfoRequest.STATUS_OPEN:
+            raise ValidationError({"status": "This info request has already been responded to or closed."})
+
+        serializer = CaseInfoRequestRespondSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        info_request.response = serializer.validated_data["response"]
+        info_request.status = CaseInfoRequest.STATUS_RESPONDED
+        info_request.responded_at = timezone.now()
+        info_request.save(update_fields=["response", "status", "responded_at", "updated_at"])
+
+        if case.status == "info_requested":
+            case.status = "under_review"
+            case.save(update_fields=["status", "updated_at"])
+
+        NotificationService.send_case_info_response_submitted(case, info_request)
+        output = CaseInfoRequestSerializer(info_request)
+        return Response(output.data)
 
     @action(detail=True, methods=["post"], url_path="upload-document")
     def upload_document(self, request, pk=None):

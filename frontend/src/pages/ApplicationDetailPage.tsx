@@ -14,6 +14,7 @@ import { HelpTooltip } from "@/components/common/FieldHelp";
 import { applicationService } from "@/services/application.service";
 import { toast } from "react-toastify";
 import { useAuth } from "@/hooks/useAuth";
+import type { CaseInfoRequest } from "@/types";
 
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Loader } from "@/components/common/Loader";
@@ -24,13 +25,33 @@ export const ApplicationDetailPage: React.FC = () => {
   const { caseId } = useParams<{ caseId: string }>();
   const navigate = useNavigate();
   const { currentCase, loading, loadApplication } = useApplications();
-  const { canManageActiveOrganizationGovernance } = useAuth();
+  const { canManageActiveOrganizationGovernance, userType } = useAuth();
 
   const [reviewNotes, setReviewNotes] = useState("");
+  const [requestMessage, setRequestMessage] = useState("");
+  const [infoRequests, setInfoRequests] = useState<CaseInfoRequest[]>([]);
+  const [responseDrafts, setResponseDrafts] = useState<Record<string, string>>(
+    {},
+  );
+  const [respondingRequestId, setRespondingRequestId] = useState<string | null>(
+    null,
+  );
   const [actionLoading, setActionLoading] = useState(false);
   const [activeDecision, setActiveDecision] = useState<
     "approve" | "reject" | "review" | null
   >(null);
+
+  const canRespondToInfoRequests = userType === "applicant";
+
+  const loadInfoRequests = async (id: string) => {
+    try {
+      const rows = await applicationService.listInfoRequests(id);
+      setInfoRequests(rows);
+    } catch {
+      // non-fatal for page rendering
+      setInfoRequests([]);
+    }
+  };
 
   const handleApprove = async () => {
     if (!caseId) return;
@@ -76,26 +97,58 @@ export const ApplicationDetailPage: React.FC = () => {
 
   const handleRequestMoreInfo = async () => {
     if (!caseId) return;
+    if (!requestMessage.trim()) {
+      toast.error("Please describe what additional information is needed");
+      return;
+    }
     setActionLoading(true);
     setActiveDecision("review");
     try {
-      await applicationService.update(caseId, {
-        status: "under_review",
-        notes: reviewNotes.trim(),
-      });
-      toast.info("Case marked as under review");
+      await applicationService.requestMoreInfo(caseId, requestMessage.trim());
+      if (reviewNotes.trim()) {
+        await applicationService.update(caseId, { notes: reviewNotes.trim() });
+      }
+      toast.info("Information request sent to applicant");
+      setRequestMessage("");
+      await loadInfoRequests(caseId);
       navigate("/workspace/applications");
     } catch {
-      toast.error("Failed to update case status");
+      toast.error("Failed to request more information");
     } finally {
       setActionLoading(false);
       setActiveDecision(null);
     }
   };
 
+  const handleRespondToRequest = async (infoRequestId: string) => {
+    if (!caseId) return;
+    const responseText = (responseDrafts[infoRequestId] || "").trim();
+    if (!responseText) {
+      toast.error("Please enter your response before submitting");
+      return;
+    }
+    setRespondingRequestId(infoRequestId);
+    try {
+      await applicationService.respondToInfoRequest(
+        caseId,
+        infoRequestId,
+        responseText,
+      );
+      toast.success("Your response has been submitted");
+      setResponseDrafts((prev) => ({ ...prev, [infoRequestId]: "" }));
+      await loadInfoRequests(caseId);
+      await loadApplication(caseId);
+    } catch {
+      toast.error("Failed to submit response");
+    } finally {
+      setRespondingRequestId(null);
+    }
+  };
+
   useEffect(() => {
     if (caseId) {
       loadApplication(caseId);
+      loadInfoRequests(caseId);
     }
   }, [caseId, loadApplication]);
 
@@ -377,9 +430,10 @@ export const ApplicationDetailPage: React.FC = () => {
                   <div className="flex gap-3">
                     <div className="flex flex-col items-center">
                       <Clock className="w-5 h-5 text-blue-500" />
-                      {currentCase.status !== "under_review" && (
-                        <div className="w-px h-full bg-gray-300 mt-2"></div>
-                      )}
+                      {currentCase.status !== "under_review" &&
+                        currentCase.status !== "info_requested" && (
+                          <div className="w-px h-full bg-gray-300 mt-2"></div>
+                        )}
                     </div>
                     <div>
                       <p className="font-medium">Under Review</p>
@@ -432,6 +486,73 @@ export const ApplicationDetailPage: React.FC = () => {
               </div>
             </div>
 
+            {infoRequests.length > 0 && (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h3 className="mb-4 inline-flex items-center gap-1.5 font-semibold">
+                  Information Requests
+                  <HelpTooltip text="Track requests from reviewers and submit your responses here." />
+                </h3>
+                <div className="space-y-4">
+                  {infoRequests.map((infoRequest) => {
+                    const isOpen = infoRequest.status === "open";
+                    const responseValue = responseDrafts[infoRequest.id] || "";
+                    return (
+                      <div
+                        key={infoRequest.id}
+                        className="rounded-lg border border-slate-200 p-4"
+                      >
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <p className="text-sm font-semibold text-slate-900 capitalize">
+                            {infoRequest.status}
+                          </p>
+                          <p className="text-xs text-slate-600">
+                            {formatDate(infoRequest.created_at)}
+                          </p>
+                        </div>
+                        <p className="text-sm text-slate-800">
+                          {infoRequest.message}
+                        </p>
+
+                        {infoRequest.response ? (
+                          <div className="mt-3 rounded bg-green-50 p-3 text-sm text-green-900">
+                            <p className="mb-1 font-semibold">Your response</p>
+                            <p>{infoRequest.response}</p>
+                          </div>
+                        ) : null}
+
+                        {canRespondToInfoRequests && isOpen && (
+                          <div className="mt-3 space-y-2">
+                            <textarea
+                              value={responseValue}
+                              onChange={(e) =>
+                                setResponseDrafts((prev) => ({
+                                  ...prev,
+                                  [infoRequest.id]: e.target.value,
+                                }))
+                              }
+                              className="h-24 w-full resize-none rounded-lg border border-slate-300 p-3 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              placeholder="Provide the requested information..."
+                            />
+                            <button
+                              onClick={() =>
+                                handleRespondToRequest(infoRequest.id)
+                              }
+                              disabled={respondingRequestId === infoRequest.id}
+                              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {respondingRequestId === infoRequest.id
+                                ? "Submitting..."
+                                : "Submit Response"}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Decision Actions — visible to governance managers only */}
             {canManageActiveOrganizationGovernance && (
               <>
@@ -449,6 +570,23 @@ export const ApplicationDetailPage: React.FC = () => {
                     {reviewNotes.length === 0
                       ? "Note is required for rejection"
                       : `${reviewNotes.length} characters`}
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <h3 className="font-semibold mb-3 text-gray-900">
+                    Request Details
+                  </h3>
+                  <textarea
+                    value={requestMessage}
+                    onChange={(e) => setRequestMessage(e.target.value)}
+                    className="h-28 w-full resize-none rounded-lg border border-slate-300 p-3 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Describe exactly what additional information or clarification is needed..."
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    {requestMessage.length === 0
+                      ? "Required for Request More Info"
+                      : `${requestMessage.length} characters`}
                   </p>
                 </div>
 

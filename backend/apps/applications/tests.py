@@ -6,6 +6,7 @@ from django.contrib.auth.models import Group
 from rest_framework.test import APITestCase
 
 from apps.applications.models import (
+    CaseInfoRequest,
     Document,
     VerificationRequest,
     VerificationResult,
@@ -25,6 +26,7 @@ from apps.candidates.models import Candidate, CandidateEnrollment, CandidateSoci
 from apps.tenants.models import Organization
 from apps.governance.models import OrganizationMembership
 from apps.interviews.models import InterviewSession
+from apps.notifications.models import Notification
 from apps.rubrics.decision_engine import VettingDecisionEngine
 from apps.rubrics.engine import RubricEvaluationEngine
 from apps.rubrics.models import VettingRubric
@@ -128,6 +130,102 @@ class ApplicationsApiTests(APITestCase):
 
         case = VettingCase.objects.get(id=case_id)
         self.assertFalse(case.documents_uploaded)
+
+    def test_request_more_info_creates_record_updates_status_and_notifies_applicant(self):
+        case = VettingCase.objects.create(
+            applicant=self.applicant,
+            assigned_to=self.hr,
+            position_applied="Analyst",
+            department="Operations",
+            priority="medium",
+            status="under_review",
+        )
+
+        response = self.client.post(
+            f"/api/applications/cases/{case.id}/info-requests/",
+            {"message": "Please upload your most recent payslip and clarify your employment gap."},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        payload = response.json()
+        self.assertEqual(payload["status"], "open")
+        self.assertEqual(payload["message"], "Please upload your most recent payslip and clarify your employment gap.")
+
+        case.refresh_from_db()
+        self.assertEqual(case.status, "info_requested")
+
+        info_request = CaseInfoRequest.objects.get(case=case)
+        self.assertEqual(info_request.requested_by_id, self.hr.id)
+        self.assertEqual(info_request.status, CaseInfoRequest.STATUS_OPEN)
+
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=self.applicant,
+                related_case=case,
+                metadata__event_type="case_info_requested",
+            ).exists()
+        )
+
+    def test_applicant_can_respond_to_open_info_request(self):
+        case = VettingCase.objects.create(
+            applicant=self.applicant,
+            assigned_to=self.hr,
+            position_applied="Analyst",
+            department="Operations",
+            priority="medium",
+            status="info_requested",
+        )
+        info_request = CaseInfoRequest.objects.create(
+            case=case,
+            requested_by=self.hr,
+            message="Please provide proof of residence for the last 6 months.",
+        )
+
+        self.client.force_authenticate(self.applicant)
+        response = self.client.patch(
+            f"/api/applications/cases/{case.id}/info-requests/{info_request.id}/respond/",
+            {"response": "I uploaded utility bills covering the last 6 months."},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["status"], "responded")
+        self.assertEqual(payload["response"], "I uploaded utility bills covering the last 6 months.")
+
+        info_request.refresh_from_db()
+        self.assertEqual(info_request.status, CaseInfoRequest.STATUS_RESPONDED)
+        self.assertIsNotNone(info_request.responded_at)
+
+        case.refresh_from_db()
+        self.assertEqual(case.status, "under_review")
+
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=self.hr,
+                related_case=case,
+                metadata__event_type="case_info_response_submitted",
+            ).exists()
+        )
+
+    def test_applicant_cannot_create_info_request(self):
+        case = VettingCase.objects.create(
+            applicant=self.applicant,
+            assigned_to=self.hr,
+            position_applied="Analyst",
+            department="Operations",
+            priority="medium",
+            status="under_review",
+        )
+
+        self.client.force_authenticate(self.applicant)
+        response = self.client.post(
+            f"/api/applications/cases/{case.id}/info-requests/",
+            {"message": "Please send me more info"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
 
     @patch("apps.applications.views.verify_document_async.delay")
     def test_upload_document_rejects_non_required_campaign_type(self, _mock_verify_delay):

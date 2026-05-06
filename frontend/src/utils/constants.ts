@@ -31,6 +31,7 @@ export const STATUS_COLORS = {
   interview_scheduled: 'bg-sky-100 text-sky-800 border-sky-200',
   interview_in_progress: 'bg-blue-100 text-blue-800 border-blue-200',
   under_review: 'bg-blue-100 text-blue-800 border-blue-200',
+  info_requested: 'bg-orange-100 text-orange-800 border-orange-200',
   approved: 'bg-green-100 text-green-800 border-green-200',
   rejected: 'bg-red-100 text-red-800 border-red-200',
   on_hold: 'bg-zinc-100 text-zinc-800 border-zinc-200',

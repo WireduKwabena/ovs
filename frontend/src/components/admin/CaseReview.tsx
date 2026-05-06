@@ -14,7 +14,11 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { Loader } from "@/components/common/Loader";
 
 import { toast } from "react-toastify";
-import type { ApplicationStatus, ApplicationWithDocuments, VerificationStatusType } from "@/types";
+import type {
+  ApplicationStatus,
+  ApplicationWithDocuments,
+  VerificationStatusType,
+} from "@/types";
 import { formatDate, formatFileSize } from "@/utils/helper";
 import { Button } from "../ui/button";
 
@@ -26,6 +30,7 @@ export const CaseReview: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [notes, setNotes] = useState("");
+  const [requestMessage, setRequestMessage] = useState("");
   const [decision, setDecision] = useState<"approve" | "reject" | null>(null);
   const reviewListPath = orgId
     ? `/admin/org/${encodeURIComponent(String(orgId).trim())}/cases`
@@ -104,14 +109,18 @@ export const CaseReview: React.FC = () => {
 
   const handleRequestMoreInfo = async () => {
     if (!caseId) return;
+    if (!requestMessage.trim()) {
+      toast.error("Please describe the additional information needed");
+      return;
+    }
 
     setActionLoading(true);
     try {
-      await applicationService.update(caseId, {
-        status: "under_review",
-        notes: notes.trim(),
-      });
-      toast.info("Applicant has been notified to provide more information");
+      await applicationService.requestMoreInfo(caseId, requestMessage.trim());
+      if (notes.trim()) {
+        await applicationService.update(caseId, { notes: notes.trim() });
+      }
+      toast.info("Additional information requested from applicant");
       navigate(reviewListPath);
     } catch {
       toast.error("Failed to request more information");
@@ -140,8 +149,8 @@ export const CaseReview: React.FC = () => {
                   Application Not Found
                 </h3>
                 <p className="text-red-700 mt-1">
-                  The application you&apos;re looking for doesn&apos;t exist or you don&apos;t
-                  have permission to view it.
+                  The application you&apos;re looking for doesn&apos;t exist or
+                  you don&apos;t have permission to view it.
                 </p>
               </div>
             </div>
@@ -168,13 +177,16 @@ export const CaseReview: React.FC = () => {
     if (score >= 70) return "bg-amber-600";
     return "bg-red-500";
   };
-  const allowedBadgeStatuses = new Set<ApplicationStatus | VerificationStatusType>([
+  const allowedBadgeStatuses = new Set<
+    ApplicationStatus | VerificationStatusType
+  >([
     "pending",
     "document_upload",
     "document_analysis",
     "interview_scheduled",
     "interview_in_progress",
     "under_review",
+    "info_requested",
     "approved",
     "rejected",
     "on_hold",
@@ -185,9 +197,16 @@ export const CaseReview: React.FC = () => {
     "failed",
     "flagged",
   ]);
-  const normalizeBadgeStatus = (value: unknown): ApplicationStatus | VerificationStatusType => {
-    const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
-    if (allowedBadgeStatuses.has(normalized as ApplicationStatus | VerificationStatusType)) {
+  const normalizeBadgeStatus = (
+    value: unknown,
+  ): ApplicationStatus | VerificationStatusType => {
+    const normalized =
+      typeof value === "string" ? value.trim().toLowerCase() : "";
+    if (
+      allowedBadgeStatuses.has(
+        normalized as ApplicationStatus | VerificationStatusType,
+      )
+    ) {
       return normalized as ApplicationStatus | VerificationStatusType;
     }
     return "pending";
@@ -209,7 +228,8 @@ export const CaseReview: React.FC = () => {
     }
     return fallback;
   };
-  const safePercent = (value: number): number => Math.max(0, Math.min(100, value));
+  const safePercent = (value: number): number =>
+    Math.max(0, Math.min(100, value));
   const applicantProfile =
     application.applicant && typeof application.applicant === "object"
       ? application.applicant
@@ -227,20 +247,29 @@ export const CaseReview: React.FC = () => {
     asSafeString(doc.file_name, "") ||
     asSafeString(doc.document_type_display, "") ||
     "Document";
-  const resolveDocumentTypeLabel = (doc: (typeof application.documents)[number]) => {
+  const resolveDocumentTypeLabel = (
+    doc: (typeof application.documents)[number],
+  ) => {
     const display = asSafeString(doc.document_type_display, "");
     if (display) {
       return display;
     }
     const fallbackType = asSafeString(doc.document_type, "Document");
-    return fallbackType === "Document" ? fallbackType : fallbackType.replace(/_/g, " ");
+    return fallbackType === "Document"
+      ? fallbackType
+      : fallbackType.replace(/_/g, " ");
   };
   const resolveDocumentStatus = (doc: (typeof application.documents)[number]) =>
     normalizeBadgeStatus(doc.status ?? doc.verification_status);
-  const resolveDocumentConfidence = (doc: (typeof application.documents)[number]) =>
-    doc.ai_confidence_score ?? doc.verification_result?.authenticity_confidence ?? doc.verification_result?.ocr_confidence;
-  const resolveDocumentUploadedAt = (doc: (typeof application.documents)[number]) =>
-    doc.uploaded_at || doc.upload_date || doc.updated_at;
+  const resolveDocumentConfidence = (
+    doc: (typeof application.documents)[number],
+  ) =>
+    doc.ai_confidence_score ??
+    doc.verification_result?.authenticity_confidence ??
+    doc.verification_result?.ocr_confidence;
+  const resolveDocumentUploadedAt = (
+    doc: (typeof application.documents)[number],
+  ) => doc.uploaded_at || doc.upload_date || doc.updated_at;
   const rubricScore =
     application.rubric_evaluation?.overall_score ??
     application.rubric_evaluation?.total_weighted_score;
@@ -249,7 +278,8 @@ export const CaseReview: React.FC = () => {
     application.rubric_evaluation?.passes_threshold;
   const rubricRecommendation =
     application.rubric_evaluation?.ai_recommendation ||
-    application.rubric_evaluation?.decision_recommendation?.recommendation_status ||
+    application.rubric_evaluation?.decision_recommendation
+      ?.recommendation_status ||
     application.rubric_evaluation?.final_decision ||
     "NO_RECOMMENDATION";
   const consistencyScore =
@@ -370,13 +400,15 @@ export const CaseReview: React.FC = () => {
                           <p className="text-sm text-slate-800">
                             {resolveDocumentName(doc)} •{" "}
                             {formatFileSize(
-                              typeof doc.file_size === "number" && Number.isFinite(doc.file_size)
+                              typeof doc.file_size === "number" &&
+                                Number.isFinite(doc.file_size)
                                 ? doc.file_size
                                 : 0,
                             )}
                           </p>
                           <p className="mt-1 text-xs text-slate-800">
-                            Uploaded: {safeFormatDate(resolveDocumentUploadedAt(doc))}
+                            Uploaded:{" "}
+                            {safeFormatDate(resolveDocumentUploadedAt(doc))}
                           </p>
                         </div>
                       </div>
@@ -386,7 +418,10 @@ export const CaseReview: React.FC = () => {
                           <p className="mt-2 text-sm text-slate-800">
                             Confidence:{" "}
                             <span className="font-semibold">
-                              {safePercent(resolveDocumentConfidence(doc) as number).toFixed(1)}%
+                              {safePercent(
+                                resolveDocumentConfidence(doc) as number,
+                              ).toFixed(1)}
+                              %
                             </span>
                           </p>
                         )}
@@ -424,7 +459,7 @@ export const CaseReview: React.FC = () => {
                         </span>
                         <span
                           className={`text-lg font-bold ${getScoreColor(
-                            consistencyScore
+                            consistencyScore,
                           )}`}
                         >
                           {consistencyScore.toFixed(1)}%
@@ -433,7 +468,7 @@ export const CaseReview: React.FC = () => {
                       <div className="h-3 w-full rounded-full bg-slate-200">
                         <div
                           className={`h-3 rounded-full transition-all ${getScoreBg(
-                            consistencyScore
+                            consistencyScore,
                           )}`}
                           style={{ width: `${safePercent(consistencyScore)}%` }}
                         />
@@ -452,7 +487,7 @@ export const CaseReview: React.FC = () => {
                         </span>
                         <span
                           className={`text-lg font-bold ${getScoreColor(
-                            100 - fraudRiskScore
+                            100 - fraudRiskScore,
                           )}`}
                         >
                           {fraudRiskScore.toFixed(1)}%
@@ -480,19 +515,17 @@ export const CaseReview: React.FC = () => {
                         </div>
                         <div className="text-right">
                           <p className="text-3xl font-bold text-indigo-600">
-                            {typeof rubricScore === "number" ? rubricScore.toFixed(1) : "N/A"}
+                            {typeof rubricScore === "number"
+                              ? rubricScore.toFixed(1)
+                              : "N/A"}
                             %
                           </p>
                           <p
                             className={`text-sm font-semibold ${
-                              rubricPassed
-                                ? "text-green-600"
-                                : "text-red-600"
+                              rubricPassed ? "text-green-600" : "text-red-600"
                             }`}
                           >
-                            {rubricPassed
-                              ? "PASSED"
-                              : "FAILED"}
+                            {rubricPassed ? "PASSED" : "FAILED"}
                           </p>
                         </div>
                       </div>
@@ -518,6 +551,23 @@ export const CaseReview: React.FC = () => {
                   ? "Note: Rejection reason is required"
                   : `${notes.length} characters`}
               </p>
+
+              <div className="mt-5 border-t border-slate-200 pt-5">
+                <h3 className="mb-2 text-sm font-semibold text-gray-900">
+                  Information Request Message
+                </h3>
+                <textarea
+                  value={requestMessage}
+                  onChange={(e) => setRequestMessage(e.target.value)}
+                  className="h-24 w-full resize-none rounded-lg border border-slate-300 p-3 text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Describe what additional information the applicant must provide..."
+                />
+                <p className="mt-2 text-xs text-slate-800">
+                  {requestMessage.length === 0
+                    ? "Required for Request More Info"
+                    : `${requestMessage.length} characters`}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -630,9 +680,7 @@ export const CaseReview: React.FC = () => {
                 </h3>
                 <p
                   className={`text-2xl font-bold ${
-                    rubricPassed
-                      ? "text-green-600"
-                      : "text-red-600"
+                    rubricPassed ? "text-green-600" : "text-red-600"
                   }`}
                 >
                   {rubricRecommendation}

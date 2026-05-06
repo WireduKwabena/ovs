@@ -20,6 +20,7 @@ except ModuleNotFoundError:  # pragma: no cover - optional in some setups
         return decorator
 
 from .models import (
+    CaseInfoRequest,
     ConsistencyCheck,
     Document,
     ExternalVerificationResult,
@@ -317,7 +318,6 @@ class VettingCaseSerializer(serializers.ModelSerializer):
             social_result = obj.social_profile_result
         except Exception:
             social_result = None
-
         if not social_result:
             return None
 
@@ -334,6 +334,43 @@ class VettingCaseSerializer(serializers.ModelSerializer):
             "checked_at": social_result.checked_at,
             "updated_at": social_result.updated_at,
         }
+
+
+class CaseInfoRequestSerializer(serializers.ModelSerializer):
+    requested_by_email = serializers.EmailField(source="requested_by.email", read_only=True)
+
+    class Meta:
+        model = CaseInfoRequest
+        fields = [
+            "id",
+            "case",
+            "requested_by",
+            "requested_by_email",
+            "message",
+            "status",
+            "response",
+            "responded_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "case",
+            "requested_by",
+            "requested_by_email",
+            "status",
+            "responded_at",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class CaseInfoRequestCreateSerializer(serializers.Serializer):
+    message = serializers.CharField(required=True, allow_blank=False, trim_whitespace=True)
+
+
+class CaseInfoRequestRespondSerializer(serializers.Serializer):
+    response = serializers.CharField(required=True, allow_blank=False, trim_whitespace=True)
 
 
 class DocumentUploadSerializer(serializers.Serializer):

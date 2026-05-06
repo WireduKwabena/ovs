@@ -329,6 +329,7 @@ export type ApplicationStatus =
   | 'interview_scheduled'
   | 'interview_in_progress'
   | 'under_review'
+  | 'info_requested'
   | 'approved'
   | 'rejected'
   | 'on_hold';
@@ -447,6 +448,19 @@ export interface ApplicationWithDocuments extends VettingCase {
   fraud_result?: FraudDetectionResult;
   consistency_result?: ConsistencyCheckResult;
   rubric_evaluation?: RubricEvaluation;
+}
+
+export interface CaseInfoRequest {
+  id: string;
+  case: string;
+  requested_by?: string;
+  requested_by_email?: string;
+  message: string;
+  status: "open" | "responded" | "closed";
+  response?: string;
+  responded_at?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface FraudDetectionResult {

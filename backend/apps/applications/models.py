@@ -51,6 +51,7 @@ class VettingCase(models.Model):
         ('interview_scheduled', 'Interview Scheduled'),
         ('interview_in_progress', 'Interview In Progress'),
         ('under_review', 'Under Review'),
+        ('info_requested', 'Information Requested'),
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),
         ('on_hold', 'On Hold'),
@@ -1009,4 +1010,69 @@ class ExternalVerificationResult(models.Model):
 
     def __str__(self):
         return f"{self.case.case_id}::{self.source.key}::{self.result_status}"
+
+
+class CaseInfoRequest(models.Model):
+    """
+    Tracks requests for additional information sent from reviewers to applicants.
+
+    When a reviewer needs more data before deciding on a VettingCase, they create
+    a CaseInfoRequest. The applicant receives a notification, can view the request,
+    and submit a text response. The case status is set to ``info_requested`` while
+    a request is open and reverts to ``under_review`` once the applicant responds.
+    """
+
+    STATUS_OPEN = "open"
+    STATUS_RESPONDED = "responded"
+    STATUS_CLOSED = "closed"
+
+    STATUS_CHOICES = [
+        (STATUS_OPEN, "Open"),
+        (STATUS_RESPONDED, "Responded"),
+        (STATUS_CLOSED, "Closed"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    case = models.ForeignKey(
+        VettingCase,
+        on_delete=models.CASCADE,
+        related_name="info_requests",
+    )
+
+    requested_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="sent_info_requests",
+        db_constraint=False,
+    )
+
+    # What the reviewer is asking for
+    message = models.TextField(help_text="Description of what additional information is needed")
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_OPEN,
+        db_index=True,
+    )
+
+    # Applicant's response
+    response = models.TextField(blank=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["case", "status"]),
+        ]
+        verbose_name = "Case Info Request"
+        verbose_name_plural = "Case Info Requests"
+
+    def __str__(self):
+        return f"InfoRequest for {self.case.case_id} [{self.status}]"
 
