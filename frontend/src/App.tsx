@@ -88,6 +88,9 @@ const PlatformAuditLogsPage = React.lazy(
 const AiInfrastructurePage = React.lazy(
   () => import("./pages/platform-admin/AiInfrastructurePage"),
 );
+const PlatformIssueReportsPage = React.lazy(
+  () => import("./pages/platform-admin/PlatformIssueReportsPage"),
+);
 const OrganizationMembersPage = React.lazy(
   () => import("./pages/OrganizationMembersPage"),
 );
@@ -133,6 +136,10 @@ const CampaignWorkspacePage = React.lazy(
   () => import("./pages/CampaignWorkspacePage"),
 );
 const VideoCallsPage = React.lazy(() => import("./pages/VideoCallsPage"));
+const MeetingRoomPage = React.lazy(() => import("./pages/MeetingRoomPage"));
+const GuestMeetingJoinPage = React.lazy(
+  () => import("./pages/GuestMeetingJoinPage"),
+);
 const RubricBuilderPage = React.lazy(() => import("./pages/RubricBuilderPage"));
 const GovernmentPositionsPage = React.lazy(
   () => import("./pages/GovernmentPositionsPage"),
@@ -190,6 +197,8 @@ const HIDE_NAVBAR_PREFIXES = [
   "/reset-password",
   "/billing",
   "/audit",
+  "/meeting-room",
+  "/join",
 ];
 
 const ORG_WORKFLOW_DISALLOWED_USER_TYPES: Array<
@@ -736,6 +745,20 @@ const AppRoutes: React.FC = () => (
       }
     />
     <Route
+      path="/meeting-room/:meetingId"
+      element={
+        <ProtectedRoute
+          disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+          requiredCapabilities={[...INTERNAL_WORKFLOW_ROUTE_CAPABILITIES]}
+        >
+          <MeetingRoomPage />
+        </ProtectedRoute>
+      }
+    />
+    {/* Public guest join flow — no auth required */}
+    <Route path="/join" element={<GuestMeetingJoinPage />} />
+    <Route path="/join/room/:meetingId" element={<MeetingRoomPage />} />
+    <Route
       path={getWorkspacePath("audit-logs")}
       element={
         <ProtectedRoute
@@ -932,6 +955,14 @@ const AppRoutes: React.FC = () => (
       element={
         <ProtectedRoute platformAdminOnly>
           <SystemHealthPage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/admin/platform/issues"
+      element={
+        <ProtectedRoute>
+          <PlatformIssueReportsPage />
         </ProtectedRoute>
       }
     />

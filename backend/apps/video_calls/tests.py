@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
+import jwt
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.test import override_settings
@@ -118,6 +119,25 @@ class VideoMeetingApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         meeting = VideoMeeting.objects.get(id=response.data["id"])
         self.assertTrue(meeting.participants.filter(user=self.candidate).exists())
+
+    def test_internal_can_schedule_meeting_with_observer_emails(self):
+        response = self.client.post(
+            reverse("video-meeting-list"),
+            data={
+                "title": "Observer briefing",
+                "description": "Observer should be receive-only.",
+                "scheduled_start": (timezone.now() + timedelta(hours=2)).isoformat(),
+                "scheduled_end": (timezone.now() + timedelta(hours=3)).isoformat(),
+                "timezone": "UTC",
+                "participant_emails": [self.candidate.email],
+                "participant_observer_emails": [self.candidate.email],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        meeting = VideoMeeting.objects.get(id=response.data["id"])
+        participant = meeting.participants.get(user=self.candidate)
+        self.assertEqual(participant.role, VideoMeetingParticipant.ROLE_OBSERVER)
 
     def test_internal_can_schedule_daily_series(self):
         response = self.client.post(
@@ -260,6 +280,14 @@ class VideoMeetingApiTests(APITestCase):
         self.assertIn("token", response.data)
         self.assertEqual(response.data["room_name"], meeting.livekit_room_name)
 
+        payload = jwt.decode(
+            response.data["token"],
+            options={"verify_signature": False, "verify_exp": False},
+            algorithms=["HS256"],
+        )
+        self.assertTrue(payload["video"]["canPublish"])
+        self.assertTrue(payload["video"]["canPublishData"])
+
     @override_settings(
         LIVEKIT_API_KEY="",
         LIVEKIT_API_SECRET="",
@@ -280,6 +308,62 @@ class VideoMeetingApiTests(APITestCase):
         self.client.force_authenticate(self.candidate)
         response = self.client.get(reverse("video-meeting-join-token", kwargs={"pk": meeting.pk}))
         self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    @override_settings(
+        LIVEKIT_API_KEY="test-api-key",
+        LIVEKIT_API_SECRET="test-secret-32-chars-minimum-value",
+        LIVEKIT_URL="wss://livekit.example.test",
+        LIVEKIT_TOKEN_TTL_SECONDS=600,
+    )
+    def test_participant_can_fetch_join_token_when_meeting_started_early(self):
+        meeting = VideoMeeting.objects.create(
+            organizer=self.internal_user,
+            case=self.case,
+            title="Started early interview",
+            scheduled_start=timezone.now() + timedelta(hours=2),
+            scheduled_end=timezone.now() + timedelta(hours=3),
+            timezone="UTC",
+        )
+        meeting.participants.create(user=self.internal_user, role="host")
+        meeting.participants.create(user=self.candidate, role="candidate")
+        meeting.mark_ongoing()
+
+        self.client.force_authenticate(self.candidate)
+        response = self.client.get(reverse("video-meeting-join-token", kwargs={"pk": meeting.pk}))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("token", response.data)
+        self.assertEqual(response.data["room_name"], meeting.livekit_room_name)
+
+    @override_settings(
+        LIVEKIT_API_KEY="test-api-key",
+        LIVEKIT_API_SECRET="test-secret-32-chars-minimum-value",
+        LIVEKIT_URL="wss://livekit.example.test",
+        LIVEKIT_TOKEN_TTL_SECONDS=600,
+    )
+    def test_observer_join_token_is_receive_only(self):
+        meeting = VideoMeeting.objects.create(
+            organizer=self.internal_user,
+            case=self.case,
+            title="Observer room access",
+            scheduled_start=timezone.now() - timedelta(minutes=1),
+            scheduled_end=timezone.now() + timedelta(minutes=30),
+            timezone="UTC",
+        )
+        meeting.participants.create(user=self.internal_user, role="host")
+        meeting.participants.create(user=self.candidate, role=VideoMeetingParticipant.ROLE_OBSERVER)
+
+        self.client.force_authenticate(self.candidate)
+        response = self.client.get(reverse("video-meeting-join-token", kwargs={"pk": meeting.pk}))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = jwt.decode(
+            response.data["token"],
+            options={"verify_signature": False, "verify_exp": False},
+            algorithms=["HS256"],
+        )
+        self.assertFalse(payload["video"]["canPublish"])
+        self.assertFalse(payload["video"]["canPublishData"])
 
     def test_reminder_task_completes_past_meetings(self):
         meeting = VideoMeeting.objects.create(

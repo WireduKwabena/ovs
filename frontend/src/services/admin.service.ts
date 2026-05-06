@@ -6,6 +6,10 @@ import type {
   AdminUsersResponse,
   AdminUserUpdatePayload,
   DashboardStats,
+  PlatformIssueCreatePayload,
+  PlatformIssueListResponse,
+  PlatformIssueReport,
+  PlatformIssueUpdatePayload,
 } from '@/types';
 import { toServiceError } from '@/utils/apiError';
 
@@ -171,6 +175,41 @@ const updateOrgUser = async (
   }
 };
 
+const reportIssue = async (payload: PlatformIssueCreatePayload): Promise<PlatformIssueReport> => {
+  try {
+    const response = await api.post<PlatformIssueReport>('/admin/issues/report/', payload);
+    return response.data;
+  } catch (error) {
+    throw toServiceError(error, 'Issue report submission failed');
+  }
+};
+
+const listIssues = async (params?: {
+  status?: string;
+  severity?: string;
+  page?: number;
+  page_size?: number;
+}): Promise<PlatformIssueListResponse> => {
+  try {
+    const response = await api.get<PlatformIssueListResponse>('/admin/issues/', { params });
+    return response.data;
+  } catch (error) {
+    throw toServiceError(error, 'Issue reports fetch failed');
+  }
+};
+
+const updateIssue = async (
+  issueId: string,
+  payload: PlatformIssueUpdatePayload,
+): Promise<PlatformIssueReport> => {
+  try {
+    const response = await api.patch<PlatformIssueReport>(`/admin/issues/${issueId}/`, payload);
+    return response.data;
+  } catch (error) {
+    throw toServiceError(error, 'Issue report update failed');
+  }
+};
+
 export const adminService = {
   getDashboard,
   getAnalytics,
@@ -183,6 +222,9 @@ export const adminService = {
   getOrgUsers,
   updateUser,
   updateOrgUser,
+  reportIssue,
+  listIssues,
+  updateIssue,
   platform: {
     getDashboard,
     getAnalytics,
@@ -191,6 +233,9 @@ export const adminService = {
     getUsers,
     updateUser,
     updateCaseStatus,
+    listIssues,
+    updateIssue,
+    reportIssue,
   },
   org: {
     getCases: getOrgCases,

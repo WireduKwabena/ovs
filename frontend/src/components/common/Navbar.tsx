@@ -20,6 +20,7 @@ import {
   Search,
   Settings2,
   Shield,
+  Bug,
   ShieldAlert,
   ShieldCheck,
   UserRound,
@@ -77,6 +78,7 @@ type NavIcon = React.ComponentType<{ className?: string }>;
 const navIconMap: Record<string, NavIcon> = {
   [getWorkspacePath("home")]: LayoutDashboard,
   [getPlatformAdminPath("dashboard")]: LayoutDashboard,
+  [getPlatformAdminPath("issues")]: Bug,
   [getCandidatePath("home")]: LayoutDashboard,
   [getWorkspacePath("applications")]: FolderOpen,
   [getWorkspacePath("campaigns")]: Briefcase,
@@ -158,7 +160,8 @@ export const Navbar: React.FC = () => {
     userType === "platform_admin" ||
     userType === "admin" ||
     hasRole("admin") ||
-    Boolean((user as User | null)?.is_superuser);
+    Boolean((user as User | null)?.is_superuser) ||
+    Boolean((user as User | null)?.is_staff);
   const canAccessAudit =
     hasAdminAccess || canViewAuditLogs || hasCapability("gams.audit.view");
   const canAccessRegistry = canManageRegistry;
@@ -430,6 +433,7 @@ export const Navbar: React.FC = () => {
   const workspaceHomePath = getWorkspacePath("home");
   const candidateHomePath = getCandidatePath("home");
   const platformDashboardPath = getPlatformAdminPath("dashboard");
+  const platformIssuesPath = getPlatformAdminPath("issues");
   const workspaceApplicationsPath = getWorkspacePath("applications");
   const workspaceNotificationsPath = getWorkspacePath("notifications");
   const workspaceCampaignsPath = getWorkspacePath("campaigns");
@@ -472,6 +476,7 @@ export const Navbar: React.FC = () => {
       "/ai-monitor",
       "/ml-monitoring",
     ],
+    [platformIssuesPath]: ["/admin/platform/issues"],
     [workspaceApplicationsPath]: [
       "/applications",
       "/admin/cases",
@@ -675,6 +680,13 @@ export const Navbar: React.FC = () => {
     pushUnique(desktopPrimaryLinks, {
       to: workspaceAuditLogsPath,
       label: "Audit",
+    });
+  }
+
+  if (isAuthenticated) {
+    pushUnique(desktopPrimaryLinks, {
+      to: platformIssuesPath,
+      label: "Issue Reports",
     });
   }
 

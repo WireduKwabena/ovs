@@ -11,4 +11,7 @@ urlpatterns = [
     path('cases/', views.admin_cases, name='cases'),
     path('users/', views.admin_users, name='users'),
     path('users/<uuid:user_id>/', views.admin_user_update, name='user-update'),
+    path('issues/report/', views.report_platform_issue, name='issues-report'),
+    path('issues/', views.list_platform_issues, name='issues-list'),
+    path('issues/<uuid:issue_id>/', views.update_platform_issue, name='issues-update'),
 ]

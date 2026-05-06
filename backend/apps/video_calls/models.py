@@ -106,14 +106,21 @@ class VideoMeeting(models.Model):
     @property
     def is_joinable(self) -> bool:
         now = timezone.now()
-        join_window_start = self.scheduled_start - timedelta(seconds=self.allow_join_before_seconds)
         join_grace_minutes = int(getattr(settings, "VIDEO_CALLS_JOIN_GRACE_MINUTES", 30) or 30)
         if join_grace_minutes < 0:
             join_grace_minutes = 0
-        return (
-            self.status in {self.STATUS_SCHEDULED, self.STATUS_ONGOING}
-            and join_window_start <= now <= self.scheduled_end + timedelta(minutes=join_grace_minutes)
-        )
+        join_window_end = self.scheduled_end + timedelta(minutes=join_grace_minutes)
+
+        if self.status == self.STATUS_ONGOING:
+            # Manual start may happen before the scheduled start window.
+            # Once ongoing, allow participants to join until the grace-adjusted end.
+            return now <= join_window_end
+
+        if self.status != self.STATUS_SCHEDULED:
+            return False
+
+        join_window_start = self.scheduled_start - timedelta(seconds=self.allow_join_before_seconds)
+        return join_window_start <= now <= join_window_end
 
     def has_participant(self, user: User) -> bool:
         return self.participants.filter(user=user).exists()
@@ -182,6 +189,7 @@ class VideoMeetingParticipant(models.Model):
         related_name="video_meeting_participations",
         db_constraint=False,
     )
+    guest_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, db_index=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=ROLE_CANDIDATE)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_INVITED, db_index=True)
     invited_at = models.DateTimeField(auto_now_add=True)

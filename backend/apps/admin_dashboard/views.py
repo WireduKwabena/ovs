@@ -8,9 +8,11 @@ from django.core.paginator import Paginator
 from django.db import connection
 from django.db.models import Avg, Count, Q
 from django.utils import timezone
+from django.db.models import Case, IntegerField, Value, When
 from django_tenants.utils import get_public_schema_name
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.applications.models import Document, VettingCase
@@ -30,8 +32,13 @@ from .serializers import (
     AdminManagedUserSerializer,
     AdminUserUpdateRequestSerializer,
     AdminUsersResponseSerializer,
+    PlatformIssueReportCreateSerializer,
+    PlatformIssueReportListResponseSerializer,
+    PlatformIssueReportSerializer,
+    PlatformIssueReportUpdateSerializer,
     VettingCaseAdminSerializer,
 )
+from .models import PlatformIssueReport
 
 
 # Pipeline-aligned in-flight dossier statuses used by the org dashboard pulse and
@@ -193,6 +200,12 @@ def _platform_admin_org_scope_required(request):
         },
         status=status.HTTP_400_BAD_REQUEST,
     )
+
+
+def _is_platform_admin_or_dev_team(user) -> bool:
+    if not getattr(user, "is_authenticated", False):
+        return False
+    return bool(is_platform_admin_user(user) or getattr(user, "is_staff", False))
 
 
 @extend_schema(responses={200: AdminDashboardResponseSerializer})
@@ -558,5 +571,113 @@ def admin_user_update(request, user_id):
         managed_user.groups.set(target_groups)
 
     return Response(AdminManagedUserSerializer(managed_user).data)
+
+
+@extend_schema(
+    request=PlatformIssueReportCreateSerializer,
+    responses={201: PlatformIssueReportSerializer},
+)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def report_platform_issue(request):
+    """
+    Create a platform issue report.
+    POST /api/admin/issues/report/
+    """
+    serializer = PlatformIssueReportCreateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    report = PlatformIssueReport.objects.create(
+        reporter=request.user,
+        **serializer.validated_data,
+    )
+    return Response(PlatformIssueReportSerializer(report).data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(responses={200: PlatformIssueReportListResponseSerializer})
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def list_platform_issues(request):
+    """
+    List submitted platform issue reports for platform admins/dev team.
+    GET /api/admin/issues/
+    """
+    if not _is_platform_admin_or_dev_team(getattr(request, "user", None)):
+        return Response(
+            {"detail": "Only platform admins or dev team members can view issue reports."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    status_filter = (request.query_params.get("status") or "").strip().lower()
+    severity_filter = (request.query_params.get("severity") or "").strip().lower()
+    page = _parse_positive_int(request.query_params.get("page"), default=1, minimum=1)
+    page_size = _parse_positive_int(request.query_params.get("page_size"), default=20, minimum=1, maximum=200)
+
+    queryset = PlatformIssueReport.objects.select_related("reporter", "resolved_by")
+    if status_filter in {choice[0] for choice in PlatformIssueReport.STATUS_CHOICES}:
+        queryset = queryset.filter(status=status_filter)
+    if severity_filter in {choice[0] for choice in PlatformIssueReport.SEVERITY_CHOICES}:
+        queryset = queryset.filter(severity=severity_filter)
+
+    # Prioritize unresolved issues at the top, then newest first.
+    queryset = queryset.annotate(
+        open_sort=Case(
+            When(status=PlatformIssueReport.STATUS_OPEN, then=Value(0)),
+            When(status=PlatformIssueReport.STATUS_IN_PROGRESS, then=Value(1)),
+            default=Value(2),
+            output_field=IntegerField(),
+        )
+    ).order_by("open_sort", "-created_at")
+
+    paginator = Paginator(queryset, page_size)
+    page_obj = paginator.get_page(page)
+
+    return Response(
+        {
+            "results": PlatformIssueReportSerializer(page_obj, many=True).data,
+            "count": paginator.count,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": paginator.num_pages,
+        }
+    )
+
+
+@extend_schema(
+    request=PlatformIssueReportUpdateSerializer,
+    responses={200: PlatformIssueReportSerializer},
+)
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def update_platform_issue(request, issue_id):
+    """
+    Update issue status for platform admins/dev team.
+    PATCH /api/admin/issues/<int:issue_id>/
+    """
+    if not _is_platform_admin_or_dev_team(getattr(request, "user", None)):
+        return Response(
+            {"detail": "Only platform admins or dev team members can update issue reports."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    issue = get_object_or_404(
+        PlatformIssueReport.objects.select_related("reporter", "resolved_by"),
+        pk=issue_id,
+    )
+    serializer = PlatformIssueReportUpdateSerializer(data=request.data, partial=True)
+    serializer.is_valid(raise_exception=True)
+
+    next_status = serializer.validated_data.get("status")
+    if next_status is not None:
+        issue.status = next_status
+        if next_status == PlatformIssueReport.STATUS_RESOLVED:
+            issue.resolved_by = request.user
+            issue.resolved_at = timezone.now()
+        else:
+            issue.resolved_by = None
+            issue.resolved_at = None
+        issue.save(update_fields=["status", "resolved_by", "resolved_at", "updated_at"])
+
+    return Response(PlatformIssueReportSerializer(issue).data)
 
 

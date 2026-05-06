@@ -25,6 +25,14 @@ class AdminDashboardAPITests(APITestCase):
             user_type="admin",
             is_staff=True,
         )
+        self.dev_team_user = User.objects.create_user(
+            email="dev-team@example.com",
+            password="strongpassword123",
+            first_name="Dev",
+            last_name="Engineer",
+            user_type="internal",
+            is_staff=True,
+        )
         self.regular_user = User.objects.create_user(
             email="test@example.com",
             password="strongpassword123",
@@ -322,5 +330,57 @@ class AdminDashboardAPITests(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_authenticated_user_can_report_issue(self):
+        self.client.force_authenticate(user=self.regular_user)
+        response = self.client.post(
+            "/api/admin/issues/report/",
+            {
+                "title": "Cannot save profile",
+                "description": "Save button appears to do nothing.",
+                "steps_to_reproduce": "1. Open settings. 2. Edit profile. 3. Click save.",
+                "category": "bug",
+                "severity": "high",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["title"], "Cannot save profile")
+        self.assertEqual(response.data["reporter_email"], self.regular_user.email)
+
+    def test_regular_user_cannot_list_issue_reports(self):
+        self.client.force_authenticate(user=self.regular_user)
+        response = self.client.get("/api/admin/issues/")
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_dev_team_can_list_and_update_issue_reports(self):
+        self.client.force_authenticate(user=self.regular_user)
+        create_response = self.client.post(
+            "/api/admin/issues/report/",
+            {
+                "title": "Slow dashboard load",
+                "description": "Dashboard takes too long to load.",
+                "category": "issue",
+                "severity": "medium",
+            },
+            format="json",
+        )
+        issue_id = create_response.data["id"]
+
+        self.client.force_authenticate(user=self.dev_team_user)
+        list_response = self.client.get("/api/admin/issues/")
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertGreaterEqual(list_response.data["count"], 1)
+
+        update_response = self.client.patch(
+            f"/api/admin/issues/{issue_id}/",
+            {"status": "resolved"},
+            format="json",
+        )
+        self.assertEqual(update_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(update_response.data["status"], "resolved")
+        self.assertIsNotNone(update_response.data["resolved_at"])
 
 

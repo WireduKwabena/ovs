@@ -831,6 +831,52 @@ export interface AdminUserUpdatePayload {
   reset_two_factor?: boolean;
   group_roles?: string[];
 }
+
+export type PlatformIssueCategory = "bug" | "issue" | "improvement";
+export type PlatformIssueSeverity = "low" | "medium" | "high" | "critical";
+export type PlatformIssueStatus = "open" | "in_progress" | "resolved";
+
+export interface PlatformIssueReport {
+  id: string;
+  title: string;
+  description: string;
+  steps_to_reproduce?: string;
+  page_url?: string;
+  browser_info?: string;
+  category: PlatformIssueCategory;
+  severity: PlatformIssueSeverity;
+  status: PlatformIssueStatus;
+  reporter: string;
+  reporter_email: string;
+  reporter_name: string;
+  resolved_by?: string | null;
+  resolved_by_email?: string | null;
+  resolved_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlatformIssueCreatePayload {
+  title: string;
+  description: string;
+  steps_to_reproduce?: string;
+  page_url?: string;
+  browser_info?: string;
+  category: PlatformIssueCategory;
+  severity: PlatformIssueSeverity;
+}
+
+export interface PlatformIssueListResponse {
+  results: PlatformIssueReport[];
+  count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface PlatformIssueUpdatePayload {
+  status?: PlatformIssueStatus;
+}
 export type CampaignStatus = 'draft' | 'active' | 'closed' | 'archived';
 export type CampaignExerciseType =
   | "ministerial"
@@ -1451,6 +1497,7 @@ export interface VideoMeetingCreatePayload {
   reminder_before_minutes?: number;
   participant_user_ids?: string[];
   participant_emails?: string[];
+  participant_observer_emails?: string[];
 }
 
 export interface VideoMeetingReschedulePayload {
@@ -1488,6 +1535,13 @@ export interface VideoMeetingJoinToken {
   ws_url: string;
   room_name: string;
   expires_in: number;
+}
+
+export interface GuestMeetingJoinToken extends VideoMeetingJoinToken {
+  meeting_id: string;
+  meeting_title: string;
+  scheduled_start: string;
+  scheduled_end: string;
 }
 
 export type VideoMeetingEventAction =

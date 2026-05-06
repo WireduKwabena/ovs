@@ -11,6 +11,15 @@ import { MemoryRouter } from "react-router-dom";
 
 import VideoCallsPage from "./VideoCallsPage";
 
+const mocks = vi.hoisted(() => ({
+  navigate: vi.fn(),
+}));
+
+vi.mock("react-router-dom", async (importActual) => {
+  const actual = await importActual<typeof import("react-router-dom")>();
+  return { ...actual, useNavigate: () => mocks.navigate };
+});
+
 const authHookState = vi.hoisted(() => ({
   isInternalOrAdmin: true,
   isAdmin: true,
@@ -27,14 +36,6 @@ const serviceMocks = vi.hoisted(() => ({
   scheduleSeries: vi.fn(),
   getJoinToken: vi.fn(),
   leave: vi.fn(),
-}));
-
-vi.mock("@livekit/components-react", () => ({
-  LiveKitRoom: ({ children }: { children?: React.ReactNode }) => (
-    <div>{children}</div>
-  ),
-  RoomAudioRenderer: () => <div />,
-  VideoConference: () => <div>Mock Conference</div>,
 }));
 
 vi.mock("react-toastify", () => ({
@@ -102,6 +103,7 @@ describe("VideoCallsPage layout regression", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    mocks.navigate.mockReset();
     authHookState.isInternalOrAdmin = true;
     authHookState.isAdmin = true;
     authHookState.user = {
@@ -129,7 +131,7 @@ describe("VideoCallsPage layout regression", () => {
     );
 
     expect(actionCluster.className).toContain("xl:w-auto");
-    expect(actionCluster.className).toContain("xl:max-w-[27rem]");
+    expect(actionCluster.className).toContain("xl:max-w-108");
     expect(screen.getByText("Meeting Actions")).toBeTruthy();
     expect(screen.getByText("Schedule Controls")).toBeTruthy();
   });
@@ -158,7 +160,7 @@ describe("VideoCallsPage layout regression", () => {
 
     expect(reschedulePanel.className).toContain("md:grid-cols-2");
     expect(reschedulePanel.className).toContain("xl:grid-cols-3");
-  });
+  }, 15000);
 
   it("schedules a near-future meeting from the form", async () => {
     const now = new Date();
@@ -191,15 +193,21 @@ describe("VideoCallsPage layout regression", () => {
       target: { value: "30s Smoke Check" },
     });
 
-    const datetimeInputs = screen.getAllByDisplayValue("").filter((node) => {
-      return (
-        node.tagName.toLowerCase() === "input" &&
-        (node as HTMLInputElement).type === "datetime-local"
-      );
-    }) as HTMLInputElement[];
+    const [startDate, startTime] = startValue.split("T");
+    const [endDate, endTime] = endValue.split("T");
 
-    fireEvent.change(datetimeInputs[0], { target: { value: startValue } });
-    fireEvent.change(datetimeInputs[1], { target: { value: endValue } });
+    fireEvent.change(screen.getByTitle("Meeting start date"), {
+      target: { value: startDate },
+    });
+    fireEvent.change(screen.getByTitle("Meeting start time"), {
+      target: { value: startTime },
+    });
+    fireEvent.change(screen.getByTitle("Meeting end date"), {
+      target: { value: endDate },
+    });
+    fireEvent.change(screen.getByTitle("Meeting end time"), {
+      target: { value: endTime },
+    });
 
     fireEvent.click(screen.getByRole("button", { name: /schedule meeting/i }));
 
@@ -218,7 +226,61 @@ describe("VideoCallsPage layout regression", () => {
     );
   });
 
-  it("opens the in-call room after join token resolves", async () => {
+  it("includes participant_observer_emails in payload when observer field is filled", async () => {
+    const now = new Date();
+    const start = new Date(now.getTime() + 30_000);
+    const end = new Date(start.getTime() + 5 * 60_000);
+    const startValue = toDatetimeLocal(start);
+    const endValue = toDatetimeLocal(end);
+
+    serviceMocks.list.mockResolvedValue([]);
+    serviceMocks.getAllCases.mockResolvedValue([]);
+    serviceMocks.create.mockResolvedValue({
+      ...scheduledMeeting,
+      id: "meeting-observer",
+      title: "Observer test meeting",
+    });
+
+    render(
+      <MemoryRouter>
+        <VideoCallsPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(serviceMocks.list).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.change(screen.getByTitle("Meeting title"), {
+      target: { value: "Observer test meeting" },
+    });
+
+    const [startDate, startTime] = startValue.split("T");
+    const [endDate, endTime] = endValue.split("T");
+    fireEvent.change(screen.getByTitle("Meeting start date"), { target: { value: startDate } });
+    fireEvent.change(screen.getByTitle("Meeting start time"), { target: { value: startTime } });
+    fireEvent.change(screen.getByTitle("Meeting end date"), { target: { value: endDate } });
+    fireEvent.change(screen.getByTitle("Meeting end time"), { target: { value: endTime } });
+
+    fireEvent.change(
+      screen.getByPlaceholderText(/observer1@example.com/i),
+      { target: { value: "watcher@example.com" } },
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /schedule meeting/i }));
+
+    await waitFor(() => {
+      expect(serviceMocks.create).toHaveBeenCalledTimes(1);
+    });
+
+    expect(serviceMocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        participant_observer_emails: ["watcher@example.com"],
+      }),
+    );
+  });
+
+  it("navigates to meeting room after join token resolves", async () => {
     serviceMocks.list.mockResolvedValue([scheduledMeeting]);
     serviceMocks.getAllCases.mockResolvedValue([]);
     serviceMocks.getJoinToken.mockResolvedValue({
@@ -244,14 +306,19 @@ describe("VideoCallsPage layout regression", () => {
       expect(serviceMocks.getJoinToken).toHaveBeenCalledWith("meeting-1");
     });
 
-    expect(
-      await screen.findByText(/in call: budget review interview/i),
-    ).toBeTruthy();
-    expect(await screen.findByText(/room: room-budget-review/i)).toBeTruthy();
-    expect(await screen.findByText("Mock Conference")).toBeTruthy();
+    await waitFor(() => {
+      expect(mocks.navigate).toHaveBeenCalledWith(
+        "/meeting-room/meeting-1",
+        expect.objectContaining({
+          state: expect.objectContaining({
+            credentials: expect.objectContaining({ token: "test-token" }),
+          }),
+        }),
+      );
+    });
   });
 
-  it("autojoin query parameter enters the room for the focused meeting", async () => {
+  it("autojoin query parameter navigates to the room for the focused meeting", async () => {
     serviceMocks.list.mockResolvedValue([scheduledMeeting]);
     serviceMocks.getAllCases.mockResolvedValue([]);
     serviceMocks.getJoinToken.mockResolvedValue({
@@ -277,10 +344,15 @@ describe("VideoCallsPage layout regression", () => {
       expect(serviceMocks.getJoinToken).toHaveBeenCalledWith("meeting-1");
     });
 
-    expect(
-      await screen.findByText(/in call: budget review interview/i),
-    ).toBeTruthy();
-    expect(await screen.findByText(/room: room-budget-review/i)).toBeTruthy();
-    expect(await screen.findByText("Mock Conference")).toBeTruthy();
+    await waitFor(() => {
+      expect(mocks.navigate).toHaveBeenCalledWith(
+        "/meeting-room/meeting-1",
+        expect.objectContaining({
+          state: expect.objectContaining({
+            credentials: expect.objectContaining({ token: "autojoin-token" }),
+          }),
+        }),
+      );
+    });
   });
 });

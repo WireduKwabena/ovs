@@ -12,6 +12,7 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
   adminOnly?: boolean;
   platformAdminOnly?: boolean;
+  platformOrStaffOnly?: boolean;
   orgAdminOnly?: boolean;
   disallowUserTypes?: Array<"applicant" | "internal" | "org_admin" | "platform_admin">;
   requiredRoles?: string[];
@@ -26,6 +27,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children, 
   adminOnly = false,
   platformAdminOnly = false,
+  platformOrStaffOnly = false,
   orgAdminOnly = false,
   disallowUserTypes = [],
   requiredRoles = [],
@@ -99,6 +101,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (platformAdminOnly && !isPlatformAdmin) {
+    return <Navigate to={fallbackDashboardPath} replace />;
+  }
+
+  if (platformOrStaffOnly && !isPlatformAdmin && !Boolean(user?.is_staff)) {
     return <Navigate to={fallbackDashboardPath} replace />;
   }
 

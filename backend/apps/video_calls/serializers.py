@@ -58,6 +58,12 @@ class VideoMeetingSerializer(serializers.ModelSerializer):
         required=False,
         allow_empty=True,
     )
+    participant_observer_emails = serializers.ListField(
+        child=serializers.EmailField(),
+        write_only=True,
+        required=False,
+        allow_empty=True,
+    )
     organizer_email = serializers.EmailField(source="organizer.email", read_only=True)
     organizer_name = serializers.SerializerMethodField()
 
@@ -97,6 +103,7 @@ class VideoMeetingSerializer(serializers.ModelSerializer):
             "participants",
             "participant_user_ids",
             "participant_emails",
+            "participant_observer_emails",
         ]
         read_only_fields = [
             "id",
@@ -167,8 +174,12 @@ class VideoMeetingSerializer(serializers.ModelSerializer):
             if candidate_email:
                 normalized_emails.add(candidate_email)
 
-        users_by_id = User.objects.filter(id__in=unique_user_ids)
-        users_by_email = User.objects.filter(email__in=normalized_emails)
+        # Use all_objects to bypass the TenantAwareUserManager membership filter.
+        # Participants can include applicants/candidates who have no OrganizationMembership
+        # (e.g. external nominees) and the organizer themselves, who must always resolve
+        # regardless of whether a membership row exists in this tenant.
+        users_by_id = User.all_objects.filter(id__in=unique_user_ids)
+        users_by_email = User.all_objects.filter(email__in=normalized_emails)
         users = list(users_by_id) + list(users_by_email)
         deduped_users: dict[str, User] = {str(user.id): user for user in users}
 
@@ -193,6 +204,7 @@ class VideoMeetingSerializer(serializers.ModelSerializer):
         meeting: VideoMeeting,
         user_ids: list[str] | None,
         emails: list[str] | None,
+        observer_emails: list[str] | None,
         organizer,
     ):
         users = self._resolve_participants(
@@ -201,13 +213,21 @@ class VideoMeetingSerializer(serializers.ModelSerializer):
             emails=emails,
             organizer=organizer,
         )
+        normalized_observer_emails = {
+            str(email).strip().lower() for email in (observer_emails or []) if str(email).strip()
+        }
 
         # Remove users no longer invited, but keep organizer.
         found_ids = {str(user.id) for user in users}
         meeting.participants.exclude(user_id__in=found_ids).exclude(user=organizer).delete()
 
         for user in users:
-            role = VideoMeetingParticipant.ROLE_HOST if str(user.id) == str(organizer.id) else VideoMeetingParticipant.ROLE_CANDIDATE
+            if str(user.id) == str(organizer.id):
+                role = VideoMeetingParticipant.ROLE_HOST
+            elif str(user.email).strip().lower() in normalized_observer_emails:
+                role = VideoMeetingParticipant.ROLE_OBSERVER
+            else:
+                role = VideoMeetingParticipant.ROLE_CANDIDATE
             VideoMeetingParticipant.objects.update_or_create(
                 meeting=meeting,
                 user=user,
@@ -217,12 +237,14 @@ class VideoMeetingSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         participant_user_ids = validated_data.pop("participant_user_ids", None)
         participant_emails = validated_data.pop("participant_emails", None)
+        participant_observer_emails = validated_data.pop("participant_observer_emails", None)
         organizer = self.context["request"].user
         meeting = VideoMeeting.objects.create(organizer=organizer, **validated_data)
         self._sync_participants(
             meeting,
             participant_user_ids,
             participant_emails,
+            participant_observer_emails,
             organizer,
         )
         return meeting
@@ -230,6 +252,7 @@ class VideoMeetingSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         participant_user_ids = validated_data.pop("participant_user_ids", None)
         participant_emails = validated_data.pop("participant_emails", None)
+        participant_observer_emails = validated_data.pop("participant_observer_emails", None)
         for field, value in validated_data.items():
             setattr(instance, field, value)
         instance.save()
@@ -237,6 +260,7 @@ class VideoMeetingSerializer(serializers.ModelSerializer):
             instance,
             participant_user_ids,
             participant_emails,
+            participant_observer_emails,
             instance.organizer,
         )
         return instance

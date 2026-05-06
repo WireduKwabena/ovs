@@ -270,7 +270,7 @@ services:
     working_dir: /workspace
     environment:
       VITE_API_PROXY_TARGET: http://backend:8000  # ← internal, used by Vite proxy server (correct)
-      VITE_API_URL: http://localhost:8000/api/v1  # ← used by browser (must be localhost)
+      VITE_API_URL: /api/v1  # use same-origin API path so ngrok/phone traffic proxies through Vite
       VITE_WS_URL: ws://localhost:8000
     command: >
       sh -c 'LOCK_HASH="$$(sha256sum package-lock.json | awk "{print $$1}")";

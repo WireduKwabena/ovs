@@ -1,6 +1,9 @@
 import api from "./api";
+import axios from "axios";
+import { API_URL } from "@/config/env";
 import type {
   ApiError,
+  GuestMeetingJoinToken,
   PaginatedResponse,
   VideoMeeting,
   VideoMeetingCreatePayload,
@@ -197,6 +200,22 @@ export const videoCallService = {
     }
   },
 
+  async guestJoin(guestToken: string, orgSlug: string): Promise<GuestMeetingJoinToken> {
+    // Unauthenticated request — do NOT use the `api` instance (it may attach
+    // a stale Bearer token or trigger the 401-refresh interceptor).
+    const response = await axios.get<GuestMeetingJoinToken>(
+      `${API_URL}/video-calls/meetings/guest-join/`,
+      {
+        params: { token: guestToken },
+        headers: {
+          "Content-Type": "application/json",
+          ...(orgSlug ? { "X-Organization-Slug": orgSlug } : {}),
+        },
+      },
+    );
+    return response.data;
+  },
+
   async downloadCalendarIcs(meetingId: string): Promise<Blob> {
     try {
       const response = await api.get<Blob>(`/video-calls/meetings/${meetingId}/calendar-ics/`, {
@@ -235,6 +254,14 @@ export const videoCallService = {
       return response.data;
     } catch (error) {
       throw new Error(toMessage(error, "Failed to fetch reminder health."));
+    }
+  },
+
+  async deleteMeeting(meetingId: string): Promise<void> {
+    try {
+      await api.delete(`/video-calls/meetings/${meetingId}/`);
+    } catch (error) {
+      throw new Error(toMessage(error, "Failed to delete meeting."));
     }
   },
 };

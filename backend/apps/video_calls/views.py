@@ -13,8 +13,8 @@ from django.utils.text import slugify
 from django.utils import timezone
 from django_tenants.utils import get_public_schema_name, schema_context
 from rest_framework import status, viewsets
-from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from apps.core.permissions import is_admin_user, is_government_workflow_operator
@@ -33,6 +33,7 @@ from apps.video_calls.serializers import (
 )
 from apps.video_calls.services import (
     build_meeting_ics_content,
+    build_meeting_guest_join_url,
     build_livekit_join_token,
     notify_meeting_cancelled,
     notify_meeting_created,
@@ -75,6 +76,15 @@ class VideoMeetingViewSet(viewsets.ModelViewSet):
         return queryset.filter(
             Q(organizer=user) | Q(participants__user=user)
         ).distinct().order_by("scheduled_start", "-created_at")
+
+    def destroy(self, request, *args, **kwargs):
+        meeting = self.get_object()
+        if meeting.status not in {VideoMeeting.STATUS_COMPLETED, VideoMeeting.STATUS_CANCELLED}:
+            return Response(
+                {"error": "Only completed or cancelled meetings can be deleted."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().destroy(request, *args, **kwargs)
 
     def perform_create(self, serializer):
         meeting = serializer.save()
@@ -740,3 +750,134 @@ class VideoMeetingViewSet(viewsets.ModelViewSet):
                 pass
 
         return Response(aggregated, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def guest_meeting_calendar_ics(request):
+    """
+    Public endpoint — no authentication required.
+
+    Download a calendar ICS file using a participant guest token:
+        /api/video-calls/meetings/guest-calendar-ics/?token=<guest_token>&org=<org_slug>
+    """
+    raw_token = (
+        request.query_params.get("token", "").strip()
+        or request.query_params.get("t", "").strip()
+    )
+    if not raw_token:
+        return Response({"error": "token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        token_uuid = uuid.UUID(raw_token)
+    except ValueError:
+        return Response({"error": "Invalid token."}, status=status.HTTP_400_BAD_REQUEST)
+
+    participant = _resolve_guest_participant(
+        token_uuid=token_uuid,
+        org_slug=request.query_params.get("org", "").strip(),
+    )
+    if participant is None:
+        return Response({"error": "Invalid or expired calendar token."}, status=status.HTTP_404_NOT_FOUND)
+
+    meeting = participant.meeting
+    guest_join_url = build_meeting_guest_join_url(participant)
+    content = build_meeting_ics_content(meeting, join_url=guest_join_url)
+    safe_title = slugify(meeting.title) or "video-meeting"
+    filename = f"{safe_title}-{meeting.id}.ics"
+
+    response = HttpResponse(content, content_type="text/calendar; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+def _resolve_guest_participant(*, token_uuid: uuid.UUID, org_slug: str = ""):
+    def _current_schema_lookup():
+        return (
+            VideoMeetingParticipant.objects.select_related("meeting", "user")
+            .get(guest_token=token_uuid)
+        )
+
+    try:
+        return _current_schema_lookup()
+    except VideoMeetingParticipant.DoesNotExist:
+        pass
+
+    # If tenant wasn't resolved by host/header, allow org slug fallback for guest links.
+    if connection.schema_name != get_public_schema_name() or not org_slug:
+        return None
+
+    from apps.tenants.models import Organization
+
+    try:
+        org = Organization.objects.get(code=org_slug, is_active=True)
+    except Organization.DoesNotExist:
+        return None
+
+    with schema_context(org.schema_name):
+        try:
+            return (
+                VideoMeetingParticipant.objects.select_related("meeting", "user")
+                .get(guest_token=token_uuid)
+            )
+        except VideoMeetingParticipant.DoesNotExist:
+            return None
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def guest_meeting_join(request):
+    """
+    Public endpoint — no authentication required.
+
+    Candidates receive a personalised URL in their meeting invitation email:
+        /join?t=<guest_token>&org=<org_slug>
+
+    The frontend calls this endpoint to obtain a LiveKit join token without
+    the user needing to log in.
+    """
+    raw_token = (
+        request.query_params.get("token", "").strip()
+        or request.query_params.get("t", "").strip()
+    )
+    if not raw_token:
+        return Response({"error": "token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        token_uuid = uuid.UUID(raw_token)
+    except ValueError:
+        return Response({"error": "Invalid token."}, status=status.HTTP_400_BAD_REQUEST)
+
+    participant = _resolve_guest_participant(
+        token_uuid=token_uuid,
+        org_slug=request.query_params.get("org", "").strip(),
+    )
+    if participant is None:
+        return Response({"error": "Invalid or expired join token."}, status=status.HTTP_404_NOT_FOUND)
+
+    meeting = participant.meeting
+    if not meeting.is_joinable:
+        return Response({"error": "Meeting is outside join window."}, status=status.HTTP_400_BAD_REQUEST)
+
+    user = participant.user
+    try:
+        lk_token = build_livekit_join_token(meeting=meeting, user=user, role=participant.role)
+    except RuntimeError as exc:
+        return Response({"error": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    if participant.status != VideoMeetingParticipant.STATUS_JOINED:
+        participant.mark_joined()
+
+    return Response(
+        {
+            "token": lk_token,
+            "ws_url": str(getattr(settings, "LIVEKIT_URL", "")).strip(),
+            "room_name": meeting.livekit_room_name,
+            "expires_in": int(getattr(settings, "LIVEKIT_TOKEN_TTL_SECONDS", 3600)),
+            "meeting_id": str(meeting.id),
+            "meeting_title": meeting.title,
+            "scheduled_start": meeting.scheduled_start.isoformat(),
+            "scheduled_end": meeting.scheduled_end.isoformat(),
+        },
+        status=status.HTTP_200_OK,
+    )

@@ -2,6 +2,7 @@ from rest_framework import serializers
 from apps.applications.models import VettingCase
 from apps.users.models import User
 from apps.core.authz import GOVERNMENT_ROLE_GROUPS
+from apps.admin_dashboard.models import PlatformIssueReport
 
 
 class VettingCaseAdminSerializer(serializers.ModelSerializer):
@@ -172,4 +173,73 @@ class AdminUserUpdateRequestSerializer(serializers.Serializer):
         required=False,
         allow_empty=True,
     )
+
+
+class PlatformIssueReportSerializer(serializers.ModelSerializer):
+    reporter_email = serializers.EmailField(source="reporter.email", read_only=True)
+    reporter_name = serializers.SerializerMethodField()
+    resolved_by_email = serializers.EmailField(source="resolved_by.email", read_only=True)
+
+    class Meta:
+        model = PlatformIssueReport
+        fields = [
+            "id",
+            "title",
+            "description",
+            "steps_to_reproduce",
+            "page_url",
+            "browser_info",
+            "category",
+            "severity",
+            "status",
+            "reporter",
+            "reporter_email",
+            "reporter_name",
+            "resolved_by",
+            "resolved_by_email",
+            "resolved_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "status",
+            "reporter",
+            "reporter_email",
+            "reporter_name",
+            "resolved_by",
+            "resolved_by_email",
+            "resolved_at",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_reporter_name(self, obj) -> str:
+        return obj.reporter.get_full_name() if hasattr(obj.reporter, "get_full_name") else obj.reporter.email
+
+
+class PlatformIssueReportCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PlatformIssueReport
+        fields = [
+            "title",
+            "description",
+            "steps_to_reproduce",
+            "page_url",
+            "browser_info",
+            "category",
+            "severity",
+        ]
+
+
+class PlatformIssueReportUpdateSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=PlatformIssueReport.STATUS_CHOICES, required=False)
+
+
+class PlatformIssueReportListResponseSerializer(serializers.Serializer):
+    results = PlatformIssueReportSerializer(many=True)
+    count = serializers.IntegerField()
+    page = serializers.IntegerField()
+    page_size = serializers.IntegerField()
+    total_pages = serializers.IntegerField()
 

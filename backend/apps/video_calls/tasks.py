@@ -10,6 +10,12 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from apps.video_calls.services import (
+    notify_meeting_start_now,
+    notify_meeting_starting_soon,
+    notify_meeting_time_up,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -54,13 +60,8 @@ def _process_reminders_for_schema(
     Runs all video meeting reminder logic for the current DB schema context.
     Must be called from within a schema_context() block.
     """
-    # Import here to ensure models are resolved in the correct schema context.
+    # Import model here to ensure it resolves in the correct schema context.
     from apps.video_calls.models import VideoMeeting
-    from apps.video_calls.services import (
-        notify_meeting_start_now,
-        notify_meeting_starting_soon,
-        notify_meeting_time_up,
-    )
 
     stats = {
         "soon": 0,
