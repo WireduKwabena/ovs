@@ -70,9 +70,9 @@ class PlatformIssueReport(models.Model):
 	class Meta:
 		ordering = ["-created_at"]
 		indexes = [
-			models.Index(fields=["status", "created_at"]),
-			models.Index(fields=["severity", "created_at"]),
-			models.Index(fields=["reporter", "created_at"]),
+			models.Index(fields=["status", "created_at"], name="adm_pr_status_created_idx"),
+			models.Index(fields=["severity", "created_at"], name="adm_pr_severity_created_idx"),
+			models.Index(fields=["reporter", "created_at"], name="adm_pr_reporter_created_idx"),
 		]
 
 	def __str__(self) -> str:

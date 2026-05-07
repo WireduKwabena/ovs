@@ -9,6 +9,11 @@ from apps.core.validators import (
     JSONSchemaValidator,
     SUGGESTED_QUESTIONS_SCHEMA,
 )
+from .models import (
+    CaseInfoRequest,
+    CaseInfoRequestTemplate,
+    CaseInfoRequestResponse,
+)
 
 try:
     from drf_spectacular.utils import extend_schema_field
@@ -336,8 +341,39 @@ class VettingCaseSerializer(serializers.ModelSerializer):
         }
 
 
+class CaseInfoRequestTemplateSerializer(serializers.ModelSerializer):
+    """Serializer for predefined info request templates."""
+
+    class Meta:
+        model = CaseInfoRequestTemplate
+        fields = ["id", "category", "title", "description", "is_active", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class CaseInfoRequestResponseAttachmentSerializer(serializers.ModelSerializer):
+    """Serializer for response file attachments."""
+
+    download_url = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = CaseInfoRequestResponse
+        fields = ["id", "file", "filename", "file_size", "file_type", "created_at", "download_url"]
+        read_only_fields = ["id", "filename", "file_size", "file_type", "created_at", "download_url"]
+
+    def get_download_url(self, obj):
+        """Generate download URL for the file."""
+        request = self.context.get("request")
+        if obj.file and request:
+            return request.build_absolute_uri(obj.file.url)
+        return None
+
+
 class CaseInfoRequestSerializer(serializers.ModelSerializer):
     requested_by_email = serializers.EmailField(source="requested_by.email", read_only=True)
+    template_title = serializers.CharField(source="template.title", read_only=True)
+    response_attachments = CaseInfoRequestResponseAttachmentSerializer(many=True, read_only=True)
+    is_overdue = serializers.BooleanField(read_only=True)
+    days_remaining = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = CaseInfoRequest
@@ -346,10 +382,20 @@ class CaseInfoRequestSerializer(serializers.ModelSerializer):
             "case",
             "requested_by",
             "requested_by_email",
+            "template",
+            "template_title",
             "message",
+            "category",
+            "due_by",
             "status",
             "response",
             "responded_at",
+            "reopened_at",
+            "reopened_count",
+            "escalated_at",
+            "response_attachments",
+            "is_overdue",
+            "days_remaining",
             "created_at",
             "updated_at",
         ]
@@ -358,8 +404,14 @@ class CaseInfoRequestSerializer(serializers.ModelSerializer):
             "case",
             "requested_by",
             "requested_by_email",
+            "template_title",
             "status",
             "responded_at",
+            "reopened_at",
+            "escalated_at",
+            "response_attachments",
+            "is_overdue",
+            "days_remaining",
             "created_at",
             "updated_at",
         ]
@@ -367,10 +419,38 @@ class CaseInfoRequestSerializer(serializers.ModelSerializer):
 
 class CaseInfoRequestCreateSerializer(serializers.Serializer):
     message = serializers.CharField(required=True, allow_blank=False, trim_whitespace=True)
+    category = serializers.ChoiceField(
+        choices=CaseInfoRequest.CATEGORY_CHOICES,
+        default="other",
+        required=False,
+    )
+    template_id = serializers.UUIDField(required=False, allow_null=True)
+    due_by = serializers.DateTimeField(required=False, allow_null=True)
+
+    def validate_template_id(self, value):
+        if value:
+            try:
+                return CaseInfoRequestTemplate.objects.get(id=value)
+            except CaseInfoRequestTemplate.DoesNotExist:
+                raise serializers.ValidationError("Template not found or inactive")
+        return None
 
 
 class CaseInfoRequestRespondSerializer(serializers.Serializer):
     response = serializers.CharField(required=True, allow_blank=False, trim_whitespace=True)
+
+
+class CaseInfoRequestReopenSerializer(serializers.Serializer):
+    message = serializers.CharField(required=True, allow_blank=False, trim_whitespace=True)
+
+
+class CaseInfoRequestResponseUploadSerializer(serializers.ModelSerializer):
+    """Serializer for uploading response attachments."""
+
+    class Meta:
+        model = CaseInfoRequestResponse
+        fields = ["id", "file", "created_at"]
+        read_only_fields = ["id", "created_at"]
 
 
 class DocumentUploadSerializer(serializers.Serializer):

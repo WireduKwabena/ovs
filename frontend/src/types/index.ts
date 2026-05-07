@@ -450,15 +450,45 @@ export interface ApplicationWithDocuments extends VettingCase {
   rubric_evaluation?: RubricEvaluation;
 }
 
+export interface CaseInfoRequestTemplate {
+  id: string;
+  category: "identity" | "address" | "employment" | "education" | "financial" | "references" | "other";
+  title: string;
+  description: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CaseInfoRequestResponseAttachment {
+  id: string;
+  file: string;
+  filename: string;
+  file_size: number;
+  file_type: string;
+  created_at: string;
+  download_url?: string;
+}
+
 export interface CaseInfoRequest {
   id: string;
   case: string;
   requested_by?: string;
   requested_by_email?: string;
+  template?: string | null;
+  template_title?: string;
   message: string;
-  status: "open" | "responded" | "closed";
+  category: "identity" | "address" | "employment" | "education" | "financial" | "references" | "other";
+  due_by?: string | null;
+  status: "open" | "responded" | "revision_requested" | "closed";
   response?: string;
   responded_at?: string | null;
+  reopened_at?: string | null;
+  reopened_count?: number;
+  escalated_at?: string | null;
+  response_attachments?: CaseInfoRequestResponseAttachment[];
+  is_overdue?: boolean;
+  days_remaining?: number | null;
   created_at: string;
   updated_at: string;
 }

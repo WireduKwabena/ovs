@@ -33,11 +33,13 @@ from apps.tenants.models import Organization
 from apps.invitations.permissions import IsAuthenticatedOrCandidateAccessSession
 from apps.notifications.services import NotificationService
 
-from .models import CaseInfoRequest, Document, VettingCase
+from .models import CaseInfoRequest, CaseInfoRequestTemplate, Document, VettingCase
 from .serializers import (
     CaseInfoRequestCreateSerializer,
+    CaseInfoRequestReopenSerializer,
     CaseInfoRequestRespondSerializer,
     CaseInfoRequestSerializer,
+    CaseInfoRequestTemplateSerializer,
     DocumentSerializer,
     DocumentUploadSerializer,
     VettingCaseSerializer,
@@ -185,8 +187,10 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
         if request.method.lower() == "get":
             if not (enrollment_id or is_operator or is_admin or is_case_applicant):
                 raise PermissionDenied("You do not have permission to view case info requests.")
-            queryset = case.info_requests.select_related("requested_by").order_by("-created_at")
-            serializer = CaseInfoRequestSerializer(queryset, many=True)
+            queryset = case.info_requests.select_related("requested_by", "template").order_by("-created_at")
+            serializer = CaseInfoRequestSerializer(
+                queryset, many=True, context={"request": request}
+            )
             return Response(serializer.data)
 
         if not (is_operator or is_admin):
@@ -194,10 +198,19 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
 
         serializer = CaseInfoRequestCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        template = serializer.validated_data.get("template_id")
+        message = serializer.validated_data["message"]
+        category = serializer.validated_data.get("category", "other")
+        due_by = serializer.validated_data.get("due_by")
+
         info_request = CaseInfoRequest.objects.create(
             case=case,
             requested_by=user,
-            message=serializer.validated_data["message"],
+            message=message,
+            category=category,
+            template=template,
+            due_by=due_by,
         )
 
         if case.status not in {"approved", "rejected"}:
@@ -205,7 +218,7 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
             case.save(update_fields=["status", "updated_at"])
 
         NotificationService.send_case_info_requested(case, info_request)
-        output = CaseInfoRequestSerializer(info_request)
+        output = CaseInfoRequestSerializer(info_request, context={"request": request})
         return Response(output.data, status=status.HTTP_201_CREATED)
 
     @action(
@@ -224,7 +237,7 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Only the applicant can respond to an info request.")
 
         info_request = get_object_or_404(case.info_requests, id=request_id)
-        if info_request.status != CaseInfoRequest.STATUS_OPEN:
+        if info_request.status not in [CaseInfoRequest.STATUS_OPEN, CaseInfoRequest.STATUS_REVISION_REQUESTED]:
             raise ValidationError({"status": "This info request has already been responded to or closed."})
 
         serializer = CaseInfoRequestRespondSerializer(data=request.data)
@@ -240,8 +253,124 @@ class VettingCaseViewSet(viewsets.ModelViewSet):
             case.save(update_fields=["status", "updated_at"])
 
         NotificationService.send_case_info_response_submitted(case, info_request)
-        output = CaseInfoRequestSerializer(info_request)
+        output = CaseInfoRequestSerializer(info_request, context={"request": request})
         return Response(output.data)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path=r"info-requests/(?P<request_id>[^/.]+)/reopen",
+    )
+    def reopen_info_request(self, request, pk=None, request_id=None):
+        """Reopen an info request for revision by the applicant."""
+        case = self.get_object()
+        user = request.user
+        is_authenticated = bool(getattr(user, "is_authenticated", False))
+        is_operator = is_authenticated and is_government_workflow_operator(user)
+        is_admin = is_authenticated and is_platform_admin_user(user)
+
+        if not (is_operator or is_admin):
+            raise PermissionDenied("Only internal reviewers can reopen info requests.")
+
+        info_request = get_object_or_404(case.info_requests, id=request_id)
+        if info_request.status == CaseInfoRequest.STATUS_OPEN:
+            raise ValidationError({"status": "This info request is already open."})
+
+        serializer = CaseInfoRequestReopenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        info_request.message = serializer.validated_data["message"]
+        info_request.status = CaseInfoRequest.STATUS_REVISION_REQUESTED
+        info_request.reopened_at = timezone.now()
+        info_request.reopened_count = (info_request.reopened_count or 0) + 1
+        info_request.response = ""  # Clear previous response
+        info_request.responded_at = None
+        info_request.save(
+            update_fields=[
+                "message",
+                "status",
+                "reopened_at",
+                "reopened_count",
+                "response",
+                "responded_at",
+                "updated_at",
+            ]
+        )
+
+        if case.status != "info_requested":
+            case.status = "info_requested"
+            case.save(update_fields=["status", "updated_at"])
+
+        NotificationService.send_case_info_requested(case, info_request)
+        output = CaseInfoRequestSerializer(info_request, context={"request": request})
+        return Response(output.data)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path=r"info-requests/(?P<request_id>[^/.]+)/close",
+    )
+    def close_info_request(self, request, pk=None, request_id=None):
+        """Close an info request after decision is made."""
+        case = self.get_object()
+        user = request.user
+        is_authenticated = bool(getattr(user, "is_authenticated", False))
+        is_operator = is_authenticated and is_government_workflow_operator(user)
+        is_admin = is_authenticated and is_platform_admin_user(user)
+
+        if not (is_operator or is_admin):
+            raise PermissionDenied("Only internal reviewers can close info requests.")
+
+        info_request = get_object_or_404(case.info_requests, id=request_id)
+        if info_request.status == CaseInfoRequest.STATUS_CLOSED:
+            raise ValidationError({"status": "This info request is already closed."})
+
+        info_request.status = CaseInfoRequest.STATUS_CLOSED
+        info_request.save(update_fields=["status", "updated_at"])
+
+        output = CaseInfoRequestSerializer(info_request, context={"request": request})
+        return Response(output.data)
+
+    @action(detail=False, methods=["get"], url_path="info-request-templates")
+    def list_info_request_templates(self, request):
+        """List available info request templates."""
+        templates = CaseInfoRequestTemplate.objects.filter(is_active=True).order_by("category", "title")
+        serializer = CaseInfoRequestTemplateSerializer(templates, many=True)
+        return Response(serializer.data)
+
+        @action(
+            detail=True,
+            methods=["post"],
+            url_path=r"info-requests/(?P<request_id>[^/.]+)/attachments",
+        )
+        def upload_info_request_attachment(self, request, pk=None, request_id=None):
+            """Upload an attachment to an info request response."""
+            case = self.get_object()
+            user = request.user
+            enrollment_id = _candidate_enrollment_id(request)
+
+            is_authenticated = bool(getattr(user, "is_authenticated", False))
+            is_case_applicant = is_authenticated and case.applicant_id == getattr(user, "id", None)
+            if not (enrollment_id or is_case_applicant):
+                raise PermissionDenied("Only the applicant can upload response attachments.")
+
+            info_request = get_object_or_404(case.info_requests, id=request_id)
+            if info_request.status not in [CaseInfoRequest.STATUS_RESPONDED, CaseInfoRequest.STATUS_OPEN]:
+                raise ValidationError({"status": "Cannot upload attachments to a closed or inactive request."})
+
+            if "file" not in request.FILES:
+                raise ValidationError({"file": "No file provided"})
+
+            file = request.FILES["file"]
+            attachment = CaseInfoRequestResponse.objects.create(
+                info_request=info_request,
+                file=file,
+            )
+
+            serializer = CaseInfoRequestResponseAttachmentSerializer(
+                attachment, context={"request": request}
+            )
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], url_path="upload-document")
     def upload_document(self, request, pk=None):

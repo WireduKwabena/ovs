@@ -505,6 +505,33 @@ export const ApplicationDetailPage: React.FC = () => {
                           <p className="text-sm font-semibold text-slate-900 capitalize">
                             {infoRequest.status}
                           </p>
+
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {infoRequest.category && (
+                              <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-800 capitalize">
+                                {infoRequest.category.replace("_", " ")}
+                              </span>
+                            )}
+                            {infoRequest.status === "open" &&
+                              infoRequest.due_by && (
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+                                    infoRequest.is_overdue
+                                      ? "bg-red-100 text-red-800"
+                                      : "bg-yellow-100 text-yellow-800"
+                                  }`}
+                                >
+                                  {infoRequest.is_overdue
+                                    ? "⚠️ Overdue"
+                                    : `Due in ${infoRequest.days_remaining} day${infoRequest.days_remaining !== 1 ? "s" : ""}`}
+                                </span>
+                              )}
+                            {infoRequest.status === "revision_requested" && (
+                              <span className="inline-flex items-center rounded-full bg-orange-100 px-2.5 py-1 text-xs font-medium text-orange-800">
+                                Revision Requested
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-slate-600">
                             {formatDate(infoRequest.created_at)}
                           </p>
@@ -513,6 +540,37 @@ export const ApplicationDetailPage: React.FC = () => {
                           {infoRequest.message}
                         </p>
 
+                        {infoRequest.response_attachments &&
+                          infoRequest.response_attachments.length > 0 && (
+                            <div className="mt-2 space-y-1 text-xs text-slate-600">
+                              <p className="font-semibold">Attachments:</p>
+                              {infoRequest.response_attachments.map(
+                                (attachment) => (
+                                  <div
+                                    key={attachment.id}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <a
+                                      href={attachment.download_url || "#"}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-indigo-600 hover:underline"
+                                    >
+                                      {attachment.filename}
+                                    </a>
+                                    <span>
+                                      (
+                                      {attachment.file_size &&
+                                        (attachment.file_size / 1024).toFixed(
+                                          1,
+                                        )}{" "}
+                                      KB)
+                                    </span>
+                                  </div>
+                                ),
+                              )}
+                            </div>
+                          )}
                         {infoRequest.response ? (
                           <div className="mt-3 rounded bg-green-50 p-3 text-sm text-green-900">
                             <p className="mb-1 font-semibold">Your response</p>

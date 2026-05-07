@@ -1012,24 +1012,72 @@ class ExternalVerificationResult(models.Model):
         return f"{self.case.case_id}::{self.source.key}::{self.result_status}"
 
 
+class CaseInfoRequestTemplate(models.Model):
+    """
+    Predefined info request templates for common requests (e.g., "Proof of Address").
+    Helps reviewers quickly standardize requests across cases.
+    """
+
+    CATEGORY_CHOICES = [
+        ("identity", "Identity/Verification"),
+        ("address", "Address Proof"),
+        ("employment", "Employment History"),
+        ("education", "Education Credentials"),
+        ("financial", "Financial Information"),
+        ("references", "References"),
+        ("other", "Other"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
+    title = models.CharField(max_length=100, help_text="e.g., 'Proof of Current Address'")
+    description = models.TextField(help_text="Template text for the request")
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["category", "title"]
+        verbose_name = "Info Request Template"
+        verbose_name_plural = "Info Request Templates"
+
+    def __str__(self):
+        return f"{self.title} ({self.get_category_display()})"
+
+
 class CaseInfoRequest(models.Model):
     """
     Tracks requests for additional information sent from reviewers to applicants.
 
     When a reviewer needs more data before deciding on a VettingCase, they create
     a CaseInfoRequest. The applicant receives a notification, can view the request,
-    and submit a text response. The case status is set to ``info_requested`` while
-    a request is open and reverts to ``under_review`` once the applicant responds.
+    and submit a text response (with optional file attachments). The case status is
+    set to ``info_requested`` while a request is open and reverts to ``under_review``
+    once the applicant responds.
+
+    Supports request reopening for revision cycles and deadlines.
     """
 
     STATUS_OPEN = "open"
     STATUS_RESPONDED = "responded"
+    STATUS_REVISION_REQUESTED = "revision_requested"
     STATUS_CLOSED = "closed"
 
     STATUS_CHOICES = [
         (STATUS_OPEN, "Open"),
         (STATUS_RESPONDED, "Responded"),
+        (STATUS_REVISION_REQUESTED, "Revision Requested"),
         (STATUS_CLOSED, "Closed"),
+    ]
+
+    CATEGORY_CHOICES = [
+        ("identity", "Identity/Verification"),
+        ("address", "Address Proof"),
+        ("employment", "Employment History"),
+        ("education", "Education Credentials"),
+        ("financial", "Financial Information"),
+        ("references", "References"),
+        ("other", "Other"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -1048,11 +1096,32 @@ class CaseInfoRequest(models.Model):
         db_constraint=False,
     )
 
+    template = models.ForeignKey(
+        CaseInfoRequestTemplate,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="used_in_requests",
+    )
+
     # What the reviewer is asking for
     message = models.TextField(help_text="Description of what additional information is needed")
+    category = models.CharField(
+        max_length=20,
+        choices=CATEGORY_CHOICES,
+        default="other",
+        help_text="Categorize the type of information requested",
+    )
+
+    # Deadline
+    due_by = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the applicant should respond by",
+    )
 
     status = models.CharField(
-        max_length=20,
+        max_length=25,
         choices=STATUS_CHOICES,
         default=STATUS_OPEN,
         db_index=True,
@@ -1062,17 +1131,88 @@ class CaseInfoRequest(models.Model):
     response = models.TextField(blank=True)
     responded_at = models.DateTimeField(null=True, blank=True)
 
+    # Reopening support
+    reopened_at = models.DateTimeField(null=True, blank=True, help_text="When request was reopened for revision")
+    reopened_count = models.IntegerField(default=0, help_text="Number of times request was reopened")
+
+    # Escalation
+    escalated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When request was auto-escalated due to overdue response",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["case", "status"]),
+            models.Index(fields=["case", "status"], name="application_case_id_ff7fac_idx"),
+            models.Index(fields=["status", "due_by"], name="app_cir_status_due_idx"),
         ]
         verbose_name = "Case Info Request"
         verbose_name_plural = "Case Info Requests"
 
     def __str__(self):
         return f"InfoRequest for {self.case.case_id} [{self.status}]"
+
+    @property
+    def is_overdue(self):
+        """Check if request is overdue."""
+        if not self.due_by or self.status in [self.STATUS_RESPONDED, self.STATUS_CLOSED]:
+            return False
+        return timezone.now() > self.due_by
+
+    @property
+    def days_remaining(self):
+        """Calculate days until due date."""
+        if not self.due_by:
+            return None
+        remaining = (self.due_by - timezone.now()).days
+        return max(0, remaining)
+
+
+class CaseInfoRequestResponse(models.Model):
+    """
+    Attachment for a CaseInfoRequest response.
+    
+    Allows applicants to upload files (documents, images, etc.) as part of their
+    response to an info request. Multiple attachments per response are supported.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    info_request = models.ForeignKey(
+        CaseInfoRequest,
+        on_delete=models.CASCADE,
+        related_name="response_attachments",
+    )
+
+    file = models.FileField(
+        upload_to="info_requests",
+        help_text="Supporting document or file",
+    )
+
+    filename = models.CharField(max_length=255, editable=False)
+    file_size = models.BigIntegerField(editable=False, help_text="File size in bytes")
+    file_type = models.CharField(max_length=50, editable=False, help_text="MIME type")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        verbose_name = "Info Request Response Attachment"
+        verbose_name_plural = "Info Request Response Attachments"
+
+    def __str__(self):
+        return f"Response attachment: {self.filename}"
+
+    def save(self, *args, **kwargs):
+        """Capture file metadata on save."""
+        if self.file:
+            self.filename = self.file.name
+            self.file_size = self.file.size
+            self.file_type = self.file.content_type or "application/octet-stream"
+        super().save(*args, **kwargs)
 

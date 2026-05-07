@@ -380,6 +380,52 @@ def verify_document_async(self, document_id: int):
         raise
 
 
+@shared_task(bind=True, max_retries=3)
+def escalate_overdue_info_requests(self):
+    """
+    Auto-escalate info requests that are overdue (past due_by deadline).
+    Scheduled to run periodically (e.g., daily). Marks open requests as
+    escalated and sends notifications to reviewers.
+    """
+    from .models import CaseInfoRequest
+    from apps.notifications.services import NotificationService
+
+    now = timezone.now()
+    overdue_requests = CaseInfoRequest.objects.filter(
+        status=CaseInfoRequest.STATUS_OPEN,
+        due_by__lt=now,
+        escalated_at__isnull=True,
+    )
+
+    escalated_count = 0
+    for info_request in overdue_requests:
+        try:
+            info_request.escalated_at = now
+            info_request.save(update_fields=["escalated_at", "updated_at"])
+
+            # Notify the reviewer who made the request
+            if info_request.requested_by:
+                NotificationService.send_in_app_notification(
+                    user=info_request.requested_by,
+                    title="Info Request Overdue",
+                    message=f"The info request for {info_request.case.case_id} is now overdue (due {info_request.due_by.strftime('%Y-%m-%d')}). "
+                    f"Applicant has not responded.",
+                    notification_type="info_request_overdue",
+                    related_object_id=str(info_request.case.id),
+                    related_object_type="VettingCase",
+                )
+
+            escalated_count += 1
+            logger.info(f"Escalated info request {info_request.id} (case {info_request.case.case_id})")
+
+        except Exception as exc:
+            logger.error(f"Error escalating info request {info_request.id}: {exc}", exc_info=True)
+            continue
+
+    logger.info(f"Escalation task completed: {escalated_count} info requests marked as escalated")
+    return {"escalated": escalated_count}
+
+
 
 
 

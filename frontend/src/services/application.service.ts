@@ -5,6 +5,8 @@ import type {
   ApplicationType,
   ApplicationWithDocuments,
   CaseInfoRequest,
+  CaseInfoRequestResponseAttachment,
+  CaseInfoRequestTemplate,
   Document,
   DocumentType,
   Priority,
@@ -503,6 +505,85 @@ export const applicationService = {
       throw toServiceError(error, "Failed to submit information");
     }
   },
+
+    async listInfoRequestTemplates(): Promise<CaseInfoRequestTemplate[]> {
+      try {
+        const response = await api.get<CaseInfoRequestTemplate[]>("/applications/cases/info-request-templates/");
+        return Array.isArray(response.data) ? response.data : [];
+      } catch (error) {
+        throw toServiceError(error, "Failed to load info request templates");
+      }
+    },
+
+    async requestMoreInfoExtended(
+      caseId: string,
+      message: string,
+      category?: string,
+      templateId?: string,
+      dueBy?: string,
+    ): Promise<CaseInfoRequest> {
+      try {
+        const payload: Record<string, any> = { message };
+        if (category) payload.category = category;
+        if (templateId) payload.template_id = templateId;
+        if (dueBy) payload.due_by = dueBy;
+
+        const response = await api.post<CaseInfoRequest>(
+          `/applications/cases/${caseId}/info-requests/`,
+          payload,
+        );
+        return normalizeInfoRequest(response.data);
+      } catch (error) {
+        throw toServiceError(error, "Failed to request more information");
+      }
+    },
+
+    async reopenInfoRequest(
+      caseId: string,
+      infoRequestId: string,
+      message: string,
+    ): Promise<CaseInfoRequest> {
+      try {
+        const response = await api.post<CaseInfoRequest>(
+          `/applications/cases/${caseId}/info-requests/${infoRequestId}/reopen/`,
+          { message },
+        );
+        return normalizeInfoRequest(response.data);
+      } catch (error) {
+        throw toServiceError(error, "Failed to reopen info request");
+      }
+    },
+
+    async closeInfoRequest(caseId: string, infoRequestId: string): Promise<CaseInfoRequest> {
+      try {
+        const response = await api.post<CaseInfoRequest>(
+          `/applications/cases/${caseId}/info-requests/${infoRequestId}/close/`,
+        );
+        return normalizeInfoRequest(response.data);
+      } catch (error) {
+        throw toServiceError(error, "Failed to close info request");
+      }
+    },
+
+    async uploadInfoRequestAttachment(
+      caseId: string,
+      infoRequestId: string,
+      file: File,
+    ): Promise<CaseInfoRequestResponseAttachment> {
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await api.post<CaseInfoRequestResponseAttachment>(
+          `/applications/cases/${caseId}/info-requests/${infoRequestId}/attachments/`,
+          formData,
+          { headers: { "Content-Type": "multipart/form-data" } },
+        );
+        return response.data;
+      } catch (error) {
+        throw toServiceError(error, "Failed to upload attachment");
+      }
+    },
 
   async listDocuments(): Promise<Document[]> {
     try {

@@ -39,7 +39,7 @@ class Organization(TenantMixin):
     class Meta:
         ordering = ["name"]
         indexes = [
-            models.Index(fields=["is_active", "name"]),
+            models.Index(fields=["is_active", "name"], name="tenants_org_is_acti_c2ed40_idx"),
         ]
 
     def __str__(self):

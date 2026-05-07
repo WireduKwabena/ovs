@@ -38,14 +38,14 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name='platformissuereport',
-            index=models.Index(fields=['status', 'created_at'], name='admin_dashbo_status_d3d636_idx'),
+            index=models.Index(fields=['status', 'created_at'], name='adm_pr_status_created_idx'),
         ),
         migrations.AddIndex(
             model_name='platformissuereport',
-            index=models.Index(fields=['severity', 'created_at'], name='admin_dashbo_severit_f7fd79_idx'),
+            index=models.Index(fields=['severity', 'created_at'], name='adm_pr_severity_created_idx'),
         ),
         migrations.AddIndex(
             model_name='platformissuereport',
-            index=models.Index(fields=['reporter', 'created_at'], name='admin_dashbo_reporte_f43f6d_idx'),
+            index=models.Index(fields=['reporter', 'created_at'], name='adm_pr_reporter_created_idx'),
         ),
     ]

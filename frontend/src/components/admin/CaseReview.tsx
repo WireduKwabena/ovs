@@ -32,6 +32,13 @@ export const CaseReview: React.FC = () => {
   const [notes, setNotes] = useState("");
   const [requestMessage, setRequestMessage] = useState("");
   const [decision, setDecision] = useState<"approve" | "reject" | null>(null);
+  const [requestTemplate, setRequestTemplate] = useState<string | null>(null);
+  const [requestCategory, setRequestCategory] = useState("other");
+  const [requestDueDate, setRequestDueDate] = useState<string>("");
+  const [templates, setTemplates] = useState<
+    { id: string; title: string; category: string }[]
+  >([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
   const reviewListPath = orgId
     ? `/admin/org/${encodeURIComponent(String(orgId).trim())}/cases`
     : "/admin/cases";
@@ -57,9 +64,38 @@ export const CaseReview: React.FC = () => {
   }, [caseId]);
 
   useEffect(() => {
-    if (caseId) {
+    const handleRequestMoreInfo = async () => {
+      if (!caseId) return;
+      if (!requestMessage.trim()) {
+        toast.error("Please describe the additional information needed");
+        return;
+      }
+
+      setActionLoading(true);
+      try {
+        await applicationService.requestMoreInfoExtended(
+          caseId,
+          requestMessage.trim(),
+          requestCategory || "other",
+          requestTemplate || undefined,
+          requestDueDate || undefined,
+        );
+        if (notes.trim()) {
+          await applicationService.update(caseId, { notes: notes.trim() });
+        }
+        toast.info("Additional information requested from applicant");
+        setRequestMessage("");
+        setRequestTemplate(null);
+        setRequestCategory("other");
+        setRequestDueDate("");
+        navigate(reviewListPath);
+      } catch {
+        toast.error("Failed to request more information");
+      } finally {
+        setActionLoading(false);
+      }
       loadApplication();
-    }
+    };
   }, [caseId, loadApplication]);
 
   const handleApprove = async () => {
@@ -568,6 +604,72 @@ export const CaseReview: React.FC = () => {
                     : `${requestMessage.length} characters`}
                 </p>
               </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="request-category"
+                    className="block text-sm font-medium text-gray-900 mb-1"
+                  >
+                    Category
+                  </label>
+                  <select
+                    id="request-category"
+                    value={requestCategory}
+                    onChange={(e) => setRequestCategory(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 p-2 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="identity">Identity/Verification</option>
+                    <option value="address">Address Proof</option>
+                    <option value="employment">Employment History</option>
+                    <option value="education">Education Credentials</option>
+                    <option value="financial">Financial Information</option>
+                    <option value="references">References</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="request-due-date"
+                    className="block text-sm font-medium text-gray-900 mb-1"
+                  >
+                    Due Date (Optional)
+                  </label>
+                  <input
+                    id="request-due-date"
+                    type="datetime-local"
+                    value={requestDueDate}
+                    onChange={(e) => setRequestDueDate(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 p-2 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              {templates.length > 0 && (
+                <div className="mt-4">
+                  <label
+                    htmlFor="request-template"
+                    className="block text-sm font-medium text-gray-900 mb-1"
+                  >
+                    Use Template (Optional)
+                  </label>
+                  <select
+                    id="request-template"
+                    value={requestTemplate || ""}
+                    onChange={(e) => setRequestTemplate(e.target.value || null)}
+                    className="w-full rounded-lg border border-slate-300 p-2 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    disabled={loadingTemplates}
+                  >
+                    <option value="">-- No template --</option>
+                    {templates.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           </div>
 
