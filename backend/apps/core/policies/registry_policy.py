@@ -17,7 +17,7 @@ ORG_GOVERNANCE_ADMIN_MEMBERSHIP_ROLES = frozenset(
         "registry_admin",
         "org_admin",
         "organization_admin",
-        "system_admin",
+        # system_admin excluded: platform superuser, not an org-bounded role.
     }
 )
 

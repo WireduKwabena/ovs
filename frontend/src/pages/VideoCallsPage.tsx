@@ -187,6 +187,9 @@ const triggerFileDownload = (blob: Blob, filename: string): void => {
 
 const VideoCallsPage: React.FC = () => {
   const { isInternalOrAdmin, isAdmin, user } = useAuth();
+
+  const isOrganizerOrAdmin = (meeting: VideoMeeting) =>
+    isAdmin || String(meeting.organizer ?? "") === String(user?.id ?? "");
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [meetings, setMeetings] = useState<VideoMeeting[]>([]);
@@ -1151,6 +1154,25 @@ const VideoCallsPage: React.FC = () => {
 
         {isAdmin && <ReminderHealthCard />}
 
+        {/* Responsibility Focus */}
+        <div className="flex flex-wrap gap-2">
+          {isInternalOrAdmin && (
+            <span className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200">
+              Schedule &amp; Manage Meetings
+            </span>
+          )}
+          {isAdmin && (
+            <span className="inline-flex items-center rounded-full bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700 ring-1 ring-inset ring-rose-200">
+              Admin / Delete Access
+            </span>
+          )}
+          {!isInternalOrAdmin && (
+            <span className="inline-flex items-center rounded-full bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-200">
+              View-only access
+            </span>
+          )}
+        </div>
+
         {isInternalOrAdmin && (
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-900 inline-flex items-center gap-1.5">
@@ -1629,7 +1651,7 @@ const VideoCallsPage: React.FC = () => {
                           >
                             {meeting.status}
                           </span>
-                          {isInternalOrAdmin && meeting.series_id && (
+                          {isOrganizerOrAdmin(meeting) && meeting.series_id && (
                             <label className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-white px-2 py-1 text-xs text-slate-700">
                               <span>Series</span>
                               <select
@@ -1698,90 +1720,93 @@ const VideoCallsPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {isInternalOrAdmin && meeting.status === "scheduled" && (
-                        <div className="rounded-xl border border-slate-200 bg-slate/85 p-3 shadow-sm">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                            Schedule Controls
-                          </p>
-                          <div className="mt-2 flex flex-wrap gap-2 max-[420px]:grid max-[420px]:grid-cols-1 *:w-full sm:*:w-auto">
-                            <button
-                              type="button"
-                              onClick={() => void handleStartMeeting(meeting)}
-                              disabled={actionMeetingId === meeting.id}
-                              className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
-                            >
-                              <PlayCircle className="h-3.5 w-3.5" />
-                              Start
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void handleQuickExtend(meeting)}
-                              disabled={actionMeetingId === meeting.id}
-                              className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
-                            >
-                              +15 min
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void handleQuickShift(meeting)}
-                              disabled={actionMeetingId === meeting.id}
-                              className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
-                            >
-                              Shift +30 min
-                            </button>
-                            {meeting.series_id && (
+                      {isOrganizerOrAdmin(meeting) &&
+                        meeting.status === "scheduled" && (
+                          <div className="rounded-xl border border-slate-200 bg-slate/85 p-3 shadow-sm">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                              Schedule Controls
+                            </p>
+                            <div className="mt-2 flex flex-wrap gap-2 max-[420px]:grid max-[420px]:grid-cols-1 *:w-full sm:*:w-auto">
                               <button
                                 type="button"
-                                onClick={() =>
-                                  requestSeriesActionConfirmation(
-                                    meeting,
-                                    "shift",
-                                  )
-                                }
+                                onClick={() => void handleStartMeeting(meeting)}
                                 disabled={actionMeetingId === meeting.id}
-                                className="rounded-lg border border-indigo-300 px-3 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
+                                className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
                               >
-                                Shift series +30
+                                <PlayCircle className="h-3.5 w-3.5" />
+                                Start
                               </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => toggleReschedulePanel(meeting)}
-                              disabled={actionMeetingId === meeting.id}
-                              className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
-                            >
-                              Custom time
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void handleCancelMeeting(meeting)}
-                              disabled={actionMeetingId === meeting.id}
-                              className="inline-flex items-center gap-1 rounded-lg border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-50"
-                            >
-                              <XCircle className="h-3.5 w-3.5" />
-                              Cancel
-                            </button>
-                            {meeting.series_id && (
+                              <button
+                                type="button"
+                                onClick={() => void handleQuickExtend(meeting)}
+                                disabled={actionMeetingId === meeting.id}
+                                className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                              >
+                                +15 min
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void handleQuickShift(meeting)}
+                                disabled={actionMeetingId === meeting.id}
+                                className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                              >
+                                Shift +30 min
+                              </button>
+                              {meeting.series_id && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    requestSeriesActionConfirmation(
+                                      meeting,
+                                      "shift",
+                                    )
+                                  }
+                                  disabled={actionMeetingId === meeting.id}
+                                  className="rounded-lg border border-indigo-300 px-3 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
+                                >
+                                  Shift series +30
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => toggleReschedulePanel(meeting)}
+                                disabled={actionMeetingId === meeting.id}
+                                className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                              >
+                                Custom time
+                              </button>
                               <button
                                 type="button"
                                 onClick={() =>
-                                  requestSeriesActionConfirmation(
-                                    meeting,
-                                    "cancel",
-                                  )
+                                  void handleCancelMeeting(meeting)
                                 }
                                 disabled={actionMeetingId === meeting.id}
                                 className="inline-flex items-center gap-1 rounded-lg border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-50"
                               >
                                 <XCircle className="h-3.5 w-3.5" />
-                                Cancel series
+                                Cancel
                               </button>
-                            )}
+                              {meeting.series_id && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    requestSeriesActionConfirmation(
+                                      meeting,
+                                      "cancel",
+                                    )
+                                  }
+                                  disabled={actionMeetingId === meeting.id}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-50"
+                                >
+                                  <XCircle className="h-3.5 w-3.5" />
+                                  Cancel series
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {isInternalOrAdmin &&
+                      {isAdmin &&
                         (meeting.status === "completed" ||
                           meeting.status === "cancelled") && (
                           <div className="rounded-xl border border-rose-100 bg-rose-50/40 p-3 shadow-sm">
@@ -1826,186 +1851,191 @@ const VideoCallsPage: React.FC = () => {
                           </div>
                         )}
 
-                      {isInternalOrAdmin && meeting.status === "ongoing" && (
-                        <div className="rounded-xl border border-slate-200 bg-slate/85 p-3 shadow-sm">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                            Live Controls
-                          </p>
-                          <div className="mt-2 flex flex-wrap gap-2 max-[420px]:grid max-[420px]:grid-cols-1 *:w-full sm:*:w-auto">
-                            <button
-                              type="button"
-                              onClick={() => void handleQuickExtend(meeting)}
-                              disabled={actionMeetingId === meeting.id}
-                              className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
-                            >
-                              +15 min
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                void handleCompleteMeeting(meeting)
-                              }
-                              disabled={actionMeetingId === meeting.id}
-                              className="inline-flex items-center gap-1 rounded-lg border border-indigo-300 px-3 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-50 disabled:opacity-60"
-                            >
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              Complete
-                            </button>
-                            {meeting.series_id && (
+                      {isOrganizerOrAdmin(meeting) &&
+                        meeting.status === "ongoing" && (
+                          <div className="rounded-xl border border-slate-200 bg-slate/85 p-3 shadow-sm">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                              Live Controls
+                            </p>
+                            <div className="mt-2 flex flex-wrap gap-2 max-[420px]:grid max-[420px]:grid-cols-1 *:w-full sm:*:w-auto">
+                              <button
+                                type="button"
+                                onClick={() => void handleQuickExtend(meeting)}
+                                disabled={actionMeetingId === meeting.id}
+                                className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                              >
+                                +15 min
+                              </button>
                               <button
                                 type="button"
                                 onClick={() =>
-                                  requestSeriesActionConfirmation(
-                                    meeting,
-                                    "cancel",
-                                  )
+                                  void handleCompleteMeeting(meeting)
                                 }
                                 disabled={actionMeetingId === meeting.id}
-                                className="inline-flex items-center gap-1 rounded-lg border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-50"
+                                className="inline-flex items-center gap-1 rounded-lg border border-indigo-300 px-3 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-50 disabled:opacity-60"
                               >
-                                <XCircle className="h-3.5 w-3.5" />
-                                Cancel series
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                Complete
                               </button>
-                            )}
+                              {meeting.series_id && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    requestSeriesActionConfirmation(
+                                      meeting,
+                                      "cancel",
+                                    )
+                                  }
+                                  disabled={actionMeetingId === meeting.id}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-50"
+                                >
+                                  <XCircle className="h-3.5 w-3.5" />
+                                  Cancel series
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
                     </div>
                   </div>
-                  {isInternalOrAdmin && expandedRescheduleId === meeting.id && (
-                    <div
-                      data-testid={`meeting-reschedule-panel-${meeting.id}`}
-                      className="mt-3 grid gap-3 rounded-lg border border-slate-200 bg-white p-3 md:grid-cols-2 xl:grid-cols-3"
-                    >
-                      <label className="space-y-1 text-xs text-slate-700">
-                        <span>Start</span>
-                        <div className="flex gap-1.5">
+                  {isOrganizerOrAdmin(meeting) &&
+                    expandedRescheduleId === meeting.id && (
+                      <div
+                        data-testid={`meeting-reschedule-panel-${meeting.id}`}
+                        className="mt-3 grid gap-3 rounded-lg border border-slate-200 bg-white p-3 md:grid-cols-2 xl:grid-cols-3"
+                      >
+                        <label className="space-y-1 text-xs text-slate-700">
+                          <span>Start</span>
+                          <div className="flex gap-1.5">
+                            <input
+                              type="date"
+                              value={(
+                                rescheduleDrafts[meeting.id]?.start || ""
+                              ).slice(0, 10)}
+                              onChange={(event) => {
+                                const currentTime = (
+                                  rescheduleDrafts[meeting.id]?.start ||
+                                  "T00:00"
+                                ).slice(11, 16);
+                                updateRescheduleDraft(
+                                  meeting.id,
+                                  "start",
+                                  `${event.target.value}T${currentTime}`,
+                                );
+                              }}
+                              className="flex-1 rounded-md border border-slate-700 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                            />
+                            <input
+                              type="time"
+                              value={(
+                                rescheduleDrafts[meeting.id]?.start || ""
+                              ).slice(11, 16)}
+                              onChange={(event) => {
+                                const currentDate = (
+                                  rescheduleDrafts[meeting.id]?.start ||
+                                  new Date().toISOString().slice(0, 10) + "T"
+                                ).slice(0, 10);
+                                updateRescheduleDraft(
+                                  meeting.id,
+                                  "start",
+                                  `${currentDate}T${event.target.value}`,
+                                );
+                              }}
+                              className="w-24 rounded-md border border-slate-700 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                            />
+                          </div>
+                        </label>
+                        <label className="space-y-1 text-xs text-slate-700">
+                          <span>End</span>
+                          <div className="flex gap-1.5">
+                            <input
+                              type="date"
+                              value={(
+                                rescheduleDrafts[meeting.id]?.end || ""
+                              ).slice(0, 10)}
+                              onChange={(event) => {
+                                const currentTime = (
+                                  rescheduleDrafts[meeting.id]?.end || "T00:00"
+                                ).slice(11, 16);
+                                updateRescheduleDraft(
+                                  meeting.id,
+                                  "end",
+                                  `${event.target.value}T${currentTime}`,
+                                );
+                              }}
+                              className="flex-1 rounded-md border border-slate-700 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                            />
+                            <input
+                              type="time"
+                              value={(
+                                rescheduleDrafts[meeting.id]?.end || ""
+                              ).slice(11, 16)}
+                              onChange={(event) => {
+                                const currentDate = (
+                                  rescheduleDrafts[meeting.id]?.end ||
+                                  new Date().toISOString().slice(0, 10) + "T"
+                                ).slice(0, 10);
+                                updateRescheduleDraft(
+                                  meeting.id,
+                                  "end",
+                                  `${currentDate}T${event.target.value}`,
+                                );
+                              }}
+                              className="w-24 rounded-md border border-slate-700 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                            />
+                          </div>
+                        </label>
+                        <label className="space-y-1 text-xs text-slate-700">
+                          <span>Timezone</span>
                           <input
-                            type="date"
-                            value={(
-                              rescheduleDrafts[meeting.id]?.start || ""
-                            ).slice(0, 10)}
-                            onChange={(event) => {
-                              const currentTime = (
-                                rescheduleDrafts[meeting.id]?.start || "T00:00"
-                              ).slice(11, 16);
+                            value={
+                              rescheduleDrafts[meeting.id]?.timezone || "UTC"
+                            }
+                            onChange={(event) =>
                               updateRescheduleDraft(
                                 meeting.id,
-                                "start",
-                                `${event.target.value}T${currentTime}`,
-                              );
-                            }}
-                            className="flex-1 rounded-md border border-slate-700 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                                "timezone",
+                                event.target.value,
+                              )
+                            }
+                            className="w-full rounded-md border border-slate-700 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                           />
-                          <input
-                            type="time"
-                            value={(
-                              rescheduleDrafts[meeting.id]?.start || ""
-                            ).slice(11, 16)}
-                            onChange={(event) => {
-                              const currentDate = (
-                                rescheduleDrafts[meeting.id]?.start ||
-                                new Date().toISOString().slice(0, 10) + "T"
-                              ).slice(0, 10);
-                              updateRescheduleDraft(
-                                meeting.id,
-                                "start",
-                                `${currentDate}T${event.target.value}`,
-                              );
-                            }}
-                            className="w-24 rounded-md border border-slate-700 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                          />
-                        </div>
-                      </label>
-                      <label className="space-y-1 text-xs text-slate-700">
-                        <span>End</span>
-                        <div className="flex gap-1.5">
-                          <input
-                            type="date"
-                            value={(
-                              rescheduleDrafts[meeting.id]?.end || ""
-                            ).slice(0, 10)}
-                            onChange={(event) => {
-                              const currentTime = (
-                                rescheduleDrafts[meeting.id]?.end || "T00:00"
-                              ).slice(11, 16);
-                              updateRescheduleDraft(
-                                meeting.id,
-                                "end",
-                                `${event.target.value}T${currentTime}`,
-                              );
-                            }}
-                            className="flex-1 rounded-md border border-slate-700 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                          />
-                          <input
-                            type="time"
-                            value={(
-                              rescheduleDrafts[meeting.id]?.end || ""
-                            ).slice(11, 16)}
-                            onChange={(event) => {
-                              const currentDate = (
-                                rescheduleDrafts[meeting.id]?.end ||
-                                new Date().toISOString().slice(0, 10) + "T"
-                              ).slice(0, 10);
-                              updateRescheduleDraft(
-                                meeting.id,
-                                "end",
-                                `${currentDate}T${event.target.value}`,
-                              );
-                            }}
-                            className="w-24 rounded-md border border-slate-700 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                          />
-                        </div>
-                      </label>
-                      <label className="space-y-1 text-xs text-slate-700">
-                        <span>Timezone</span>
-                        <input
-                          value={
-                            rescheduleDrafts[meeting.id]?.timezone || "UTC"
-                          }
-                          onChange={(event) =>
-                            updateRescheduleDraft(
-                              meeting.id,
-                              "timezone",
-                              event.target.value,
-                            )
-                          }
-                          className="w-full rounded-md border border-slate-700 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                        />
-                      </label>
-                      <div className="md:col-span-3 flex flex-wrap justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setExpandedRescheduleId(null)}
-                          className="rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
-                        >
-                          Close
-                        </button>
-                        <button
-                          type="button"
-                          disabled={reschedulingId === meeting.id}
-                          onClick={() => void submitReschedule(meeting)}
-                          className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
-                        >
-                          {reschedulingId === meeting.id
-                            ? "Saving..."
-                            : "Save schedule"}
-                        </button>
-                        {meeting.series_id && (
+                        </label>
+                        <div className="md:col-span-3 flex flex-wrap justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedRescheduleId(null)}
+                            className="rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                          >
+                            Close
+                          </button>
                           <button
                             type="button"
                             disabled={reschedulingId === meeting.id}
-                            onClick={() => void submitSeriesReschedule(meeting)}
-                            className="rounded-md bg-indigo-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-800 disabled:opacity-60"
+                            onClick={() => void submitReschedule(meeting)}
+                            className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
                           >
                             {reschedulingId === meeting.id
                               ? "Saving..."
-                              : `Save ${getSeriesScope(meeting.id)} series`}
+                              : "Save schedule"}
                           </button>
-                        )}
+                          {meeting.series_id && (
+                            <button
+                              type="button"
+                              disabled={reschedulingId === meeting.id}
+                              onClick={() =>
+                                void submitSeriesReschedule(meeting)
+                              }
+                              className="rounded-md bg-indigo-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-800 disabled:opacity-60"
+                            >
+                              {reschedulingId === meeting.id
+                                ? "Saving..."
+                                : `Save ${getSeriesScope(meeting.id)} series`}
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                   {expandedEventsId === meeting.id && (
                     <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">

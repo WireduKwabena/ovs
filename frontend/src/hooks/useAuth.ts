@@ -121,7 +121,11 @@ export const useAuth = () => {
   const isInternalOrAdmin = isAdmin || hasGovernmentCapability;
   const isApplicant = userType === 'applicant';
   const canViewAuditLogs = isAdmin || hasCapability("gams.audit.view");
-  const canManageRegistry = hasCapability("gams.registry.manage");
+  // Backend exposes mapped authz roles/capabilities; org-admin style memberships
+  // are normalized server-side to registry_admin.
+  const canManageRegistry =
+    hasCapability("gams.registry.manage") ||
+    hasAnyRoleValue(resolvedRoles, ["registry_admin"]);
   const canAccessAppointments =
     hasAnyCapabilityValue(resolvedCapabilities, APPOINTMENT_ROUTE_CAPABILITIES) ||
     hasAnyRoleValue(resolvedRoles, APPOINTMENT_WORKFLOW_ROLES);
@@ -134,14 +138,23 @@ export const useAuth = () => {
   const canPublishAppointment =
     hasAnyRoleValue(resolvedRoles, PUBLICATION_ROLES) ||
     hasCapability("gams.appointment.publish");
-  const canViewAppointmentStageActions = hasAnyRoleValue(resolvedRoles, STAGE_HISTORY_ROLES);
+  const canViewAppointmentStageActions =
+    isPlatformAdmin || hasAnyRoleValue(resolvedRoles, STAGE_HISTORY_ROLES);
   const canAccessInternalWorkflow =
     hasGovernmentCapability ||
     hasAnyRoleValue(resolvedRoles, APPOINTMENT_WORKFLOW_ROLES);
   const canAccessApplications = canAccessInternalWorkflow;
   const canAccessCampaigns = hasAnyCapabilityValue(resolvedCapabilities, CAMPAIGN_MANAGE_CAPABILITIES);
   const canAccessVideoCalls = canAccessInternalWorkflow;
-  const canManageRubrics = hasAnyCapabilityValue(resolvedCapabilities, RUBRIC_MANAGE_CAPABILITIES);
+  const canManageRubrics =
+    hasAnyCapabilityValue(resolvedCapabilities, RUBRIC_MANAGE_CAPABILITIES) ||
+    hasAnyRoleValue(resolvedRoles, [
+      "registry_admin",
+      "vetting_officer",
+      "committee_member",
+      "committee_chair",
+      "appointing_authority",
+    ]);
   const canManageRegistryInActiveOrganization =
     canManageRegistry && Boolean(activeOrganizationId);
   const canSwitchOrganization = isAuthenticated && userType !== "applicant" && hasMultipleOrganizations;

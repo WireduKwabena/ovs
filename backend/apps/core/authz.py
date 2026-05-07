@@ -105,7 +105,8 @@ DEFAULT_ORG_ADMIN_MEMBERSHIP_ROLES = frozenset(
         "registry_admin",
         "org_admin",
         "organization_admin",
-        "system_admin",
+        # system_admin is a platform-level superuser, not an org-bounded role.
+        # Users with system_admin should have is_superuser=True on their user record.
     }
 )
 
@@ -116,7 +117,7 @@ ORGANIZATION_MEMBERSHIP_ROLE_TO_AUTHZ_ROLES: dict[str, set[str]] = {
     "registry_admin": {ROLE_REGISTRY_ADMIN},
     "org_admin": {ROLE_REGISTRY_ADMIN},
     "organization_admin": {ROLE_REGISTRY_ADMIN},
-    "system_admin": {ROLE_REGISTRY_ADMIN},
+    # system_admin excluded: it is a platform superuser, not an org membership role.
     "vetting_officer": {ROLE_VETTING_OFFICER},
     "appointing_authority": {ROLE_APPOINTING_AUTHORITY},
     "publication_officer": {ROLE_PUBLICATION_OFFICER},

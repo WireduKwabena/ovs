@@ -495,11 +495,15 @@ const AppointmentsRegistryPage: React.FC = () => {
       ) {
         return false;
       }
+      if (isAdmin) {
+        return true;
+      }
       return hasCommitteeAccess(row.committee);
     },
     [
       canViewAppointmentStageActions,
       hasCommitteeAccess,
+      isAdmin,
       isWithinActiveOrganization,
     ],
   );
@@ -1039,6 +1043,15 @@ const AppointmentsRegistryPage: React.FC = () => {
     Boolean(officeContextFilter) ||
     Boolean(exerciseContextFilter) ||
     Boolean(dossierContextFilter);
+  const canManageWorkflowLifecycle =
+    canAdvanceAppointmentStage || canFinalizeAppointment;
+  const canManagePublicationLifecycle = canPublishAppointment;
+  const canOperateCommitteeHistory = canViewAppointmentStageActions;
+  const canActInThisView =
+    canManageRegistryInActiveOrganization ||
+    canManageWorkflowLifecycle ||
+    canManagePublicationLifecycle ||
+    canOperateCommitteeHistory;
 
   const clearWorkflowContext = () => {
     const nextParams = new URLSearchParams(searchParams);
@@ -1139,6 +1152,39 @@ const AppointmentsRegistryPage: React.FC = () => {
             : ""}
         </section>
       ) : null}
+
+      <section className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-800 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+          Responsibility Focus
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {canManageRegistryInActiveOrganization ? (
+            <span className="inline-flex rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-semibold text-indigo-800">
+              Registry setup + nomination
+            </span>
+          ) : null}
+          {canManageWorkflowLifecycle ? (
+            <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+              Lifecycle stage transitions
+            </span>
+          ) : null}
+          {canManagePublicationLifecycle ? (
+            <span className="inline-flex rounded-full bg-cyan-100 px-2.5 py-1 text-xs font-semibold text-cyan-800">
+              Gazette publication actions
+            </span>
+          ) : null}
+          {canOperateCommitteeHistory ? (
+            <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+              Committee stage history
+            </span>
+          ) : null}
+          {!canActInThisView ? (
+            <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+              Read-only access in this workspace
+            </span>
+          ) : null}
+        </div>
+      </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -1692,9 +1738,6 @@ const AppointmentsRegistryPage: React.FC = () => {
               const canManagePublication = canManagePublicationForRow(row);
               const canViewStageActions = canViewStageActionsForRow(row);
               const canEnsureLinkage = canEnsureLinkageForRow(row);
-              const rowOutOfScope = !isWithinActiveOrganization(
-                row.organization,
-              );
               return (
                 <article
                   key={row.id}
@@ -1800,23 +1843,18 @@ const AppointmentsRegistryPage: React.FC = () => {
                           ? "Linking..."
                           : "Ensure Dossier Linkage"}
                       </Button>
-                    ) : (
-                      <span className="text-xs text-slate-700">
-                        Linkage actions are restricted to authorized stage
-                        actors.
-                      </span>
-                    )}
+                    ) : null}
                   </div>
 
-                  <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <div className="mb-3 flex items-center gap-2">
-                      <Workflow className="h-4 w-4 text-indigo-700" />
-                      <p className="text-sm font-semibold text-slate-900">
-                        Lifecycle and Stage Action
-                      </p>
-                    </div>
+                  {canManageLifecycle ? (
+                    <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <div className="mb-3 flex items-center gap-2">
+                        <Workflow className="h-4 w-4 text-indigo-700" />
+                        <p className="text-sm font-semibold text-slate-900">
+                          Lifecycle and Stage Action
+                        </p>
+                      </div>
 
-                    {canManageLifecycle ? (
                       <div className="grid gap-3 lg:grid-cols-2">
                         <div>
                           <label
@@ -1980,14 +2018,8 @@ const AppointmentsRegistryPage: React.FC = () => {
                           </Button>
                         </div>
                       </div>
-                    ) : (
-                      <p className="text-xs text-slate-700">
-                        {rowOutOfScope
-                          ? "This record is outside the active organization scope."
-                          : "Stage transition controls are restricted to authorized stage actors."}
-                      </p>
-                    )}
-                  </div>
+                    </div>
+                  ) : null}
 
                   <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
                     <div className="mb-3 flex items-center gap-2">
@@ -2151,7 +2183,12 @@ const AppointmentsRegistryPage: React.FC = () => {
                           </Button>
                         </div>
                       </div>
-                    ) : null}
+                    ) : (
+                      <p className="text-xs text-slate-700">
+                        Publication actions are restricted to publication
+                        officers, appointing authority, and admins.
+                      </p>
+                    )}
 
                     {canManagePublication &&
                     publicationStatus === "published" ? (
