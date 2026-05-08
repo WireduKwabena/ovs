@@ -4,6 +4,7 @@ import logging
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
+from apps.applications.models import Document
 
 from apps.audit.contracts import (
     APPOINTMENT_FINAL_DECISION_RECORDED_EVENT,
@@ -40,6 +41,11 @@ logger = logging.getLogger(__name__)
 
 class InvalidTransitionError(Exception):
     """Raised when an appointment state transition is not allowed."""
+
+    def __init__(self, message: str, *, code: str = "invalid_transition", details: dict | None = None):
+        super().__init__(message)
+        self.code = code
+        self.details = details or {}
 
 
 class StageAuthorizationError(Exception):
@@ -327,6 +333,60 @@ def _enforce_required_stage_context(*, appointment: AppointmentRecord, new_statu
             raise InvalidTransitionError(
                 f"Cannot transition via stage '{stage.name}' before completing required prior stages: {pending}."
             )
+
+
+def _normalized_required_document_types(*, appointment: AppointmentRecord) -> list[str]:
+    exercise = getattr(appointment, "appointment_exercise", None)
+    if exercise is None:
+        return []
+
+    settings_json = exercise.settings_json if isinstance(exercise.settings_json, dict) else {}
+    raw_required_types = settings_json.get("required_document_types")
+    if not isinstance(raw_required_types, list):
+        return []
+
+    allowed_values = {choice[0] for choice in Document.DOCUMENT_TYPE_CHOICES}
+    normalized: list[str] = []
+    for item in raw_required_types:
+        value = str(item)
+        if value in allowed_values and value not in normalized:
+            normalized.append(value)
+    return normalized
+
+
+def _enforce_required_document_completeness_gate(*, appointment: AppointmentRecord, new_status: str) -> dict:
+    """Ensure all campaign-required document types are present before governance stages."""
+    if new_status not in VETTING_DECISION_GATED_STATUSES:
+        return {}
+
+    required_document_types = _normalized_required_document_types(appointment=appointment)
+    if not required_document_types:
+        return {}
+
+    linked_case = getattr(appointment, "vetting_case", None)
+    if linked_case is None:
+        raise InvalidTransitionError(
+            "Linked vetting case is required before advancing; campaign required document checklist cannot be verified."
+        )
+
+    submitted_types = set(linked_case.documents.values_list("document_type", flat=True))
+    missing_types = [value for value in required_document_types if value not in submitted_types]
+    if missing_types:
+        type_labels = dict(Document.DOCUMENT_TYPE_CHOICES)
+        missing_labels = ", ".join(type_labels.get(value, value) for value in missing_types)
+        raise InvalidTransitionError(
+            f"Cannot transition to '{new_status}' because required campaign documents are missing: {missing_labels}.",
+            details={
+                "gate": "required_documents",
+                "required_document_types": required_document_types,
+                "missing_required_document_types": missing_types,
+            },
+        )
+
+    return {
+        "required_document_types_count": int(len(required_document_types)),
+        "required_document_types_submitted_count": int(len(required_document_types) - len(missing_types)),
+    }
 
 
 def _latest_vetting_decision_recommendation(*, appointment: AppointmentRecord):
@@ -811,6 +871,10 @@ def advance_stage(
         raise InvalidTransitionError(f"{appointment.status} -> {new_status} is not permitted.")
 
     _enforce_required_stage_context(appointment=appointment, new_status=new_status, stage=stage)
+    required_documents_context = _enforce_required_document_completeness_gate(
+        appointment=appointment,
+        new_status=new_status,
+    )
     vetting_decision_context = _enforce_vetting_decision_gate(
         appointment=appointment,
         new_status=new_status,
@@ -929,6 +993,7 @@ def advance_stage(
                 "committee_membership_id": _safe_str_id(getattr(committee_membership, "id", None)),
                 "committee_membership_role": str(getattr(committee_membership, "committee_role", "")),
                 **governance_context,
+                **required_documents_context,
                 **vetting_decision_context,
             },
             idempotency_seed=str(stage_action.id),

@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from django.conf import settings
 from django.contrib.auth.models import Group
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.utils import timezone
@@ -29,7 +30,7 @@ from apps.users.permissions import (
 from apps.billing.models import BillingSubscription
 from apps.campaigns.models import VettingCampaign
 from apps.candidates.models import Candidate, CandidateEnrollment
-from apps.applications.models import VettingCase
+from apps.applications.models import Document, VettingCase
 from apps.invitations.models import Invitation
 from apps.governance.models import Committee, CommitteeMembership, OrganizationMembership
 from apps.notifications.models import Notification
@@ -294,6 +295,74 @@ class AppointmentTransitionServiceTests(TestCase):
             reason_note="Committee accepted temporary blocker with explicit mitigation plan.",
         )
         self.assertEqual(updated.status, "confirmation_pending")
+
+    def test_committee_review_transition_requires_all_campaign_required_document_types(self):
+        case, _evaluation, _recommendation = self._attach_case_with_vetting_decision(
+            recommendation_status="recommend_manual_review",
+            blocking_issues=[],
+        )
+        self.exercise.settings_json = {
+            "required_document_types": ["id_card", "resume"],
+        }
+        self.exercise.save(update_fields=["settings_json", "updated_at"])
+
+        Document.objects.create(
+            case=case,
+            document_type="id_card",
+            file=SimpleUploadedFile("id_card.pdf", b"%PDF-1.4 id", content_type="application/pdf"),
+            mime_type="application/pdf",
+            status="uploaded",
+            file_size=11,
+        )
+
+        self.appointment.status = "under_vetting"
+        self.appointment.save(update_fields=["status", "updated_at"])
+
+        with self.assertRaises(InvalidTransitionError):
+            advance_stage(
+                appointment=self.appointment,
+                new_status="committee_review",
+                actor=self.admin_user,
+                reason_note="Proceeding to committee review.",
+            )
+
+    def test_committee_review_transition_allows_when_campaign_required_document_types_are_complete(self):
+        case, _evaluation, _recommendation = self._attach_case_with_vetting_decision(
+            recommendation_status="recommend_manual_review",
+            blocking_issues=[],
+        )
+        self.exercise.settings_json = {
+            "required_document_types": ["id_card", "resume"],
+        }
+        self.exercise.save(update_fields=["settings_json", "updated_at"])
+
+        Document.objects.create(
+            case=case,
+            document_type="id_card",
+            file=SimpleUploadedFile("id_card.pdf", b"%PDF-1.4 id", content_type="application/pdf"),
+            mime_type="application/pdf",
+            status="uploaded",
+            file_size=11,
+        )
+        Document.objects.create(
+            case=case,
+            document_type="resume",
+            file=SimpleUploadedFile("resume.pdf", b"%PDF-1.4 cv", content_type="application/pdf"),
+            mime_type="application/pdf",
+            status="uploaded",
+            file_size=11,
+        )
+
+        self.appointment.status = "under_vetting"
+        self.appointment.save(update_fields=["status", "updated_at"])
+
+        updated = advance_stage(
+            appointment=self.appointment,
+            new_status="committee_review",
+            actor=self.admin_user,
+            reason_note="All required documents submitted.",
+        )
+        self.assertEqual(updated.status, "committee_review")
 
     def test_appointed_transition_with_reject_recommendation_requires_override(self):
         _case, _evaluation, recommendation = self._attach_case_with_vetting_decision(

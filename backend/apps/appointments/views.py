@@ -227,7 +227,14 @@ class AppointmentRecordViewSet(BlockPlatformAdminOrgWorkflowMixin, viewsets.Mode
                 request=request,
             )
         except InvalidTransitionError as exc:
-            return Response({"error": str(exc), "code": "invalid_transition"}, status=status.HTTP_400_BAD_REQUEST)
+            error_payload = {
+                "error": str(exc),
+                "code": getattr(exc, "code", "invalid_transition"),
+            }
+            details = getattr(exc, "details", None)
+            if isinstance(details, dict) and details:
+                error_payload["details"] = details
+            return Response(error_payload, status=status.HTTP_400_BAD_REQUEST)
         except StageAuthorizationError as exc:
             return Response({"error": str(exc), "code": "insufficient_role"}, status=status.HTTP_403_FORBIDDEN)
 
@@ -259,7 +266,14 @@ class AppointmentRecordViewSet(BlockPlatformAdminOrgWorkflowMixin, viewsets.Mode
                 request=request,
             )
         except InvalidTransitionError as exc:
-            return Response({"error": str(exc), "code": "invalid_transition"}, status=status.HTTP_400_BAD_REQUEST)
+            error_payload = {
+                "error": str(exc),
+                "code": getattr(exc, "code", "invalid_transition"),
+            }
+            details = getattr(exc, "details", None)
+            if isinstance(details, dict) and details:
+                error_payload["details"] = details
+            return Response(error_payload, status=status.HTTP_400_BAD_REQUEST)
         except StageAuthorizationError as exc:
             return Response({"error": str(exc), "code": "insufficient_role"}, status=status.HTTP_403_FORBIDDEN)
         return Response(self.get_serializer(appointment).data, status=status.HTTP_200_OK)
@@ -284,7 +298,14 @@ class AppointmentRecordViewSet(BlockPlatformAdminOrgWorkflowMixin, viewsets.Mode
                 request=request,
             )
         except InvalidTransitionError as exc:
-            return Response({"error": str(exc), "code": "invalid_transition"}, status=status.HTTP_400_BAD_REQUEST)
+            error_payload = {
+                "error": str(exc),
+                "code": getattr(exc, "code", "invalid_transition"),
+            }
+            details = getattr(exc, "details", None)
+            if isinstance(details, dict) and details:
+                error_payload["details"] = details
+            return Response(error_payload, status=status.HTTP_400_BAD_REQUEST)
         except StageAuthorizationError as exc:
             return Response({"error": str(exc), "code": "insufficient_role"}, status=status.HTTP_403_FORBIDDEN)
         return Response(self.get_serializer(appointment).data, status=status.HTTP_200_OK)
