@@ -341,15 +341,30 @@ const normalizeInfoRequest = (raw: unknown): CaseInfoRequest => {
   const payload = asObject(raw);
   const createdAt = asOptionalString(payload.created_at) || new Date().toISOString();
   const updatedAt = asOptionalString(payload.updated_at) || createdAt;
+  const categoryRaw = asString(payload.category).trim().toLowerCase();
+  const category: CaseInfoRequest["category"] =
+    categoryRaw === "identity" ||
+    categoryRaw === "address" ||
+    categoryRaw === "employment" ||
+    categoryRaw === "education" ||
+    categoryRaw === "financial" ||
+    categoryRaw === "references"
+      ? (categoryRaw as CaseInfoRequest["category"])
+      : "other";
   const statusRaw = asString(payload.status).trim().toLowerCase();
   const status: CaseInfoRequest["status"] =
-    statusRaw === "responded" || statusRaw === "closed" ? statusRaw : "open";
+    statusRaw === "responded" ||
+    statusRaw === "revision_requested" ||
+    statusRaw === "closed"
+      ? (statusRaw as CaseInfoRequest["status"])
+      : "open";
 
   return {
     id: asString(payload.id),
     case: asString(payload.case),
     requested_by: asOptionalString(payload.requested_by),
     requested_by_email: asOptionalString(payload.requested_by_email),
+    category,
     message: asString(payload.message),
     status,
     response: asOptionalString(payload.response),

@@ -45,6 +45,18 @@ export interface CreateCampaignData {
   status?: 'draft' | 'active' | 'closed' | 'archived';
   starts_at?: string | null;
   ends_at?: string | null;
+  approval_template?: string | null;
+  settings_json?: Record<string, unknown>;
+  required_document_types?: DocumentType[];
+}
+
+export interface UpdateCampaignData {
+  name?: string;
+  description?: string;
+  status?: 'draft' | 'active' | 'closed' | 'archived';
+  starts_at?: string | null;
+  ends_at?: string | null;
+  approval_template?: string | null;
   settings_json?: Record<string, unknown>;
   required_document_types?: DocumentType[];
 }
@@ -69,6 +81,11 @@ export const campaignService = {
 
   async create(payload: CreateCampaignData): Promise<VettingCampaign> {
     const response = await api.post<VettingCampaign>('/campaigns/', payload);
+    return response.data;
+  },
+
+  async update(campaignId: string, payload: UpdateCampaignData): Promise<VettingCampaign> {
+    const response = await api.patch<VettingCampaign>(`/campaigns/${campaignId}/`, payload);
     return response.data;
   },
 

@@ -2,14 +2,12 @@ const ORG_ADMIN_MEMBERSHIP_ROLES = new Set([
   "registry_admin",
   "org_admin",
   "organization_admin",
-  "system_admin",
 ]);
 
 const ORG_ADMIN_ROLES = new Set([
   "registry_admin",
   "org_admin",
   "organization_admin",
-  "system_admin",
   "admin",
 ]);
 

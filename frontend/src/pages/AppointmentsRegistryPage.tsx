@@ -77,23 +77,6 @@ const PUBLICATION_LABELS: Record<"draft" | "published" | "revoked", string> = {
   revoked: "Revoked",
 };
 
-const EXERCISE_TYPE_OPTIONS = [
-  "ministerial",
-  "judicial",
-  "board",
-  "local_gov",
-  "diplomatic",
-  "security",
-];
-const REQUIRED_ROLE_OPTIONS = [
-  "vetting_officer",
-  "committee_member",
-  "committee_chair",
-  "appointing_authority",
-  "registry_admin",
-  "publication_officer",
-  "auditor",
-];
 const todayIso = new Date().toISOString().slice(0, 10);
 
 type StageActionIntent = "note" | "approve" | "reject" | "return";
@@ -202,21 +185,6 @@ const AppointmentsRegistryPage: React.FC = () => {
     nominated_by_org: "",
     nomination_date: todayIso,
     is_public: false,
-  });
-
-  const [templateCreating, setTemplateCreating] = useState(false);
-  const [templateForm, setTemplateForm] = useState({
-    name: "",
-    exercise_type: "ministerial",
-  });
-  const [stageCreating, setStageCreating] = useState(false);
-  const [stageForm, setStageForm] = useState({
-    template: "",
-    order: 1,
-    name: "",
-    required_role: "vetting_officer",
-    is_required: true,
-    maps_to_status: "under_vetting" as AppointmentStatus,
   });
 
   const [rowActionLoadingKey, setRowActionLoadingKey] = useState<string | null>(
@@ -334,15 +302,6 @@ const AppointmentsRegistryPage: React.FC = () => {
     void run();
   }, [loadAll]);
 
-  useEffect(() => {
-    if (!stageForm.template && stageTemplates.length > 0) {
-      setStageForm((previous) => ({
-        ...previous,
-        template: stageTemplates[0].id,
-      }));
-    }
-  }, [stageForm.template, stageTemplates]);
-
   const scopedPositions = useMemo(() => {
     if (!activeOrganizationId) {
       return positions;
@@ -442,7 +401,6 @@ const AppointmentsRegistryPage: React.FC = () => {
 
   const hasPositionOptions = scopedPositions.length > 0;
   const hasNomineeOptions = scopedPersonnel.length > 0;
-  const canInitializeApprovalChain = canManageRegistryInActiveOrganization;
   const canCreateAppointment =
     canManageRegistryInActiveOrganization &&
     hasPositionOptions &&
@@ -641,75 +599,6 @@ const AppointmentsRegistryPage: React.FC = () => {
       );
     } finally {
       setCreating(false);
-    }
-  };
-
-  const handleCreateTemplate = async (
-    event: React.FormEvent<HTMLFormElement>,
-  ) => {
-    event.preventDefault();
-    if (!templateForm.name.trim()) {
-      toast.error("Template name is required.");
-      return;
-    }
-
-    setTemplateCreating(true);
-    try {
-      const created = await governmentService.createApprovalStageTemplate({
-        name: templateForm.name.trim(),
-        exercise_type: templateForm.exercise_type,
-      });
-      setTemplateForm((previous) => ({ ...previous, name: "" }));
-      setStageForm((previous) => ({ ...previous, template: created.id }));
-      toast.success("Approval template created.");
-      await loadAll();
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to create approval template.",
-      );
-    } finally {
-      setTemplateCreating(false);
-    }
-  };
-
-  const handleCreateStage = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (
-      !stageForm.template ||
-      !stageForm.name.trim() ||
-      Number(stageForm.order) <= 0
-    ) {
-      toast.error("Template, stage name, and order are required.");
-      return;
-    }
-
-    setStageCreating(true);
-    try {
-      await governmentService.createApprovalStage({
-        template: stageForm.template,
-        order: Number(stageForm.order),
-        name: stageForm.name.trim(),
-        required_role: stageForm.required_role.trim(),
-        is_required: stageForm.is_required,
-        maps_to_status: stageForm.maps_to_status,
-      });
-      setStageForm((previous) => ({
-        ...previous,
-        order: Number(previous.order) + 1,
-        name: "",
-      }));
-      toast.success("Approval stage created.");
-      await loadAll();
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to create approval stage.",
-      );
-    } finally {
-      setStageCreating(false);
     }
   };
 
@@ -1212,227 +1101,6 @@ const AppointmentsRegistryPage: React.FC = () => {
           </p>
         </article>
       </section>
-
-      {canInitializeApprovalChain ? (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-3 flex items-center gap-2">
-            <Workflow className="h-5 w-5 text-indigo-700" />
-            <h2 className="text-lg font-bold text-slate-900">
-              Configure Appointment Route Template
-            </h2>
-          </div>
-          <p className="mb-4 text-sm text-slate-700">
-            Define route templates and stage roles used by appointment exercises
-            for each office type.
-          </p>
-
-          <div className="grid gap-4 xl:grid-cols-2">
-            <form
-              onSubmit={handleCreateTemplate}
-              className="rounded-lg border border-slate-200 p-4"
-            >
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">
-                Create Route Template
-              </h3>
-              <div className="mt-3 space-y-3">
-                <div>
-                  <label
-                    htmlFor="template-name"
-                    className="mb-1 block text-xs font-semibold uppercase text-slate-700"
-                  >
-                    Template Name
-                  </label>
-                  <Input
-                    id="template-name"
-                    value={templateForm.name}
-                    onChange={(event) =>
-                      setTemplateForm((previous) => ({
-                        ...previous,
-                        name: event.target.value,
-                      }))
-                    }
-                    placeholder="Ministerial Standard Chain"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="template-exercise-type"
-                    className="mb-1 block text-xs font-semibold uppercase text-slate-700"
-                  >
-                    Exercise Type
-                  </label>
-                  <select
-                    className={SELECT_FIELD_CLASS}
-                    id="template-exercise-type"
-                    value={templateForm.exercise_type}
-                    onChange={(event) =>
-                      setTemplateForm((previous) => ({
-                        ...previous,
-                        exercise_type: event.target.value,
-                      }))
-                    }
-                  >
-                    {EXERCISE_TYPE_OPTIONS.map((value) => (
-                      <option key={value} value={value}>
-                        {value}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex justify-end">
-                  <Button type="submit" disabled={templateCreating}>
-                    {templateCreating ? "Saving..." : "Create Route Template"}
-                  </Button>
-                </div>
-              </div>
-            </form>
-
-            <form
-              onSubmit={handleCreateStage}
-              className="rounded-lg border border-slate-200 p-4"
-            >
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">
-                Create Route Stage
-              </h3>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <label
-                    htmlFor="stage-template"
-                    className="mb-1 block text-xs font-semibold uppercase text-slate-700"
-                  >
-                    Template
-                  </label>
-                  <select
-                    className={SELECT_FIELD_CLASS}
-                    id="stage-template"
-                    value={stageForm.template}
-                    onChange={(event) =>
-                      setStageForm((previous) => ({
-                        ...previous,
-                        template: event.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">Select template</option>
-                    {stageTemplates.map((template) => (
-                      <option key={template.id} value={template.id}>
-                        {template.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label
-                    htmlFor="stage-order"
-                    className="mb-1 block text-xs font-semibold uppercase text-slate-700"
-                  >
-                    Order
-                  </label>
-                  <Input
-                    type="number"
-                    min={1}
-                    id="stage-order"
-                    value={stageForm.order}
-                    onChange={(event) =>
-                      setStageForm((previous) => ({
-                        ...previous,
-                        order: Number(event.target.value) || 1,
-                      }))
-                    }
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="stage-maps-to-status"
-                    className="mb-1 block text-xs font-semibold uppercase text-slate-700"
-                  >
-                    Maps To Status
-                  </label>
-                  <select
-                    className={SELECT_FIELD_CLASS}
-                    id="stage-maps-to-status"
-                    value={stageForm.maps_to_status}
-                    onChange={(event) =>
-                      setStageForm((previous) => ({
-                        ...previous,
-                        maps_to_status: event.target.value as AppointmentStatus,
-                      }))
-                    }
-                  >
-                    {STATUS_OPTIONS.map((status) => (
-                      <option key={status} value={status}>
-                        {statusLabel(status)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="sm:col-span-2">
-                  <label
-                    htmlFor="stage-name"
-                    className="mb-1 block text-xs font-semibold uppercase text-slate-700"
-                  >
-                    Stage Name
-                  </label>
-                  <Input
-                    id="stage-name"
-                    value={stageForm.name}
-                    onChange={(event) =>
-                      setStageForm((previous) => ({
-                        ...previous,
-                        name: event.target.value,
-                      }))
-                    }
-                    placeholder="Committee Review"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="stage-required-role"
-                    className="mb-1 block text-xs font-semibold uppercase text-slate-700"
-                  >
-                    Required Role
-                  </label>
-                  <select
-                    className={SELECT_FIELD_CLASS}
-                    id="stage-required-role"
-                    value={stageForm.required_role}
-                    onChange={(event) =>
-                      setStageForm((previous) => ({
-                        ...previous,
-                        required_role: event.target.value,
-                      }))
-                    }
-                  >
-                    {REQUIRED_ROLE_OPTIONS.map((roleName) => (
-                      <option key={roleName} value={roleName}>
-                        {roleName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <label className="inline-flex items-center gap-2 self-end text-sm text-slate-800">
-                  <input
-                    type="checkbox"
-                    checked={stageForm.is_required}
-                    onChange={(event) =>
-                      setStageForm((previous) => ({
-                        ...previous,
-                        is_required: event.target.checked,
-                      }))
-                    }
-                  />
-                  Required stage
-                </label>
-                <div className="flex justify-end sm:col-span-2">
-                  <Button type="submit" disabled={stageCreating}>
-                    {stageCreating ? "Saving..." : "Create Route Stage"}
-                  </Button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </section>
-      ) : null}
 
       {canManageRegistryInActiveOrganization ? (
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

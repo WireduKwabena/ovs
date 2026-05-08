@@ -6,10 +6,17 @@ import {
   CalendarDays,
   RefreshCw,
   Info,
+  GitBranch,
 } from "lucide-react";
 import { HelpTooltip, FieldLabel } from "@/components/common/FieldHelp";
-import type { DocumentType, VettingCampaign } from "@/types";
+import type {
+  ApprovalStage,
+  ApprovalStageTemplate,
+  DocumentType,
+  VettingCampaign,
+} from "@/types";
 import { campaignService } from "@/services/campaign.service";
+import { governmentService } from "@/services/government.service";
 import {
   billingService,
   type BillingQuotaCandidate,
@@ -18,6 +25,7 @@ import { formatDate } from "@/utils/helper";
 import { useAuth } from "@/hooks/useAuth";
 import { Input } from "@/components/ui/input";
 import { applyQueryUpdates, normalizeQueryValue } from "@/utils/queryParams";
+import { getWorkspacePath } from "@/utils/appPaths";
 import {
   DOCUMENT_TYPE_OPTIONS,
   getDocumentTypeLabel,
@@ -49,6 +57,9 @@ const CAMPAIGN_STATUS_TRANSITIONS: Record<
   archived: ["active", "closed"],
 };
 
+const SELECT_FIELD_CLASS =
+  "w-full rounded-lg border border-slate-700 bg-white px-3 py-2 text-sm text-slate-900 focus:ring-2 focus:ring-indigo-400 outline-none";
+
 const parseCampaignListStatusFilter = (
   value: string | null,
 ): CampaignListStatusFilter => {
@@ -70,9 +81,19 @@ const CampaignsPage: React.FC = () => {
   const [quotaLoading, setQuotaLoading] = useState(false);
   const [quotaError, setQuotaError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [applyingTemplateCampaignId, setApplyingTemplateCampaignId] = useState<
+    string | null
+  >(null);
+  const [stageTemplates, setStageTemplates] = useState<ApprovalStageTemplate[]>(
+    [],
+  );
+  const [stages, setStages] = useState<ApprovalStage[]>([]);
   const [statusDraftByCampaignId, setStatusDraftByCampaignId] = useState<
     Record<string, VettingCampaign["status"]>
   >({});
+  const [routeTemplateDraftByCampaignId, setRouteTemplateDraftByCampaignId] =
+    useState<Record<string, string>>({});
   const [statusUpdatingCampaignId, setStatusUpdatingCampaignId] = useState<
     string | null
   >(null);
@@ -82,6 +103,7 @@ const CampaignsPage: React.FC = () => {
     status: "draft" as VettingCampaign["status"],
     starts_at: "",
     ends_at: "",
+    approval_template: "",
     required_document_types: ["id_card"] as DocumentType[],
   });
   const [campaignSearchFilter, setCampaignSearchFilter] = useState<string>(() =>
@@ -136,6 +158,26 @@ const CampaignsPage: React.FC = () => {
     }
   }, [shouldShowQuota]);
 
+  const loadRouteTemplates = useCallback(async () => {
+    setTemplatesLoading(true);
+    try {
+      const [templates, stageRows] = await Promise.all([
+        governmentService.listApprovalStageTemplates(),
+        governmentService.listApprovalStages(),
+      ]);
+      setStageTemplates(templates);
+      setStages(stageRows);
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.detail ||
+          err?.message ||
+          "Failed to load appointment route templates.",
+      );
+    } finally {
+      setTemplatesLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     void fetchCampaigns();
   }, [fetchCampaigns]);
@@ -143,6 +185,10 @@ const CampaignsPage: React.FC = () => {
   useEffect(() => {
     void fetchQuota();
   }, [fetchQuota]);
+
+  useEffect(() => {
+    void loadRouteTemplates();
+  }, [loadRouteTemplates]);
 
   useEffect(() => {
     const currentSearch = normalizeQueryValue(searchParams.get("q"));
@@ -222,6 +268,29 @@ const CampaignsPage: React.FC = () => {
     });
   }, [campaignSearchFilter, campaignStatusFilter, campaigns, officeFilter]);
 
+  const templateById = useMemo(() => {
+    return stageTemplates.reduce<Record<string, ApprovalStageTemplate>>(
+      (accumulator, template) => {
+        accumulator[template.id] = template;
+        return accumulator;
+      },
+      {},
+    );
+  }, [stageTemplates]);
+
+  const stagesByTemplate = useMemo(() => {
+    return stages.reduce<Record<string, ApprovalStage[]>>(
+      (accumulator, stage) => {
+        if (!accumulator[stage.template]) {
+          accumulator[stage.template] = [];
+        }
+        accumulator[stage.template].push(stage);
+        return accumulator;
+      },
+      {},
+    );
+  }, [stages]);
+
   const isCampaignSearchFilterActive = campaignSearchFilter.length > 0;
   const isCampaignStatusFilterActive = campaignStatusFilter !== "all";
   const isCampaignOfficeFilterActive = officeFilter.length > 0;
@@ -286,6 +355,7 @@ const CampaignsPage: React.FC = () => {
         status: form.status,
         starts_at: form.starts_at || null,
         ends_at: form.ends_at || null,
+        approval_template: form.approval_template || null,
         required_document_types: form.required_document_types,
       });
       setCampaigns((prev) => [created, ...prev]);
@@ -295,6 +365,7 @@ const CampaignsPage: React.FC = () => {
         status: "draft",
         starts_at: "",
         ends_at: "",
+        approval_template: "",
         required_document_types: ["id_card"],
       });
     } catch (err: any) {
@@ -305,6 +376,35 @@ const CampaignsPage: React.FC = () => {
       );
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleApplyTemplateToCampaign = async (
+    campaign: VettingCampaign,
+    approvalTemplateId: string,
+  ) => {
+    setApplyingTemplateCampaignId(campaign.id);
+    setError(null);
+    try {
+      const updated = await campaignService.update(campaign.id, {
+        approval_template: approvalTemplateId || null,
+      });
+      setCampaigns((previous) =>
+        previous.map((item) => (item.id === updated.id ? updated : item)),
+      );
+      setRouteTemplateDraftByCampaignId((previous) => {
+        const next = { ...previous };
+        delete next[campaign.id];
+        return next;
+      });
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.detail ||
+          err?.message ||
+          "Failed to apply route template.",
+      );
+    } finally {
+      setApplyingTemplateCampaignId(null);
     }
   };
 
@@ -364,17 +464,27 @@ const CampaignsPage: React.FC = () => {
               vetting and review.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              void fetchCampaigns();
-              void fetchQuota();
-            }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Refresh
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              to={getWorkspacePath("route-templates")}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 transition-colors text-sm font-medium"
+            >
+              <GitBranch className="w-4 h-4" />
+              Route Templates
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                void fetchCampaigns();
+                void fetchQuota();
+                void loadRouteTemplates();
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh
+            </button>
+          </div>
         </div>
       </section>
 
@@ -615,6 +725,16 @@ const CampaignsPage: React.FC = () => {
                   id="campaign-starts-at"
                   type="datetime-local"
                   value={form.starts_at}
+                  onFocus={() => {
+                    if (!form.starts_at) {
+                      const now = new Date();
+                      const pad = (n: number) => String(n).padStart(2, "0");
+                      setForm((prev) => ({
+                        ...prev,
+                        starts_at: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`,
+                      }));
+                    }
+                  }}
                   onChange={(event) =>
                     setForm((prev) => ({
                       ...prev,
@@ -636,6 +756,16 @@ const CampaignsPage: React.FC = () => {
                   id="campaign-ends-at"
                   type="datetime-local"
                   value={form.ends_at}
+                  onFocus={() => {
+                    if (!form.ends_at) {
+                      const now = new Date();
+                      const pad = (n: number) => String(n).padStart(2, "0");
+                      setForm((prev) => ({
+                        ...prev,
+                        ends_at: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`,
+                      }));
+                    }
+                  }}
                   onChange={(event) =>
                     setForm((prev) => ({
                       ...prev,
@@ -671,6 +801,54 @@ const CampaignsPage: React.FC = () => {
                 <option value="closed">Closed</option>
                 <option value="archived">Archived</option>
               </select>
+            </div>
+            <div>
+              <FieldLabel
+                htmlFor="campaign-route-template"
+                label="Appointment Route Template"
+                help="Select a route template to apply immediately to this exercise. You can leave blank and apply later from the exercise list."
+                className="mb-1 flex items-center gap-1.5"
+                textClassName="block text-sm font-medium text-slate-700"
+              />
+              <select
+                id="campaign-route-template"
+                value={form.approval_template}
+                onChange={(event) =>
+                  setForm((previous) => ({
+                    ...previous,
+                    approval_template: event.target.value,
+                  }))
+                }
+                aria-label="Appointment route template"
+                title="Appointment route template"
+                className={SELECT_FIELD_CLASS}
+              >
+                <option value="">No template selected</option>
+                {stageTemplates.map((template) => {
+                  const templateStages =
+                    stagesByTemplate[template.id]
+                      ?.slice()
+                      .sort((a, b) => a.order - b.order) || [];
+                  return (
+                    <option key={template.id} value={template.id}>
+                      {template.name} ({templateStages.length} stage
+                      {templateStages.length === 1 ? "" : "s"})
+                    </option>
+                  );
+                })}
+              </select>
+              <p className="mt-1 text-xs text-slate-700">
+                {templatesLoading
+                  ? "Loading route templates..."
+                  : `${stageTemplates.length} route template${stageTemplates.length === 1 ? "" : "s"} available.`}
+              </p>
+              <Link
+                to={getWorkspacePath("route-templates")}
+                className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+              >
+                <GitBranch className="w-3.5 h-3.5" />
+                Manage Route Templates →
+              </Link>
             </div>
             <button
               type="submit"
@@ -809,6 +987,12 @@ const CampaignsPage: React.FC = () => {
                     const canApplyStatus = transitions.includes(selectedStatus);
                     const isUpdatingStatus =
                       statusUpdatingCampaignId === campaign.id;
+                    const selectedRouteTemplate =
+                      routeTemplateDraftByCampaignId[campaign.id] ??
+                      campaign.approval_template ??
+                      "";
+                    const isApplyingRouteTemplate =
+                      applyingTemplateCampaignId === campaign.id;
                     return (
                       <>
                         <div className="flex flex-wrap gap-3 items-center justify-between">
@@ -883,6 +1067,65 @@ const CampaignsPage: React.FC = () => {
                           >
                             {isUpdatingStatus ? "Updating..." : "Apply"}
                           </button>
+                        </div>
+                        <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                            Appointment Route Template
+                          </p>
+                          <p className="mt-1 text-xs text-slate-700">
+                            Current:{" "}
+                            {campaign.approval_template
+                              ? templateById[campaign.approval_template]
+                                  ?.name || "Assigned template"
+                              : "Not assigned"}
+                          </p>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <select
+                              value={selectedRouteTemplate}
+                              onChange={(event) =>
+                                setRouteTemplateDraftByCampaignId(
+                                  (previous) => ({
+                                    ...previous,
+                                    [campaign.id]: event.target.value,
+                                  }),
+                                )
+                              }
+                              aria-label="Apply appointment route template"
+                              title="Apply appointment route template"
+                              className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-400 outline-none"
+                              disabled={isApplyingRouteTemplate}
+                            >
+                              <option value="">No template selected</option>
+                              {stageTemplates.map((template) => {
+                                const templateStages =
+                                  stagesByTemplate[template.id]
+                                    ?.slice()
+                                    .sort((a, b) => a.order - b.order) || [];
+                                return (
+                                  <option key={template.id} value={template.id}>
+                                    {template.name} ({templateStages.length}{" "}
+                                    stage
+                                    {templateStages.length === 1 ? "" : "s"})
+                                  </option>
+                                );
+                              })}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void handleApplyTemplateToCampaign(
+                                  campaign,
+                                  selectedRouteTemplate,
+                                );
+                              }}
+                              disabled={isApplyingRouteTemplate}
+                              className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {isApplyingRouteTemplate
+                                ? "Applying..."
+                                : "Apply Route"}
+                            </button>
+                          </div>
                         </div>
                         {campaign.description && (
                           <p className="text-sm text-slate-700 mt-2 line-clamp-2">

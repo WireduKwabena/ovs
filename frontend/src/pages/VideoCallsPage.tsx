@@ -186,10 +186,11 @@ const triggerFileDownload = (blob: Blob, filename: string): void => {
 };
 
 const VideoCallsPage: React.FC = () => {
-  const { isInternalOrAdmin, isAdmin, user } = useAuth();
+  const { isInternalOrAdmin, isPlatformAdmin, user } = useAuth();
 
-  const isOrganizerOrAdmin = (meeting: VideoMeeting) =>
-    isAdmin || String(meeting.organizer ?? "") === String(user?.id ?? "");
+  const isOrganizerOrSuperuser = (meeting: VideoMeeting) =>
+    Boolean(user?.is_superuser) ||
+    String(meeting.organizer ?? "") === String(user?.id ?? "");
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [meetings, setMeetings] = useState<VideoMeeting[]>([]);
@@ -313,7 +314,7 @@ const VideoCallsPage: React.FC = () => {
       setLoadingCaseOptions(true);
       try {
         const cases = (await applicationService.getAll({
-          scope: isAdmin ? "all" : "assigned",
+          scope: isPlatformAdmin ? "all" : "assigned",
         })) as CaseRecord[];
         const normalized = cases
           .map((item): (CaseOption & { assignedTo: string | null }) | null => {
@@ -372,7 +373,7 @@ const VideoCallsPage: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [isInternalOrAdmin, isAdmin, user?.id]);
+  }, [isInternalOrAdmin, isPlatformAdmin, user?.id]);
 
   const applyDurationFromStart = (durationMinutes: number) => {
     if (!form.start) {
@@ -1152,7 +1153,7 @@ const VideoCallsPage: React.FC = () => {
           </div>
         </div>
 
-        {isAdmin && <ReminderHealthCard />}
+        {isPlatformAdmin && <ReminderHealthCard />}
 
         {/* Responsibility Focus */}
         <div className="flex flex-wrap gap-2">
@@ -1161,7 +1162,7 @@ const VideoCallsPage: React.FC = () => {
               Schedule &amp; Manage Meetings
             </span>
           )}
-          {isAdmin && (
+          {isPlatformAdmin && (
             <span className="inline-flex items-center rounded-full bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700 ring-1 ring-inset ring-rose-200">
               Admin / Delete Access
             </span>
@@ -1651,24 +1652,25 @@ const VideoCallsPage: React.FC = () => {
                           >
                             {meeting.status}
                           </span>
-                          {isOrganizerOrAdmin(meeting) && meeting.series_id && (
-                            <label className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-white px-2 py-1 text-xs text-slate-700">
-                              <span>Series</span>
-                              <select
-                                value={getSeriesScope(meeting.id)}
-                                onChange={(event) =>
-                                  updateSeriesScope(
-                                    meeting.id,
-                                    event.target.value as SeriesScope,
-                                  )
-                                }
-                                className={SELECT_FIELD_INLINE_CLASS}
-                              >
-                                <option value="future">Future</option>
-                                <option value="all">All</option>
-                              </select>
-                            </label>
-                          )}
+                          {isOrganizerOrSuperuser(meeting) &&
+                            meeting.series_id && (
+                              <label className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-white px-2 py-1 text-xs text-slate-700">
+                                <span>Series</span>
+                                <select
+                                  value={getSeriesScope(meeting.id)}
+                                  onChange={(event) =>
+                                    updateSeriesScope(
+                                      meeting.id,
+                                      event.target.value as SeriesScope,
+                                    )
+                                  }
+                                  className={SELECT_FIELD_INLINE_CLASS}
+                                >
+                                  <option value="future">Future</option>
+                                  <option value="all">All</option>
+                                </select>
+                              </label>
+                            )}
                           <button
                             type="button"
                             onClick={() => void handleJoin(meeting)}
@@ -1720,7 +1722,7 @@ const VideoCallsPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {isOrganizerOrAdmin(meeting) &&
+                      {isOrganizerOrSuperuser(meeting) &&
                         meeting.status === "scheduled" && (
                           <div className="rounded-xl border border-slate-200 bg-slate/85 p-3 shadow-sm">
                             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -1806,7 +1808,7 @@ const VideoCallsPage: React.FC = () => {
                           </div>
                         )}
 
-                      {isAdmin &&
+                      {isOrganizerOrSuperuser(meeting) &&
                         (meeting.status === "completed" ||
                           meeting.status === "cancelled") && (
                           <div className="rounded-xl border border-rose-100 bg-rose-50/40 p-3 shadow-sm">
@@ -1851,7 +1853,7 @@ const VideoCallsPage: React.FC = () => {
                           </div>
                         )}
 
-                      {isOrganizerOrAdmin(meeting) &&
+                      {isOrganizerOrSuperuser(meeting) &&
                         meeting.status === "ongoing" && (
                           <div className="rounded-xl border border-slate-200 bg-slate/85 p-3 shadow-sm">
                             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -1898,7 +1900,7 @@ const VideoCallsPage: React.FC = () => {
                         )}
                     </div>
                   </div>
-                  {isOrganizerOrAdmin(meeting) &&
+                  {isOrganizerOrSuperuser(meeting) &&
                     expandedRescheduleId === meeting.id && (
                       <div
                         data-testid={`meeting-reschedule-panel-${meeting.id}`}

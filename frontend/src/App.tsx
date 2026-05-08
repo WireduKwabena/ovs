@@ -132,6 +132,9 @@ const BackgroundChecksPage = React.lazy(
 );
 const AuditLogsPage = React.lazy(() => import("./pages/AuditLogsPage"));
 const CampaignsPage = React.lazy(() => import("./pages/CampaignsPage"));
+const RouteTemplatesPage = React.lazy(
+  () => import("./pages/RouteTemplatesPage"),
+);
 const CampaignWorkspacePage = React.lazy(
   () => import("./pages/CampaignWorkspacePage"),
 );
@@ -719,6 +722,17 @@ const AppRoutes: React.FC = () => (
           requiredCapabilities={[...CAMPAIGN_MANAGE_CAPABILITIES]}
         >
           <CampaignsPage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path={getWorkspacePath("route-templates")}
+      element={
+        <ProtectedRoute
+          disallowUserTypes={ORG_WORKFLOW_DISALLOWED_USER_TYPES}
+          requiredCapabilities={[...CAMPAIGN_MANAGE_CAPABILITIES]}
+        >
+          <RouteTemplatesPage />
         </ProtectedRoute>
       }
     />

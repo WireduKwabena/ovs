@@ -35,10 +35,10 @@ export const CaseReview: React.FC = () => {
   const [requestTemplate, setRequestTemplate] = useState<string | null>(null);
   const [requestCategory, setRequestCategory] = useState("other");
   const [requestDueDate, setRequestDueDate] = useState<string>("");
-  const [templates, setTemplates] = useState<
+  const [templates] = useState<
     { id: string; title: string; category: string }[]
   >([]);
-  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [loadingTemplates] = useState(false);
   const reviewListPath = orgId
     ? `/admin/org/${encodeURIComponent(String(orgId).trim())}/cases`
     : "/admin/cases";
@@ -64,39 +64,8 @@ export const CaseReview: React.FC = () => {
   }, [caseId]);
 
   useEffect(() => {
-    const handleRequestMoreInfo = async () => {
-      if (!caseId) return;
-      if (!requestMessage.trim()) {
-        toast.error("Please describe the additional information needed");
-        return;
-      }
-
-      setActionLoading(true);
-      try {
-        await applicationService.requestMoreInfoExtended(
-          caseId,
-          requestMessage.trim(),
-          requestCategory || "other",
-          requestTemplate || undefined,
-          requestDueDate || undefined,
-        );
-        if (notes.trim()) {
-          await applicationService.update(caseId, { notes: notes.trim() });
-        }
-        toast.info("Additional information requested from applicant");
-        setRequestMessage("");
-        setRequestTemplate(null);
-        setRequestCategory("other");
-        setRequestDueDate("");
-        navigate(reviewListPath);
-      } catch {
-        toast.error("Failed to request more information");
-      } finally {
-        setActionLoading(false);
-      }
-      loadApplication();
-    };
-  }, [caseId, loadApplication]);
+    void loadApplication();
+  }, [loadApplication]);
 
   const handleApprove = async () => {
     if (!caseId) return;
