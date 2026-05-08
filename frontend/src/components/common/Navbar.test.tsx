@@ -670,4 +670,57 @@ describe("Navbar runtime + active tab behavior", () => {
       expect(mocks.selectActiveOrganization).toHaveBeenCalledWith("org-2");
     });
   });
+
+  it("shows the account issue report link for non-superusers", async () => {
+    renderNavbar("/admin/platform/issues", {
+      auth: {
+        userType: "internal",
+        user: {
+          user_type: "internal",
+          email: "ops@example.com",
+          full_name: "Ops User",
+          first_name: "Ops",
+          last_name: "User",
+          is_superuser: false,
+        },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
+    });
+
+    expect(
+      screen.getAllByRole("link", { name: /issues report/i }).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.queryByRole("link", { name: /view submitted issues/i }),
+    ).toBeNull();
+  });
+
+  it("shows the account submitted-issues link for superusers", async () => {
+    renderNavbar("/admin/platform/issues?tab=submitted", {
+      auth: {
+        userType: "admin",
+        user: {
+          user_type: "platform_admin",
+          email: "root@example.com",
+          full_name: "Root User",
+          first_name: "Root",
+          last_name: "User",
+          is_superuser: true,
+          is_staff: true,
+        },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mocks.fetchNotifications).toHaveBeenCalledTimes(1);
+    });
+
+    expect(
+      screen.getAllByRole("link", { name: /view submitted issues/i }).length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByRole("link", { name: /issues report/i })).toBeNull();
+  });
 });

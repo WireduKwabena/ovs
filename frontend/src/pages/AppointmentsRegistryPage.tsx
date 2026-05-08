@@ -988,9 +988,15 @@ const AppointmentsRegistryPage: React.FC = () => {
           Appointment Workflow Timeline
         </p>
         <p className="mt-2 text-sm text-cyan-900">
-          Office -&gt; Appointment Exercise -&gt; Nominee / Nomination File
-          -&gt; Vetting Dossier -&gt; Review -&gt; Approval -&gt; Appointment
-          -&gt; Publication
+          Office → Appointment Exercise → Nominee / Nomination File → Vetting
+          Dossier → Approval Stages (some with committee review) → Appointment
+          Decision → Publication
+        </p>
+        <p className="mt-2 text-xs text-cyan-800">
+          <strong>Committee Assignment:</strong> Committees are assigned at the{" "}
+          <em>stage</em> level. When a nomination reaches a stage that has a
+          committee assigned, that committee becomes responsible for review.
+          Different committees can handle different stages of the same exercise.
         </p>
       </section>
 

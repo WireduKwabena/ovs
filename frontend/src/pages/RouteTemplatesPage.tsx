@@ -5,6 +5,7 @@ import type {
   ApprovalStage,
   ApprovalStageTemplate,
   AppointmentStatus,
+  GovernanceCommittee,
 } from "@/types";
 import { governmentService } from "@/services/government.service";
 import { useAuth } from "@/hooks/useAuth";
@@ -58,6 +59,7 @@ const RouteTemplatesPage: React.FC = () => {
     [],
   );
   const [stages, setStages] = useState<ApprovalStage[]>([]);
+  const [committees, setCommittees] = useState<GovernanceCommittee[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [templateCreating, setTemplateCreating] = useState(false);
   const [stageCreating, setStageCreating] = useState(false);
@@ -74,18 +76,21 @@ const RouteTemplatesPage: React.FC = () => {
     name: "",
     required_role: "vetting_officer",
     is_required: true,
+    committee: "",
     maps_to_status: "under_vetting" as AppointmentStatus,
   });
 
   const loadRouteTemplates = useCallback(async () => {
     setTemplatesLoading(true);
     try {
-      const [templates, stageRows] = await Promise.all([
+      const [templates, stageRows, committeeRows] = await Promise.all([
         governmentService.listApprovalStageTemplates(),
         governmentService.listApprovalStages(),
+        governmentService.listCommittees(),
       ]);
       setStageTemplates(templates);
       setStages(stageRows);
+      setCommittees(committeeRows);
     } catch (err: any) {
       setError(
         err?.response?.data?.detail ||
@@ -172,6 +177,7 @@ const RouteTemplatesPage: React.FC = () => {
         required_role: stageForm.required_role.trim(),
         is_required: stageForm.is_required,
         maps_to_status: stageForm.maps_to_status,
+        committee: stageForm.committee || null,
       });
       setStageForm((previous) => ({
         ...previous,
@@ -321,6 +327,9 @@ const RouteTemplatesPage: React.FC = () => {
           <p className="mb-4 text-sm text-slate-700">
             Each stage represents one approval step. Stages are executed in
             order and each maps to a nomination file status transition.
+            <strong> Optionally assign a committee to a stage</strong> —
+            nominees will be automatically assigned to that committee when
+            reaching this stage.
           </p>
           <form onSubmit={handleCreateStage} className="space-y-4">
             <div>
@@ -450,6 +459,38 @@ const RouteTemplatesPage: React.FC = () => {
                 ))}
               </select>
             </div>
+            <div>
+              <label
+                htmlFor="rt-stage-committee"
+                className="mb-1 block text-sm font-medium text-slate-700"
+              >
+                Assign Committee (Optional)
+              </label>
+              <select
+                id="rt-stage-committee"
+                value={stageForm.committee}
+                onChange={(event) =>
+                  setStageForm((previous) => ({
+                    ...previous,
+                    committee: event.target.value,
+                  }))
+                }
+                aria-label="Route stage committee assignment"
+                title="Route stage committee assignment"
+                className={SELECT_FIELD_CLASS}
+              >
+                <option value="">No committee (general workflow)</option>
+                {committees.map((committee) => (
+                  <option key={committee.id} value={committee.id}>
+                    {committee.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-slate-500">
+                When a nomination reaches this stage, it will be assigned to the
+                selected committee for review.
+              </p>
+            </div>
             <label className="inline-flex items-center gap-2 text-sm text-slate-800">
               <input
                 type="checkbox"
@@ -517,33 +558,44 @@ const RouteTemplatesPage: React.FC = () => {
                   </div>
                   {templateStages.length > 0 ? (
                     <ol className="mt-3 space-y-1">
-                      {templateStages.map((stage) => (
-                        <li
-                          key={stage.id}
-                          className="flex flex-wrap items-center gap-2 rounded-md bg-slate-50 px-3 py-2 text-sm"
-                        >
-                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">
-                            {stage.order}
-                          </span>
-                          <span className="font-medium text-slate-900">
-                            {stage.name}
-                          </span>
-                          <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-700">
-                            {stage.required_role?.split("_").join(" ")}
-                          </span>
-                          <span className="rounded-full bg-cyan-100 px-2 py-0.5 text-xs text-cyan-800">
-                            →{" "}
-                            {statusLabel(
-                              stage.maps_to_status as AppointmentStatus,
-                            )}
-                          </span>
-                          {!stage.is_required && (
-                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
-                              optional
+                      {templateStages.map((stage) => {
+                        const committeeAssigned =
+                          stage.committee_name ||
+                          committees.find((c) => c.id === stage.committee)
+                            ?.name;
+                        return (
+                          <li
+                            key={stage.id}
+                            className="flex flex-wrap items-center gap-2 rounded-md bg-slate-50 px-3 py-2 text-sm"
+                          >
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">
+                              {stage.order}
                             </span>
-                          )}
-                        </li>
-                      ))}
+                            <span className="font-medium text-slate-900">
+                              {stage.name}
+                            </span>
+                            <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-700">
+                              {stage.required_role?.split("_").join(" ")}
+                            </span>
+                            <span className="rounded-full bg-cyan-100 px-2 py-0.5 text-xs text-cyan-800">
+                              →{" "}
+                              {statusLabel(
+                                stage.maps_to_status as AppointmentStatus,
+                              )}
+                            </span>
+                            {committeeAssigned && (
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">
+                                📋 {committeeAssigned}
+                              </span>
+                            )}
+                            {!stage.is_required && (
+                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
+                                optional
+                              </span>
+                            )}
+                          </li>
+                        );
+                      })}
                     </ol>
                   ) : (
                     <p className="mt-2 text-xs text-slate-400 italic">

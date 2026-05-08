@@ -6,6 +6,7 @@ import type {
   AppointmentRecord,
   AppointmentStageAction,
   AppointmentStatus,
+  GovernanceCommittee,
   GovernmentPosition,
   PaginatedResponse,
   PersonnelRecord,
@@ -291,6 +292,7 @@ export const governmentService = {
     required_role: string;
     is_required?: boolean;
     maps_to_status: AppointmentStatus;
+    committee?: string | null;
   }): Promise<ApprovalStage> {
     try {
       const response = await api.post<ApprovalStage>("/appointments/stages/", payload);
@@ -522,6 +524,18 @@ export const governmentService = {
       return extractResults(response.data);
     } catch (error) {
       throw toServiceError(error, "Failed to fetch campaign options.");
+    }
+  },
+
+  async listCommittees(params?: {
+    committee_type?: string;
+    search?: string;
+  }): Promise<GovernanceCommittee[]> {
+    try {
+      const response = await api.get<PaginatedResponse<GovernanceCommittee>>("/governance/organization/committees/", { params });
+      return response.data.results || [];
+    } catch (error) {
+      throw toServiceError(error, "Failed to fetch committees.");
     }
   },
 };

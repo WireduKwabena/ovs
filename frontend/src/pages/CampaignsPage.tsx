@@ -60,6 +60,12 @@ const CAMPAIGN_STATUS_TRANSITIONS: Record<
 const SELECT_FIELD_CLASS =
   "w-full rounded-lg border border-slate-700 bg-white px-3 py-2 text-sm text-slate-900 focus:ring-2 focus:ring-indigo-400 outline-none";
 
+const CORE_REQUIRED_DOCUMENT_TYPES: DocumentType[] = [
+  "id_card",
+  "passport",
+  "birth_certificate",
+];
+
 const parseCampaignListStatusFilter = (
   value: string | null,
 ): CampaignListStatusFilter => {
@@ -106,6 +112,7 @@ const CampaignsPage: React.FC = () => {
     approval_template: "",
     required_document_types: ["id_card"] as DocumentType[],
   });
+  const [requiredDocSearch, setRequiredDocSearch] = useState("");
   const [campaignSearchFilter, setCampaignSearchFilter] = useState<string>(() =>
     normalizeQueryValue(searchParams.get("q")),
   );
@@ -268,6 +275,16 @@ const CampaignsPage: React.FC = () => {
     });
   }, [campaignSearchFilter, campaignStatusFilter, campaigns, officeFilter]);
 
+  const filteredDocumentTypeOptions = useMemo(() => {
+    const normalizedSearch = requiredDocSearch.trim().toLowerCase();
+    if (!normalizedSearch) {
+      return DOCUMENT_TYPE_OPTIONS;
+    }
+    return DOCUMENT_TYPE_OPTIONS.filter((option) =>
+      option.label.toLowerCase().includes(normalizedSearch),
+    );
+  }, [requiredDocSearch]);
+
   const templateById = useMemo(() => {
     return stageTemplates.reduce<Record<string, ApprovalStageTemplate>>(
       (accumulator, template) => {
@@ -330,6 +347,45 @@ const CampaignsPage: React.FC = () => {
     }
     return { label, className: "bg-cyan-100 text-cyan-800" };
   }, [quota, quotaError, quotaLoading, shouldShowQuota]);
+
+  const toggleRequiredDocumentType = useCallback((value: DocumentType) => {
+    setForm((prev) => {
+      const current = prev.required_document_types;
+      if (current.includes(value)) {
+        return {
+          ...prev,
+          required_document_types: current.filter((item) => item !== value),
+        };
+      }
+      return {
+        ...prev,
+        required_document_types: [...current, value],
+      };
+    });
+  }, []);
+
+  const selectAllRequiredDocumentTypes = useCallback(() => {
+    setForm((prev) => ({
+      ...prev,
+      required_document_types: DOCUMENT_TYPE_OPTIONS.map(
+        (option) => option.value,
+      ),
+    }));
+  }, []);
+
+  const selectCoreRequiredDocumentTypes = useCallback(() => {
+    setForm((prev) => ({
+      ...prev,
+      required_document_types: CORE_REQUIRED_DOCUMENT_TYPES,
+    }));
+  }, []);
+
+  const clearRequiredDocumentTypes = useCallback(() => {
+    setForm((prev) => ({
+      ...prev,
+      required_document_types: [],
+    }));
+  }, []);
 
   const handleCreateCampaign = async (
     event: React.FormEvent<HTMLFormElement>,
@@ -497,12 +553,32 @@ const CampaignsPage: React.FC = () => {
           for those offices before nomination, review, approval, appointment,
           and publication.
         </p>
+        <p className="mt-2 text-xs text-cyan-800">
+          <strong>Route Templates & Committee Assignment:</strong> Each exercise
+          selects an Appointment Route Template, which defines the approval
+          stages. Stages can be assigned committees—when a nomination reaches a
+          stage with a committee, that committee reviews it. Set up your
+          approval routes{" "}
+          <Link
+            to={getWorkspacePath("route-templates")}
+            className="underline hover:font-semibold"
+          >
+            here
+          </Link>
+          .
+        </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link
             to="/government/positions"
             className="inline-flex rounded-md border border-cyan-300 bg-white px-3 py-1.5 text-xs font-semibold text-cyan-900 hover:bg-cyan-100"
           >
             1. Offices
+          </Link>
+          <Link
+            to={getWorkspacePath("route-templates")}
+            className="inline-flex rounded-md border border-cyan-300 bg-white px-3 py-1.5 text-xs font-semibold text-cyan-900 hover:bg-cyan-100"
+          >
+            2. Route Templates
           </Link>
           <Link
             to="/government/appointments"
@@ -662,52 +738,85 @@ const CampaignsPage: React.FC = () => {
                 className="mb-2 flex items-center gap-1.5"
                 textClassName="block text-sm font-medium text-slate-700"
               />
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={selectCoreRequiredDocumentTypes}
+                  className="rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+                >
+                  Use Core Set
+                </button>
+                <button
+                  type="button"
+                  onClick={selectAllRequiredDocumentTypes}
+                  className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                >
+                  Select All
+                </button>
+                <button
+                  type="button"
+                  onClick={clearRequiredDocumentTypes}
+                  className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                >
+                  Clear
+                </button>
+              </div>
+              <Input
+                value={requiredDocSearch}
+                onChange={(event) => setRequiredDocSearch(event.target.value)}
+                placeholder="Filter document types..."
+                className="mb-2"
+              />
               <div
                 id="campaign-required-doc-types"
                 className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2"
               >
-                {DOCUMENT_TYPE_OPTIONS.map((option) => {
+                {filteredDocumentTypeOptions.map((option) => {
                   const checked = form.required_document_types.includes(
                     option.value,
                   );
                   return (
                     <label
                       key={option.value}
-                      className="inline-flex items-center gap-2 text-sm text-slate-800"
+                      className={`inline-flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 text-sm transition-colors ${
+                        checked
+                          ? "border-indigo-300 bg-indigo-50 text-indigo-900"
+                          : "border-transparent text-slate-800 hover:border-slate-200"
+                      }`}
                     >
                       <input
                         type="checkbox"
                         checked={checked}
-                        onChange={(event) => {
-                          const isChecked = event.target.checked;
-                          setForm((prev) => {
-                            const current = prev.required_document_types;
-                            if (isChecked) {
-                              if (current.includes(option.value)) {
-                                return prev;
-                              }
-                              return {
-                                ...prev,
-                                required_document_types: [
-                                  ...current,
-                                  option.value,
-                                ],
-                              };
-                            }
-                            return {
-                              ...prev,
-                              required_document_types: current.filter(
-                                (item) => item !== option.value,
-                              ),
-                            };
-                          });
-                        }}
+                        onChange={() =>
+                          toggleRequiredDocumentType(option.value)
+                        }
                       />
                       <span>{option.label}</span>
                     </label>
                   );
                 })}
               </div>
+              {filteredDocumentTypeOptions.length === 0 && (
+                <p className="mt-2 text-xs text-slate-600">
+                  No document types match your filter.
+                </p>
+              )}
+              {form.required_document_types.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {form.required_document_types.map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => toggleRequiredDocumentType(value)}
+                      className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-800 hover:bg-indigo-100"
+                      title="Remove document type"
+                    >
+                      {getDocumentTypeLabel(value)}
+                      <span aria-hidden="true">x</span>
+                    </button>
+                  ))}
+                </div>
+              )}
               <p className="mt-2 text-xs text-slate-700">
                 Selected: {form.required_document_types.length}
               </p>

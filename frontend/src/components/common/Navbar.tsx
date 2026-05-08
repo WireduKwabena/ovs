@@ -162,6 +162,7 @@ export const Navbar: React.FC = () => {
     hasRole("admin") ||
     Boolean((user as User | null)?.is_superuser) ||
     Boolean((user as User | null)?.is_staff);
+  const hasSuperuserAccess = Boolean((user as User | null)?.is_superuser);
   const canAccessAudit =
     hasAdminAccess || canViewAuditLogs || hasCapability("gams.audit.view");
   const canAccessRegistry = canManageRegistry;
@@ -683,13 +684,6 @@ export const Navbar: React.FC = () => {
     });
   }
 
-  if (isAuthenticated) {
-    pushUnique(desktopPrimaryLinks, {
-      to: platformIssuesPath,
-      label: "Issue Reports",
-    });
-  }
-
   const navLinks: NavItem[] = desktopPrimaryLinks;
 
   const renderRuntimePanel = (onNavigate?: () => void) => (
@@ -1137,6 +1131,42 @@ export const Navbar: React.FC = () => {
                   {sidebarExpanded && "Change Password"}
                 </span>
               </Link>
+              {isAuthenticated ? (
+                <Link
+                  to={
+                    hasSuperuserAccess
+                      ? `${platformIssuesPath}?tab=submitted`
+                      : platformIssuesPath
+                  }
+                  className={desktopUtilityLinkClass(platformIssuesPath)}
+                  title={
+                    !sidebarExpanded
+                      ? hasSuperuserAccess
+                        ? "View Submitted Issues"
+                        : "Issues Report"
+                      : undefined
+                  }
+                >
+                  <span
+                    className={[
+                      "inline-flex items-center",
+                      sidebarExpanded ? "gap-2" : "w-full justify-center",
+                    ].join(" ")}
+                  >
+                    <span
+                      className={sidebarIconClass(
+                        isRouteActive(platformIssuesPath),
+                      )}
+                    >
+                      <Bug className="h-4 w-4" />
+                    </span>
+                    {sidebarExpanded &&
+                      (hasSuperuserAccess
+                        ? "View Submitted Issues"
+                        : "Issues Report")}
+                  </span>
+                </Link>
+              ) : null}
               <button
                 type="button"
                 onClick={handleLogout}
@@ -1398,6 +1428,29 @@ export const Navbar: React.FC = () => {
                     </span>
                     <span>Change Password</span>
                   </Link>
+
+                  {isAuthenticated ? (
+                    <Link
+                      to={
+                        hasSuperuserAccess
+                          ? `${platformIssuesPath}?tab=submitted`
+                          : platformIssuesPath
+                      }
+                      className={mobileNavClass(platformIssuesPath)}
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <span
+                        className={`${sidebarIconClass(isRouteActive(platformIssuesPath))} mr-2`}
+                      >
+                        <Bug className="h-5 w-5" />
+                      </span>
+                      <span>
+                        {hasSuperuserAccess
+                          ? "View Submitted Issues"
+                          : "Issues Report"}
+                      </span>
+                    </Link>
+                  ) : null}
 
                   <button
                     type="button"
