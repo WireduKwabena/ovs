@@ -121,6 +121,7 @@ const BackgroundChecksPage: React.FC = () => {
   const [loadingCases, setLoadingCases] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [caseFilter, setCaseFilter] = useState<string>(() =>
@@ -303,6 +304,25 @@ const BackgroundChecksPage: React.FC = () => {
       toast.error(message);
     } finally {
       setRefreshingId(null);
+    }
+  };
+
+  const handleRetryCheck = async (checkId: string) => {
+    setRetryingId(checkId);
+    try {
+      const retried = await backgroundCheckService.retry(checkId);
+      setChecks((current) =>
+        current.map((item) => (item.id === checkId ? retried : item)),
+      );
+      toast.success("Background check retry submitted successfully.");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to retry background check.";
+      toast.error(message);
+    } finally {
+      setRetryingId(null);
     }
   };
 
@@ -870,6 +890,19 @@ const BackgroundChecksPage: React.FC = () => {
                     />
                     Refresh Check
                   </Button>
+                  {check.status === "failed" && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => void handleRetryCheck(check.id)}
+                      disabled={retryingId === check.id}
+                    >
+                      <RefreshCw
+                        className={`mr-2 h-4 w-4 ${retryingId === check.id ? "animate-spin" : ""}`}
+                      />
+                      Retry Check
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     variant="outline"

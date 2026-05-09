@@ -123,3 +123,37 @@ class BackgroundCheckEvent(models.Model):
     def __str__(self):
         return f"{self.background_check_id}::{self.event_type}"
 
+
+class BackgroundCheckWebhookDelivery(models.Model):
+    STATUS_CHOICES = [
+        ("processed", "Processed"),
+        ("dead_letter", "Dead Letter"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    provider_key = models.CharField(max_length=50, db_index=True)
+    external_reference = models.CharField(max_length=255, blank=True, db_index=True)
+    idempotency_key = models.CharField(max_length=255, unique=True)
+    payload = models.JSONField(default=dict, blank=True)
+    background_check = models.ForeignKey(
+        BackgroundCheck,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="webhook_deliveries",
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="processed", db_index=True)
+    error_message = models.TextField(blank=True)
+    received_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-received_at"]
+        indexes = [
+            models.Index(fields=["provider_key", "external_reference"]),
+            models.Index(fields=["status", "received_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.provider_key}::{self.external_reference}::{self.status}"
+

@@ -13,7 +13,7 @@ from apps.billing.models import BillingSubscription
 from apps.tenants.models import Organization
 from apps.governance.models import OrganizationMembership
 
-from .services import refresh_background_check, submit_background_check
+from .services import DuplicateWebhookError, apply_webhook_update, refresh_background_check, submit_background_check
 
 APP_ENABLED = "apps.background_checks" in settings.INSTALLED_APPS
 
@@ -203,24 +203,28 @@ class BackgroundCheckServiceTests(TestCase):
         BACKGROUND_CHECK_HTTP_REFRESH_PATH_TEMPLATE="/api/checks/{external_reference}",
     )
     def test_http_provider_submit_then_refresh(self):
-        mock_post_response = Mock()
-        mock_post_response.raise_for_status.return_value = None
-        mock_post_response.json.return_value = {
+        mock_submit_response = Mock()
+        mock_submit_response.raise_for_status.return_value = None
+        mock_submit_response.status_code = 200
+        mock_submit_response.json.return_value = {
             "external_reference": "ext-123",
             "status": "submitted",
         }
 
-        mock_get_response = Mock()
-        mock_get_response.raise_for_status.return_value = None
-        mock_get_response.json.return_value = {
+        mock_refresh_response = Mock()
+        mock_refresh_response.raise_for_status.return_value = None
+        mock_refresh_response.status_code = 200
+        mock_refresh_response.json.return_value = {
             "status": "completed",
             "score": 92,
             "risk_level": "low",
             "recommendation": "clear",
         }
 
-        with patch("apps.background_checks.providers.http_provider.httpx.post", return_value=mock_post_response) as mock_post:
-            with patch("apps.background_checks.providers.http_provider.httpx.get", return_value=mock_get_response) as mock_get:
+        with patch(
+            "apps.background_checks.providers.http_provider.httpx.request",
+            side_effect=[mock_submit_response, mock_refresh_response],
+        ) as mock_request:
                 check = submit_background_check(
                     case=self.case,
                     check_type="kyc_aml",
@@ -235,8 +239,44 @@ class BackgroundCheckServiceTests(TestCase):
         self.assertEqual(refreshed.status, "completed")
         self.assertEqual(refreshed.score, 92)
         self.assertEqual(refreshed.recommendation, "clear")
-        mock_post.assert_called_once()
-        mock_get.assert_called_once()
+        self.assertEqual(mock_request.call_count, 2)
+
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True, BACKGROUND_CHECK_DEFAULT_PROVIDER="mock")
+    def test_refresh_rejects_invalid_transition(self):
+        check = submit_background_check(
+            case=self.case,
+            check_type="kyc_aml",
+            submitted_by=self.user,
+            consent_evidence={"granted": True},
+        )
+        check.status = "completed"
+        check.save(update_fields=["status", "updated_at"])
+
+        refreshed = refresh_background_check(check)
+        self.assertEqual(refreshed.status, "completed")
+
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True, BACKGROUND_CHECK_DEFAULT_PROVIDER="mock")
+    def test_webhook_duplicate_is_idempotent(self):
+        check = submit_background_check(
+            case=self.case,
+            check_type="criminal",
+            submitted_by=self.user,
+            consent_evidence={"granted": True},
+        )
+
+        payload = {
+            "external_reference": check.external_reference,
+            "event_id": "evt-123",
+            "status": "completed",
+            "score": 90,
+            "risk_level": "low",
+            "recommendation": "clear",
+        }
+        first = apply_webhook_update(provider_key="mock", payload=payload)
+        self.assertEqual(first.status, "completed")
+
+        with self.assertRaises(DuplicateWebhookError):
+            apply_webhook_update(provider_key="mock", payload=payload)
 
 
 @unittest.skipUnless(APP_ENABLED, "Background checks app is not enabled in INSTALLED_APPS.")
@@ -552,6 +592,59 @@ class BackgroundCheckApiTests(APITestCase):
         self.assertIsNotNone(mock_log_event.call_args.kwargs.get("request"))
 
     @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True, BACKGROUND_CHECK_WEBHOOK_TOKEN="secret-webhook")
+    def test_provider_webhook_duplicate_returns_existing_payload(self):
+        check = submit_background_check(
+            case=self.case,
+            check_type="criminal",
+            submitted_by=self.user,
+            consent_evidence={"granted": True},
+        )
+
+        payload = {
+            "external_reference": check.external_reference,
+            "event_id": "evt-api-duplicate",
+            "status": "completed",
+            "score": 88,
+            "risk_level": "medium",
+            "recommendation": "review",
+        }
+
+        self.client.force_authenticate(None)
+        first_response = self.client.post(
+            "/api/background-checks/providers/mock/webhook/",
+            payload,
+            format="json",
+            HTTP_X_BACKGROUND_WEBHOOK_TOKEN="secret-webhook",
+        )
+        second_response = self.client.post(
+            "/api/background-checks/providers/mock/webhook/",
+            payload,
+            format="json",
+            HTTP_X_BACKGROUND_WEBHOOK_TOKEN="secret-webhook",
+        )
+
+        self.assertEqual(first_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(second_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(first_response.data["id"], second_response.data["id"])
+
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True, BACKGROUND_CHECK_WEBHOOK_TOKEN="secret-webhook")
+    def test_provider_webhook_unknown_reference_is_accepted_for_dead_letter(self):
+        self.client.force_authenticate(None)
+        response = self.client.post(
+            "/api/background-checks/providers/mock/webhook/",
+            {
+                "external_reference": "unknown-ref",
+                "event_id": "evt-not-found",
+                "status": "completed",
+            },
+            format="json",
+            HTTP_X_BACKGROUND_WEBHOOK_TOKEN="secret-webhook",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
+        self.assertEqual(response.data["status"], "accepted")
+
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True, BACKGROUND_CHECK_WEBHOOK_TOKEN="secret-webhook")
     def test_provider_webhook_rejects_invalid_token(self):
         check = submit_background_check(
             case=self.case,
@@ -572,5 +665,18 @@ class BackgroundCheckApiTests(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True)
+    def test_retry_requires_failed_status(self):
+        check = submit_background_check(
+            case=self.case,
+            check_type="employment",
+            submitted_by=self.internal_user,
+            consent_evidence={"granted": True},
+        )
+
+        self.client.force_authenticate(self.internal_user)
+        response = self.client.post(f"/api/background-checks/checks/{check.id}/retry/", {}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 

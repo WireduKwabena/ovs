@@ -89,4 +89,13 @@ export const backgroundCheckService = {
       throw new Error(toErrorMessage(error, "Failed to fetch background check events"));
     }
   },
+
+  async retry(checkId: string): Promise<BackgroundCheck> {
+    try {
+      const response = await api.post<BackgroundCheck>(`/background-checks/checks/${checkId}/retry/`, {});
+      return response.data;
+    } catch (error) {
+      throw new Error(toErrorMessage(error, "Failed to retry background check"));
+    }
+  },
 };

@@ -102,6 +102,9 @@ class BackgroundCheckCreateSerializer(serializers.ModelSerializer):
 class ProviderWebhookSerializer(serializers.Serializer):
     external_reference = serializers.CharField(required=False, allow_blank=False)
     reference = serializers.CharField(required=False, allow_blank=False)
+    event_id = serializers.CharField(required=False, allow_blank=False)
+    webhook_id = serializers.CharField(required=False, allow_blank=False)
+    idempotency_key = serializers.CharField(required=False, allow_blank=False)
     status = serializers.CharField(required=False, allow_blank=True)
     score = serializers.FloatField(required=False)
     risk_level = serializers.CharField(required=False, allow_blank=True)

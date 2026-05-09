@@ -1,9 +1,14 @@
 from django.conf import settings
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
+import logging
+import time
 import httpx
 
 from .base import BackgroundCheckProvider, ProviderResult, ProviderSubmission
+
+
+logger = logging.getLogger(__name__)
 
 
 class HttpBackgroundCheckProvider(BackgroundCheckProvider):
@@ -17,6 +22,12 @@ class HttpBackgroundCheckProvider(BackgroundCheckProvider):
 
     def _timeout(self) -> float:
         return float(getattr(settings, "BACKGROUND_CHECK_HTTP_TIMEOUT", 15.0))
+
+    def _max_retries(self) -> int:
+        return max(0, int(getattr(settings, "BACKGROUND_CHECK_HTTP_MAX_RETRIES", 2)))
+
+    def _retry_backoff_seconds(self) -> float:
+        return max(0.0, float(getattr(settings, "BACKGROUND_CHECK_HTTP_RETRY_BACKOFF_SECONDS", 0.75)))
 
     def _headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
@@ -75,6 +86,60 @@ class HttpBackgroundCheckProvider(BackgroundCheckProvider):
             return value
         return None
 
+    def _request_with_retries(self, *, method: str, url: str, **kwargs):
+        max_attempts = self._max_retries() + 1
+        delay = self._retry_backoff_seconds()
+        last_error = None
+
+        for attempt in range(1, max_attempts + 1):
+            start = time.monotonic()
+            try:
+                response = httpx.request(method, url, **kwargs)
+                response.raise_for_status()
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.info(
+                    "background_check.provider_call provider=%s method=%s status=%s attempt=%s duration_ms=%s",
+                    self.key,
+                    method,
+                    response.status_code,
+                    attempt,
+                    duration_ms,
+                )
+                return response
+            except httpx.HTTPStatusError as exc:
+                last_error = exc
+                status_code = exc.response.status_code if exc.response is not None else 0
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.warning(
+                    "background_check.provider_call_error provider=%s method=%s status=%s attempt=%s duration_ms=%s",
+                    self.key,
+                    method,
+                    status_code,
+                    attempt,
+                    duration_ms,
+                )
+                retryable = status_code >= 500
+                if not retryable or attempt >= max_attempts:
+                    raise
+            except (httpx.TimeoutException, httpx.RequestError) as exc:
+                last_error = exc
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.warning(
+                    "background_check.provider_call_error provider=%s method=%s status=network_error attempt=%s duration_ms=%s",
+                    self.key,
+                    method,
+                    attempt,
+                    duration_ms,
+                )
+                if attempt >= max_attempts:
+                    raise
+
+            time.sleep(delay * attempt)
+
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("Unexpected provider HTTP retry state.")
+
     def submit_check(self, check) -> ProviderSubmission:
         source_payload = check.request_payload if isinstance(check.request_payload, dict) else {}
         payload = dict(source_payload)
@@ -90,13 +155,13 @@ class HttpBackgroundCheckProvider(BackgroundCheckProvider):
             },
         )
 
-        response = httpx.post(
-            self._submit_url(),
+        response = self._request_with_retries(
+            method="POST",
+            url=self._submit_url(),
             json=payload,
             headers=self._headers(),
             timeout=self._timeout(),
         )
-        response.raise_for_status()
         data = self._parse_json(response)
 
         external_reference = data.get("external_reference") or data.get("reference") or data.get("id")
@@ -114,12 +179,12 @@ class HttpBackgroundCheckProvider(BackgroundCheckProvider):
         if not check.external_reference:
             raise ValueError("Cannot refresh check without external_reference.")
 
-        response = httpx.get(
-            self._refresh_url(check.external_reference),
+        response = self._request_with_retries(
+            method="GET",
+            url=self._refresh_url(check.external_reference),
             headers=self._headers(),
             timeout=self._timeout(),
         )
-        response.raise_for_status()
         data = self._parse_json(response)
 
         status = str(data.get("status", "in_progress")).lower()

@@ -20,6 +20,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { Loader } from "@/components/common/Loader";
 
 import { formatDate, formatFileSize } from "@/utils/helper";
+import { getWorkspacePath } from "@/utils/appPaths";
 
 export const ApplicationDetailPage: React.FC = () => {
   const { caseId } = useParams<{ caseId: string }>();
@@ -205,6 +206,7 @@ export const ApplicationDetailPage: React.FC = () => {
     doc.ai_confidence_score ??
     doc.verification_result?.authenticity_confidence ??
     doc.verification_result?.ocr_confidence;
+  const backgroundChecksPath = `${getWorkspacePath("background-checks")}?case_id=${encodeURIComponent(currentCase.case_id)}`;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -443,6 +445,31 @@ export const ApplicationDetailPage: React.FC = () => {
                 )}
               </div>
             )}
+
+            {/* Background Checks */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="inline-flex items-center gap-1.5 text-xl font-semibold">
+                    Background Checks
+                    <HelpTooltip text="Open third-party verification checks associated with this vetting dossier." />
+                  </h2>
+                  <p className="mt-2 text-sm text-slate-700">
+                    Review and submit checks scoped to this dossier. The
+                    destination page opens with this dossier already filtered.
+                  </p>
+                  <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    Dossier Filter: {currentCase.case_id}
+                  </p>
+                </div>
+                <Link
+                  to={backgroundChecksPath}
+                  className="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                >
+                  Open Background Checks
+                </Link>
+              </div>
+            </div>
           </div>
 
           {/* Sidebar */}
@@ -518,6 +545,12 @@ export const ApplicationDetailPage: React.FC = () => {
                 <button className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 rounded-lg transition-colors">
                   Download All Documents
                 </button>
+                <Link
+                  to={backgroundChecksPath}
+                  className="block w-full rounded-lg px-4 py-2 text-left text-sm text-indigo-700 hover:bg-indigo-50 transition-colors"
+                >
+                  Open Background Checks (Filtered)
+                </Link>
                 {canAdvanceAppointmentStage && (
                   <button className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 rounded-lg transition-colors">
                     Request Status Update

@@ -1,4 +1,5 @@
 import json
+import hashlib
 from decimal import Decimal
 
 from django.conf import settings
@@ -11,7 +12,7 @@ from apps.billing.quotas import (
     resolve_case_organization_id,
 )
 
-from .models import BackgroundCheck, BackgroundCheckEvent
+from .models import BackgroundCheck, BackgroundCheckEvent, BackgroundCheckWebhookDelivery
 from .providers import default_provider_registry
 
 try:
@@ -25,6 +26,23 @@ TERMINAL_STATUSES = {"completed", "failed", "cancelled", "manual_review"}
 VALID_STATUSES = {choice[0] for choice in BackgroundCheck.STATUS_CHOICES}
 VALID_RISK_LEVELS = {choice[0] for choice in BackgroundCheck.RISK_LEVEL_CHOICES}
 VALID_RECOMMENDATIONS = {choice[0] for choice in BackgroundCheck.RECOMMENDATION_CHOICES}
+MAX_PAYLOAD_BYTES = int(getattr(settings, "BACKGROUND_CHECK_MAX_PAYLOAD_BYTES", 1024 * 1024))
+
+ALLOWED_STATUS_TRANSITIONS = {
+    "pending": {"submitted", "in_progress", "failed", "cancelled"},
+    "submitted": {"in_progress", "completed", "manual_review", "failed", "cancelled"},
+    "in_progress": {"completed", "manual_review", "failed", "cancelled"},
+    "manual_review": {"completed", "failed", "cancelled"},
+    "completed": set(),
+    "failed": set(),
+    "cancelled": set(),
+}
+
+
+class DuplicateWebhookError(Exception):
+    def __init__(self, check=None):
+        super().__init__("Duplicate webhook delivery.")
+        self.check = check
 
 
 def _json_sanitize(value):
@@ -55,8 +73,14 @@ def _normalize_payload(payload):
     if payload is None:
         return {}
     if isinstance(payload, dict):
-        return _json_sanitize(payload)
-    return {"value": _json_sanitize(payload)}
+        normalized = _json_sanitize(payload)
+    else:
+        normalized = {"value": _json_sanitize(payload)}
+
+    encoded = json.dumps(normalized, sort_keys=True, separators=(",", ":"))
+    if len(encoded.encode("utf-8")) > MAX_PAYLOAD_BYTES:
+        raise ValueError("Payload exceeds maximum allowed size for background checks.")
+    return normalized
 
 
 def _normalize_status(status):
@@ -72,6 +96,28 @@ def _normalize_risk_level(risk_level):
 def _normalize_recommendation(recommendation):
     normalized = str(recommendation or "").lower()
     return normalized if normalized in VALID_RECOMMENDATIONS else "unavailable"
+
+
+def _validate_status_transition(status_before, status_after):
+    if status_before == status_after:
+        return
+    allowed = ALLOWED_STATUS_TRANSITIONS.get(status_before, set())
+    if status_after not in allowed:
+        raise ValueError(f"Invalid status transition '{status_before}' -> '{status_after}'.")
+
+
+def _derive_webhook_idempotency_key(provider_key, payload):
+    explicit_key = (
+        payload.get("idempotency_key")
+        or payload.get("event_id")
+        or payload.get("webhook_id")
+    )
+    if explicit_key:
+        return f"{provider_key}:{explicit_key}"
+
+    digest_source = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    digest = hashlib.sha256(digest_source.encode("utf-8")).hexdigest()
+    return f"{provider_key}:{digest}"
 
 
 def _providers():
@@ -255,68 +301,91 @@ def submit_background_check(
         raise
 
 
+def retry_background_check(check, *, submitted_by, request=None):
+    if check.status != "failed":
+        raise ValueError("Only failed background checks can be retried.")
+
+    return submit_background_check(
+        case=check.case,
+        check_type=check.check_type,
+        submitted_by=submitted_by,
+        provider_key=check.provider_key,
+        request_payload=check.request_payload,
+        consent_evidence=check.consent_evidence,
+        request=request,
+    )
+
+
 def refresh_background_check(check, *, request=None):
     if check.status in TERMINAL_STATUSES:
         return check
 
     provider = get_provider(check.provider_key)
-    status_before = check.status
-
     result = provider.refresh_check(check)
-    check.status = _normalize_status(result.status)
-    check.last_polled_at = timezone.now()
-    check.response_payload = _normalize_payload(result.raw_payload)
 
-    if result.score is not None:
-        check.score = float(result.score)
-    if result.risk_level is not None:
-        check.risk_level = _normalize_risk_level(result.risk_level)
-    if result.recommendation is not None:
-        check.recommendation = _normalize_recommendation(result.recommendation)
+    with transaction.atomic():
+        locked_check = BackgroundCheck.objects.select_for_update().get(id=check.id)
+        if locked_check.status in TERMINAL_STATUSES:
+            return locked_check
 
-    if check.status in {"completed", "manual_review"}:
-        check.completed_at = result.completed_at or timezone.now()
+        status_before = locked_check.status
+        next_status = _normalize_status(result.status)
+        _validate_status_transition(status_before, next_status)
 
-    check.result_summary = {
-        "score": check.score,
-        "risk_level": check.risk_level,
-        "recommendation": check.recommendation,
-    }
+        locked_check.status = next_status
+        locked_check.last_polled_at = timezone.now()
+        locked_check.response_payload = _normalize_payload(result.raw_payload)
 
-    check.save(
-        update_fields=[
-            "status",
-            "last_polled_at",
-            "response_payload",
-            "score",
-            "risk_level",
-            "recommendation",
-            "completed_at",
-            "result_summary",
-            "updated_at",
-        ]
-    )
-    _record_event(
-        check,
-        event_type="provider_update",
-        status_before=status_before,
-        status_after=check.status,
-        payload=result.raw_payload,
-    )
-    _audit_check(
-        check=check,
-        action="update",
-        event="provider_refresh",
-        changes={
-            "status_before": status_before,
-            "status_after": check.status,
-            "score": check.score,
-            "risk_level": check.risk_level,
-            "recommendation": check.recommendation,
-        },
-        request=request,
-    )
-    return check
+        if result.score is not None:
+            locked_check.score = float(result.score)
+        if result.risk_level is not None:
+            locked_check.risk_level = _normalize_risk_level(result.risk_level)
+        if result.recommendation is not None:
+            locked_check.recommendation = _normalize_recommendation(result.recommendation)
+
+        if locked_check.status in {"completed", "manual_review"}:
+            locked_check.completed_at = result.completed_at or timezone.now()
+
+        locked_check.result_summary = {
+            "score": locked_check.score,
+            "risk_level": locked_check.risk_level,
+            "recommendation": locked_check.recommendation,
+        }
+
+        locked_check.save(
+            update_fields=[
+                "status",
+                "last_polled_at",
+                "response_payload",
+                "score",
+                "risk_level",
+                "recommendation",
+                "completed_at",
+                "result_summary",
+                "updated_at",
+            ]
+        )
+        _record_event(
+            locked_check,
+            event_type="provider_update",
+            status_before=status_before,
+            status_after=locked_check.status,
+            payload=result.raw_payload,
+        )
+        _audit_check(
+            check=locked_check,
+            action="update",
+            event="provider_refresh",
+            changes={
+                "status_before": status_before,
+                "status_after": locked_check.status,
+                "score": locked_check.score,
+                "risk_level": locked_check.risk_level,
+                "recommendation": locked_check.recommendation,
+            },
+            request=request,
+        )
+        return locked_check
 
 
 def apply_webhook_update(*, provider_key, payload, request=None):
@@ -332,17 +401,46 @@ def apply_webhook_update(*, provider_key, payload, request=None):
     if not external_reference:
         raise ValueError("Webhook payload must include external_reference.")
 
+    idempotency_key = _derive_webhook_idempotency_key(provider.key, normalized_payload)
+
     with transaction.atomic():
+        existing_delivery = BackgroundCheckWebhookDelivery.objects.filter(idempotency_key=idempotency_key).first()
+        if existing_delivery is not None:
+            raise DuplicateWebhookError(check=existing_delivery.background_check)
+
+        delivery = BackgroundCheckWebhookDelivery.objects.create(
+            provider_key=provider.key,
+            external_reference=str(external_reference),
+            idempotency_key=idempotency_key,
+            payload=normalized_payload,
+            status="processed",
+        )
+
         check = (
             BackgroundCheck.objects.select_for_update()
             .filter(provider_key=provider.key, external_reference=external_reference)
             .first()
         )
         if check is None:
+            delivery.status = "dead_letter"
+            delivery.error_message = "No background check found for webhook reference."
+            delivery.processed_at = timezone.now()
+            delivery.save(update_fields=["status", "error_message", "processed_at"])
             raise LookupError("No background check found for webhook reference.")
 
         status_before = check.status
-        check.status = _normalize_status(result.status)
+        next_status = _normalize_status(result.status)
+        try:
+            _validate_status_transition(status_before, next_status)
+        except ValueError as exc:
+            delivery.status = "dead_letter"
+            delivery.error_message = str(exc)
+            delivery.background_check = check
+            delivery.processed_at = timezone.now()
+            delivery.save(update_fields=["status", "error_message", "background_check", "processed_at"])
+            raise
+
+        check.status = next_status
         check.webhook_received_at = timezone.now()
         check.response_payload = normalized_payload
 
@@ -396,4 +494,7 @@ def apply_webhook_update(*, provider_key, payload, request=None):
             },
             request=request,
         )
+        delivery.background_check = check
+        delivery.processed_at = timezone.now()
+        delivery.save(update_fields=["background_check", "processed_at"])
         return check
