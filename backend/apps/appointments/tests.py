@@ -41,7 +41,7 @@ from apps.rubrics.engine import RubricEvaluationEngine
 from apps.rubrics.models import VettingRubric
 from apps.tenants.models import Organization
 
-from .models import AppointmentPublication, AppointmentRecord, ApprovalStage, ApprovalStageTemplate
+from .models import AppointmentPublication, AppointmentRecord, AppointmentStageAction, ApprovalStage, ApprovalStageTemplate, CommitteeVote
 from .services import (
     InvalidTransitionError,
     LinkageValidationError,
@@ -1986,7 +1986,28 @@ class AppointmentCommitteeBindingApiTests(APITestCase):
             is_public=False,
         )
 
+    def _cast_vote(
+        self,
+        *,
+        user: User,
+        vote: str,
+        stage: ApprovalStage | None = None,
+        appointment: AppointmentRecord | None = None,
+    ):
+        self.client.force_authenticate(user)
+        payload = {"vote": vote}
+        if stage is not None:
+            payload["stage_id"] = str(stage.id)
+        return self.client.post(
+            f"/api/appointments/records/{(appointment or self.appointment).id}/committee-vote/",
+            payload,
+            format="json",
+        )
+
     def test_committee_member_allowed_for_bound_committee_stage(self):
+        self._cast_vote(user=self.member_user, vote="approve", stage=self.stage_member)
+        self._cast_vote(user=self.chair_user, vote="approve", stage=self.stage_member)
+
         self.client.force_authenticate(self.member_user)
         response = self.client.post(
             f"/api/appointments/records/{self.appointment.id}/advance-stage/",
@@ -1994,6 +2015,53 @@ class AppointmentCommitteeBindingApiTests(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 200)
+
+    def test_committee_stage_transition_requires_majority_votes(self):
+        self.client.force_authenticate(self.member_user)
+        response = self.client.post(
+            f"/api/appointments/records/{self.appointment.id}/advance-stage/",
+            {"status": "committee_review", "stage_id": str(self.stage_member.id)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json().get("code"), "committee_vote_required")
+
+    def test_committee_vote_endpoint_records_vote_and_returns_tally(self):
+        response = self._cast_vote(user=self.member_user, vote="approve", stage=self.stage_member)
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["vote"]["vote"], "approve")
+        self.assertEqual(payload["tally"]["approve"], 1)
+        self.assertEqual(payload["tally"]["total_eligible"], 3)
+        self.assertEqual(payload["tally"]["pending"], 2)
+
+    def test_committee_vote_endpoint_upserts_existing_vote(self):
+        first = self._cast_vote(user=self.member_user, vote="reject", stage=self.stage_member)
+        self.assertEqual(first.status_code, 200)
+        vote_id = first.json()["vote"]["id"]
+
+        second = self._cast_vote(user=self.member_user, vote="approve", stage=self.stage_member)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(second.json()["vote"]["id"], vote_id)
+        self.assertEqual(
+            CommitteeVote.objects.filter(appointment=self.appointment, stage=self.stage_member, committee_membership__user=self.member_user).count(),
+            1,
+        )
+
+    def test_committee_vote_tally_endpoint_returns_stage_tally(self):
+        self._cast_vote(user=self.member_user, vote="approve", stage=self.stage_member)
+        self._cast_vote(user=self.chair_user, vote="reject", stage=self.stage_member)
+
+        self.client.force_authenticate(self.member_user)
+        response = self.client.get(
+            f"/api/appointments/records/{self.appointment.id}/committee-vote-tally/?stage_id={self.stage_member.id}",
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["approve"], 1)
+        self.assertEqual(payload["reject"], 1)
+        self.assertEqual(payload["abstain"], 0)
+        self.assertEqual(payload["pending"], 1)
 
     def test_non_member_denied_even_with_legacy_group(self):
         self.client.force_authenticate(self.non_member_group_user)
@@ -2026,6 +2094,9 @@ class AppointmentCommitteeBindingApiTests(APITestCase):
         )
         self.assertEqual(denied.status_code, 403)
         self.assertEqual(denied.json().get("code"), "insufficient_role")
+
+        self._cast_vote(user=self.member_user, vote="approve", stage=self.stage_chair)
+        self._cast_vote(user=self.chair_user, vote="approve", stage=self.stage_chair)
 
         self.client.force_authenticate(self.chair_user)
         allowed = self.client.post(
@@ -2100,6 +2171,9 @@ class AppointmentCommitteeBindingApiTests(APITestCase):
             self.skipTest("Audit app not enabled")
         from apps.audit.models import AuditLog
 
+        self._cast_vote(user=self.member_user, vote="approve", stage=self.stage_member)
+        self._cast_vote(user=self.chair_user, vote="approve", stage=self.stage_member)
+
         self.client.force_authenticate(self.member_user)
         response = self.client.post(
             f"/api/appointments/records/{self.appointment.id}/advance-stage/",
@@ -2146,6 +2220,8 @@ class AppointmentCommitteeBindingApiTests(APITestCase):
         )
 
         self.client.force_authenticate(self.member_user)
+        self._cast_vote(user=self.member_user, vote="approve", stage=self.stage_member, appointment=appointment)
+        self._cast_vote(user=self.chair_user, vote="approve", stage=self.stage_member, appointment=appointment)
         transition = self.client.post(
             f"/api/appointments/records/{appointment.id}/advance-stage/",
             {"status": "committee_review", "stage_id": str(self.stage_member.id)},
@@ -2182,6 +2258,8 @@ class AppointmentCommitteeBindingApiTests(APITestCase):
         )
 
         self.client.force_authenticate(self.member_user)
+        self._cast_vote(user=self.member_user, vote="approve", stage=self.stage_member, appointment=appointment)
+        self._cast_vote(user=self.chair_user, vote="approve", stage=self.stage_member, appointment=appointment)
         transition = self.client.post(
             f"/api/appointments/records/{appointment.id}/advance-stage/",
             {"status": "committee_review", "stage_id": str(self.stage_member.id)},

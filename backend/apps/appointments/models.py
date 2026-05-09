@@ -294,3 +294,57 @@ class AppointmentStageAction(models.Model):
 
     def __str__(self):
         return f"{self.appointment_id} :: {self.previous_status} -> {self.new_status}"
+
+
+class CommitteeVote(models.Model):
+    """
+    Records an individual committee member's vote on an appointment at a given stage.
+    Majority approval is required before advance_stage() permits the transition.
+    """
+
+    VOTE_CHOICES = [
+        ("approve", "Approve"),
+        ("reject", "Reject"),
+        ("abstain", "Abstain"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    appointment = models.ForeignKey(
+        AppointmentRecord,
+        on_delete=models.CASCADE,
+        related_name="committee_votes",
+    )
+    stage = models.ForeignKey(
+        ApprovalStage,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="committee_votes",
+    )
+    committee_membership = models.ForeignKey(
+        "governance.CommitteeMembership",
+        on_delete=models.CASCADE,
+        related_name="committee_votes",
+    )
+    vote = models.CharField(max_length=10, choices=VOTE_CHOICES)
+    reason_note = models.TextField(blank=True)
+    voted_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["voted_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["appointment", "stage", "committee_membership"],
+                name="uniq_committee_vote_appointment_stage_member",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["appointment", "stage"]),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.committee_membership.user_id} voted {self.vote} "
+            f"on appointment {self.appointment_id}"
+        )

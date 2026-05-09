@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import {
+  GovernmentServiceError,
   governmentService,
   isRecentAuthRequiredError,
 } from "@/services/government.service";
@@ -25,6 +26,7 @@ import type {
   AppointmentRecord,
   AppointmentStageAction,
   AppointmentStatus,
+  CommitteeVoteTally,
   GovernmentPosition,
   PersonnelRecord,
   VettingCampaign,
@@ -80,6 +82,7 @@ const PUBLICATION_LABELS: Record<"draft" | "published" | "revoked", string> = {
 const todayIso = new Date().toISOString().slice(0, 10);
 
 type StageActionIntent = "note" | "approve" | "reject" | "return";
+type CommitteeVoteIntent = "approve" | "reject" | "abstain";
 
 const STAGE_ACTION_INTENT_OPTIONS: Array<{
   value: StageActionIntent;
@@ -94,6 +97,10 @@ const COMMITTEE_REQUIRED_ROLES = new Set([
   "committee_member",
   "committee_chair",
 ]);
+
+function voteScopeKey(appointmentId: string, stageId: string): string {
+  return `${appointmentId}:${stageId}`;
+}
 
 function parseEvidenceLinks(rawValue: string): string[] {
   if (!rawValue.trim()) {
@@ -205,6 +212,15 @@ const AppointmentsRegistryPage: React.FC = () => {
   const [rowActionEvidence, setRowActionEvidence] = useState<
     Record<string, string>
   >({});
+  const [committeeVoteTallies, setCommitteeVoteTallies] = useState<
+    Record<string, CommitteeVoteTally>
+  >({});
+  const [committeeVoteReasonByScope, setCommitteeVoteReasonByScope] = useState<
+    Record<string, string>
+  >({});
+  const [committeeVoteLoadingKey, setCommitteeVoteLoadingKey] = useState<
+    string | null
+  >(null);
   const [publishDraftByAppointment, setPublishDraftByAppointment] = useState<
     Record<string, Record<string, string>>
   >({});
@@ -398,6 +414,84 @@ const AppointmentsRegistryPage: React.FC = () => {
     setOpenActionsFor(null);
     setStageActions({});
   }, [activeOrganizationId]);
+
+  const fetchCommitteeVoteTally = useCallback(
+    async (
+      row: AppointmentRecord,
+      stage: ApprovalStage,
+      options?: { force?: boolean; silent?: boolean },
+    ) => {
+      const scopeKey = voteScopeKey(row.id, stage.id);
+      const force = Boolean(options?.force);
+      const silent = Boolean(options?.silent);
+      if (!force && committeeVoteTallies[scopeKey]) {
+        return;
+      }
+
+      setCommitteeVoteLoadingKey(`${scopeKey}:tally`);
+      try {
+        const tally = await governmentService.getCommitteeVoteTally(
+          row.id,
+          stage.id,
+        );
+        setCommitteeVoteTallies((previous) => ({
+          ...previous,
+          [scopeKey]: tally,
+        }));
+      } catch (error) {
+        if (!silent) {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Failed to load committee vote tally.",
+          );
+        }
+      } finally {
+        setCommitteeVoteLoadingKey((previous) =>
+          previous === `${scopeKey}:tally` ? null : previous,
+        );
+      }
+    },
+    [committeeVoteTallies],
+  );
+
+  const castCommitteeVote = useCallback(
+    async (
+      row: AppointmentRecord,
+      stage: ApprovalStage,
+      vote: CommitteeVoteIntent,
+    ) => {
+      const scopeKey = voteScopeKey(row.id, stage.id);
+      setCommitteeVoteLoadingKey(`${scopeKey}:vote:${vote}`);
+      try {
+        const response = await governmentService.castCommitteeVote(row.id, {
+          stage_id: stage.id,
+          vote,
+          reason_note: (committeeVoteReasonByScope[scopeKey] || "").trim(),
+        });
+        setCommitteeVoteTallies((previous) => ({
+          ...previous,
+          [scopeKey]: response.tally,
+        }));
+        toast.success("Committee vote recorded.");
+      } catch (error) {
+        if (isRecentAuthRequiredError(error)) {
+          toast.error(RECENT_AUTH_REQUIRED_MESSAGE);
+        } else {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Failed to cast committee vote.",
+          );
+        }
+      } finally {
+        setCommitteeVoteLoadingKey((previous) =>
+          previous === `${scopeKey}:vote:${vote}` ? null : previous,
+        );
+      }
+    },
+    [committeeVoteReasonByScope],
+  );
 
   const hasPositionOptions = scopedPositions.length > 0;
   const hasNomineeOptions = scopedPersonnel.length > 0;
@@ -669,6 +763,59 @@ const AppointmentsRegistryPage: React.FC = () => {
     [],
   );
 
+  useEffect(() => {
+    const pending: Array<{ row: AppointmentRecord; stage: ApprovalStage }> = [];
+    for (const row of workflowScopedRows) {
+      const requestedStatusTarget = rowActionStatus[row.id] || row.status;
+      const stageChoices = getStageChoicesForRow(row, requestedStatusTarget);
+      const stageId = rowActionStageId[row.id] || stageChoices[0]?.id || "";
+      const selectedStage =
+        stageChoices.find((stage) => stage.id === stageId) || stageChoices[0];
+      if (!selectedStage) {
+        continue;
+      }
+      const selectedRole = String(selectedStage.required_role || "")
+        .trim()
+        .toLowerCase();
+      const isCommitteeSensitive =
+        requestedStatusTarget === "committee_review" ||
+        COMMITTEE_REQUIRED_ROLES.has(selectedRole);
+      if (!isCommitteeSensitive) {
+        continue;
+      }
+      const boundCommitteeId = selectedStage.committee || row.committee || null;
+      if (!boundCommitteeId) {
+        continue;
+      }
+      if (
+        !canManageLifecycleForRow(row, requestedStatusTarget, selectedStage)
+      ) {
+        continue;
+      }
+      const scopeKey = voteScopeKey(row.id, selectedStage.id);
+      if (committeeVoteTallies[scopeKey]) {
+        continue;
+      }
+      pending.push({ row, stage: selectedStage });
+    }
+    if (pending.length === 0) {
+      return;
+    }
+    void Promise.all(
+      pending.map(({ row, stage }) =>
+        fetchCommitteeVoteTally(row, stage, { silent: true }),
+      ),
+    );
+  }, [
+    canManageLifecycleForRow,
+    committeeVoteTallies,
+    fetchCommitteeVoteTally,
+    getStageChoicesForRow,
+    rowActionStageId,
+    rowActionStatus,
+    workflowScopedRows,
+  ]);
+
   const applyRowStatusAction = async (row: AppointmentRecord) => {
     if (!canAdvanceAppointmentStage) {
       toast.error("You are not authorized to transition appointment records.");
@@ -741,6 +888,46 @@ const AppointmentsRegistryPage: React.FC = () => {
     } catch (error) {
       if (isRecentAuthRequiredError(error)) {
         toast.error(RECENT_AUTH_REQUIRED_MESSAGE);
+      } else if (
+        error instanceof GovernmentServiceError &&
+        error.code === "COMMITTEE_VOTE_REQUIRED"
+      ) {
+        const detailsWrapper =
+          typeof error.details === "object" && error.details !== null
+            ? (error.details as { details?: unknown })
+            : null;
+        const details =
+          detailsWrapper &&
+          typeof detailsWrapper.details === "object" &&
+          detailsWrapper.details !== null
+            ? (detailsWrapper.details as Record<string, unknown>)
+            : null;
+        if (details && selectedStage?.id) {
+          const totalEligible = Number(details.total_eligible || 0);
+          const approve = Number(details.approve || 0);
+          const reject = Number(details.reject || 0);
+          const abstain = Number(details.abstain || 0);
+          const pending = Number(details.pending || 0);
+          const required = Number(details.required || 0);
+          const scopeKey = voteScopeKey(row.id, selectedStage.id);
+          setCommitteeVoteTallies((previous) => ({
+            ...previous,
+            [scopeKey]: {
+              committee_id: String(details.committee_id || "") || null,
+              total_eligible: totalEligible,
+              approve,
+              reject,
+              abstain,
+              pending,
+              required,
+            },
+          }));
+          toast.error(
+            `Committee approval votes are not yet sufficient (${approve}/${totalEligible} approve, ${required} required).`,
+          );
+        } else {
+          toast.error(error.message);
+        }
       } else {
         toast.error(
           error instanceof Error
@@ -1409,6 +1596,47 @@ const AppointmentsRegistryPage: React.FC = () => {
                 statusTarget,
                 selectedStage,
               );
+              const selectedRole = String(selectedStage?.required_role || "")
+                .trim()
+                .toLowerCase();
+              const selectedCommitteeId =
+                selectedStage?.committee || row.committee || null;
+              const selectedCommitteeSensitive =
+                statusTarget === "committee_review" ||
+                COMMITTEE_REQUIRED_ROLES.has(selectedRole);
+              const showCommitteeVotePanel = Boolean(
+                selectedStage &&
+                selectedCommitteeId &&
+                selectedCommitteeSensitive,
+              );
+              const selectedVoteScopeKey = selectedStage
+                ? voteScopeKey(row.id, selectedStage.id)
+                : "";
+              const voteTally = selectedVoteScopeKey
+                ? committeeVoteTallies[selectedVoteScopeKey]
+                : undefined;
+              const voteRequired = voteTally
+                ? (voteTally.required ??
+                  Math.floor(voteTally.total_eligible / 2) + 1)
+                : null;
+              const voteReason = selectedVoteScopeKey
+                ? committeeVoteReasonByScope[selectedVoteScopeKey] || ""
+                : "";
+              const isVoteTallyLoading =
+                selectedVoteScopeKey.length > 0 &&
+                committeeVoteLoadingKey === `${selectedVoteScopeKey}:tally`;
+              const isVotingApprove =
+                selectedVoteScopeKey.length > 0 &&
+                committeeVoteLoadingKey ===
+                  `${selectedVoteScopeKey}:vote:approve`;
+              const isVotingReject =
+                selectedVoteScopeKey.length > 0 &&
+                committeeVoteLoadingKey ===
+                  `${selectedVoteScopeKey}:vote:reject`;
+              const isVotingAbstain =
+                selectedVoteScopeKey.length > 0 &&
+                committeeVoteLoadingKey ===
+                  `${selectedVoteScopeKey}:vote:abstain`;
               const canManagePublication = canManagePublicationForRow(row);
               const canViewStageActions = canViewStageActionsForRow(row);
               const canEnsureLinkage = canEnsureLinkageForRow(row);
@@ -1638,6 +1866,152 @@ const AppointmentsRegistryPage: React.FC = () => {
                             ))}
                           </select>
                         </div>
+
+                        {showCommitteeVotePanel ? (
+                          <div className="rounded-md border border-indigo-200 bg-indigo-50 p-3 lg:col-span-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-indigo-900">
+                                Committee Vote Gate
+                              </p>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={isVoteTallyLoading || !selectedStage}
+                                onClick={() =>
+                                  selectedStage
+                                    ? void fetchCommitteeVoteTally(
+                                        row,
+                                        selectedStage,
+                                        { force: true },
+                                      )
+                                    : undefined
+                                }
+                              >
+                                {isVoteTallyLoading
+                                  ? "Refreshing..."
+                                  : "Refresh Tally"}
+                              </Button>
+                            </div>
+
+                            {voteTally ? (
+                              <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                                <span className="rounded bg-white px-2 py-1 font-semibold text-indigo-900">
+                                  Eligible: {voteTally.total_eligible}
+                                </span>
+                                <span className="rounded bg-emerald-100 px-2 py-1 font-semibold text-emerald-800">
+                                  Approve: {voteTally.approve}
+                                </span>
+                                <span className="rounded bg-rose-100 px-2 py-1 font-semibold text-rose-800">
+                                  Reject: {voteTally.reject}
+                                </span>
+                                <span className="rounded bg-amber-100 px-2 py-1 font-semibold text-amber-800">
+                                  Abstain: {voteTally.abstain}
+                                </span>
+                                <span className="rounded bg-slate-100 px-2 py-1 font-semibold text-slate-700">
+                                  Pending: {voteTally.pending}
+                                </span>
+                                {voteRequired !== null ? (
+                                  <span className="rounded bg-indigo-100 px-2 py-1 font-semibold text-indigo-900">
+                                    Majority Required: {voteRequired}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <p className="mt-2 text-xs text-indigo-900">
+                                Vote tally not loaded yet.
+                              </p>
+                            )}
+
+                            <div className="mt-3">
+                              <label
+                                htmlFor={`committee-vote-reason-${row.id}`}
+                                className="mb-1 block text-xs font-semibold uppercase text-slate-700"
+                              >
+                                Vote Note (optional)
+                              </label>
+                              <Input
+                                id={`committee-vote-reason-${row.id}`}
+                                value={voteReason}
+                                onChange={(event) =>
+                                  setCommitteeVoteReasonByScope((previous) => ({
+                                    ...previous,
+                                    [selectedVoteScopeKey]: event.target.value,
+                                  }))
+                                }
+                                placeholder="Short rationale for your vote"
+                              />
+                            </div>
+
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                disabled={
+                                  !selectedStage ||
+                                  !selectedCommitteeId ||
+                                  isVotingApprove ||
+                                  isRowBusy
+                                }
+                                onClick={() =>
+                                  selectedStage
+                                    ? void castCommitteeVote(
+                                        row,
+                                        selectedStage,
+                                        "approve",
+                                      )
+                                    : undefined
+                                }
+                              >
+                                {isVotingApprove ? "Voting..." : "Vote Approve"}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={
+                                  !selectedStage ||
+                                  !selectedCommitteeId ||
+                                  isVotingReject ||
+                                  isRowBusy
+                                }
+                                onClick={() =>
+                                  selectedStage
+                                    ? void castCommitteeVote(
+                                        row,
+                                        selectedStage,
+                                        "reject",
+                                      )
+                                    : undefined
+                                }
+                              >
+                                {isVotingReject ? "Voting..." : "Vote Reject"}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                disabled={
+                                  !selectedStage ||
+                                  !selectedCommitteeId ||
+                                  isVotingAbstain ||
+                                  isRowBusy
+                                }
+                                onClick={() =>
+                                  selectedStage
+                                    ? void castCommitteeVote(
+                                        row,
+                                        selectedStage,
+                                        "abstain",
+                                      )
+                                    : undefined
+                                }
+                              >
+                                {isVotingAbstain ? "Voting..." : "Vote Abstain"}
+                              </Button>
+                            </div>
+                          </div>
+                        ) : null}
 
                         <div>
                           <label

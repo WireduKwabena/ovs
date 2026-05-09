@@ -1807,7 +1807,33 @@ export interface PublicTransparencyOfficeholder {
   is_active_officeholder: boolean;
 }
 
+export interface CommitteeVote {
+  id: string;
+  appointment: string;
+  stage: string | null;
+  committee_membership: string;
+  committee_id: string | null;
+  committee_role: string;
+  voter_email: string;
+  voter_name: string;
+  vote: 'approve' | 'reject' | 'abstain';
+  reason_note: string;
+  voted_at: string;
+  created_at: string;
+}
+
+export interface CommitteeVoteTally {
+  committee_id: string | null;
+  total_eligible: number;
+  approve: number;
+  reject: number;
+  abstain: number;
+  pending: number;
+  required?: number;
+}
+
 export interface AppointmentRecord {
+
   id: string;
   nomination_file_id?: string;
   organization?: string | null;

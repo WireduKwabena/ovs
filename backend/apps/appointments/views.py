@@ -41,6 +41,8 @@ from .serializers import (
     AppointmentStageActionSerializer,
     ApprovalStageSerializer,
     ApprovalStageTemplateSerializer,
+    CastCommitteeVoteSerializer,
+    CommitteeVoteSerializer,
     PublicAppointmentRecordSerializer,
 )
 from .services import (
@@ -49,8 +51,10 @@ from .services import (
     PublicationLifecycleError,
     StageAuthorizationError,
     advance_stage,
+    cast_committee_vote,
     ensure_publication_record_for_appointment,
     ensure_vetting_linkage_for_appointment,
+    get_committee_vote_tally,
     notify_nomination_created,
     publish_appointment_record,
     revoke_appointment_publication,
@@ -443,3 +447,58 @@ class AppointmentRecordViewSet(BlockPlatformAdminOrgWorkflowMixin, viewsets.Mode
             response,
             successor_path="/api/public/transparency/appointments/open/",
         )
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsCommitteeMemberOrAdmin],
+        url_path="committee-vote",
+    )
+    def committee_vote_action(self, request, pk=None):
+        appointment = self.get_object()
+        payload = CastCommitteeVoteSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+
+        stage = None
+        stage_id = payload.validated_data.get("stage_id")
+        if stage_id:
+            stage = ApprovalStage.objects.filter(id=stage_id).first()
+            if stage is None:
+                return Response({"error": "Approval stage not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            vote_obj = cast_committee_vote(
+                appointment=appointment,
+                stage=stage,
+                actor=request.user,
+                vote=payload.validated_data["vote"],
+                reason_note=payload.validated_data.get("reason_note", ""),
+            )
+        except StageAuthorizationError as exc:
+            return Response({"error": str(exc), "code": "insufficient_role"}, status=status.HTTP_403_FORBIDDEN)
+
+        tally = get_committee_vote_tally(appointment=appointment, stage=stage)
+        return Response(
+            {
+                "vote": CommitteeVoteSerializer(vote_obj).data,
+                "tally": tally,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=True,
+        methods=["get"],
+        permission_classes=[IsGovernmentWorkflowOperator],
+        url_path="committee-vote-tally",
+    )
+    def committee_vote_tally(self, request, pk=None):
+        appointment = self.get_object()
+        stage_id = request.query_params.get("stage_id")
+        stage = None
+        if stage_id:
+            stage = ApprovalStage.objects.filter(id=stage_id).first()
+            if stage is None:
+                return Response({"error": "Approval stage not found."}, status=status.HTTP_404_NOT_FOUND)
+        tally = get_committee_vote_tally(appointment=appointment, stage=stage)
+        return Response(tally, status=status.HTTP_200_OK)

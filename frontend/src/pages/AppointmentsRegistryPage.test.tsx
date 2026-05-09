@@ -19,7 +19,12 @@ const authHookState = vi.hoisted(() => ({
     code: "ORG1",
     name: "Org One",
     organization_type: "agency",
-  } as { id: string; code: string; name: string; organization_type: string } | null,
+  } as {
+    id: string;
+    code: string;
+    name: string;
+    organization_type: string;
+  } | null,
   activeOrganizationId: "org-1" as string | null,
   hasCommitteeMembership: vi.fn(),
 }));
@@ -42,6 +47,8 @@ const serviceMocks = vi.hoisted(() => ({
   publishAppointment: vi.fn(),
   revokeAppointmentPublication: vi.fn(),
   listStageActions: vi.fn(),
+  castCommitteeVote: vi.fn(),
+  getCommitteeVoteTally: vi.fn(),
 }));
 
 vi.mock("@/hooks/useAuth", () => ({
@@ -67,6 +74,8 @@ vi.mock("@/services/government.service", () => ({
     publishAppointment: serviceMocks.publishAppointment,
     revokeAppointmentPublication: serviceMocks.revokeAppointmentPublication,
     listStageActions: serviceMocks.listStageActions,
+    castCommitteeVote: serviceMocks.castCommitteeVote,
+    getCommitteeVoteTally: serviceMocks.getCommitteeVoteTally,
   },
   isRecentAuthRequiredError: () => false,
 }));
@@ -185,7 +194,43 @@ const configureBaseServiceResponses = () => {
   ]);
   serviceMocks.listApprovalStageTemplates.mockResolvedValue([baseTemplate]);
   serviceMocks.listApprovalStages.mockResolvedValue([baseStage]);
-  serviceMocks.getAppointmentPublication.mockRejectedValue(new Error("not found"));
+  serviceMocks.getAppointmentPublication.mockRejectedValue(
+    new Error("not found"),
+  );
+  serviceMocks.getCommitteeVoteTally.mockResolvedValue({
+    committee_id: "committee-1",
+    total_eligible: 3,
+    approve: 0,
+    reject: 0,
+    abstain: 0,
+    pending: 3,
+    required: 2,
+  });
+  serviceMocks.castCommitteeVote.mockResolvedValue({
+    vote: {
+      id: "vote-1",
+      appointment: "appointment-1",
+      stage: "stage-1",
+      committee_membership: "membership-1",
+      committee_id: "committee-1",
+      committee_role: "member",
+      voter_email: "member@example.com",
+      voter_name: "Member",
+      vote: "approve",
+      reason_note: "",
+      voted_at: "2026-03-01T00:00:00Z",
+      created_at: "2026-03-01T00:00:00Z",
+    },
+    tally: {
+      committee_id: "committee-1",
+      total_eligible: 3,
+      approve: 1,
+      reject: 0,
+      abstain: 0,
+      pending: 2,
+      required: 2,
+    },
+  });
 };
 
 describe("AppointmentsRegistryPage org + committee visibility", () => {
@@ -219,8 +264,9 @@ describe("AppointmentsRegistryPage org + committee visibility", () => {
     });
 
     expect(await screen.findByText("Office Appointment Workflow")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /apply transition/i })).toBeNull();
-    expect(screen.getByText(/restricted to authorized stage actors/i)).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: /apply transition/i }),
+    ).toBeNull();
   });
 
   it("shows lifecycle transition controls for committee members in scope", async () => {
@@ -238,7 +284,9 @@ describe("AppointmentsRegistryPage org + committee visibility", () => {
     });
 
     expect(await screen.findByText("Office Appointment Workflow")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /apply transition/i })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /apply transition/i }),
+    ).toBeTruthy();
   });
 
   it("hides nomination and approval-chain authoring controls for non-registry actors", async () => {
@@ -260,7 +308,9 @@ describe("AppointmentsRegistryPage org + committee visibility", () => {
     expect(screen.queryByText(/Initialize Approval Chain/i)).toBeNull();
     expect(screen.queryByText(/Create Nomination Record/i)).toBeNull();
     expect(
-      await screen.findByText(/Nomination creation and approval-chain setup are restricted to registry administrators./i),
+      await screen.findByText(
+        /Nomination creation and approval-chain setup are restricted to registry administrators./i,
+      ),
     ).toBeTruthy();
     expect(serviceMocks.listPositions).not.toHaveBeenCalled();
     expect(serviceMocks.listPersonnel).not.toHaveBeenCalled();
@@ -293,7 +343,9 @@ describe("AppointmentsRegistryPage org + committee visibility", () => {
     authHookState.canManageRegistryInActiveOrganization = false;
 
     render(
-      <MemoryRouter initialEntries={["/government/appointments?view=committee"]}>
+      <MemoryRouter
+        initialEntries={["/government/appointments?view=committee"]}
+      >
         <AppointmentsRegistryPage />
       </MemoryRouter>,
     );
@@ -306,7 +358,7 @@ describe("AppointmentsRegistryPage org + committee visibility", () => {
     expect(screen.queryByText(/Create Nomination Record/i)).toBeNull();
   });
 
-  it("uses the updated laptop-friendly stats and template grid classes", async () => {
+  it("uses the updated laptop-friendly stats and form grid classes", async () => {
     configureBaseServiceResponses();
     authHookState.canManageRegistry = true;
     authHookState.canManageRegistryInActiveOrganization = true;
@@ -326,11 +378,10 @@ describe("AppointmentsRegistryPage org + committee visibility", () => {
     expect(statsSection?.className).toContain("sm:grid-cols-2");
     expect(statsSection?.className).toContain("xl:grid-cols-4");
 
-    const templateHeading = screen.getAllByText("Create Route Template")[0];
-    const templateForm = templateHeading.closest("form");
-    const templateGrid = templateForm?.parentElement;
-    expect(templateGrid).toBeTruthy();
-    expect(templateGrid?.className).toContain("xl:grid-cols-2");
+    const nominationHeading = screen.getByText("Open Nomination File");
+    const nominationSection = nominationHeading.closest("section");
+    const nominationForm = nominationSection?.querySelector("form");
+    expect(nominationForm).toBeTruthy();
+    expect(nominationForm?.className).toContain("md:grid-cols-2");
   });
 });
-

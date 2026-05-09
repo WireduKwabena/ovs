@@ -35,6 +35,7 @@ except Exception:  # pragma: no cover - notifications app may be optional in som
     NotificationService = None  # type: ignore[assignment]
 
 from .models import AppointmentPublication, AppointmentRecord, AppointmentStageAction
+from .models import AppointmentPublication, AppointmentRecord, AppointmentStageAction, CommitteeVote
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,40 @@ APPOINTMENT_NOTIFICATION_EVENT_REVOKED = "appointment_revoked"
 VETTING_DECISION_GATED_STATUSES = {"committee_review", "confirmation_pending", "appointed"}
 COMMITTEE_TRANSITION_ROLES = {ROLE_COMMITTEE_MEMBER, ROLE_COMMITTEE_CHAIR}
 COMMITTEE_STAGE_OPERATIONAL_ROLES = {"member", "chair", "secretary"}
+
+
+def get_committee_vote_tally(*, appointment: AppointmentRecord, stage) -> dict:
+    """
+    Return current vote counts for a given appointment + stage combination.
+    Also returns total_eligible: active, non-observer members with can_vote=True.
+    """
+    committee = _resolve_bound_committee(appointment=appointment, stage=stage)
+    if committee is None:
+        return {"committee_id": None, "total_eligible": 0, "approve": 0, "reject": 0, "abstain": 0, "pending": 0}
+
+    from apps.governance.models import CommitteeMembership
+
+    total_eligible = CommitteeMembership.objects.filter(
+        committee=committee,
+        is_active=True,
+        can_vote=True,
+    ).exclude(committee_role="observer").count()
+
+    votes_qs = CommitteeVote.objects.filter(appointment=appointment, stage=stage)
+    approve = votes_qs.filter(vote="approve").count()
+    reject = votes_qs.filter(vote="reject").count()
+    abstain = votes_qs.filter(vote="abstain").count()
+    voted = approve + reject + abstain
+    pending = max(0, total_eligible - voted)
+
+    return {
+        "committee_id": str(committee.id),
+        "total_eligible": total_eligible,
+        "approve": approve,
+        "reject": reject,
+        "abstain": abstain,
+        "pending": pending,
+    }
 
 
 def _safe_actor_display(actor) -> str:
@@ -187,6 +222,42 @@ def _resolve_bound_committee(*, appointment: AppointmentRecord, stage):
     return None
 
 
+def _enforce_committee_vote_majority_gate(*, appointment: AppointmentRecord, stage) -> None:
+    """
+    Block stage advancement until a strict majority (>50%) of eligible committee
+    members have voted 'approve'. Only applies when a committee is assigned.
+    """
+    committee = _resolve_bound_committee(appointment=appointment, stage=stage)
+    if committee is None:
+        return
+
+    tally = get_committee_vote_tally(appointment=appointment, stage=stage)
+    total_eligible = tally["total_eligible"]
+    approve_count = tally["approve"]
+
+    if total_eligible == 0:
+        # No configured voters - skip gate (admin-only committee or misconfigured).
+        return
+
+    required = (total_eligible // 2) + 1  # strict majority
+    if approve_count < required:
+        raise InvalidTransitionError(
+            f"Committee vote majority not reached: {approve_count}/{total_eligible} approved "
+            f"({required} required).",
+            code="committee_vote_required",
+            details={
+                "gate": "committee_vote",
+                "committee_id": tally["committee_id"],
+                "total_eligible": total_eligible,
+                "approve": approve_count,
+                "reject": tally["reject"],
+                "abstain": tally["abstain"],
+                "pending": tally["pending"],
+                "required": required,
+            },
+        )
+
+
 def _enforce_committee_stage_authorization(*, appointment: AppointmentRecord, actor, stage, new_status: str):
     """
     Committee-aware authorization for committee-stage transitions.
@@ -223,6 +294,8 @@ def _enforce_committee_stage_authorization(*, appointment: AppointmentRecord, ac
         raise StageAuthorizationError("This committee stage requires an active chair membership.")
     if required_role == ROLE_COMMITTEE_MEMBER and committee_role not in COMMITTEE_STAGE_OPERATIONAL_ROLES:
         raise StageAuthorizationError("Actor lacks eligible committee role for this committee stage.")
+
+    _enforce_committee_vote_majority_gate(appointment=appointment, stage=stage)
 
     return membership
 
@@ -535,6 +608,48 @@ def _candidate_from_personnel_nominee(appointment: AppointmentRecord) -> Candida
         nominee.linked_candidate = candidate
         nominee.save(update_fields=["linked_candidate", "updated_at"])
     return candidate
+
+
+def cast_committee_vote(
+    *,
+    appointment: AppointmentRecord,
+    stage,
+    actor,
+    vote: str,
+    reason_note: str = "",
+) -> CommitteeVote:
+    """
+    Record (or update) a committee member's vote on the appointment at the given stage.
+    Raises StageAuthorizationError if actor is not an eligible voting member.
+    """
+    if vote not in {"approve", "reject", "abstain"}:
+        raise ValueError(f"Invalid vote value '{vote}'. Must be approve, reject, or abstain.")
+
+    committee = _resolve_bound_committee(appointment=appointment, stage=stage)
+    if committee is None:
+        raise StageAuthorizationError("No committee is assigned to this stage.")
+
+    if not committee.is_active:
+        raise StageAuthorizationError("Assigned committee is inactive.")
+
+    membership = get_active_committee_membership(
+        user=actor,
+        committee=committee,
+        allow_observer=False,
+    )
+    if membership is None:
+        raise StageAuthorizationError("Actor is not an active voting member of the committee assigned to this stage.")
+
+    if not membership.can_vote:
+        raise StageAuthorizationError("Actor's committee membership does not have voting rights.")
+
+    committee_vote, _created = CommitteeVote.objects.update_or_create(
+        appointment=appointment,
+        stage=stage,
+        committee_membership=membership,
+        defaults={"vote": vote, "reason_note": reason_note},
+    )
+    return committee_vote
 
 
 def ensure_vetting_linkage_for_appointment(*, appointment: AppointmentRecord, actor):

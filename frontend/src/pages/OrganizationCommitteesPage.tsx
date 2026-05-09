@@ -22,7 +22,12 @@ type CommitteeDraft = {
 
 const OrganizationCommitteesPage: React.FC = () => {
   const navigate = useNavigate();
-  const { userType, activeOrganization, activeOrganizationId, canManageActiveOrganizationGovernance } = useAuth();
+  const {
+    userType,
+    activeOrganization,
+    activeOrganizationId,
+    canManageActiveOrganizationGovernance,
+  } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -33,9 +38,13 @@ const OrganizationCommitteesPage: React.FC = () => {
   const [previousPageUrl, setPreviousPageUrl] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [isActiveFilter, setIsActiveFilter] = useState<"all" | "true" | "false">("all");
+  const [isActiveFilter, setIsActiveFilter] = useState<
+    "all" | "true" | "false"
+  >("all");
   const [committeeTypeFilter, setCommitteeTypeFilter] = useState("");
-  const [committeeTypeOptions, setCommitteeTypeOptions] = useState<GovernanceChoiceOption[]>([]);
+  const [committeeTypeOptions, setCommitteeTypeOptions] = useState<
+    GovernanceChoiceOption[]
+  >([]);
   const [drafts, setDrafts] = useState<Record<string, CommitteeDraft>>({});
   const [createForm, setCreateForm] = useState({
     code: "",
@@ -44,7 +53,8 @@ const OrganizationCommitteesPage: React.FC = () => {
     description: "",
   });
 
-  const canManage = userType !== "applicant" && canManageActiveOrganizationGovernance;
+  const canManage =
+    userType !== "applicant" && canManageActiveOrganizationGovernance;
 
   const loadChoices = useCallback(async () => {
     const choices = await governanceService.getGovernanceChoices();
@@ -52,7 +62,8 @@ const OrganizationCommitteesPage: React.FC = () => {
     setCommitteeTypeOptions(committeeChoices);
     setCreateForm((previous) => ({
       ...previous,
-      committee_type: previous.committee_type || committeeChoices[0]?.value || "other",
+      committee_type:
+        previous.committee_type || committeeChoices[0]?.value || "other",
     }));
   }, []);
 
@@ -69,7 +80,8 @@ const OrganizationCommitteesPage: React.FC = () => {
       page,
       search: search.trim() || undefined,
       committee_type: committeeTypeFilter || undefined,
-      is_active: isActiveFilter === "all" ? undefined : isActiveFilter === "true",
+      is_active:
+        isActiveFilter === "all" ? undefined : isActiveFilter === "true",
     });
     setRows(response.results || []);
     setCount(response.count || 0);
@@ -88,7 +100,14 @@ const OrganizationCommitteesPage: React.FC = () => {
       }
       return next;
     });
-  }, [activeOrganizationId, canManage, committeeTypeFilter, isActiveFilter, page, search]);
+  }, [
+    activeOrganizationId,
+    canManage,
+    committeeTypeFilter,
+    isActiveFilter,
+    page,
+    search,
+  ]);
 
   useEffect(() => {
     const run = async () => {
@@ -96,7 +115,9 @@ const OrganizationCommitteesPage: React.FC = () => {
       try {
         await Promise.all([loadChoices(), loadCommittees()]);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to load committees.");
+        toast.error(
+          error instanceof Error ? error.message : "Failed to load committees.",
+        );
       } finally {
         setLoading(false);
       }
@@ -110,7 +131,11 @@ const OrganizationCommitteesPage: React.FC = () => {
       await Promise.all([loadChoices(), loadCommittees()]);
       toast.success("Committee registry refreshed.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to refresh committees.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to refresh committees.",
+      );
     } finally {
       setRefreshing(false);
     }
@@ -118,7 +143,11 @@ const OrganizationCommitteesPage: React.FC = () => {
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!createForm.code.trim() || !createForm.name.trim() || !createForm.committee_type.trim()) {
+    if (
+      !createForm.code.trim() ||
+      !createForm.name.trim() ||
+      !createForm.committee_type.trim()
+    ) {
       toast.error("Committee code, name, and type are required.");
       return;
     }
@@ -139,7 +168,9 @@ const OrganizationCommitteesPage: React.FC = () => {
       }));
       await loadCommittees();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to create committee.");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create committee.",
+      );
     } finally {
       setCreating(false);
     }
@@ -162,7 +193,9 @@ const OrganizationCommitteesPage: React.FC = () => {
       toast.success("Committee updated.");
       await loadCommittees();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to update committee.");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update committee.",
+      );
     } finally {
       setSavingId(null);
     }
@@ -175,7 +208,11 @@ const OrganizationCommitteesPage: React.FC = () => {
       toast.success("Committee deactivated.");
       await loadCommittees();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to deactivate committee.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to deactivate committee.",
+      );
     } finally {
       setSavingId(null);
     }
@@ -190,7 +227,9 @@ const OrganizationCommitteesPage: React.FC = () => {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-10 sm:px-6 lg:px-6 xl:px-8">
         <section className="w-full max-w-xl rounded-2xl border border-amber-200 bg-white p-8 shadow-sm text-center">
-          <h1 className="text-2xl font-black text-slate-900">Organization Admin Access Required</h1>
+          <h1 className="text-2xl font-black text-slate-900">
+            Organization Admin Access Required
+          </h1>
           <p className="mt-3 text-sm text-slate-700">
             Committee governance controls are restricted to organization admins.
           </p>
@@ -208,15 +247,24 @@ const OrganizationCommitteesPage: React.FC = () => {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-10 sm:px-6 lg:px-6 xl:px-8">
         <section className="w-full max-w-xl rounded-2xl border border-amber-200 bg-white p-8 shadow-sm text-center">
-          <h1 className="text-2xl font-black text-slate-900">Active Organization Required</h1>
+          <h1 className="text-2xl font-black text-slate-900">
+            Active Organization Required
+          </h1>
           <p className="mt-3 text-sm text-slate-700">
             Select an active organization before managing committees.
           </p>
           <div className="mt-6 flex items-center justify-center gap-3">
-            <Button type="button" onClick={() => navigate("/organization/setup")}>
+            <Button
+              type="button"
+              onClick={() => navigate("/organization/setup")}
+            >
               Organization Setup
             </Button>
-            <Button type="button" variant="outline" onClick={() => navigate("/organization/dashboard")}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate("/organization/dashboard")}
+            >
               Organization Dashboard
             </Button>
           </div>
@@ -234,18 +282,34 @@ const OrganizationCommitteesPage: React.FC = () => {
               <Workflow className="h-3.5 w-3.5" />
               Organization Committees
             </div>
-            <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-900">Committee Registry</h1>
+            <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-900">
+              Committee Registry
+            </h1>
             <p className="mt-1 text-sm text-slate-700">
-              Active organization: <span className="font-semibold">{activeOrganization?.name || "N/A"}</span>
+              Active organization:{" "}
+              <span className="font-semibold">
+                {activeOrganization?.name || "N/A"}
+              </span>
             </p>
             <p className="mt-1 text-xs text-slate-700">{pageSummary}</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" onClick={() => navigate("/organization/dashboard")}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate("/organization/dashboard")}
+            >
               Dashboard
             </Button>
-            <Button type="button" variant="outline" onClick={() => void handleRefresh()} disabled={refreshing || loading}>
-              <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleRefresh()}
+              disabled={refreshing || loading}
+            >
+              <RefreshCw
+                className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+              />
               Refresh
             </Button>
           </div>
@@ -254,15 +318,28 @@ const OrganizationCommitteesPage: React.FC = () => {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-bold text-slate-900">Create Committee</h2>
-        <form className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4" onSubmit={handleCreate}>
+        <form
+          className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4"
+          onSubmit={handleCreate}
+        >
           <Input
             value={createForm.code}
-            onChange={(event) => setCreateForm((previous) => ({ ...previous, code: event.target.value }))}
+            onChange={(event) =>
+              setCreateForm((previous) => ({
+                ...previous,
+                code: event.target.value,
+              }))
+            }
             placeholder="committee-code"
           />
           <Input
             value={createForm.name}
-            onChange={(event) => setCreateForm((previous) => ({ ...previous, name: event.target.value }))}
+            onChange={(event) =>
+              setCreateForm((previous) => ({
+                ...previous,
+                name: event.target.value,
+              }))
+            }
             placeholder="Committee name"
           />
           <select
@@ -274,6 +351,7 @@ const OrganizationCommitteesPage: React.FC = () => {
                 committee_type: event.target.value,
               }))
             }
+            aria-label="Committee type"
           >
             {committeeTypeOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -312,6 +390,7 @@ const OrganizationCommitteesPage: React.FC = () => {
           />
           <select
             className={SELECT_FIELD_CLASS}
+            aria-label="Committee type filter"
             value={committeeTypeFilter}
             onChange={(event) => {
               setPage(1);
@@ -327,6 +406,7 @@ const OrganizationCommitteesPage: React.FC = () => {
           </select>
           <select
             className={SELECT_FIELD_CLASS}
+            aria-label="Status filter"
             value={isActiveFilter}
             onChange={(event) => {
               setPage(1);
@@ -337,7 +417,12 @@ const OrganizationCommitteesPage: React.FC = () => {
             <option value="true">Active only</option>
             <option value="false">Inactive only</option>
           </select>
-          <Button type="button" variant="outline" onClick={() => void handleRefresh()} disabled={refreshing || loading}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void handleRefresh()}
+            disabled={refreshing || loading}
+          >
             Apply Filters
           </Button>
         </div>
@@ -409,6 +494,7 @@ const OrganizationCommitteesPage: React.FC = () => {
                       <td className="px-3 py-3">
                         <select
                           className={SELECT_FIELD_CLASS}
+                          title="Committee Type"
                           value={draft.committee_type}
                           onChange={(event) =>
                             setDrafts((previous) => ({
@@ -446,7 +532,9 @@ const OrganizationCommitteesPage: React.FC = () => {
                       <td className="px-3 py-3">
                         <span
                           className={`inline-flex rounded px-2 py-1 text-xs font-semibold ${
-                            draft.is_active ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-700"
+                            draft.is_active
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-slate-100 text-slate-700"
                           }`}
                         >
                           {draft.is_active ? "Active" : "Inactive"}
@@ -454,7 +542,13 @@ const OrganizationCommitteesPage: React.FC = () => {
                       </td>
                       <td className="px-3 py-3">
                         <div className="flex flex-wrap gap-2">
-                          <Button type="button" size="sm" variant="outline" onClick={() => void handleSave(committee)} disabled={isSaving}>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void handleSave(committee)}
+                            disabled={isSaving}
+                          >
                             Save
                           </Button>
                           <Button

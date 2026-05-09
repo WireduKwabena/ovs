@@ -2,6 +2,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from .models import AppointmentPublication, AppointmentRecord, AppointmentStageAction, ApprovalStage, ApprovalStageTemplate
+from .models import AppointmentPublication, AppointmentRecord, AppointmentStageAction, ApprovalStage, ApprovalStageTemplate, CommitteeVote
 from .public_serializers import PublicAppointmentRecordSerializer
 
 
@@ -317,3 +318,40 @@ class AppointmentPublicationSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = fields
+
+
+class CommitteeVoteSerializer(serializers.ModelSerializer):
+    voter_email = serializers.EmailField(source="committee_membership.user.email", read_only=True)
+    voter_name = serializers.SerializerMethodField()
+    committee_id = serializers.UUIDField(source="committee_membership.committee_id", read_only=True)
+    committee_role = serializers.CharField(source="committee_membership.committee_role", read_only=True)
+
+    def get_voter_name(self, obj):
+        user = getattr(getattr(obj, "committee_membership", None), "user", None)
+        if user is None:
+            return ""
+        return getattr(user, "get_full_name", lambda: "")() or getattr(user, "email", "")
+
+    class Meta:
+        model = CommitteeVote
+        fields = [
+            "id",
+            "appointment",
+            "stage",
+            "committee_membership",
+            "committee_id",
+            "committee_role",
+            "voter_email",
+            "voter_name",
+            "vote",
+            "reason_note",
+            "voted_at",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class CastCommitteeVoteSerializer(serializers.Serializer):
+    stage_id = serializers.UUIDField(required=False, allow_null=True)
+    vote = serializers.ChoiceField(choices=["approve", "reject", "abstain"])
+    reason_note = serializers.CharField(required=False, allow_blank=True)

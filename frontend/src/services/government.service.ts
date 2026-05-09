@@ -6,6 +6,8 @@ import type {
   AppointmentRecord,
   AppointmentStageAction,
   AppointmentStatus,
+  CommitteeVote,
+  CommitteeVoteTally,
   GovernanceCommittee,
   GovernmentPosition,
   PaginatedResponse,
@@ -536,6 +538,41 @@ export const governmentService = {
       return response.data.results || [];
     } catch (error) {
       throw toServiceError(error, "Failed to fetch committees.");
+    }
+  },
+
+  async castCommitteeVote(
+    appointmentId: string,
+    payload: {
+      stage_id?: string | null;
+      vote: "approve" | "reject" | "abstain";
+      reason_note?: string;
+    },
+  ): Promise<{ vote: CommitteeVote; tally: CommitteeVoteTally }> {
+    try {
+      const response = await api.post<{ vote: CommitteeVote; tally: CommitteeVoteTally }>(
+        `/appointments/records/${appointmentId}/committee-vote/`,
+        payload,
+      );
+      return response.data;
+    } catch (error) {
+      throw toServiceError(error, "Failed to cast committee vote.");
+    }
+  },
+
+  async getCommitteeVoteTally(
+    appointmentId: string,
+    stageId?: string,
+  ): Promise<CommitteeVoteTally> {
+    try {
+      const params = stageId ? { stage_id: stageId } : undefined;
+      const response = await api.get<CommitteeVoteTally>(
+        `/appointments/records/${appointmentId}/committee-vote-tally/`,
+        { params },
+      );
+      return response.data;
+    } catch (error) {
+      throw toServiceError(error, "Failed to fetch committee vote tally.");
     }
   },
 };
