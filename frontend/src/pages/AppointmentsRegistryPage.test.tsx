@@ -378,7 +378,7 @@ describe("AppointmentsRegistryPage org + committee visibility", () => {
     expect(statsSection?.className).toContain("sm:grid-cols-2");
     expect(statsSection?.className).toContain("xl:grid-cols-4");
 
-    const nominationHeading = screen.getByText("Open Nomination File");
+    const nominationHeading = screen.getAllByText("Open Nomination File")[0];
     const nominationSection = nominationHeading.closest("section");
     const nominationForm = nominationSection?.querySelector("form");
     expect(nominationForm).toBeTruthy();
