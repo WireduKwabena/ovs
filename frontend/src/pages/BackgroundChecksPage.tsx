@@ -30,6 +30,7 @@ import type {
 } from "@/types";
 import { downloadCsvFile, isoDateStamp } from "@/utils/csv";
 import { downloadJsonFile } from "@/utils/json";
+import { getWorkspacePath } from "@/utils/appPaths";
 import { formatDate } from "@/utils/helper";
 import { applyQueryUpdates, normalizeQueryValue } from "@/utils/queryParams";
 
@@ -172,6 +173,19 @@ const BackgroundChecksPage: React.FC = () => {
   const isStatusFilterActive = statusFilter !== "all";
   const hasActiveFilters =
     isCaseFilterActive || isCheckTypeFilterActive || isStatusFilterActive;
+
+  useEffect(() => {
+    if (caseFilter === "all" || selectedCase) {
+      return;
+    }
+
+    const matchingCase = caseOptions.find(
+      (option) => option.case_id === caseFilter,
+    );
+    if (matchingCase) {
+      setSelectedCase(matchingCase.id);
+    }
+  }, [caseFilter, caseOptions, selectedCase]);
 
   const loadChecks = useCallback(async () => {
     try {
@@ -914,7 +928,9 @@ const BackgroundChecksPage: React.FC = () => {
                       : "View Events"}
                   </Button>
                   <Button asChild variant="outline">
-                    <Link to={`/applications/${check.case_id}`}>
+                    <Link
+                      to={`${getWorkspacePath("applications")}/${encodeURIComponent(check.case_id)}`}
+                    >
                       <Search className="mr-2 h-4 w-4" />
                       Open Case
                     </Link>

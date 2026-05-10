@@ -679,4 +679,44 @@ class BackgroundCheckApiTests(APITestCase):
         response = self.client.post(f"/api/background-checks/checks/{check.id}/retry/", {}, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True)
+    def test_update_is_rejected_for_immutable_record(self):
+        check = submit_background_check(
+            case=self.case,
+            check_type="employment",
+            submitted_by=self.internal_user,
+            consent_evidence={"granted": True},
+        )
+
+        self.client.force_authenticate(self.internal_user)
+        response = self.client.patch(
+            f"/api/background-checks/checks/{check.id}/",
+            {"request_payload": {"notes": "tamper"}},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.data[0],
+            "Background checks are immutable records. Use workflow actions instead.",
+        )
+
+    @override_settings(BACKGROUND_CHECK_REQUIRE_CONSENT=True)
+    def test_delete_is_rejected_for_immutable_record(self):
+        check = submit_background_check(
+            case=self.case,
+            check_type="employment",
+            submitted_by=self.internal_user,
+            consent_evidence={"granted": True},
+        )
+
+        self.client.force_authenticate(self.internal_user)
+        response = self.client.delete(f"/api/background-checks/checks/{check.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.data[0],
+            "Background checks cannot be deleted once created.",
+        )
+
 

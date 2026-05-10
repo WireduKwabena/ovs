@@ -100,6 +100,15 @@ class BackgroundCheckViewSet(viewsets.ModelViewSet):
         output["refresh_queued"] = refresh_queued
         return Response(output, status=status.HTTP_201_CREATED)
 
+    def update(self, request, *args, **kwargs):
+        raise ValidationError("Background checks are immutable records. Use workflow actions instead.")
+
+    def partial_update(self, request, *args, **kwargs):
+        raise ValidationError("Background checks are immutable records. Use workflow actions instead.")
+
+    def destroy(self, request, *args, **kwargs):
+        raise ValidationError("Background checks cannot be deleted once created.")
+
     @action(detail=True, methods=["post"])
     def refresh(self, request, pk=None):
         check = self.get_object()

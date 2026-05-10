@@ -9,10 +9,13 @@ Key routes:
 - Frontend: `/background-checks`
 - APIs:
   - `GET/POST /api/background-checks/checks/`
-  - `GET/PATCH/DELETE /api/background-checks/checks/{id}/`
+  - `GET /api/background-checks/checks/{id}/`
   - `GET /api/background-checks/checks/{id}/events/`
   - `POST /api/background-checks/checks/{id}/refresh/`
+  - `POST /api/background-checks/checks/{id}/retry/`
   - `POST /api/background-checks/providers/{provider_key}/webhook/`
+
+Background check records are immutable once created. Operational changes must go through explicit actions such as refresh and retry so the audit trail remains intact.
 
 ## 11.2 Provider Modes
 
@@ -24,6 +27,7 @@ Typical provider mode values:
 Production recommendation:
 
 - Use real provider mode and enforce webhook/token security.
+- Retain webhook delivery ledgers for a shorter operational window than the primary check records and purge them on schedule.
 
 ## 11.3 Consent and Governance
 

@@ -7,6 +7,7 @@ Retention periods are configured in settings:
     PII_RETENTION_DAYS              (default 365)
     BIOMETRIC_RETENTION_DAYS        (default 180)
     BACKGROUND_CHECK_RETENTION_DAYS (default 365)
+    BACKGROUND_CHECK_WEBHOOK_RETENTION_DAYS (default 90)
     AUDIT_LOG_RETENTION_DAYS        (default 730)
 
 Usage:
@@ -87,13 +88,13 @@ def _purge_biometric(dry_run: bool) -> int:
 
 
 def _purge_background_checks(dry_run: bool) -> int:
-    """Delete background check records beyond retention window."""
+    """Delete background check records and webhook ledgers beyond retention window."""
     days = int(getattr(settings, "BACKGROUND_CHECK_RETENTION_DAYS", 365))
     cutoff = _cutoff(days)
     deleted = 0
 
     try:
-        from apps.background_checks.models import BackgroundCheck
+        from apps.background_checks.models import BackgroundCheck, BackgroundCheckWebhookDelivery
         qs = BackgroundCheck.objects.filter(
             status__in=["completed", "failed"],
             updated_at__lt=cutoff,
@@ -105,6 +106,18 @@ def _purge_background_checks(dry_run: bool) -> int:
         logger.info(
             "Background check purge (%s): %d record(s) older than %d days.",
             "DRY RUN" if dry_run else "LIVE", count, days,
+        )
+
+        webhook_days = int(getattr(settings, "BACKGROUND_CHECK_WEBHOOK_RETENTION_DAYS", 90))
+        webhook_cutoff = _cutoff(webhook_days)
+        webhook_qs = BackgroundCheckWebhookDelivery.objects.filter(received_at__lt=webhook_cutoff)
+        webhook_count = webhook_qs.count()
+        if not dry_run and webhook_count:
+            webhook_qs.delete()
+        deleted += webhook_count
+        logger.info(
+            "Background check webhook purge (%s): %d delivery record(s) older than %d days.",
+            "DRY RUN" if dry_run else "LIVE", webhook_count, webhook_days,
         )
     except Exception as exc:
         logger.error("Background check purge failed: %s", exc, exc_info=True)
