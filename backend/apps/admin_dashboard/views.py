@@ -19,7 +19,11 @@ from apps.applications.models import Document, VettingCase
 from apps.users.models import User
 from apps.core.authz import GOVERNMENT_ROLE_GROUPS
 from apps.core.permissions import (
+    ACTIVE_ORGANIZATION_HEADER_KEY,
+    ACTIVE_ORGANIZATION_QUERY_PARAM,
+    ACTIVE_ORGANIZATION_SESSION_KEY,
     IsRegistryGovernanceAdmin,
+    get_request_tenant_context,
     is_platform_admin_user,
 )
 from apps.fraud.models import FraudDetectionResult
@@ -189,8 +193,25 @@ def _platform_admin_org_management_forbidden(request):
 def _platform_admin_org_scope_required(request):
     if not is_platform_admin_user(getattr(request, "user", None)):
         return None
-    if not _is_public_schema():
+
+    # Platform admins must operate with an explicit organization selection
+    # (header/query/session), even when routed through a tenant schema.
+    tenant_context = get_request_tenant_context(request)
+    active_org = tenant_context.get("active_organization")
+    active_source = str(tenant_context.get("active_organization_source", "") or "").strip().lower()
+    if isinstance(active_org, dict) and active_source in {"header", "query", "session"}:
         return None
+
+    requested_org_id = str(getattr(request, "META", {}).get(ACTIVE_ORGANIZATION_HEADER_KEY, "") or "").strip()
+    if not requested_org_id:
+        requested_org_id = str(getattr(request, "query_params", {}).get(ACTIVE_ORGANIZATION_QUERY_PARAM, "") or "").strip()
+    if not requested_org_id:
+        session = getattr(request, "session", None)
+        if session is not None:
+            requested_org_id = str(session.get(ACTIVE_ORGANIZATION_SESSION_KEY, "") or "").strip()
+    if requested_org_id:
+        return None
+
     return Response(
         {
             "detail": (

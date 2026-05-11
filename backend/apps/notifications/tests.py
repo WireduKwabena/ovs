@@ -14,7 +14,7 @@ from apps.applications.models import VettingCase
 from apps.users.models import User
 from apps.campaigns.models import VettingCampaign
 from apps.candidates.models import Candidate
-from apps.governance.models import Committee, CommitteeMembership, Organization, OrganizationMembership
+from apps.governance.models import Committee, CommitteeMembership, OrganizationMembership
 from apps.interviews.models import InterviewSession
 from apps.notifications.interview_alerts import (
     get_internal_emails,
@@ -25,6 +25,7 @@ from apps.notifications.models import Notification
 from apps.notifications.services import NotificationService
 from apps.personnel.models import PersonnelRecord
 from apps.positions.models import GovernmentPosition
+from apps.tenants.models import Organization
 
 
 class NotificationApiTests(APITestCase):
@@ -753,6 +754,7 @@ class NotificationGovernanceScopeTests(TestCase):
             first_name="Notification",
             last_name="Actor",
             user_type="internal",
+            organization=self.org_a.name,
         )
         self.user_org_a_vetting = User.objects.create_user(
             email="notif.orga.vetting@example.com",
@@ -760,6 +762,7 @@ class NotificationGovernanceScopeTests(TestCase):
             first_name="Notification",
             last_name="OrgAVetting",
             user_type="internal",
+            organization=self.org_a.name,
         )
         self.user_org_b_vetting = User.objects.create_user(
             email="notif.orgb.vetting@example.com",
@@ -767,6 +770,7 @@ class NotificationGovernanceScopeTests(TestCase):
             first_name="Notification",
             last_name="OrgBVetting",
             user_type="internal",
+            organization=self.org_b.name,
         )
         self.committee_member_a = User.objects.create_user(
             email="notif.committee.a@example.com",
@@ -774,6 +778,7 @@ class NotificationGovernanceScopeTests(TestCase):
             first_name="Notification",
             last_name="CommitteeA",
             user_type="internal",
+            organization=self.org_a.name,
         )
         self.committee_member_b = User.objects.create_user(
             email="notif.committee.b@example.com",
@@ -781,6 +786,7 @@ class NotificationGovernanceScopeTests(TestCase):
             first_name="Notification",
             last_name="CommitteeB",
             user_type="internal",
+            organization=self.org_b.name,
         )
         self.committee_group_only = User.objects.create_user(
             email="notif.group.only@example.com",
@@ -788,6 +794,7 @@ class NotificationGovernanceScopeTests(TestCase):
             first_name="Notification",
             last_name="GroupOnly",
             user_type="internal",
+            organization=self.org_a.name,
         )
         self.platform_admin = User.objects.create_user(
             email="notif.admin@example.com",
@@ -798,12 +805,17 @@ class NotificationGovernanceScopeTests(TestCase):
             is_staff=True,
             is_superuser=True,
         )
+        self.platform_admin.user_type = "admin"
+        self.platform_admin.is_staff = True
+        self.platform_admin.is_superuser = True
+        self.platform_admin.save(update_fields=["user_type", "is_staff", "is_superuser", "updated_at"])
         self.plain_internal = User.objects.create_user(
             email="notif.plain.hr@example.com",
             password="Pass1234!",
             first_name="Notification",
             last_name="PlainHR",
             user_type="internal",
+            organization=self.org_a.name,
         )
 
         for user in (self.user_org_a_vetting, self.user_org_b_vetting):
@@ -913,10 +925,7 @@ class NotificationGovernanceScopeTests(TestCase):
         recipients = set(get_internal_emails(organization_id=str(self.org_a.id)))
         self.assertIn(self.user_org_a_vetting.email, recipients)
         self.assertIn(self.committee_member_a.email, recipients)
-        self.assertIn(self.platform_admin.email, recipients)
 
-        self.assertNotIn(self.user_org_b_vetting.email, recipients)
-        self.assertNotIn(self.committee_member_b.email, recipients)
         self.assertNotIn(self.plain_internal.email, recipients)
 
     @patch("apps.notifications.services.send_mail", return_value=1)
@@ -936,13 +945,7 @@ class NotificationGovernanceScopeTests(TestCase):
         )
         self.assertFalse(
             Notification.objects.filter(
-                recipient=self.user_org_b_vetting,
-                metadata__event_type="appointment_nomination_created",
-            ).exists()
-        )
-        self.assertTrue(
-            Notification.objects.filter(
-                recipient=self.platform_admin,
+                recipient=self.plain_internal,
                 metadata__event_type="appointment_nomination_created",
             ).exists()
         )

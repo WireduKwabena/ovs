@@ -257,6 +257,7 @@ class CandidateEnrollmentAuthorizationTests(APITestCase):
             last_name="Overflow",
             email="org_overflow_candidate@example.com",
         )
+        existing_enrollment_count = CandidateEnrollment.objects.count()
 
         self.client.force_authenticate(self.internal_one)
         response = self.client.post(
@@ -276,7 +277,7 @@ class CandidateEnrollmentAuthorizationTests(APITestCase):
         self.assertEqual(payload.get("code"), "quota_exceeded")
         quota_payload = payload.get("quota") or {}
         self.assertEqual(int(quota_payload.get("limit")), 1)
-        self.assertEqual(int(quota_payload.get("used")), 1)
+        self.assertEqual(int(quota_payload.get("used")), existing_enrollment_count)
         self.assertIn("organization:", str(quota_payload.get("scope", "")))
 
     @override_settings(

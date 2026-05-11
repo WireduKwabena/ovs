@@ -28,8 +28,12 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+import unittest
 
-import pytest
+try:
+    import pytest
+except ModuleNotFoundError as exc:  # pragma: no cover - discovery guard for Django test runner
+    raise unittest.SkipTest("pytest is required for verify_document integration tests") from exc
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
 

@@ -3,6 +3,62 @@
 from django.db import migrations, models
 
 
+def _rename_index_if_needed(apps, schema_editor, *, old_name: str, new_name: str) -> None:
+    with schema_editor.connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT to_regclass(%s), to_regclass(%s)",
+            [old_name, new_name],
+        )
+        old_regclass, new_regclass = cursor.fetchone()
+
+    if new_regclass or not old_regclass:
+        return
+
+    schema_editor.execute(
+        schema_editor.sql_rename_index
+        % {
+            "old_name": schema_editor.quote_name(old_name),
+            "new_name": schema_editor.quote_name(new_name),
+        }
+    )
+
+
+def _rename_loginhistory_index(apps, schema_editor):
+    _rename_index_if_needed(
+        apps,
+        schema_editor,
+        old_name="users_loginhistory_user_ts_idx",
+        new_name="users_login_user_id_b625c3_idx",
+    )
+
+
+def _rename_passwordresettoken_index(apps, schema_editor):
+    _rename_index_if_needed(
+        apps,
+        schema_editor,
+        old_name="users_passwordresettoken_user_token_idx",
+        new_name="users_passw_user_id_4a6c7a_idx",
+    )
+
+
+def _rename_user_email_index(apps, schema_editor):
+    _rename_index_if_needed(
+        apps,
+        schema_editor,
+        old_name="users_user_email_user_type_idx",
+        new_name="users_user_email_9f87be_idx",
+    )
+
+
+def _rename_user_created_index(apps, schema_editor):
+    _rename_index_if_needed(
+        apps,
+        schema_editor,
+        old_name="users_user_created_at_idx",
+        new_name="users_user_created_cf865c_idx",
+    )
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -15,25 +71,53 @@ class Migration(migrations.Migration):
             name="user",
             managers=[],
         ),
-        migrations.RenameIndex(
-            model_name="loginhistory",
-            new_name="users_login_user_id_b625c3_idx",
-            old_name="users_loginhistory_user_ts_idx",
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunPython(_rename_loginhistory_index, migrations.RunPython.noop),
+            ],
+            state_operations=[
+                migrations.RenameIndex(
+                    model_name="loginhistory",
+                    new_name="users_login_user_id_b625c3_idx",
+                    old_name="users_loginhistory_user_ts_idx",
+                ),
+            ],
         ),
-        migrations.RenameIndex(
-            model_name="passwordresettoken",
-            new_name="users_passw_user_id_4a6c7a_idx",
-            old_name="users_passwordresettoken_user_token_idx",
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunPython(_rename_passwordresettoken_index, migrations.RunPython.noop),
+            ],
+            state_operations=[
+                migrations.RenameIndex(
+                    model_name="passwordresettoken",
+                    new_name="users_passw_user_id_4a6c7a_idx",
+                    old_name="users_passwordresettoken_user_token_idx",
+                ),
+            ],
         ),
-        migrations.RenameIndex(
-            model_name="user",
-            new_name="users_user_email_9f87be_idx",
-            old_name="users_user_email_user_type_idx",
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunPython(_rename_user_email_index, migrations.RunPython.noop),
+            ],
+            state_operations=[
+                migrations.RenameIndex(
+                    model_name="user",
+                    new_name="users_user_email_9f87be_idx",
+                    old_name="users_user_email_user_type_idx",
+                ),
+            ],
         ),
-        migrations.RenameIndex(
-            model_name="user",
-            new_name="users_user_created_cf865c_idx",
-            old_name="users_user_created_at_idx",
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunPython(_rename_user_created_index, migrations.RunPython.noop),
+            ],
+            state_operations=[
+                migrations.RenameIndex(
+                    model_name="user",
+                    new_name="users_user_created_cf865c_idx",
+                    old_name="users_user_created_at_idx",
+                ),
+            ],
         ),
         migrations.AlterField(
             model_name="user",

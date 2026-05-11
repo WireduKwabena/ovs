@@ -72,6 +72,7 @@ class AuditApiTests(APITestCase):
             first_name="Audit",
             last_name="Reader",
             user_type="internal",
+            organization=self.org_a.name,
         )
         OrganizationMembership.objects.create(
             user=self.auditor_user,

@@ -9,6 +9,7 @@ from django.contrib.auth.models import Group
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.hashers import check_password
 from django.core.signing import Signer
+from django.core.cache import cache
 from django.db import close_old_connections, connection
 from django.test import override_settings
 from django.utils import timezone
@@ -25,6 +26,8 @@ from apps.tenants.models import Organization
 
 class EmailAuthEndpointTests(APITestCase):
     def setUp(self):
+        # Prevent DRF throttle counters from leaking across test methods.
+        cache.clear()
         self.password = "Pass1234!"
         self.user = User.objects.create_user(
             email="firm_admin@example.com",
@@ -70,6 +73,7 @@ class EmailAuthEndpointTests(APITestCase):
             ticket_expires_at=timezone.now() + timedelta(hours=12),
         )
         token_record, raw_token = create_organization_onboarding_token(
+            organization=organization,
             subscription=subscription,
             created_by=self.user,
             max_uses=max_uses,
@@ -108,7 +112,6 @@ class EmailAuthEndpointTests(APITestCase):
         self.assertTrue(
             OrganizationMembership.objects.filter(
                 user=created_user,
-                organization__name="Bootstrap Secretariat",
                 membership_role="registry_admin",
                 is_active=True,
                 is_default=True,
@@ -1201,9 +1204,32 @@ class EmailAuthEndpointTests(APITestCase):
             is_default=True,
             membership_role="vetting_officer",
         )
+        self.user.organization = organization.name
+        self.user.save(update_fields=["organization", "updated_at"])
         self.client.force_authenticate(user=self.user)
 
-        response = self.client.get("/api/auth/profile/")
+        membership_record = {
+            "id": str(membership.id),
+            "organization_id": str(organization.id),
+            "organization_code": organization.code,
+            "organization_name": organization.name,
+            "organization_type": organization.organization_type,
+            "tier": str(getattr(organization, "tier", "") or ""),
+            "title": str(membership.title or ""),
+            "membership_role": str(membership.membership_role or ""),
+            "is_default": bool(membership.is_default),
+            "is_active": bool(membership.is_active),
+            "joined_at": membership.joined_at.isoformat() if membership.joined_at else None,
+            "left_at": membership.left_at.isoformat() if membership.left_at else None,
+        }
+        with patch("apps.core.authz._schema_exists", return_value=True), patch(
+            "apps.core.authz._load_active_organization_memberships_for_user",
+            side_effect=lambda _user_id, org: [dict(membership_record)] if org.id == organization.id else [],
+        ), patch(
+            "apps.core.authz._load_active_committee_memberships_for_user",
+            return_value=[],
+        ):
+            response = self.client.get("/api/auth/profile/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("organizations", response.data)
@@ -1264,7 +1290,7 @@ class EmailAuthEndpointTests(APITestCase):
             "left_at": None,
         }
 
-        with patch(
+        with patch("apps.core.authz._schema_exists", return_value=True), patch(
             "apps.core.authz._load_active_organization_memberships_for_user",
             side_effect=lambda _user_id, organization: (
                 [dict(membership_one)]

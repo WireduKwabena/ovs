@@ -252,6 +252,7 @@ def _load_current_schema_organization_memberships(user) -> list[dict]:
     try:
         from django.db import connection
         from apps.governance.models import OrganizationMembership
+        from apps.tenants.models import Organization
     except Exception:  # pragma: no cover - governance app may be unavailable
         return []
 
@@ -276,6 +277,19 @@ def _load_current_schema_organization_memberships(user) -> list[dict]:
         tenant_name = ""
         tenant_org_type = ""
         tenant_tier = ""
+
+    # Compatibility fallback: when test or bootstrap flows create memberships in a
+    # shared schema, retain explicit user.organization mapping when it matches a
+    # known Organization row.
+    legacy_org_name = str(getattr(user, "organization", "") or "").strip()
+    if legacy_org_name:
+        legacy_org = Organization.objects.filter(name__iexact=legacy_org_name, is_active=True).first()
+        if legacy_org is not None:
+            tenant_id = str(legacy_org.id)
+            tenant_code = str(legacy_org.code or "")
+            tenant_name = str(legacy_org.name or "")
+            tenant_org_type = str(getattr(legacy_org, "organization_type", "") or "")
+            tenant_tier = str(getattr(legacy_org, "tier", "") or "")
 
     return [
         {
@@ -378,6 +392,27 @@ def _get_user_organization_membership_records(user) -> list[dict]:
                 records.append(record)
         if not records:
             records = _load_current_schema_organization_memberships(user)
+
+        legacy_org_name = str(getattr(user, "organization", "") or "").strip().lower()
+        if legacy_org_name and records:
+            legacy_org = next(
+                (
+                    org
+                    for org in _list_active_tenant_organizations()
+                    if str(getattr(org, "name", "") or "").strip().lower() == legacy_org_name
+                ),
+                None,
+            )
+            if legacy_org is not None:
+                legacy_org_id = str(legacy_org.id)
+                if all(str(item.get("organization_id") or "") != legacy_org_id for item in records):
+                    for item in records:
+                        item["organization_id"] = legacy_org_id
+                        item["organization_code"] = str(legacy_org.code or "")
+                        item["organization_name"] = str(legacy_org.name or "")
+                        item["organization_type"] = str(getattr(legacy_org, "organization_type", "") or "")
+                        item["tier"] = str(getattr(legacy_org, "tier", "") or "")
+
         records.sort(
             key=lambda item: (
                 not bool(item.get("is_default")),

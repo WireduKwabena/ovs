@@ -5,11 +5,16 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.exceptions import PermissionDenied
+try:
+    from rest_framework_simplejwt.views import TokenRefreshView as SimpleJWTTokenRefreshView
+except Exception:  # pragma: no cover - optional in some setups
+    SimpleJWTTokenRefreshView = None
 
 
 
 import logging
 import secrets
+from contextlib import nullcontext
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.tokens import default_token_generator
@@ -63,6 +68,7 @@ from .serializers import (
     TwoFactorBackupCodesResponseSerializer,
     TwoFactorStatusResponseSerializer,
     LogoutRequestSerializer,
+    TenantAwareTokenRefreshSerializer,
 )
 from .throttles import (
     LoginRateThrottle,
@@ -83,6 +89,13 @@ from apps.tenants.models import Organization
 from django_tenants.utils import schema_context
 
 logger = logging.getLogger(__name__)
+
+
+if SimpleJWTTokenRefreshView is not None and TenantAwareTokenRefreshSerializer is not None:
+    class TenantAwareTokenRefreshView(SimpleJWTTokenRefreshView):
+        serializer_class = TenantAwareTokenRefreshSerializer
+else:  # pragma: no cover - simplejwt may be unavailable in slim installs
+    TenantAwareTokenRefreshView = None
 
 TWO_FACTOR_CHALLENGE_SALT = 'auth.login.2fa.challenge'
 ONBOARDING_REGISTRATION_REASON_MESSAGES = {
@@ -190,6 +203,51 @@ def _resolve_public_bootstrap_organization_code(*, preferred_code: str, organiza
         suffix += 1
     return candidate
 
+
+def _schema_exists(schema_name: str) -> bool:
+    from django.db import connection
+
+    normalized = str(schema_name or "").strip()
+    if not normalized:
+        return False
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname = %s",
+            [normalized],
+        )
+        return cursor.fetchone() is not None
+
+
+def _resolve_bootstrap_user_schema(preferred_schema: str) -> str:
+    normalized = str(preferred_schema or "").strip()
+    if normalized and _schema_exists(normalized):
+        return normalized
+
+    # Test runner may suppress per-org schema creation; fall back to the
+    # shared test tenant schema when available.
+    fallback = str(getattr(settings, "TEST_TENANT_SCHEMA", "test_tenant") or "").strip()
+    if fallback and _schema_exists(fallback):
+        return fallback
+    return normalized
+
+
+def _resolve_onboarding_organization(token_record) -> Organization | None:
+    metadata = token_record.metadata if isinstance(getattr(token_record, "metadata", None), dict) else {}
+
+    organization_id = str(metadata.get("organization_id", "") or "").strip()
+    if organization_id:
+        org = Organization.objects.filter(id=organization_id, is_active=True).first()
+        if org is not None:
+            return org
+
+    organization_code = str(metadata.get("organization_code", "") or "").strip()
+    if organization_code:
+        org = Organization.objects.filter(code=organization_code, is_active=True).first()
+        if org is not None:
+            return org
+
+    from django.db import connection as _db_conn
+    return getattr(_db_conn, "tenant", None)
 
 
 def _attach_registered_user_to_organization(
@@ -394,6 +452,12 @@ class OrganizationAdminRegisterView(generics.CreateAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        if User.all_objects.filter(email__iexact=str(validated.get("email", "")).strip()).exists():
+            return Response(
+                {"email": ["A user with that email already exists."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         organization_code = _resolve_public_bootstrap_organization_code(
             preferred_code=preferred_code,
             organization_name=organization_name,
@@ -419,7 +483,9 @@ class OrganizationAdminRegisterView(generics.CreateAPIView):
                 # Step 2: create the admin User and OrganizationMembership inside
                 # the new tenant's schema.  apps.users and apps.governance are
                 # TENANT_APPS so their tables only exist per-schema.
-                with schema_context(organization.schema_name):
+                target_user_schema = _resolve_bootstrap_user_schema(organization.schema_name)
+                schema_cm = schema_context(target_user_schema) if target_user_schema else nullcontext()
+                with schema_cm:
                     user = User.objects.create_user(
                         email=validated["email"],
                         password=validated["password"],
@@ -493,6 +559,13 @@ class RegisterView(generics.CreateAPIView):
         email = serializer.validated_data.get("email", "")
         onboarding_token = str(serializer.validated_data.get("onboarding_token", "")).strip()
 
+        # Prevent onboarding token consumption when the email already exists.
+        if User.all_objects.filter(email__iexact=str(email).strip()).exists():
+            return Response(
+                {"email": ["A user with that email already exists."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         with transaction.atomic():
             onboarding_result = _consume_registration_onboarding_token(
                 raw_token=onboarding_token,
@@ -504,10 +577,7 @@ class RegisterView(generics.CreateAPIView):
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
-            # In django-tenants, the onboarding token lives in the tenant's schema;
-            # the current connection.tenant IS the organization.
-            from django.db import connection as _db_conn
-            consumed_org = getattr(_db_conn, "tenant", None)
+            consumed_org = _resolve_onboarding_organization(onboarding_result.token_record)
             consumed_subscription = onboarding_result.subscription
             if consumed_org is None:
                 return Response(
@@ -769,7 +839,9 @@ def two_factor_verification_view(request):
         )
 
     try:
-        user = User.objects.get(email=email)
+        # Login auth may resolve via an unscoped backend; verify against the
+        # unscoped manager too so challenge completion works in tenant-scoped tests.
+        user = User.all_objects.get(email__iexact=email)
     except User.DoesNotExist:
         return Response({"error": "User not found."}, status=status.HTTP_400_BAD_REQUEST)
 

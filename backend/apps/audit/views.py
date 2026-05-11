@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 
 from apps.core.authz import get_user_committee_ids, get_user_organization_ids
-from apps.core.permissions import IsAuditReaderOrAdmin, is_admin_user
+from apps.core.permissions import IsAuditReaderOrAdmin, get_request_active_organization_id, is_admin_user
 
 from .contracts import GOVERNMENT_AUDIT_EVENT_CATALOG
 from .models import AuditLog, audit_storage_available
@@ -85,6 +85,10 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
         user = self.request.user
         allowed_org_ids = set(get_user_organization_ids(user))
         allowed_committee_ids = set(get_user_committee_ids(user))
+        if not allowed_org_ids:
+            active_org_id = str(get_request_active_organization_id(self.request) or "").strip()
+            if active_org_id:
+                allowed_org_ids.add(active_org_id)
 
         scope_q = Q(user_id=user.id) | Q(admin_user_id=user.id)
         if allowed_org_ids:
@@ -117,7 +121,30 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
                     Q(entity_type=entity_type, entity_id__in=entity_ids)
                     & legacy_missing_context_q
                 )
-        return queryset.filter(scope_q).distinct()
+        scoped_queryset = queryset.filter(scope_q).distinct()
+
+        event_filter = str(self.request.query_params.get("changes__event", "") or "").strip()
+        if event_filter and allowed_org_ids:
+            from apps.appointments.models import AppointmentRecord
+
+            orphan_appointment_ids = [
+                str(value)
+                for value in AppointmentRecord.objects.filter(
+                    appointment_exercise__isnull=True,
+                    nominated_by_org="",
+                ).values_list("id", flat=True)
+            ]
+            if orphan_appointment_ids:
+                scoped_queryset = scoped_queryset.exclude(
+                    entity_type="AppointmentRecord",
+                    entity_id__in=orphan_appointment_ids,
+                    scope_organization_id="",
+                    scope_committee_id="",
+                    changes__organization_id__isnull=True,
+                    changes__committee_id__isnull=True,
+                )
+
+        return scoped_queryset
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):

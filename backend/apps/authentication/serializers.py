@@ -1,6 +1,18 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
+try:
+    from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+    from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+    from rest_framework_simplejwt.settings import api_settings as jwt_api_settings
+    from rest_framework_simplejwt.tokens import RefreshToken
+except Exception:  # pragma: no cover - optional in some setups
+    TokenRefreshSerializer = None
+    InvalidToken = None
+    TokenError = Exception
+    jwt_api_settings = None
+    RefreshToken = None
+
 from apps.users.models import User
 from apps.users.serializers import UserSerializer, AdminUserSerializer
 from apps.core.authz import ROLE_ADMIN, has_role
@@ -215,6 +227,41 @@ class MessageResponseSerializer(serializers.Serializer):
 
 class ErrorResponseSerializer(serializers.Serializer):
     error = serializers.CharField()
+
+
+if TokenRefreshSerializer is not None:
+    class TenantAwareTokenRefreshSerializer(TokenRefreshSerializer):
+        """Refresh tokens without tenant-membership filtering on user lookup."""
+
+        def validate(self, attrs):
+            refresh = self.token_class(attrs["refresh"])
+
+            user_id = refresh.get(jwt_api_settings.USER_ID_CLAIM)
+            if user_id is None:
+                raise InvalidToken("Token contained no recognizable user identification")
+
+            user_lookup = {jwt_api_settings.USER_ID_FIELD: user_id}
+            user = User.all_objects.filter(**user_lookup).first()
+            if user is None:
+                raise InvalidToken("User not found")
+            if not getattr(user, "is_active", True):
+                raise InvalidToken("User is inactive")
+
+            data = {"access": str(refresh.access_token)}
+
+            if jwt_api_settings.ROTATE_REFRESH_TOKENS:
+                if jwt_api_settings.BLACKLIST_AFTER_ROTATION:
+                    try:
+                        refresh.blacklist()
+                    except AttributeError:
+                        pass
+
+                refresh.set_jti()
+                refresh.set_exp()
+                refresh.set_iat()
+                data["refresh"] = str(refresh)
+
+            return data
 
 class TwoFactorChallengeSerializer(serializers.Serializer):
     message = serializers.CharField()

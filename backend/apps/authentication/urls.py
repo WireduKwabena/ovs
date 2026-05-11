@@ -2,7 +2,7 @@
 
 from django.urls import path
 try:
-    from rest_framework_simplejwt.views import TokenRefreshView
+    from apps.authentication.views import TenantAwareTokenRefreshView as TokenRefreshView
 except Exception:
     TokenRefreshView = None
 from apps.authentication import views

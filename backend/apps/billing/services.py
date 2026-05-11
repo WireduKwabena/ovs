@@ -195,7 +195,17 @@ def create_organization_onboarding_token(
         expires_at = now + timedelta(hours=ttl_hours)
 
     normalized_domain = _normalized_email_domain(allowed_email_domain)
-    payload_metadata = metadata if isinstance(metadata, dict) else {}
+    payload_metadata = dict(metadata) if isinstance(metadata, dict) else {}
+
+    organization_id = str(getattr(organization, "id", "") or "").strip()
+    organization_code = str(getattr(organization, "code", "") or "").strip()
+    organization_name = str(getattr(organization, "name", "") or "").strip()
+    if organization_id and "organization_id" not in payload_metadata:
+        payload_metadata["organization_id"] = organization_id
+    if organization_code and "organization_code" not in payload_metadata:
+        payload_metadata["organization_code"] = organization_code
+    if organization_name and "organization_name" not in payload_metadata:
+        payload_metadata["organization_name"] = organization_name
 
     for _ in range(5):
         raw_token = generate_raw_onboarding_token()
