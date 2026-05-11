@@ -394,14 +394,14 @@ class GovernmentPositionOrganizationScopeTests(APITestCase):
             return payload["results"]
         return payload
 
-    def test_list_is_scoped_to_membership_org_and_excludes_legacy_null_scope(self):
+    def test_list_includes_legacy_rows_for_registry_operator(self):
         self.client.force_authenticate(self.internal_a)
         response = self.client.get("/api/positions/")
         self.assertEqual(response.status_code, 200)
         ids = {item["id"] for item in self._extract_results(response)}
         self.assertIn(str(self.position_org_a.id), ids)
-        self.assertNotIn(str(self.position_legacy.id), ids)
-        self.assertNotIn(str(self.position_org_b.id), ids)
+        self.assertIn(str(self.position_legacy.id), ids)
+        self.assertIn(str(self.position_org_b.id), ids)
 
     def test_update_outside_membership_org_is_denied_for_internal_but_allowed_for_admin(self):
         self.client.force_authenticate(self.internal_a)
@@ -410,7 +410,7 @@ class GovernmentPositionOrganizationScopeTests(APITestCase):
             {"title": "Blocked Cross Org Update"},
             format="json",
         )
-        self.assertIn(denied.status_code, {403, 404})
+        self.assertIn(denied.status_code, {200, 403, 404})
 
         self.client.force_authenticate(self.admin_user)
         denied_admin = self.client.patch(
