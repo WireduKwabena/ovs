@@ -9,8 +9,6 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework.exceptions import ValidationError
 
-from django.db import connection
-
 from apps.users.models import User
 from apps.tenants.models import Organization
 from apps.candidates.models import CandidateEnrollment
@@ -100,12 +98,48 @@ def _is_platform_admin_like(user) -> bool:
 
 
 def _organization_name_for_id(organization_id: str | None) -> str:
-    # In django-tenants the current tenant IS the organization.
-    return str(getattr(connection.tenant, "name", "") or "").strip().lower()
+    normalized_org_id = str(organization_id or "").strip()
+    if not normalized_org_id:
+        return ""
+    organization = Organization.objects.filter(id=normalized_org_id, is_active=True).first()
+    if organization is None:
+        return ""
+    return str(organization.name or "").strip().lower()
+
+
+def _default_active_organization() -> Organization | None:
+    return (
+        Organization.objects.filter(is_active=True)
+        .exclude(schema_name="public")
+        .order_by("name")
+        .first()
+    )
+
+
+def _resolve_organization_for_scope(*, user=None, organization_id: str | None = None) -> Organization | None:
+    normalized_org_id = str(organization_id or "").strip()
+    if normalized_org_id:
+        return Organization.objects.filter(id=normalized_org_id, is_active=True).first()
+
+    if user is not None:
+        default_org = get_user_default_organization(user)
+        default_org_id = str((default_org or {}).get("id", "") or "").strip()
+        if default_org_id:
+            default_org_row = Organization.objects.filter(id=default_org_id, is_active=True).first()
+            if default_org_row is not None:
+                return default_org_row
+
+        legacy_org_name = str(getattr(user, "organization", "") or "").strip()
+        if legacy_org_name:
+            legacy_org = Organization.objects.filter(name__iexact=legacy_org_name, is_active=True).first()
+            if legacy_org is not None:
+                return legacy_org
+
+    return _default_active_organization()
 
 
 def _active_org_member_emails() -> set[str]:
-    # All membership records in this schema belong to the current tenant.
+    # Memberships are global in single-schema mode.
     return {
         _normalized_email(email)
         for email in User.objects.filter(
@@ -123,7 +157,8 @@ def _active_membership_org_ids_for_user(user, *, cache: dict[str, set[str]]) -> 
     if cached is not None:
         return cached
     has_membership = OrganizationMembership.objects.filter(user=user, is_active=True).exists()
-    org_ids = {str(connection.tenant.id)} if has_membership else set()
+    organization = _resolve_organization_for_scope(user=user)
+    org_ids = {str(organization.id)} if has_membership and organization is not None else set()
     cache[cache_key] = org_ids
     return org_ids
 
@@ -137,7 +172,7 @@ def _user_is_unambiguously_scoped_to_org(
 ) -> bool:
     if user is None:
         return False
-    # In django-tenants any user with an active membership belongs to this tenant's org.
+    # Active membership is treated as belonging to the resolved organization scope.
     user_memberships = _active_membership_org_ids_for_user(user, cache=membership_cache)
     if user_memberships:
         return True
@@ -194,7 +229,7 @@ def _legacy_candidate_usage_count_for_organization(
     period_start,
     period_end,
 ) -> int:
-    # In django-tenants all candidate enrollments in this schema belong to the current tenant.
+    # Candidate enrollment rows are legacy global records in single-schema mode.
     return CandidateEnrollment.objects.filter(
         created_at__gte=period_start,
         created_at__lt=period_end,
@@ -230,20 +265,12 @@ def _active_subscription_for_queryset(queryset) -> BillingSubscription | None:
     return None
 
 
-def _trial_subscription_for_tenant() -> BillingSubscription | None:
-    """Return an unsaved synthetic BillingSubscription for trial-tier tenants.
-
-    When an Organization has ``tier='trial'`` but no BillingSubscription record
-    yet exists, the quota system would otherwise block all operations with
-    ``subscription_required``.  This helper synthesises a virtual subscription
-    so that trial orgs receive their configured (small) limits immediately upon
-    creation, with no payment step required.
-    """
-    try:
-        tenant = connection.tenant
-    except Exception:
+def _trial_subscription_for_organization(*, organization_id: str | None = None, user=None) -> BillingSubscription | None:
+    """Return an unsaved synthetic BillingSubscription for trial-tier organizations."""
+    organization = _resolve_organization_for_scope(user=user, organization_id=organization_id)
+    if organization is None:
         return None
-    tier = getattr(tenant, "tier", None)
+    tier = getattr(organization, "tier", None)
     if tier != "trial":
         return None
     sub = BillingSubscription(
@@ -256,17 +283,16 @@ def _trial_subscription_for_tenant() -> BillingSubscription | None:
 
 
 def _active_subscription_for_scope(*, emails: list[str], organization_id: str | None = None) -> BillingSubscription | None:
-    # organization_id param kept for API compatibility; schema isolation handles tenant scoping.
     qs = BillingSubscription.objects.all()
     if qs.exists():
         return _active_subscription_for_queryset(qs)
     if not emails:
-        return _trial_subscription_for_tenant()
+        return _trial_subscription_for_organization(organization_id=organization_id)
     result = _active_subscription_for_queryset(
         BillingSubscription.objects.filter(registration_consumed_by_email__in=emails)
     )
     if result is None:
-        return _trial_subscription_for_tenant()
+        return _trial_subscription_for_organization(organization_id=organization_id)
     return result
 
 
@@ -365,7 +391,6 @@ def _plan_organization_seat_limit(plan_id: str | None) -> int | None:
 
 
 def _organization_active_membership_count() -> int:
-    # All memberships in this schema belong to the current tenant.
     return OrganizationMembership.objects.filter(is_active=True).count()
 
 
@@ -377,7 +402,6 @@ def _candidate_usage_count(
     period_start,
     period_end,
 ) -> int:
-    # In django-tenants all campaigns/enrollments are scoped to this tenant.
     return CandidateEnrollment.objects.filter(
         created_at__gte=period_start,
         created_at__lt=period_end,
@@ -385,11 +409,12 @@ def _candidate_usage_count(
 
 
 def _scope_for_user(user, *, organization_id: str | None = None) -> tuple[str, list[str], str, str | None]:
-    # In django-tenants the scope is always the current tenant.
-    tenant = connection.tenant
-    org_id = str(tenant.id)
+    organization = _resolve_organization_for_scope(user=user, organization_id=organization_id)
+    org_id = str(organization.id) if organization is not None else ""
     org_member_emails = _active_org_member_emails()
-    return f"organization:{org_id}", sorted(org_member_emails), str(getattr(tenant, "name", "") or ""), org_id
+    if not org_id:
+        return "legacy", sorted(org_member_emails), "", None
+    return f"organization:{org_id}", sorted(org_member_emails), str(getattr(organization, "name", "") or ""), org_id
 
 
 def resolve_subscription_scope(user, *, organization_id: str | None = None) -> tuple[str, list[str], str, str | None]:
@@ -402,7 +427,7 @@ def get_active_subscription_for_user(user, *, organization_id: str | None = None
 
 
 def get_latest_subscription_for_user(user, *, organization_id: str | None = None) -> BillingSubscription | None:
-    # organization_id param kept for API compatibility; schema isolation handles tenant scoping.
+    # organization_id is kept for API compatibility.
     subscription = (
         BillingSubscription.objects.all()
         .order_by("-updated_at", "-created_at")
@@ -665,17 +690,10 @@ def enforce_membership_activation_seat_quota(
     if not normalized_org_id:
         return None
 
-    # In django-tenants, the current schema IS the organization.  Verify that
-    # the requested org ID matches the current tenant and that it is active.
-    current_tenant = getattr(connection, "tenant", None)
-    tenant_id = str(getattr(current_tenant, "id", "") or "")
-    if tenant_id != normalized_org_id:
-        # Mismatched org — use public-schema lock as fallback.
-        locked_org_exists = Organization.objects.select_for_update().filter(
-            id=normalized_org_id, is_active=True
-        ).exists()
-    else:
-        locked_org_exists = getattr(current_tenant, "is_active", True)
+    locked_org_exists = Organization.objects.select_for_update().filter(
+        id=normalized_org_id,
+        is_active=True,
+    ).exists()
     if not locked_org_exists:
         return None
 
@@ -747,8 +765,7 @@ def _plan_vetting_operation_limit(plan_id: str | None, operation: str) -> int | 
 def _scope_has_subscription_history(*, organization_id: str | None, emails: list[str]) -> bool:
     normalized_org_id = str(organization_id or "").strip()
     if normalized_org_id:
-        # BillingSubscription no longer has an organization FK; schema
-        # isolation already scopes this to the current tenant.
+        # BillingSubscription may contain legacy rows without organization FK.
         if BillingSubscription.objects.exists():
             return True
         scoped_emails = emails or sorted(_active_org_member_emails())
@@ -770,8 +787,7 @@ def _operation_usage_count_for_org(
     period_start,
     period_end,
 ) -> int:
-    # In django-tenants all records in this schema belong to the current tenant;
-    # no organization_id filter is required.
+    # Legacy records are still not org-keyed; usage remains global in single-schema mode.
     normalized_operation = str(operation or "").strip().lower()
 
     if normalized_operation == VETTING_OPERATION_DOCUMENT_VERIFICATION:
@@ -829,8 +845,7 @@ def _operation_usage_count_for_legacy_scope(
     period_start,
     period_end,
 ) -> int:
-    # In django-tenants all records in this schema belong to the current tenant.
-    # Delegate to the org-scoped counter which already handles schema isolation.
+    # Delegate to the org-scoped counter while legacy data remains unkeyed by organization.
     return _operation_usage_count_for_org(
         operation=operation,
         organization_id="",
@@ -840,13 +855,11 @@ def _operation_usage_count_for_legacy_scope(
 
 
 def resolve_case_organization_id(case, *, actor=None) -> str | None:
-    """Return the current tenant's organization ID.
-
-    In django-tenants every record in the active schema belongs to the current
-    tenant; there is no per-row organization FK to resolve.
-    """
-    tenant_id = str(getattr(getattr(connection, "tenant", None), "id", "") or "").strip()
-    return tenant_id or None
+    del case
+    organization = _resolve_organization_for_scope(user=actor)
+    if organization is None:
+        return None
+    return str(organization.id)
 
 
 def get_vetting_operation_quota_snapshot(

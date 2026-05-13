@@ -1,10 +1,31 @@
 from __future__ import annotations
 
-from django.db import connection, transaction
+from django.db import transaction
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 
 from .models import OrganizationMembership
+
+
+def _resolve_membership_organization_id(instance: OrganizationMembership) -> str:
+    from apps.tenants.models import Organization
+
+    user = getattr(instance, "user", None)
+    legacy_org_name = str(getattr(user, "organization", "") or "").strip()
+    if legacy_org_name:
+        org = Organization.objects.filter(name__iexact=legacy_org_name, is_active=True).first()
+        if org is not None:
+            return str(org.id)
+
+    default_org = (
+        Organization.objects.filter(is_active=True)
+        .exclude(schema_name="public")
+        .order_by("name")
+        .first()
+    )
+    if default_org is None:
+        return ""
+    return str(default_org.id)
 
 
 def _membership_activation_consumes_seat(instance: OrganizationMembership) -> bool:
@@ -27,11 +48,7 @@ def _membership_activation_consumes_seat(instance: OrganizationMembership) -> bo
 
 @receiver(pre_save, sender=OrganizationMembership)
 def enforce_membership_seat_quota(sender, instance: OrganizationMembership, **kwargs):
-    # In the django-tenants setup, the organization is the current tenant schema.
-    try:
-        organization_id = str(connection.tenant.id)
-    except Exception:
-        return
+    organization_id = _resolve_membership_organization_id(instance)
 
     if not organization_id:
         return
@@ -39,7 +56,7 @@ def enforce_membership_seat_quota(sender, instance: OrganizationMembership, **kw
     if not _membership_activation_consumes_seat(instance):
         return
 
-    from apps.billing.quotas import enforce_membership_activation_seat_quota
+    from apps.core.quotas import enforce_membership_activation_seat_quota
 
     with transaction.atomic():
         enforce_membership_activation_seat_quota(

@@ -9,7 +9,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from .models import Document, InterrogationFlag, VerificationResult
 from apps.applications.social_checks import run_case_social_profile_check
-from apps.billing.quotas import (
+from apps.core.quotas import (
     VETTING_OPERATION_DOCUMENT_VERIFICATION,
     enforce_vetting_operation_quota,
     resolve_case_organization_id,

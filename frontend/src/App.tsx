@@ -51,9 +51,6 @@ const PublicTransparencyPage = React.lazy(
 const PublicAppointmentDetailPage = React.lazy(
   () => import("./pages/PublicAppointmentDetailPage"),
 );
-const SubscriptionPlansPage = React.lazy(
-  () => import("./pages/SubscriptionPlansPage"),
-);
 const OrganizationAdminSignupPage = React.lazy(
   () => import("./pages/OrganizationAdminSignupPage"),
 );
@@ -78,9 +75,6 @@ const OrganizationRegistryPage = React.lazy(
 );
 const SystemHealthPage = React.lazy(
   () => import("./pages/platform-admin/SystemHealthPage"),
-);
-const BillingManagementPage = React.lazy(
-  () => import("./pages/platform-admin/BillingManagementPage"),
 );
 const PlatformAuditLogsPage = React.lazy(
   () => import("./pages/platform-admin/PlatformAuditLogsPage"),
@@ -111,9 +105,6 @@ const ForgotPasswordPage = React.lazy(
 );
 const EmailSentPage = React.lazy(() => import("./pages/EmailSentPage"));
 const ResetPasswordPage = React.lazy(() => import("./pages/ResetPasswordPage"));
-const BillingCheckoutResultPage = React.lazy(
-  () => import("./pages/BillingCheckoutResultPage"),
-);
 const InvitationAcceptPage = React.lazy(
   () => import("./pages/InvitationAcceptPage"),
 );
@@ -122,9 +113,6 @@ const ChangePasswordPage = React.lazy(
   () => import("./pages/ChangePasswordPage"),
 );
 const UserSettingsPage = React.lazy(() => import("./pages/UserSettingsPage"));
-const SubscriptionManagementPage = React.lazy(
-  () => import("./pages/SubscriptionManagementPage"),
-);
 const SecurityPage = React.lazy(() => import("./pages/SecurityPage"));
 const FraudInsightsPage = React.lazy(() => import("./pages/FraudInsightsPage"));
 const BackgroundChecksPage = React.lazy(
@@ -190,7 +178,6 @@ const HIDE_NAVBAR_PREFIXES = [
   "/",
   "/gazette",
   "/transparency",
-  "/subscribe",
   "/organization/get-started",
   "/login",
   "/register",
@@ -198,7 +185,6 @@ const HIDE_NAVBAR_PREFIXES = [
   "/invite",
   "/forgot-password",
   "/reset-password",
-  "/billing",
   "/audit",
   "/meeting-room",
   "/join",
@@ -483,7 +469,6 @@ const AppRoutes: React.FC = () => (
       path="/transparency/appointments/:appointmentId"
       element={<PublicAppointmentDetailPage />}
     />
-    <Route path="/subscribe" element={<SubscriptionPlansPage />} />
     <Route
       path="/organization/get-started"
       element={
@@ -633,9 +618,6 @@ const AppRoutes: React.FC = () => (
         </UnauthenticatedRoute>
       }
     />
-
-    <Route path="/billing/success" element={<BillingCheckoutResultPage />} />
-    <Route path="/billing/cancel" element={<BillingCheckoutResultPage />} />
 
     <Route path={getCandidatePath("home")} element={<CandidateHomePage />} />
     <Route
@@ -896,14 +878,6 @@ const AppRoutes: React.FC = () => (
       }
     />
     <Route
-      path="/settings/subscription"
-      element={
-        <ProtectedRoute>
-          <SubscriptionManagementPage />
-        </ProtectedRoute>
-      }
-    />
-    <Route
       path="/security"
       element={
         <ProtectedRoute disallowUserTypes={["applicant"]}>
@@ -953,14 +927,6 @@ const AppRoutes: React.FC = () => (
       element={
         <ProtectedRoute platformAdminOnly>
           <OrganizationRegistryPage />
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/admin/platform/billing"
-      element={
-        <ProtectedRoute platformAdminOnly>
-          <BillingManagementPage />
         </ProtectedRoute>
       }
     />

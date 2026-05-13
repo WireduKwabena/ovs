@@ -28,7 +28,7 @@ if not postgres_driver_available:
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django_tenants.postgresql_backend',
+        'ENGINE': 'django.db.backends.postgresql',
         'NAME': config('POSTGRES_DB', 'vetai_db'),
         'USER': config('POSTGRES_USER', 'postgres'),
         'PASSWORD': config('POSTGRES_PASSWORD', 'postgres'),
@@ -64,8 +64,6 @@ CORS_ALLOW_HEADERS = [
     "user-agent",
     "x-csrftoken",
     "x-requested-with",
-    "x-organization-slug",        # tenant routing
-    "x-active-organization-id",   # org-scoped API context
 ]
 
 # Django Debug Toolbar (optional)
@@ -86,8 +84,7 @@ INTERNAL_IPS = [
 # Logging - more verbose in development
 LOGGING['root']['level'] = 'DEBUG'
 
-# Custom test runner: applies all app migrations (shared + tenant) to a single
-# schema so plain APITestCase/TestCase tests work without per-test tenant setup.
+# Custom test runner for local development.
 TEST_RUNNER = "config.test_runner.AllSchemasTestRunner"
 
 # Celery - use eager execution in development (synchronous)

@@ -143,120 +143,80 @@ _AUTHZ_ORG_MEMBERSHIPS_CACHE_ATTR = "_authz_organization_memberships_cache"
 _AUTHZ_COMMITTEES_CACHE_ATTR = "_authz_committees_cache"
 
 
-def _schema_exists(schema_name: str) -> bool:
-    """Return True if *schema_name* exists in the PostgreSQL catalog."""
-    try:
-        from django.db import connection
-        with connection.cursor() as cur:
-            cur.execute(
-                "SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname = %s",
-                [schema_name],
-            )
-            return cur.fetchone() is not None
-    except Exception:
-        return False
-
-
 def _list_active_tenant_organizations():
     try:
-        from django.db import connection
-        from django_tenants.utils import get_public_schema_name, schema_context
         from apps.tenants.models import Organization
-    except Exception:  # pragma: no cover - tenancy app may be unavailable
+    except Exception:  # pragma: no cover - tenants app may be unavailable
         return []
 
-    public_schema = get_public_schema_name()
-
-    def _query():
+    try:
         return list(
             Organization.objects.filter(is_active=True)
-            .exclude(schema_name=public_schema)
+            .exclude(schema_name="public")
             .order_by("name")
         )
-
-    current_schema = str(getattr(connection, "schema_name", public_schema) or public_schema)
-    if current_schema == public_schema:
-        try:
-            return _query()
-        except Exception:
-            return []
-
-    try:
-        with schema_context(public_schema):
-            return _query()
     except Exception:
-        try:
-            return _query()
-        except Exception:
-            return []
+        return []
 
 
 def _load_active_organization_memberships_for_user(user_id, organization) -> list[dict]:
-    from django_tenants.utils import schema_context
     from apps.governance.models import OrganizationMembership
 
-    with schema_context(organization.schema_name):
-        memberships = (
-            OrganizationMembership.objects.filter(user_id=user_id, is_active=True)
-            .order_by("-is_default", "created_at")
-        )
-        return [
-            {
-                "id": str(membership.id),
-                "organization_id": str(organization.id),
-                "organization_code": str(organization.code or ""),
-                "organization_name": str(organization.name or ""),
-                "organization_type": str(getattr(organization, "organization_type", "") or ""),
-                "tier": str(getattr(organization, "tier", "") or ""),
-                "title": str(membership.title or ""),
-                "membership_role": str(membership.membership_role or ""),
-                "is_default": bool(membership.is_default),
-                "is_active": bool(membership.is_active),
-                "joined_at": membership.joined_at.isoformat() if membership.joined_at else None,
-                "left_at": membership.left_at.isoformat() if membership.left_at else None,
-            }
-            for membership in memberships
-        ]
+    memberships = (
+        OrganizationMembership.objects.filter(user_id=user_id, is_active=True)
+        .order_by("-is_default", "created_at")
+    )
+    return [
+        {
+            "id": str(membership.id),
+            "organization_id": str(organization.id),
+            "organization_code": str(organization.code or ""),
+            "organization_name": str(organization.name or ""),
+            "organization_type": str(getattr(organization, "organization_type", "") or ""),
+            "tier": str(getattr(organization, "tier", "") or ""),
+            "title": str(membership.title or ""),
+            "membership_role": str(membership.membership_role or ""),
+            "is_default": bool(membership.is_default),
+            "is_active": bool(membership.is_active),
+            "joined_at": membership.joined_at.isoformat() if membership.joined_at else None,
+            "left_at": membership.left_at.isoformat() if membership.left_at else None,
+        }
+        for membership in memberships
+    ]
 
 
 def _load_active_committee_memberships_for_user(user_id, organization) -> list[dict]:
-    from django_tenants.utils import schema_context
     from apps.governance.models import CommitteeMembership
 
-    with schema_context(organization.schema_name):
-        memberships = (
-            CommitteeMembership.objects.select_related("committee")
-            .filter(user_id=user_id, is_active=True, committee__is_active=True)
-            .order_by("committee__name", "created_at")
-        )
-        return [
-            {
-                "id": str(membership.id),
-                "committee_id": str(membership.committee_id),
-                "committee_code": str(membership.committee.code),
-                "committee_name": str(membership.committee.name),
-                "committee_type": str(membership.committee.committee_type),
-                "organization_id": str(organization.id),
-                "organization_code": str(organization.code or ""),
-                "organization_name": str(organization.name or ""),
-                "committee_role": str(membership.committee_role),
-                "can_vote": bool(membership.can_vote),
-                "joined_at": membership.joined_at.isoformat() if membership.joined_at else None,
-                "left_at": membership.left_at.isoformat() if membership.left_at else None,
-            }
-            for membership in memberships
-        ]
+    memberships = (
+        CommitteeMembership.objects.select_related("committee")
+        .filter(user_id=user_id, is_active=True, committee__is_active=True)
+        .order_by("committee__name", "created_at")
+    )
+    return [
+        {
+            "id": str(membership.id),
+            "committee_id": str(membership.committee_id),
+            "committee_code": str(membership.committee.code),
+            "committee_name": str(membership.committee.name),
+            "committee_type": str(membership.committee.committee_type),
+            "organization_id": str(organization.id),
+            "organization_code": str(organization.code or ""),
+            "organization_name": str(organization.name or ""),
+            "committee_role": str(membership.committee_role),
+            "can_vote": bool(membership.can_vote),
+            "joined_at": membership.joined_at.isoformat() if membership.joined_at else None,
+            "left_at": membership.left_at.isoformat() if membership.left_at else None,
+        }
+        for membership in memberships
+    ]
 
 
 def _load_current_schema_organization_memberships(user) -> list[dict]:
     try:
-        from django.db import connection
         from apps.governance.models import OrganizationMembership
         from apps.tenants.models import Organization
-    except Exception:  # pragma: no cover - governance app may be unavailable
-        return []
-
-    if getattr(connection, "schema_name", "public") == "public":
+    except Exception:  # pragma: no cover - governance or tenants app may be unavailable
         return []
 
     memberships = (
@@ -264,23 +224,13 @@ def _load_current_schema_organization_memberships(user) -> list[dict]:
         .order_by("-is_default", "created_at")
     )
 
-    try:
-        tenant = connection.tenant
-        tenant_id = str(tenant.id)
-        tenant_code = str(tenant.code or "")
-        tenant_name = str(tenant.name or "")
-        tenant_org_type = str(getattr(tenant, "organization_type", "") or "")
-        tenant_tier = str(getattr(tenant, "tier", "") or "")
-    except Exception:
-        tenant_id = ""
-        tenant_code = ""
-        tenant_name = ""
-        tenant_org_type = ""
-        tenant_tier = ""
+    tenant_id = ""
+    tenant_code = ""
+    tenant_name = ""
+    tenant_org_type = ""
+    tenant_tier = ""
 
-    # Compatibility fallback: when test or bootstrap flows create memberships in a
-    # shared schema, retain explicit user.organization mapping when it matches a
-    # known Organization row.
+    # Compatibility fallback: map membership context from user.organization when possible.
     legacy_org_name = str(getattr(user, "organization", "") or "").strip()
     if legacy_org_name:
         legacy_org = Organization.objects.filter(name__iexact=legacy_org_name, is_active=True).first()
@@ -290,6 +240,20 @@ def _load_current_schema_organization_memberships(user) -> list[dict]:
             tenant_name = str(legacy_org.name or "")
             tenant_org_type = str(getattr(legacy_org, "organization_type", "") or "")
             tenant_tier = str(getattr(legacy_org, "tier", "") or "")
+
+    if not tenant_id:
+        default_org = (
+            Organization.objects.filter(is_active=True)
+            .exclude(schema_name="public")
+            .order_by("name")
+            .first()
+        )
+        if default_org is not None:
+            tenant_id = str(default_org.id)
+            tenant_code = str(default_org.code or "")
+            tenant_name = str(default_org.name or "")
+            tenant_org_type = str(getattr(default_org, "organization_type", "") or "")
+            tenant_tier = str(getattr(default_org, "tier", "") or "")
 
     return [
         {
@@ -312,12 +276,9 @@ def _load_current_schema_organization_memberships(user) -> list[dict]:
 
 def _load_current_schema_committee_memberships(user) -> list[dict]:
     try:
-        from django.db import connection
         from apps.governance.models import CommitteeMembership
-    except Exception:  # pragma: no cover - governance app may be unavailable
-        return []
-
-    if getattr(connection, "schema_name", "public") == "public":
+        from apps.tenants.models import Organization
+    except Exception:  # pragma: no cover - governance or tenants app may be unavailable
         return []
 
     memberships = (
@@ -326,15 +287,29 @@ def _load_current_schema_committee_memberships(user) -> list[dict]:
         .order_by("committee__name", "created_at")
     )
 
-    try:
-        tenant = connection.tenant
-        tenant_org_id = str(tenant.id)
-        tenant_code = str(tenant.code or "")
-        tenant_name = str(tenant.name or "")
-    except Exception:
-        tenant_org_id = ""
-        tenant_code = ""
-        tenant_name = ""
+    tenant_org_id = ""
+    tenant_code = ""
+    tenant_name = ""
+
+    legacy_org_name = str(getattr(user, "organization", "") or "").strip()
+    if legacy_org_name:
+        legacy_org = Organization.objects.filter(name__iexact=legacy_org_name, is_active=True).first()
+        if legacy_org is not None:
+            tenant_org_id = str(legacy_org.id)
+            tenant_code = str(legacy_org.code or "")
+            tenant_name = str(legacy_org.name or "")
+
+    if not tenant_org_id:
+        default_org = (
+            Organization.objects.filter(is_active=True)
+            .exclude(schema_name="public")
+            .order_by("name")
+            .first()
+        )
+        if default_org is not None:
+            tenant_org_id = str(default_org.id)
+            tenant_code = str(default_org.code or "")
+            tenant_name = str(default_org.name or "")
 
     return [
         {
@@ -372,14 +347,14 @@ def _get_user_organization_membership_records(user) -> list[dict]:
         records: list[dict] = []
         seen: set[tuple[str, str]] = set()
         for organization in _list_active_tenant_organizations():
-            if not _schema_exists(organization.schema_name):
-                continue
             try:
                 organization_records = _load_active_organization_memberships_for_user(
                     user.id,
                     organization,
                 )
             except Exception:
+                continue
+            if not organization_records:
                 continue
             for record in organization_records:
                 cache_key = (
@@ -390,6 +365,9 @@ def _get_user_organization_membership_records(user) -> list[dict]:
                     continue
                 seen.add(cache_key)
                 records.append(record)
+            # In single-schema mode membership rows are global; stop after first org context.
+            if records:
+                break
         if not records:
             records = _load_current_schema_organization_memberships(user)
 
@@ -434,14 +412,14 @@ def _get_user_committee_records(user) -> list[dict]:
         records: list[dict] = []
         seen: set[tuple[str, str]] = set()
         for organization in _list_active_tenant_organizations():
-            if not _schema_exists(organization.schema_name):
-                continue
             try:
                 organization_records = _load_active_committee_memberships_for_user(
                     user.id,
                     organization,
                 )
             except Exception:
+                continue
+            if not organization_records:
                 continue
             for record in organization_records:
                 cache_key = (
@@ -452,6 +430,9 @@ def _get_user_committee_records(user) -> list[dict]:
                     continue
                 seen.add(cache_key)
                 records.append(record)
+            # In single-schema mode committee rows are global; stop after first org context.
+            if records:
+                break
         if not records:
             records = _load_current_schema_committee_memberships(user)
         records.sort(

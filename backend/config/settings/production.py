@@ -13,11 +13,6 @@ from django.core.exceptions import ImproperlyConfigured
 from .base import *
 
 DEBUG = False
-BILLING_HEALTH_REQUIRE_STAFF = config(
-    "BILLING_HEALTH_REQUIRE_STAFF",
-    default=True,
-    cast=bool,
-)
 INTERVIEWS_TASK_INLINE_FALLBACK_ENABLED = config(
     "INTERVIEWS_TASK_INLINE_FALLBACK_ENABLED",
     default=False,
@@ -97,9 +92,7 @@ _db_config = dj_database_url.config(
     conn_max_age=600,
     ssl_require=True,
 )
-# django-tenants requires its own database backend for schema-switching to work.
-# dj_database_url always returns the vanilla PostgreSQL backend, so we override it.
-_db_config["ENGINE"] = "django_tenants.postgresql_backend"
+_db_config["ENGINE"] = "django.db.backends.postgresql"
 DATABASES = {"default": _db_config}
 
 # Require a strong explicit secret key in production.

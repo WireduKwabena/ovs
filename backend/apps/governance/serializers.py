@@ -1,11 +1,26 @@
 import re
 
-from django.db import connection
 from rest_framework import serializers
 
 from apps.tenants.models import Organization
 from apps.tenants.serializers import OrganizationSerializer
 from .models import Committee, CommitteeMembership, OrganizationMembership
+
+
+def _resolve_organization_name_for_user(user) -> str:
+    legacy_name = str(getattr(user, "organization", "") or "").strip()
+    if legacy_name:
+        return legacy_name
+
+    default_org = (
+        Organization.objects.filter(is_active=True)
+        .exclude(schema_name="public")
+        .order_by("name")
+        .first()
+    )
+    if default_org is None:
+        return ""
+    return str(default_org.name or "").strip()
 
 
 
@@ -14,10 +29,7 @@ class OrganizationMembershipSerializer(serializers.ModelSerializer):
     organization_name = serializers.SerializerMethodField()
 
     def get_organization_name(self, obj) -> str:
-        try:
-            return str(connection.tenant.name or "").strip()
-        except Exception:
-            return ""
+        return _resolve_organization_name_for_user(getattr(obj, "user", None))
 
     class Meta:
         model = OrganizationMembership
@@ -44,10 +56,7 @@ class CommitteeSerializer(serializers.ModelSerializer):
     created_by_email = serializers.EmailField(source="created_by.email", read_only=True)
 
     def get_organization_name(self, obj) -> str:
-        try:
-            return str(connection.tenant.name or "").strip()
-        except Exception:
-            return ""
+        return _resolve_organization_name_for_user(getattr(obj, "created_by", None))
 
     class Meta:
         model = Committee
@@ -74,10 +83,7 @@ class CommitteeMembershipSerializer(serializers.ModelSerializer):
     organization_name = serializers.SerializerMethodField()
 
     def get_organization_name(self, obj) -> str:
-        try:
-            return str(connection.tenant.name or "").strip()
-        except Exception:
-            return ""
+        return _resolve_organization_name_for_user(getattr(obj, "user", None))
 
     class Meta:
         model = CommitteeMembership
@@ -395,7 +401,6 @@ class PlatformOrganizationSubscriptionSummarySerializer(serializers.Serializer):
     payment_status = serializers.CharField(allow_blank=True)
     plan_id = serializers.CharField()
     plan_name = serializers.CharField()
-    billing_cycle = serializers.CharField()
     payment_method = serializers.CharField(allow_blank=True)
     amount_usd = serializers.DecimalField(max_digits=10, decimal_places=2)
     current_period_end = serializers.DateTimeField(allow_null=True)

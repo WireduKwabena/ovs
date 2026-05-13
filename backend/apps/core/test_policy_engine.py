@@ -3,7 +3,6 @@ from __future__ import annotations
 import uuid
 
 from django.contrib.auth.models import Group
-from django.db import connection
 from django.test import TestCase
 
 from apps.users.models import User
@@ -24,10 +23,10 @@ from apps.tenants.models import Organization
 
 class PolicyEngineTests(TestCase):
     def setUp(self):
-        self.current_org_id = connection.tenant.id
-        self.other_org_id = uuid.uuid4()
         self.org_a = Organization.objects.create(code="policy-org-a", name="Policy Org A")
         self.org_b = Organization.objects.create(code="policy-org-b", name="Policy Org B")
+        self.current_org_id = self.org_a.id
+        self.other_org_id = self.org_b.id
         self.committee_a = Committee.objects.create(
             code="policy-committee-a",
             name="Policy Committee A",

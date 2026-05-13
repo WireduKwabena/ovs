@@ -8,7 +8,7 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from django.conf import settings
 from django.core.cache import cache
-from django.db import connection, transaction
+from django.db import transaction
 from django.db.models import Q
 from django.utils.dateparse import parse_datetime
 from django.utils import timezone
@@ -710,8 +710,6 @@ def _stripe_payment_method_summary(stripe_subscription: dict, fallback_type: str
 
 
 def _build_subscription_summary(subscription: BillingSubscription) -> dict:
-    from django.db import connection as _db_conn
-    _tenant = getattr(_db_conn, "tenant", None)
     metadata = dict(subscription.metadata or {})
     payment_method = subscription.payment_method
 
@@ -781,12 +779,15 @@ def _build_subscription_summary(subscription: BillingSubscription) -> dict:
         retry_available=retry_available,
     )
 
-    # Use the explicit subscription FK when available; fall back to the
-    # current tenant (schema-isolation path used in production).
+    # Resolve organization details from explicit subscription ownership only.
+    from apps.tenants.models import Organization as _Organization
     _sub_org_id = str(getattr(subscription, "organization_id", "") or "").strip()
-    _tenant_id = str(getattr(_tenant, "id", "") or "").strip()
-    _org_id = _sub_org_id or _tenant_id or None
-    _org_name = str(getattr(_tenant, "name", "") or "").strip() or None
+    _org_id = _sub_org_id or None
+    _org_name = None
+    if _sub_org_id:
+        _org = _Organization.objects.filter(id=_sub_org_id, is_active=True).first()
+        if _org is not None:
+            _org_name = str(_org.name or "").strip() or None
     return {
         "id": subscription.id,
         "organization_id": _org_id,
@@ -889,40 +890,20 @@ def _request_explicit_billing_organization_id(request) -> str | None:
     return None
 
 
-def _billing_schema_exists(schema_name: str | None) -> bool:
-    normalized_schema = str(schema_name or "").strip()
-    if not normalized_schema:
-        return False
-    with connection.cursor() as cursor:
-        cursor.execute("SELECT 1 FROM pg_namespace WHERE nspname = %s", [normalized_schema])
-        return cursor.fetchone() is not None
-
-
 def _resolve_billing_schema_organization(organization_id: str | None):
     from apps.tenants.models import Organization
 
-    def _current_schema_organization():
-        current_schema = str(getattr(connection, "schema_name", "") or "")
-        if not current_schema or current_schema == "public":
-            return None
-
-        current_tenant = getattr(connection, "tenant", None)
-        if (
-            current_tenant is not None
-            and str(getattr(current_tenant, "schema_name", "") or "") == current_schema
-            and getattr(current_tenant, "is_active", True) is not False
-        ):
-            return current_tenant
-
-        return Organization.objects.filter(schema_name=current_schema, is_active=True).first()
-
     if organization_id:
-        organization = Organization.objects.filter(id=organization_id, is_active=True).first()
-        if organization is not None and _billing_schema_exists(getattr(organization, "schema_name", "")):
-            return organization
-        return _current_schema_organization()
+        return Organization.objects.filter(id=organization_id, is_active=True).first()
 
-    return _current_schema_organization()
+    organizations = list(
+        Organization.objects.filter(is_active=True)
+        .exclude(schema_name="public")
+        .order_by("name")[:2]
+    )
+    if len(organizations) == 1:
+        return organizations[0]
+    return None
 
 
 def _can_manage_governance_billing_scope(user, *, organization_id=None) -> bool:
@@ -1078,7 +1059,8 @@ def _serialize_onboarding_token_state(token_record):
 
 
 def _onboarding_token_validation_payload(*, validation_result):
-    from django.db import connection as _db_conn
+    from apps.tenants.models import Organization as _Organization
+
     payload = {
         "valid": bool(validation_result.valid),
         "reason": str(validation_result.reason),
@@ -1086,20 +1068,15 @@ def _onboarding_token_validation_payload(*, validation_result):
     token_record = validation_result.token_record
     if token_record is None:
         return payload
-    _tenant = getattr(_db_conn, "tenant", None)
-    # Prefer explicit org_id from the subscription FK; fall back to current tenant.
+    # Prefer explicit org_id from the subscription FK.
     sub = validation_result.subscription
     sub_org_id = str(getattr(sub, "organization_id", "") or "") if sub else ""
-    org_id = sub_org_id or str(getattr(_tenant, "id", "") or "") or None
-    org_name = str(getattr(_tenant, "name", "") or "")
-    if sub_org_id and _tenant and str(getattr(_tenant, "id", "")) != sub_org_id:
-        try:
-            from apps.tenants.models import Organization as _Org
-            _org = _Org.objects.filter(id=sub_org_id).first()
-            if _org is not None:
-                org_name = str(_org.name or "")
-        except Exception:
-            pass
+    org_id = sub_org_id or None
+    org_name = ""
+    if org_id:
+        org = _Organization.objects.filter(id=org_id).first()
+        if org is not None:
+            org_name = str(org.name or "")
     payload.update(
         {
             "organization_id": org_id,
@@ -1754,9 +1731,8 @@ class SubscriptionConfirmAPIView(APIView):
         organization_id = _resolve_checkout_organization_id(request)
         workspace_email = str(getattr(request_user, "email", "") or "").strip().lower() or None
 
-        # Billing tables are TENANT_APPS — switch to the org's schema before writing.
+        # Validate organization context before writing billing records.
         from apps.tenants.models import Organization as _Organization  # noqa: PLC0415
-        from django_tenants.utils import schema_context as _schema_context  # noqa: PLC0415
         organization = (
             _Organization.objects.filter(id=organization_id, is_active=True).first()
             if organization_id else None
@@ -1764,12 +1740,11 @@ class SubscriptionConfirmAPIView(APIView):
         if organization is None:
             raise ValidationError("Unable to resolve organization for this subscription confirmation.")
 
-        with _schema_context(organization.schema_name):
-            _persist_sandbox_ticket(
-                ticket,
-                registration_email=workspace_email,
-                organization_id=organization_id,
-            )
+        _persist_sandbox_ticket(
+            ticket,
+            registration_email=workspace_email,
+            organization_id=organization_id,
+        )
 
         return Response(
             {
@@ -2617,8 +2592,7 @@ class SubscriptionAccessVerifyAPIView(APIView):
         reference = serializer.validated_data["reference"]
         org_id = _normalized_organization_id(serializer.validated_data.get("organization_id"))
 
-        # Billing tables are TENANT_APPS — switch to the org's schema before querying.
-        from django_tenants.utils import schema_context as _schema_context  # noqa: PLC0415
+        # Validate organization context before querying.
         organization = _resolve_billing_schema_organization(org_id)
         if organization is None:
             _audit_subscription_access_verify(
@@ -2635,40 +2609,39 @@ class SubscriptionAccessVerifyAPIView(APIView):
                 status=status.HTTP_200_OK,
             )
 
-        with _schema_context(organization.schema_name):
-            valid, reason, subscription = _resolve_subscription_access_state(reference)
+        valid, reason, subscription = _resolve_subscription_access_state(reference)
 
-            payload = {
-                "valid": valid,
-                "reason": reason,
-                "reference": reference,
-            }
+        payload = {
+            "valid": valid,
+            "reason": reason,
+            "reference": reference,
+        }
 
-            if subscription is not None:
-                payload.update(
-                    {
-                        "planId": subscription.plan_id,
-                        "planName": subscription.plan_name,
-                        "billingCycle": subscription.billing_cycle,
-                        "paymentMethod": subscription.payment_method,
-                        "amountUsd": float(subscription.amount_usd),
-                        "confirmedAt": _datetime_to_ms(subscription.ticket_confirmed_at),
-                        "expiresAt": _datetime_to_ms(subscription.ticket_expires_at),
-                        "status": subscription.status,
-                        "paymentStatus": subscription.payment_status,
-                        "registrationConsumedAt": _datetime_to_ms(subscription.registration_consumed_at),
-                    }
-                )
-
-            _audit_subscription_access_verify(
-                request=request,
-                reference=reference,
-                valid=valid,
-                reason=reason,
-                rate_limited=False,
-                attempts_in_window=count,
-                client_ip=client_ip,
+        if subscription is not None:
+            payload.update(
+                {
+                    "planId": subscription.plan_id,
+                    "planName": subscription.plan_name,
+                    "billingCycle": subscription.billing_cycle,
+                    "paymentMethod": subscription.payment_method,
+                    "amountUsd": float(subscription.amount_usd),
+                    "confirmedAt": _datetime_to_ms(subscription.ticket_confirmed_at),
+                    "expiresAt": _datetime_to_ms(subscription.ticket_expires_at),
+                    "status": subscription.status,
+                    "paymentStatus": subscription.payment_status,
+                    "registrationConsumedAt": _datetime_to_ms(subscription.registration_consumed_at),
+                }
             )
+
+        _audit_subscription_access_verify(
+            request=request,
+            reference=reference,
+            valid=valid,
+            reason=reason,
+            rate_limited=False,
+            attempts_in_window=count,
+            client_ip=client_ip,
+        )
 
         return Response(payload, status=status.HTTP_200_OK)
 
@@ -2797,25 +2770,22 @@ class StripeCheckoutSessionConfirmAPIView(APIView):
         if session_status != "complete" or payment_status not in {"paid", "no_payment_required"}:
             raise ValidationError("Stripe checkout session is not fully paid yet.")
 
-        # Billing tables are TENANT_APPS — resolve the tenant from the organization_id
-        # embedded in the session metadata before any ORM calls.
+        # Validate organization context from session metadata before ORM calls.
         session_metadata = dict(session_payload.get("metadata") or {})
         org_id = _normalized_organization_id(session_metadata.get("organization_id"))
-        from django_tenants.utils import schema_context as _schema_context  # noqa: PLC0415
         organization = _resolve_billing_schema_organization(org_id)
         if organization is None:
             raise ValidationError("Unable to resolve organization for this Stripe session.")
 
-        with _schema_context(organization.schema_name):
-            subscription = _persist_stripe_session(session_payload)
-            ticket = _build_subscription_ticket(
-                plan_id=subscription.plan_id,
-                plan_name=subscription.plan_name,
-                billing_cycle=subscription.billing_cycle,
-                payment_method=subscription.payment_method,
-                amount_usd=float(subscription.amount_usd),
-                reference=subscription.reference,
-            )
+        subscription = _persist_stripe_session(session_payload)
+        ticket = _build_subscription_ticket(
+            plan_id=subscription.plan_id,
+            plan_name=subscription.plan_name,
+            billing_cycle=subscription.billing_cycle,
+            payment_method=subscription.payment_method,
+            amount_usd=float(subscription.amount_usd),
+            reference=subscription.reference,
+        )
 
         return Response(
             {
@@ -2941,43 +2911,38 @@ class PaystackCheckoutSessionConfirmAPIView(APIView):
             response["Retry-After"] = str(retry_after)
             return response
 
-        # Verify the transaction first (no DB — HTTP call to Paystack) so we can
-        # extract the organization_id that was embedded in the metadata at checkout
-        # initiation time.  We need it to switch to the correct tenant schema before
-        # any billing ORM calls.
+        # Verify transaction first and validate organization context before ORM calls.
         transaction_data = _paystack_verify_transaction(reference)
         tx_metadata = dict(transaction_data.get("metadata") or {})
         org_id = _normalized_organization_id(tx_metadata.get("organization_id"))
-        from django_tenants.utils import schema_context as _schema_context  # noqa: PLC0415
         organization = _resolve_billing_schema_organization(org_id)
         if organization is None:
             raise ValidationError("Unable to resolve organization for this Paystack transaction.")
 
-        with _schema_context(organization.schema_name):
-            subscription = _persist_paystack_transaction(transaction_data)
-            transaction_status = str(transaction_data.get("status") or "").strip().lower()
-            if transaction_status != "success":
-                gateway_response = str(transaction_data.get("gateway_response") or "").strip()
-                detail = f"Paystack transaction is not successful yet (status: {transaction_status or 'unknown'})."
-                if gateway_response:
-                    detail = f"{detail} Gateway response: {gateway_response}"
-                raise ValidationError(
-                    {
-                        "detail": detail,
-                        "status": transaction_status or "unknown",
-                        "reference": reference,
-                        "checkout_url": subscription.checkout_url,
-                    }
-                )
-
-            ticket = _build_subscription_ticket(
-                plan_id=subscription.plan_id,
-                plan_name=subscription.plan_name,
-                billing_cycle=subscription.billing_cycle,
-                payment_method=subscription.payment_method,
-                amount_usd=float(subscription.amount_usd),
-                reference=subscription.reference,
+        subscription = _persist_paystack_transaction(transaction_data)
+        transaction_status = str(transaction_data.get("status") or "").strip().lower()
+        if transaction_status != "success":
+            gateway_response = str(transaction_data.get("gateway_response") or "").strip()
+            detail = f"Paystack transaction is not successful yet (status: {transaction_status or 'unknown'})."
+            if gateway_response:
+                detail = f"{detail} Gateway response: {gateway_response}"
+            raise ValidationError(
+                {
+                    "detail": detail,
+                    "status": transaction_status or "unknown",
+                    "reference": reference,
+                    "checkout_url": subscription.checkout_url,
+                }
             )
+
+        ticket = _build_subscription_ticket(
+            plan_id=subscription.plan_id,
+            plan_name=subscription.plan_name,
+            billing_cycle=subscription.billing_cycle,
+            payment_method=subscription.payment_method,
+            amount_usd=float(subscription.amount_usd),
+            reference=subscription.reference,
+        )
 
         return Response(
             {
@@ -3021,13 +2986,9 @@ class PaystackWebhookAPIView(APIView):
         event_type = str(event.get("event") or "").strip()
         event_data = dict(event.get("data") or {})
 
-        # Billing tables are TENANT_APPS — they only exist in tenant schemas, not the
-        # public schema that handles this webhook endpoint.  Resolve the target tenant
-        # from the organization_id embedded in the transaction metadata at checkout
-        # initiation time, then switch the DB search_path before any ORM operations.
+        # Validate organization context from metadata before ORM operations.
         event_metadata = dict(event_data.get("metadata") or {})
         org_id = _normalized_organization_id(event_metadata.get("organization_id"))
-        from django_tenants.utils import schema_context as _schema_context  # noqa: PLC0415
         organization = _resolve_billing_schema_organization(org_id)
         if organization is None:
             # Acknowledge receipt but take no DB action — we have no tenant to write to.
@@ -3036,8 +2997,7 @@ class PaystackWebhookAPIView(APIView):
                 status=status.HTTP_200_OK,
             )
 
-        with _schema_context(organization.schema_name):
-            return self._process_paystack_event(event, event_id, event_type, event_data, signature)
+        return self._process_paystack_event(event, event_id, event_type, event_data, signature)
 
     @transaction.atomic
     def _process_paystack_event(self, event, event_id, event_type, event_data, signature):
@@ -3173,10 +3133,8 @@ class StripeWebhookAPIView(APIView):
         event_type = event.get("type", "")
         event_data = dict((event.get("data") or {}).get("object") or {})
 
-        # Billing tables are TENANT_APPS — resolve the tenant from the organization_id
-        # embedded in the event metadata before any ORM calls.
+        # Validate organization context from event metadata before ORM calls.
         org_id = _stripe_event_organization_id(event_type, event_data)
-        from django_tenants.utils import schema_context as _schema_context  # noqa: PLC0415
         organization = _resolve_billing_schema_organization(org_id)
         if organization is None:
             return Response(
@@ -3184,8 +3142,7 @@ class StripeWebhookAPIView(APIView):
                 status=status.HTTP_200_OK,
             )
 
-        with _schema_context(organization.schema_name):
-            return self._process_stripe_event(event, event_type, event_data, signature)
+        return self._process_stripe_event(event, event_type, event_data, signature)
 
     @transaction.atomic
     def _process_stripe_event(self, event: dict, event_type: str, event_data: dict, signature: str):

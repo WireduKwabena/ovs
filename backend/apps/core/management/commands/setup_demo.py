@@ -1,19 +1,14 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
-from decimal import Decimal
 
 from django.contrib.auth.models import Group
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection, transaction
 from django.utils import timezone
 
-from django_tenants.utils import schema_context
-
 from apps.appointments.models import AppointmentPublication, AppointmentRecord, ApprovalStage, ApprovalStageTemplate
 from apps.users.models import User
-from apps.billing.models import BillingSubscription, OrganizationOnboardingToken
-from apps.billing.services import create_organization_onboarding_token, get_active_onboarding_token_for_organization
 from apps.campaigns.models import VettingCampaign
 from apps.governance.models import Committee, CommitteeMembership, OrganizationMembership
 from apps.notifications.models import Notification
@@ -180,87 +175,61 @@ class Command(BaseCommand):
             "--org-slug",
             default="public-service-commission",
             help=(
-                "Code/slug of the primary demo organisation tenant that owns all workflow data. "
-                "The PostgreSQL schema is created automatically if it does not exist yet. "
+                "Code/slug of the primary demo organisation that owns all workflow data. "
                 "Defaults to 'public-service-commission'."
             ),
         )
 
     def handle(self, *args, **options):
-        # ── Step 1/2: public-schema tenant registry setup ──
-        # Organization is a shared/public tenant model; always resolve it in
-        # public schema regardless of the current connection schema.
-        with schema_context("public"):
-            self._ensure_schema_ready({Organization}, "tenant registry")
+        self._ensure_schema_ready({Organization}, "organization registry")
 
-            primary_org = self._upsert_organization(
-                name="Public Service Commission",
-                code=options["org_slug"],
-                organization_type="agency",
-            )
-            secondary_org_specs = {
-                "vetting":   ("Appointments Secretariat",             "appointments-secretariat",            "agency"),
-                "committee": ("Parliamentary Appointments Committee", "parliamentary-appointments-committee", "committee_secretariat"),
-                "authority": ("Office of the President",              "office-of-the-president",             "executive_office"),
-                "registry":  ("Gazette and Records Office",           "gazette-and-records-office",          "agency"),
-                "auditor":   ("Audit Service",                        "audit-service",                       "audit"),
-            }
-            organizations: dict[str, Organization] = {
-                key: self._upsert_organization(name=name, code=code, organization_type=org_type)
-                for key, (name, code, org_type) in secondary_org_specs.items()
-            }
-            organizations["admin"] = primary_org
-            organizations["publication"] = organizations["registry"]
+        primary_org = self._upsert_organization(
+            name="Public Service Commission",
+            code=options["org_slug"],
+            organization_type="agency",
+        )
+        secondary_org_specs = {
+            "vetting":   ("Appointments Secretariat",             "appointments-secretariat",            "agency"),
+            "committee": ("Parliamentary Appointments Committee", "parliamentary-appointments-committee", "committee_secretariat"),
+            "authority": ("Office of the President",              "office-of-the-president",             "executive_office"),
+            "registry":  ("Gazette and Records Office",           "gazette-and-records-office",          "agency"),
+            "auditor":   ("Audit Service",                        "audit-service",                       "audit"),
+        }
+        organizations: dict[str, Organization] = {
+            key: self._upsert_organization(name=name, code=code, organization_type=org_type)
+            for key, (name, code, org_type) in secondary_org_specs.items()
+        }
+        organizations["admin"] = primary_org
+        organizations["publication"] = organizations["registry"]
 
-        # ── Step 3: all tenant-app operations must run inside the org's schema context.
-        #    Management commands have no HTTP request, so TenantMiddleware never fires;
-        #    without schema_context the connection stays in the public schema where
-        #    TENANT_APP tables (Committee, VettingCampaign, …) do not exist.
-        # Determine which schema to use for tenant-app operations.
-        # In production, Organization.save() provisions a dedicated schema; in test
-        # environments that patch is suppressed, so fall back to the already-migrated
-        # active tenant schema rather than a non-existent org-specific schema.
-        with connection.cursor() as _cur:
-            _cur.execute("SELECT 1 FROM pg_namespace WHERE nspname = %s", [primary_org.schema_name])
-            if _cur.fetchone():
-                _tenant_schema = primary_org.schema_name
-            else:
-                # Fallback for test environments where org-specific schema isn't auto-provisioned.
-                # Use the currently active tenant if available, else fall back to public schema.
-                _tenant_schema = (
-                    connection.tenant.schema_name if connection.tenant else
-                    "public"
-                )
-        with schema_context(_tenant_schema):
+        self._ensure_schema_ready(
+            {Committee, CommitteeMembership, OrganizationMembership},
+            "governance",
+        )
+        if not options["skip_sample_data"]:
             self._ensure_schema_ready(
-                {Committee, CommitteeMembership, OrganizationMembership},
-                "governance",
+                {
+                    ApprovalStageTemplate, ApprovalStage, AppointmentRecord, AppointmentPublication,
+                    VettingCampaign, GovernmentPosition, PersonnelRecord,
+                },
+                "sample data",
             )
+
+        with transaction.atomic():
+            groups = self._ensure_groups()
+            users = self._ensure_users(options=options, groups=groups)
+            organizations = self._ensure_governance_foundation(
+                users=users, primary_org=primary_org, organizations=organizations,
+            )
+
             if not options["skip_sample_data"]:
-                self._ensure_schema_ready(
-                    {
-                        ApprovalStageTemplate, ApprovalStage, AppointmentRecord, AppointmentPublication,
-                        VettingCampaign, GovernmentPosition, PersonnelRecord,
-                        BillingSubscription, OrganizationOnboardingToken,
-                    },
-                    "sample data",
-                )
+                self._ensure_sample_data(users=users, organizations=organizations)
 
-            with transaction.atomic():
-                groups = self._ensure_groups()
-                users = self._ensure_users(options=options, groups=groups)
-                organizations = self._ensure_governance_foundation(
-                    users=users, primary_org=primary_org, organizations=organizations,
-                )
-
-                if not options["skip_sample_data"]:
-                    self._ensure_sample_data(users=users, organizations=organizations)
-
-            if not options["skip_notifications"]:
-                self._seed_notifications(
-                    users=users,
-                    clear=options["clear_notifications"],
-                )
+        if not options["skip_notifications"]:
+            self._seed_notifications(
+                users=users,
+                clear=options["clear_notifications"],
+            )
 
         self.stdout.write(self.style.SUCCESS("GAMS demo setup completed."))
         self.stdout.write("Demo sign-in accounts:")
@@ -400,9 +369,6 @@ class Command(BaseCommand):
         primary_org: Organization,
         organizations: dict[str, Organization],
     ) -> dict[str, Organization]:
-        # All Organisation objects were created in the public schema (in handle())
-        # before schema_context was entered.  This method only creates tenant-app
-        # records (OrganizationMembership, Committee, CommitteeMembership).
         workflow_org = organizations["admin"]
 
         # Platform superusers are system-wide operators, not tenant members.
@@ -456,8 +422,6 @@ class Command(BaseCommand):
     def _ensure_sample_data(self, *, users: dict[str, User], organizations: dict[str, Organization]) -> None:
         workflow_org = organizations["admin"]
 
-        self._ensure_billing_demo_state(organization=workflow_org, org_admin_user=users["registry"])
-
         committee_for_records = (
             Committee.objects.filter(
                 code="parliamentary-appointments-main",
@@ -468,7 +432,7 @@ class Command(BaseCommand):
         )
         if committee_for_records is None:
             raise CommandError(
-                "Committee 'parliamentary-appointments-main' was not found in the current tenant schema. "
+                "Committee 'parliamentary-appointments-main' was not found. "
                 "Run setup_demo without --skip-sample-data at least once first, or check that "
                 "_ensure_governance_foundation completed successfully."
             )
@@ -535,7 +499,7 @@ class Command(BaseCommand):
     # ── Notifications ─────────────────────────────────────────────────────────
 
     def _seed_notifications(self, *, users: dict[str, User], clear: bool) -> None:
-        """Seed demo in-app notifications for all demo users. Must be called inside schema_context."""
+        """Seed demo in-app notifications for all demo users."""
         demo_subjects = [n["subject"] for n in DEMO_NOTIFICATIONS]
         all_users = list(users.values())
 
@@ -575,78 +539,6 @@ class Command(BaseCommand):
             self.style.SUCCESS(
                 f"Seeded {created_count} notifications across {len(all_users)} demo user(s)."
             )
-        )
-
-    # ── Billing & onboarding token ────────────────────────────────────────────
-
-    def _ensure_billing_demo_state(self, *, organization: Organization, org_admin_user: User) -> None:
-        normalized_email = str(org_admin_user.email or "").strip().lower()
-        subscription, _ = BillingSubscription.objects.get_or_create(
-            reference="GAMS-DEMO-ORG-SUBSCRIPTION",
-            defaults={
-                "provider": "sandbox",
-                "status": "complete",
-                "payment_status": "paid",
-                "plan_id": "growth",
-                "plan_name": "Growth",
-                "billing_cycle": "annual",
-                "payment_method": "card",
-                "amount_usd": Decimal("3990.00"),
-                "registration_consumed_at": timezone.now(),
-                "registration_consumed_by_email": normalized_email,
-                "metadata": {"seeded_by": "setup_demo", "organization_id": str(organization.id)},
-            },
-        )
-
-        changed = self._update_fields(subscription, {
-            "provider": "sandbox",
-            "status": "complete",
-            "payment_status": "paid",
-            "plan_id": "growth",
-            "plan_name": "Growth",
-            "billing_cycle": "annual",
-            "payment_method": "card",
-            "amount_usd": Decimal("3990.00"),
-            "registration_consumed_by_email": normalized_email,
-        })
-        if not subscription.registration_consumed_at:
-            subscription.registration_consumed_at = timezone.now()
-            changed.append("registration_consumed_at")
-        metadata = subscription.metadata if isinstance(subscription.metadata, dict) else {}
-        if metadata.get("organization_id") != str(organization.id):
-            metadata.update({"organization_id": str(organization.id), "seeded_by": "setup_demo"})
-            subscription.metadata = metadata
-            changed.append("metadata")
-        if changed:
-            subscription.save(update_fields=changed + ["updated_at"])
-
-        now = timezone.now()
-        active_token = get_active_onboarding_token_for_organization(organization_id=str(organization.id))
-        token_still_usable = bool(
-            active_token
-            and active_token.is_active
-            and (active_token.expires_at is None or active_token.expires_at > now)
-            and (active_token.max_uses is None or int(active_token.uses or 0) < int(active_token.max_uses))
-        )
-        if token_still_usable and active_token is not None:
-            token_changed = self._update_fields(active_token, {
-                "subscription": subscription,
-                "max_uses": active_token.max_uses or 50,
-                "expires_at": active_token.expires_at or now + timedelta(days=30),
-            })
-            if token_changed:
-                active_token.save(update_fields=token_changed + ["updated_at"])
-            return
-
-        create_organization_onboarding_token(
-            organization=organization,
-            subscription=subscription,
-            created_by=org_admin_user,
-            expires_at=now + timedelta(days=30),
-            max_uses=50,
-            allowed_email_domain="",
-            rotate=True,
-            metadata={"seeded_by": "setup_demo"},
         )
 
     # ── Stage template ─────────────────────────────────────────────────────────
@@ -939,8 +831,7 @@ class Command(BaseCommand):
     # ── Low-level upsert helpers ───────────────────────────────────────────────
 
     def _upsert_organization(self, *, code: str, name: str, organization_type: str) -> Organization:
-        # schema_name is required by TenantMixin (maps to the PostgreSQL schema name).
-        # Derive it from the slug: hyphens are not valid in PG identifiers.
+        # Keep schema_name populated for backward compatibility with existing records.
         schema_name = code.replace("-", "_")
         organization, _ = Organization.objects.get_or_create(
             code=code,
@@ -1051,29 +942,23 @@ class Command(BaseCommand):
         organization: str,
         department: str,
     ) -> User:
-        from django_tenants.utils import schema_context
-
-        # Users are shared-app records and must be created/updated in the public schema.
-        # Use the unscoped manager because the default manager hides users without an
-        # active tenant membership when called from tenant context.
-        with schema_context("public"):
-            user, created = User.all_objects.get_or_create(
-                email=email.lower().strip(),
-                defaults={
-                    "first_name": first_name, "last_name": last_name, "user_type": user_type,
-                    "is_staff": is_staff, "is_superuser": is_superuser, "email_verified": True,
-                    "organization": organization, "department": department,
-                },
-            )
-            changed = self._update_fields(user, {
+        user, created = User.all_objects.get_or_create(
+            email=email.lower().strip(),
+            defaults={
                 "first_name": first_name, "last_name": last_name, "user_type": user_type,
-                "is_staff": is_staff, "is_superuser": is_superuser, "organization": organization,
-                "department": department, "email_verified": True, "is_active": True,
-            })
-            user.set_password(password)
-            changed.append("password")
-            if created:
-                user.save()
-            else:
-                user.save(update_fields=sorted(set(changed + ["updated_at"])))
+                "is_staff": is_staff, "is_superuser": is_superuser, "email_verified": True,
+                "organization": organization, "department": department,
+            },
+        )
+        changed = self._update_fields(user, {
+            "first_name": first_name, "last_name": last_name, "user_type": user_type,
+            "is_staff": is_staff, "is_superuser": is_superuser, "organization": organization,
+            "department": department, "email_verified": True, "is_active": True,
+        })
+        user.set_password(password)
+        changed.append("password")
+        if created:
+            user.save()
+        else:
+            user.save(update_fields=sorted(set(changed + ["updated_at"])))
         return user

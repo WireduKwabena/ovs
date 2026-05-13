@@ -17,10 +17,6 @@ import type {
 } from "@/types";
 import { campaignService } from "@/services/campaign.service";
 import { governmentService } from "@/services/government.service";
-import {
-  billingService,
-  type BillingQuotaCandidate,
-} from "@/services/billing.service";
 import { formatDate } from "@/utils/helper";
 import { useAuth } from "@/hooks/useAuth";
 import { Input } from "@/components/ui/input";
@@ -30,6 +26,7 @@ import {
   DOCUMENT_TYPE_OPTIONS,
   getDocumentTypeLabel,
 } from "@/constants/documentTypes";
+import { type CandidateQuotaCandidate } from "./campaignWorkspaceQuota";
 
 const statusBadgeClass: Record<string, string> = {
   draft: "bg-slate-200 text-slate-800",
@@ -83,7 +80,7 @@ const CampaignsPage: React.FC = () => {
   const [campaigns, setCampaigns] = useState<VettingCampaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [quota, setQuota] = useState<BillingQuotaCandidate | null>(null);
+  const [quota, setQuota] = useState<CandidateQuotaCandidate | null>(null);
   const [quotaLoading, setQuotaLoading] = useState(false);
   const [quotaError, setQuotaError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -125,7 +122,7 @@ const CampaignsPage: React.FC = () => {
   );
 
   const canManageCampaigns = canManageRegistry;
-  const shouldShowQuota = canManageCampaigns && userType !== "applicant";
+  const shouldShowQuota = false;
 
   const fetchCampaigns = useCallback(async () => {
     setLoading(true);
@@ -145,24 +142,9 @@ const CampaignsPage: React.FC = () => {
   }, []);
 
   const fetchQuota = useCallback(async () => {
-    if (!shouldShowQuota) {
-      setQuota(null);
-      setQuotaError(null);
-      return;
-    }
-
-    setQuotaLoading(true);
+    setQuota(null);
     setQuotaError(null);
-    try {
-      const data = await billingService.getQuota();
-      setQuota(data.candidate);
-    } catch (err: any) {
-      setQuotaError(
-        err?.response?.data?.detail || err?.message || "Failed to load quota.",
-      );
-    } finally {
-      setQuotaLoading(false);
-    }
+    setQuotaLoading(false);
   }, [shouldShowQuota]);
 
   const loadRouteTemplates = useCallback(async () => {

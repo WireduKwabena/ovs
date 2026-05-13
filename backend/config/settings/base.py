@@ -107,47 +107,18 @@ def _redis_db_url(redis_url: str, db_index: int) -> str:
 # Application definition
 ENABLE_REALTIME = config("ENABLE_REALTIME", default=False, cast=bool)
 
-SHARED_APPS = [
-    'django_tenants',  # mandatory
-    'apps.tenants', # you must list the app where your tenant model resides in
+INSTALLED_APPS = [
+    "apps.tenants",
     "apps.users",
-    'django.contrib.contenttypes',
+    "django.contrib.contenttypes",
     "django.contrib.staticfiles",
-    # everything below here is optional
-    'django.contrib.auth',
-    'django.contrib.sessions',
-    'django.contrib.sites',
-    'django.contrib.messages',
-    'django.contrib.admin',
-]
-
-
-if ENABLE_REALTIME and _has_module("daphne"):
-    SHARED_APPS.insert(0, "daphne")
-if ENABLE_REALTIME and _has_module("channels"):
-    SHARED_APPS.insert(1 if "daphne" in SHARED_APPS else 0, "channels")
-
-SHARED_APPS.append("rest_framework")
-if _has_module("rest_framework_simplejwt"):
-    SHARED_APPS.append("rest_framework_simplejwt")
-if _has_module("corsheaders"):
-    SHARED_APPS.append("corsheaders")
-if _has_module("django_filters"):
-    SHARED_APPS.append("django_filters")
-if _has_module("django_celery_beat"):
-    SHARED_APPS.append("django_celery_beat")
-if _has_module("django_celery_results"):
-    SHARED_APPS.append("django_celery_results")
-if _has_module("drf_spectacular"):
-    SHARED_APPS.append("drf_spectacular")
-# token_blacklist lives in the shared (public) schema — its OutstandingToken.user FK
-# points to users_user which is also in public. Keeping it in TENANT_APPS would cause
-# "relation users_user does not exist" when migrations run in a tenant schema.
-if _has_module("rest_framework_simplejwt.token_blacklist"):
-    SHARED_APPS.append("rest_framework_simplejwt.token_blacklist")
-SHARED_APPS.append("apps.audit")
-
-TENANT_APPS = (
+    "django.contrib.auth",
+    "django.contrib.sessions",
+    "django.contrib.sites",
+    "django.contrib.messages",
+    "django.contrib.admin",
+    "rest_framework",
+    "apps.audit",
     "apps.core",
     "apps.admin_dashboard",
     "apps.authentication",
@@ -163,28 +134,36 @@ TENANT_APPS = (
     "apps.video_calls",
     "apps.rubrics",
     "apps.notifications.apps.NotificationsConfig",
-    "apps.audit",
     "apps.fraud",
-    "apps.billing",
     "apps.background_checks",
     "apps.ml_monitoring",
     "ai_ml_services.apps.AiMlServicesConfig",
-)
-INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
+]
 
-TENANT_MODEL = "tenants.Organization" # app.Model
+if ENABLE_REALTIME and _has_module("daphne"):
+    INSTALLED_APPS.insert(0, "daphne")
+if ENABLE_REALTIME and _has_module("channels"):
+    INSTALLED_APPS.insert(1 if "daphne" in INSTALLED_APPS else 0, "channels")
 
-TENANT_DOMAIN_MODEL = "tenants.Domain"  # app.Model
-
-# Fall back to the public schema when no tenant domain matches the request
-# hostname (e.g. during tests where the client uses 'testserver').
-SHOW_PUBLIC_IF_NO_TENANT_FOUND = True
+if _has_module("rest_framework_simplejwt"):
+    INSTALLED_APPS.append("rest_framework_simplejwt")
+if _has_module("corsheaders"):
+    INSTALLED_APPS.append("corsheaders")
+if _has_module("django_filters"):
+    INSTALLED_APPS.append("django_filters")
+if _has_module("django_celery_beat"):
+    INSTALLED_APPS.append("django_celery_beat")
+if _has_module("django_celery_results"):
+    INSTALLED_APPS.append("django_celery_results")
+if _has_module("drf_spectacular"):
+    INSTALLED_APPS.append("drf_spectacular")
+if _has_module("rest_framework_simplejwt.token_blacklist"):
+    INSTALLED_APPS.append("rest_framework_simplejwt.token_blacklist")
 
 
 USE_REDIS = config("USE_REDIS", default=True, cast=bool)
 
 MIDDLEWARE = [
-    'apps.tenants.middleware.TenantMiddleware',  # subdomain + X-Organization-Slug + public fallback
     "django.middleware.security.SecurityMiddleware"
     ]
 if _has_module("whitenoise"):
@@ -205,7 +184,6 @@ MIDDLEWARE += [
 ]
 
 
-PUBLIC_SCHEMA_URLCONF = 'config.public_urls'
 ROOT_URLCONF = 'config.urls'
 
 
@@ -413,9 +391,7 @@ if _has_module("corsheaders"):
 
     # Active organization context is carried in a custom request header.
     # Explicitly allow it for browser preflight checks.
-    CORS_ALLOW_HEADERS = tuple(
-        dict.fromkeys([*cors_default_headers, "x-active-organization-id",'x-organization-slug','X-Organization-Slug'])
-    )
+    CORS_ALLOW_HEADERS = tuple(dict.fromkeys(cors_default_headers))
 CSRF_TRUSTED_ORIGINS = env_list(
     "CSRF_TRUSTED_ORIGINS",
     default="http://localhost:3000,http://127.0.0.1:3000",
@@ -580,10 +556,6 @@ LOGGING = {
         },
     },
 }
-
-DATABASE_ROUTERS = (
-    'django_tenants.routers.TenantSyncRouter',
-)
 
 # Create logs directory if it doesn't exist
 (BASE_DIR / 'logs').mkdir(exist_ok=True)
@@ -765,97 +737,6 @@ BACKGROUND_CHECK_SWEEP_MIN_POLL_INTERVAL_MINUTES = config(
     cast=int,
 )
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["background_webhook"] = BACKGROUND_CHECK_WEBHOOK_THROTTLE_RATE
-BILLING_SUBSCRIPTION_TICKET_TTL_HOURS = config("BILLING_SUBSCRIPTION_TICKET_TTL_HOURS", default=24, cast=int)
-BILLING_SUBSCRIPTION_VERIFY_RATE_LIMIT_ENABLED = config(
-    "BILLING_SUBSCRIPTION_VERIFY_RATE_LIMIT_ENABLED",
-    default=True,
-    cast=bool,
-)
-BILLING_SUBSCRIPTION_VERIFY_RATE_LIMIT_PER_MINUTE = config(
-    "BILLING_SUBSCRIPTION_VERIFY_RATE_LIMIT_PER_MINUTE",
-    default=30,
-    cast=int,
-)
-BILLING_ONBOARDING_TOKEN_VALIDATE_RATE_LIMIT_ENABLED = config(
-    "BILLING_ONBOARDING_TOKEN_VALIDATE_RATE_LIMIT_ENABLED",
-    default=True,
-    cast=bool,
-)
-BILLING_ONBOARDING_TOKEN_VALIDATE_RATE_LIMIT_PER_MINUTE = config(
-    "BILLING_ONBOARDING_TOKEN_VALIDATE_RATE_LIMIT_PER_MINUTE",
-    default=30,
-    cast=int,
-)
-BILLING_HEALTH_REQUIRE_STAFF = config(
-    "BILLING_HEALTH_REQUIRE_STAFF",
-    default=False,
-    cast=bool,
-)
-BILLING_QUOTA_ENFORCEMENT_ENABLED = config(
-    "BILLING_QUOTA_ENFORCEMENT_ENABLED",
-    default=True,
-    cast=bool,
-)
-BILLING_PLAN_TRIAL_CANDIDATES_PER_MONTH = config(
-    "BILLING_PLAN_TRIAL_CANDIDATES_PER_MONTH",
-    default=15,
-    cast=int,
-)
-BILLING_PLAN_STARTER_CANDIDATES_PER_MONTH = config(
-    "BILLING_PLAN_STARTER_CANDIDATES_PER_MONTH",
-    default=150,
-    cast=int,
-)
-BILLING_PLAN_GROWTH_CANDIDATES_PER_MONTH = config(
-    "BILLING_PLAN_GROWTH_CANDIDATES_PER_MONTH",
-    default=600,
-    cast=int,
-)
-BILLING_PLAN_ENTERPRISE_CANDIDATES_PER_MONTH = config(
-    "BILLING_PLAN_ENTERPRISE_CANDIDATES_PER_MONTH",
-    default=0,
-    cast=int,
-)
-BILLING_PLAN_DEFAULT_CANDIDATES_PER_MONTH = config(
-    "BILLING_PLAN_DEFAULT_CANDIDATES_PER_MONTH",
-    default=0,
-    cast=int,
-)
-BILLING_ORG_MEMBER_QUOTA_ENFORCEMENT_ENABLED = config(
-    "BILLING_ORG_MEMBER_QUOTA_ENFORCEMENT_ENABLED",
-    default=True,
-    cast=bool,
-)
-BILLING_PLAN_TRIAL_ORG_SEATS = config(
-    "BILLING_PLAN_TRIAL_ORG_SEATS",
-    default=5,
-    cast=int,
-)
-BILLING_PLAN_STARTER_ORG_SEATS = config(
-    "BILLING_PLAN_STARTER_ORG_SEATS",
-    default=25,
-    cast=int,
-)
-BILLING_PLAN_GROWTH_ORG_SEATS = config(
-    "BILLING_PLAN_GROWTH_ORG_SEATS",
-    default=100,
-    cast=int,
-)
-BILLING_PLAN_ENTERPRISE_ORG_SEATS = config(
-    "BILLING_PLAN_ENTERPRISE_ORG_SEATS",
-    default=0,
-    cast=int,
-)
-BILLING_PLAN_DEFAULT_ORG_SEATS = config(
-    "BILLING_PLAN_DEFAULT_ORG_SEATS",
-    default=0,
-    cast=int,
-)
-BILLING_VETTING_REQUIRE_SCOPE_RESOLUTION = config(
-    "BILLING_VETTING_REQUIRE_SCOPE_RESOLUTION",
-    default=True,
-    cast=bool,
-)
 TENANT_ORG_INTEGRITY_CHECK_ENABLED = config(
     "TENANT_ORG_INTEGRITY_CHECK_ENABLED",
     default=True,
@@ -871,35 +752,11 @@ TENANT_FAIL_ON_CROSS_ORG_LINKAGE_MISMATCH = config(
     default=False,
     cast=bool,
 )
-BILLING_ORG_ONBOARDING_DEFAULT_TTL_HOURS = config(
-    "BILLING_ORG_ONBOARDING_DEFAULT_TTL_HOURS",
-    default=72,
-    cast=int,
-)
-BILLING_ORG_ONBOARDING_DEFAULT_MAX_USES = config(
-    "BILLING_ORG_ONBOARDING_DEFAULT_MAX_USES",
-    default=25,
-    cast=int,
-)
-BILLING_ORG_ONBOARDING_TOKEN_PEPPER = config(
-    "BILLING_ORG_ONBOARDING_TOKEN_PEPPER",
-    default="",
-)
 INTERVIEWS_TASK_INLINE_FALLBACK_ENABLED = config(
     "INTERVIEWS_TASK_INLINE_FALLBACK_ENABLED",
     default=True,
     cast=bool,
 )
-STRIPE_SECRET_KEY = config("STRIPE_SECRET_KEY", default="")
-STRIPE_WEBHOOK_SECRET = config("STRIPE_WEBHOOK_SECRET", default="")
-STRIPE_BILLING_PORTAL_RETURN_URL = config("STRIPE_BILLING_PORTAL_RETURN_URL", default="")
-PAYSTACK_SECRET_KEY = config("PAYSTACK_SECRET_KEY", default="")
-PAYSTACK_BASE_URL = config("PAYSTACK_BASE_URL", default="https://api.paystack.co")
-PAYSTACK_CURRENCY = config("PAYSTACK_CURRENCY", default="USD")
-PAYSTACK_USD_EXCHANGE_RATE = config("PAYSTACK_USD_EXCHANGE_RATE", default=1.0, cast=float)
-EXCHANGE_RATE_API_URL = config("EXCHANGE_RATE_API_URL", default="")
-EXCHANGE_RATE_API_TIMEOUT_SECONDS = config("EXCHANGE_RATE_API_TIMEOUT_SECONDS", default=8, cast=int)
-EXCHANGE_RATE_CACHE_TTL_SECONDS = config("EXCHANGE_RATE_CACHE_TTL_SECONDS", default=3600, cast=int)
 # Security Settings (will be overridden in production)
 SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = False

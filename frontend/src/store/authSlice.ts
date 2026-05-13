@@ -29,7 +29,7 @@ import {
 import { getApiErrorMessage } from "@/utils/apiError";
 
 // ---------------------------------------------------------------------------
-// Tenant resolution types
+// Login mode resolution types (legacy compatibility)
 // ---------------------------------------------------------------------------
 
 export interface TenantResolutionResult {
@@ -400,37 +400,23 @@ const resolveCapabilities = (payload: {
 // ---------------------------------------------------------------------------
 
 /**
- * Resolve which tenant/schema an email belongs to.
- * Called before login to determine the correct endpoint and institution slug.
+ * Legacy pre-login resolver. In single-tenant mode this always resolves
+ * to the member login flow and does not call a tenant lookup endpoint.
  */
 export const resolveTenant = createAsyncThunk<
   TenantResolutionResult,
   string,
   { rejectValue: ApiError }
->("auth/resolveTenant", async (email, { rejectWithValue }) => {
+>("auth/resolveTenant", async (_email, { rejectWithValue }) => {
   try {
-    // Use fetch directly to avoid the api.ts interceptor injecting a slug
-    // before we know which slug to use.
-    const response = await fetch("/api/v1/auth/resolve-tenant/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email.toLowerCase().trim() }),
-    });
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      return rejectWithValue({
-        message: data?.error || "No account found for this email address.",
-      });
-    }
-    return (await response.json()) as TenantResolutionResult;
+    return { login_type: "member" };
   } catch {
     return rejectWithValue({ message: "Unable to reach the server. Please try again." });
   }
 });
 
 /**
- * Login for org members and org admins (tenant schema).
- * Requires institutionSlug to be set in state first (via resolveTenant).
+ * Login for internal users.
  */
 export const login = createAsyncThunk<
   LoginAttemptResponse,
@@ -445,8 +431,7 @@ export const login = createAsyncThunk<
 });
 
 /**
- * Login for platform/system admins (public schema).
- * Does NOT inject X-Organization-Slug — hits public schema directly.
+ * Login for platform/system admins.
  */
 export const adminLogin = createAsyncThunk<
   LoginAttemptResponse,
@@ -548,13 +533,8 @@ export const switchActiveOrganization = createAsyncThunk<
     return rejectWithValue({ message: "No token" });
   }
   try {
-    await authService.setActiveOrganization({
-      organization_id: organizationId,
-      clear: !organizationId,
-    });
-    return await authService.getProfile(
-      organizationId ? { activeOrganizationId: organizationId } : undefined,
-    );
+    void organizationId;
+    return await authService.getProfile();
   } catch (error: unknown) {
     return rejectWithValue({
       message: getApiErrorMessage(error, "Failed to update active organization"),
@@ -675,8 +655,6 @@ const applyLoginFulfilled = (state: AuthState, payload: LoginAttemptResponse) =>
 
   if (isTwoFactorChallenge(payload)) {
     clearSessionState(state);
-    // Re-apply slug after clearSessionState wipes it
-    state.organizationSlug = sessionStorage.getItem("organization_slug");
     state.resolvedLoginType = sessionStorage.getItem("resolved_login_type") as "admin" | "member" | null;
     state.twoFactorRequired = true;
     state.twoFactorToken = payload.token;
@@ -732,9 +710,10 @@ const authSlice = createSlice({
         Object.assign(state.user, action.payload);
       }
     },
-    // Called by LoginForm after resolveTenant succeeds, before login is dispatched
+    // Kept for compatibility; single-tenant mode ignores slug input.
     setOrganizationSlug: (state, action: PayloadAction<string | null>) => {
-      state.organizationSlug = persistOrganizationSlug(action.payload);
+      void action;
+      state.organizationSlug = persistOrganizationSlug(null);
     },
     setResolvedLoginType: (state, action: PayloadAction<"admin" | "member" | null>) => {
       state.resolvedLoginType = action.payload;
@@ -755,7 +734,7 @@ const authSlice = createSlice({
       .addCase(resolveTenant.fulfilled, (state, action) => {
         state.loading = false;
         state.resolvedLoginType = action.payload.login_type;
-        state.organizationSlug = persistOrganizationSlug(action.payload.organization_slug ?? null);
+        state.organizationSlug = persistOrganizationSlug(null);
         sessionStorage.setItem("resolved_login_type", action.payload.login_type);
       })
       .addCase(resolveTenant.rejected, (state, action) => {

@@ -6,7 +6,7 @@ export interface User {
   first_name?: string;
   last_name?: string;
   full_name: string;
-  user_type?: 'applicant' | 'internal' | 'org_admin' | 'platform_admin';
+  user_type?: "applicant" | "internal" | "org_admin" | "platform_admin";
   roles?: string[];
   group_roles?: string[];
   capabilities?: string[];
@@ -14,8 +14,8 @@ export interface User {
   phone_number: string;
   organization?: string;
   department?: string;
-  profile_picture_url:string;
-  avatar_url:string;
+  profile_picture_url: string;
+  avatar_url: string;
   date_of_birth: string;
   profile?: ExtendedUserProfile | null;
   is_active: boolean;
@@ -261,19 +261,19 @@ export interface AdminUser {
   phone_number?: string;
   organization?: string;
   department?: string;
-  user_type?: 'applicant' | 'internal' | 'org_admin' | 'platform_admin';
+  user_type?: "applicant" | "internal" | "org_admin" | "platform_admin";
   roles?: string[];
   group_roles?: string[];
   capabilities?: string[];
   is_internal_operator?: boolean;
   role_display?: string;
   username?: string;
-  role?: 'admin' | 'reviewer' | 'internal' | 'super_admin';
+  role?: "admin" | "reviewer" | "internal" | "super_admin";
   profile?: ExtendedUserProfile | null;
   is_active: boolean;
   is_staff?: boolean;
   is_superuser?: boolean;
-  avatar_url?:string;
+  avatar_url?: string;
   created_at: string;
 }
 
@@ -300,9 +300,9 @@ export interface AuthTokens {
 // Redux AuthState (Data-Only, No Methods)
 export interface AuthState {
   user: User | AdminUser | null;
-  tokens: AuthTokens | null;  // Updated: Full tokens object
+  tokens: AuthTokens | null; // Updated: Full tokens object
   isAuthenticated: boolean;
-  userType: 'applicant' | 'internal' | 'admin' | null;
+  userType: "applicant" | "internal" | "admin" | null;
   roles: string[];
   capabilities: string[];
   organizations: OrganizationSummary[];
@@ -323,18 +323,22 @@ export interface ApiError {
 }
 
 export type ApplicationStatus =
-  | 'pending'
-  | 'document_upload'
-  | 'document_analysis'
-  | 'interview_scheduled'
-  | 'interview_in_progress'
-  | 'under_review'
-  | 'info_requested'
-  | 'approved'
-  | 'rejected'
-  | 'on_hold';
-export type ApplicationType = 'employment' | 'background' | 'credential' | 'education';
-export type Priority = 'low' | 'medium' | 'high' | 'urgent';
+  | "pending"
+  | "document_upload"
+  | "document_analysis"
+  | "interview_scheduled"
+  | "interview_in_progress"
+  | "under_review"
+  | "info_requested"
+  | "approved"
+  | "rejected"
+  | "on_hold";
+export type ApplicationType =
+  | "employment"
+  | "background"
+  | "credential"
+  | "education";
+export type Priority = "low" | "medium" | "high" | "urgent";
 
 export interface VettingCase {
   id: string;
@@ -359,38 +363,38 @@ export interface VettingCase {
   updated_at: string;
 }
 
-export type DocumentType = 
-  | 'id_card' 
-  | 'passport' 
-  | 'drivers_license'
-  | 'resume'
-  | 'cover_letter'
-  | 'degree'
-  | 'medical_certificate'
-  | 'police_clearance'
-  | 'nomination_letter'
-  | 'appointment_letter'
-  | 'asset_declaration'
-  | 'transcript'
-  | 'pay_slip'
-  | 'bank_statement'
-  | 'utility_bill'
-  | 'certificate' 
-  | 'diploma' 
-  | 'employment_letter' 
-  | 'reference_letter' 
-  | 'birth_certificate' 
-  | 'other';
+export type DocumentType =
+  | "id_card"
+  | "passport"
+  | "drivers_license"
+  | "resume"
+  | "cover_letter"
+  | "degree"
+  | "medical_certificate"
+  | "police_clearance"
+  | "nomination_letter"
+  | "appointment_letter"
+  | "asset_declaration"
+  | "transcript"
+  | "pay_slip"
+  | "bank_statement"
+  | "utility_bill"
+  | "certificate"
+  | "diploma"
+  | "employment_letter"
+  | "reference_letter"
+  | "birth_certificate"
+  | "other";
 
 export type VerificationStatusType =
-  | 'uploaded'
-  | 'queued'
-  | 'pending'
-  | 'processing'
-  | 'verified'
-  | 'failed'
-  | 'flagged'
-  | 'rejected';
+  | "uploaded"
+  | "queued"
+  | "pending"
+  | "processing"
+  | "verified"
+  | "failed"
+  | "flagged"
+  | "rejected";
 
 export interface Document {
   id: string;
@@ -459,7 +463,14 @@ export interface ApplicationWithDocuments extends VettingCase {
 
 export interface CaseInfoRequestTemplate {
   id: string;
-  category: "identity" | "address" | "employment" | "education" | "financial" | "references" | "other";
+  category:
+    | "identity"
+    | "address"
+    | "employment"
+    | "education"
+    | "financial"
+    | "references"
+    | "other";
   title: string;
   description: string;
   is_active: boolean;
@@ -485,7 +496,14 @@ export interface CaseInfoRequest {
   template?: string | null;
   template_title?: string;
   message: string;
-  category: "identity" | "address" | "employment" | "education" | "financial" | "references" | "other";
+  category:
+    | "identity"
+    | "address"
+    | "employment"
+    | "education"
+    | "financial"
+    | "references"
+    | "other";
   due_by?: string | null;
   status: "open" | "responded" | "revision_requested" | "closed";
   response?: string;
@@ -506,8 +524,8 @@ export interface FraudDetectionResult {
   is_fraud: boolean;
   fraud_probability: number;
   anomaly_score: number;
-  risk_level: 'LOW' | 'MEDIUM' | 'HIGH';
-  recommendation: 'PROCEED' | 'MANUAL_REVIEW' | 'REJECT';
+  risk_level: "LOW" | "MEDIUM" | "HIGH";
+  recommendation: "PROCEED" | "MANUAL_REVIEW" | "REJECT";
   feature_scores: Record<string, number>;
   detected_at: string;
 }
@@ -618,7 +636,11 @@ export type BackgroundCheckType =
 
 export type BackgroundCheckRiskLevel = "low" | "medium" | "high" | "unknown";
 
-export type BackgroundCheckRecommendation = "clear" | "review" | "reject" | "unavailable";
+export type BackgroundCheckRecommendation =
+  | "clear"
+  | "review"
+  | "reject"
+  | "unavailable";
 
 export interface BackgroundCheck {
   id: string;
@@ -669,7 +691,7 @@ export interface RubricEvaluation {
   criteria_scores?: Record<string, { score: number; weight: number }>;
   passed?: boolean;
   passes_threshold?: boolean;
-  ai_recommendation?: 'AUTO_APPROVE' | 'AUTO_REJECT' | 'MANUAL_REVIEW';
+  ai_recommendation?: "AUTO_APPROVE" | "AUTO_REJECT" | "MANUAL_REVIEW";
   final_decision?: string;
   requires_manual_review?: boolean;
   evaluation_details?: Record<string, any>;
@@ -685,16 +707,16 @@ export interface RubricEvaluation {
   evaluated_at?: string;
 }
 
-export type NotificationType = 
-  | 'application_submitted' 
-  | 'document_verified' 
-  | 'status_updated' 
-  | 'approval' 
-  | 'rejection' 
-  | 'review_required'
-  | 'in_app'
-  | 'email'
-  | 'sms';
+export type NotificationType =
+  | "application_submitted"
+  | "document_verified"
+  | "status_updated"
+  | "approval"
+  | "rejection"
+  | "review_required"
+  | "in_app"
+  | "email"
+  | "sms";
 
 export interface Notification {
   id: string;
@@ -702,7 +724,7 @@ export interface Notification {
   title: string;
   subject?: string;
   message: string;
-  status: 'unread' | 'read' | 'archived' | 'pending' | 'sent' | 'failed';
+  status: "unread" | "read" | "archived" | "pending" | "sent" | "failed";
   metadata: Record<string, any>;
   idempotency_key?: string;
   is_read: boolean;
@@ -710,12 +732,27 @@ export interface Notification {
   archived_at?: string;
   created_at: string;
   read_at?: string;
-  priority?: 'low' | 'normal' | 'high' | 'urgent';
+  priority?: "low" | "normal" | "high" | "urgent";
 }
 
-export type RubricType = "general" | "technical" | "executive" | "sensitive" | "custom";
-export type RubricCriteriaType = "document" | "consistency" | "interview" | "behavioral" | "technical" | "custom";
-export type RubricScoringMethod = "ai_score" | "manual_rating" | "binary" | "calculated";
+export type RubricType =
+  | "general"
+  | "technical"
+  | "executive"
+  | "sensitive"
+  | "custom";
+export type RubricCriteriaType =
+  | "document"
+  | "consistency"
+  | "interview"
+  | "behavioral"
+  | "technical"
+  | "custom";
+export type RubricScoringMethod =
+  | "ai_score"
+  | "manual_rating"
+  | "binary"
+  | "calculated";
 
 export interface RubricCriteria {
   id: string;
@@ -740,10 +777,10 @@ export interface RubricCriteria {
 export interface FileItem {
   file: File;
   id: string;
-  status: 'pending' | 'uploading' | 'success' | 'error';
+  status: "pending" | "uploading" | "success" | "error";
   progress: number;
   documentType: DocumentType;
-  uploadedDoc?: Document;  // New: Server response after upload
+  uploadedDoc?: Document; // New: Server response after upload
 }
 
 export interface VettingRubric {
@@ -788,9 +825,12 @@ export interface VerificationStatusResponse {
     ocr_confidence?: number;
     authenticity_score?: number;
   }>;
-  consistency_check?: Omit<ConsistencyCheckResult, 'id' | 'application'>;
-  fraud_detection?: Omit<FraudDetectionResult, 'id' | 'application'>;
-  rubric_evaluation?: Omit<RubricEvaluation, 'id' | 'application' | 'rubric'> & { rubric_name: string };
+  consistency_check?: Omit<ConsistencyCheckResult, "id" | "application">;
+  fraud_detection?: Omit<FraudDetectionResult, "id" | "application">;
+  rubric_evaluation?: Omit<
+    RubricEvaluation,
+    "id" | "application" | "rubric"
+  > & { rubric_name: string };
   overall_scores?: {
     consistency?: number;
     fraud_risk?: number;
@@ -823,7 +863,6 @@ export interface DashboardStats {
   avg_processing_time?: number;
   fraud_detection_rate?: number;
 }
-
 
 export interface AdminCase {
   id: string;
@@ -928,7 +967,7 @@ export interface PlatformIssueListResponse {
 export interface PlatformIssueUpdatePayload {
   status?: PlatformIssueStatus;
 }
-export type CampaignStatus = 'draft' | 'active' | 'closed' | 'archived';
+export type CampaignStatus = "draft" | "active" | "closed" | "archived";
 export type CampaignExerciseType =
   | "ministerial"
   | "judicial"
@@ -985,7 +1024,7 @@ export interface CandidateProfile {
   full_name?: string;
   email: string;
   phone_number: string;
-  preferred_channel: 'email' | 'sms';
+  preferred_channel: "email" | "sms";
   consent_recording: boolean;
   consent_ai_processing: boolean;
   created_at: string;
@@ -1007,14 +1046,14 @@ export interface CandidateSocialProfile {
 }
 
 export type CandidateEnrollmentStatus =
-  | 'invited'
-  | 'registered'
-  | 'in_progress'
-  | 'completed'
-  | 'reviewed'
-  | 'approved'
-  | 'rejected'
-  | 'escalated';
+  | "invited"
+  | "registered"
+  | "in_progress"
+  | "completed"
+  | "reviewed"
+  | "approved"
+  | "rejected"
+  | "escalated";
 
 export interface CandidateEnrollment {
   id: string;
@@ -1034,8 +1073,13 @@ export interface CandidateEnrollment {
   updated_at: string;
 }
 
-export type InvitationChannel = 'email' | 'sms';
-export type InvitationStatus = 'pending' | 'sent' | 'failed' | 'accepted' | 'expired';
+export type InvitationChannel = "email" | "sms";
+export type InvitationStatus =
+  | "pending"
+  | "sent"
+  | "failed"
+  | "accepted"
+  | "expired";
 
 export interface Invitation {
   id: string;
@@ -1101,7 +1145,7 @@ export interface CandidateAccessResults {
   available: boolean;
   enrollment_id: string;
   enrollment_status: CandidateEnrollmentStatus;
-  decision: 'approved' | 'rejected' | 'escalated' | null;
+  decision: "approved" | "rejected" | "escalated" | null;
   review_notes: string;
   results: Record<string, unknown>;
   case: Record<string, unknown> | null;
@@ -1122,7 +1166,6 @@ export interface RegisterData {
   last_name: string;
   phone_number: string;
   department: string;
-  onboarding_token: string;
   organization?: string;
 }
 
@@ -1185,7 +1228,7 @@ export interface CreateRubricData {
 export interface LoginResponse {
   user: User | AdminUser;
   tokens: AuthTokens;
-  user_type?: 'applicant' | 'internal' | 'org_admin' | 'platform_admin';
+  user_type?: "applicant" | "internal" | "org_admin" | "platform_admin";
   backup_codes?: string[];
 }
 
@@ -1210,7 +1253,7 @@ export interface TwoFactorBackupCodesResponse {
 export interface TwoFactorChallengeResponse {
   message: string;
   token: string;
-  user_type?: 'applicant' | 'internal' | 'org_admin' | 'platform_admin';
+  user_type?: "applicant" | "internal" | "org_admin" | "platform_admin";
   setup_required?: boolean;
   expires_in_seconds?: number;
   provisioning_uri?: string | null;
@@ -1220,7 +1263,7 @@ export type LoginAttemptResponse = LoginResponse | TwoFactorChallengeResponse;
 
 export interface RegisterResponse {
   user: User | AdminUser;
-  user_type?: 'applicant' | 'internal' | 'org_admin' | 'platform_admin';
+  user_type?: "applicant" | "internal" | "org_admin" | "platform_admin";
   message?: string;
 }
 
@@ -1238,7 +1281,7 @@ export interface UploadDocumentResponse {
 
 export interface ProfileResponse {
   user: User | AdminUser;
-  user_type: 'applicant' | 'internal' | 'admin';
+  user_type: "applicant" | "internal" | "admin";
   roles?: string[];
   capabilities?: string[];
   is_internal_operator?: boolean;
@@ -1482,13 +1525,21 @@ export interface AiMonitorSocialProfileResponse {
 export interface UploadProgress {
   progress: number;
   file_name: string;
-  status: 'uploading' | 'completed' | 'failed';
+  status: "uploading" | "completed" | "failed";
   error?: string;
 }
 
-export type VideoMeetingStatus = "scheduled" | "ongoing" | "completed" | "cancelled";
+export type VideoMeetingStatus =
+  | "scheduled"
+  | "ongoing"
+  | "completed"
+  | "cancelled";
 export type VideoMeetingRole = "host" | "candidate" | "observer";
-export type VideoMeetingParticipantStatus = "invited" | "joined" | "left" | "declined";
+export type VideoMeetingParticipantStatus =
+  | "invited"
+  | "joined"
+  | "left"
+  | "declined";
 
 export interface VideoMeetingParticipant {
   id: string;
@@ -1816,7 +1867,7 @@ export interface CommitteeVote {
   committee_role: string;
   voter_email: string;
   voter_name: string;
-  vote: 'approve' | 'reject' | 'abstain';
+  vote: "approve" | "reject" | "abstain";
   reason_note: string;
   voted_at: string;
   created_at: string;
@@ -1833,7 +1884,6 @@ export interface CommitteeVoteTally {
 }
 
 export interface AppointmentRecord {
-
   id: string;
   nomination_file_id?: string;
   organization?: string | null;
@@ -1879,9 +1929,3 @@ export interface AppointmentRecord {
   created_at: string;
   updated_at: string;
 }
-
-
-
-
-
-

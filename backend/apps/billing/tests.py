@@ -65,9 +65,8 @@ class BillingApiTests(APITestCase):
         membership_role: str = "registry_admin",
         is_default: bool = True,
     ) -> Organization:
-        from django.db import connection
         # Still create the org record (some tests verify org existence by code/name).
-        Organization.objects.create(
+        organization = Organization.objects.create(
             code=code,
             name=name,
             organization_type="agency",
@@ -79,9 +78,7 @@ class BillingApiTests(APITestCase):
             is_active=True,
             is_default=is_default,
         )
-        # In django-tenants the current schema IS the organization; return connection.tenant
-        # so that organization.id matches what permission checks resolve from memberships.
-        return connection.tenant
+        return organization
 
     def _create_active_org_subscription(
         self,

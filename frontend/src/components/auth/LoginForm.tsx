@@ -37,7 +37,9 @@ interface EmailFormValues {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const normalizeLoginNextPath = (value: string | null | undefined): string | null => {
+const normalizeLoginNextPath = (
+  value: string | null | undefined,
+): string | null => {
   if (!value) return null;
   if (!value.startsWith("/") || value.startsWith("//")) return null;
   if (value.startsWith("/login")) return null;
@@ -58,7 +60,8 @@ export const LoginForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [resolvedEmail, setResolvedEmail] = useState("");
-  const [resolvedTenant, setResolvedTenant] = useState<TenantResolutionResult | null>(null);
+  const [resolvedTenant, setResolvedTenant] =
+    useState<TenantResolutionResult | null>(null);
 
   // Separate form instances for each step
   const emailForm = useForm<EmailFormValues>({
@@ -84,9 +87,7 @@ export const LoginForm: React.FC = () => {
     setLoading(true);
 
     try {
-      const result = await dispatch(
-        resolveTenant(data.email.trim())
-      ).unwrap();
+      const result = await dispatch(resolveTenant(data.email.trim())).unwrap();
 
       setResolvedEmail(data.email.trim());
       setResolvedTenant(result);
@@ -98,7 +99,7 @@ export const LoginForm: React.FC = () => {
     } catch (error: unknown) {
       toast.error(
         getApiErrorMessage(error, "No account found for this email address."),
-        { toastId: "resolve-tenant-error" }
+        { toastId: "resolve-tenant-error" },
       );
     } finally {
       setLoading(false);
@@ -120,8 +121,8 @@ export const LoginForm: React.FC = () => {
       // Route to the correct login endpoint based on resolved tenant type
       const loginAction =
         resolvedTenant.login_type === "admin"
-          ? adminLogin(credentials)   // → /auth/admin/login/ (public schema)
-          : loginThunk(credentials);  // → /auth/login/ (tenant schema via X-Organization-Slug)
+          ? adminLogin(credentials) // → /auth/admin/login/ (public schema)
+          : loginThunk(credentials); // → /auth/login/ (tenant schema via X-Organization-Slug)
 
       const response = await dispatch(loginAction).unwrap();
 
@@ -131,7 +132,8 @@ export const LoginForm: React.FC = () => {
         navigate("/login/2fa", {
           replace: true,
           state: {
-            from: (location.state as { from?: { pathname?: string } } | null)?.from,
+            from: (location.state as { from?: { pathname?: string } } | null)
+              ?.from,
           },
         });
         return;
@@ -139,9 +141,12 @@ export const LoginForm: React.FC = () => {
 
       toast.success("Login successful");
 
-      const requestedPathFromState =
-        (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
-      const requestedPathFromQuery = new URLSearchParams(location.search).get("next");
+      const requestedPathFromState = (
+        location.state as { from?: { pathname?: string } } | null
+      )?.from?.pathname;
+      const requestedPathFromQuery = new URLSearchParams(location.search).get(
+        "next",
+      );
       const defaultPath = getDashboardPathForUser(response.user_type ?? null);
       const redirectPath =
         normalizeLoginNextPath(requestedPathFromState) ||
@@ -150,9 +155,12 @@ export const LoginForm: React.FC = () => {
 
       navigate(redirectPath, { replace: true });
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, "Login failed. Please try again."), {
-        toastId: "login-form-error",
-      });
+      toast.error(
+        getApiErrorMessage(error, "Login failed. Please try again."),
+        {
+          toastId: "login-form-error",
+        },
+      );
     } finally {
       setLoading(false);
     }
@@ -174,7 +182,6 @@ export const LoginForm: React.FC = () => {
       <div className="pointer-events-none absolute -right-24 bottom-0 h-80 w-80 rounded-full bg-amber-200/50 blur-3xl" />
 
       <div className="relative w-full max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_30px_80px_-45px_rgba(15,23,42,0.7)] lg:grid lg:grid-cols-5">
-
         {/* ── Sidebar ── */}
         <aside className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-cyan-900 to-slate-800 p-8 text-slate-100 lg:col-span-2 lg:p-10">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.32),transparent_42%),radial-gradient(circle_at_bottom_left,rgba(251,191,36,0.2),transparent_35%)]" />
@@ -207,7 +214,7 @@ export const LoginForm: React.FC = () => {
             ) : (
               <div className="rounded-2xl border border-white/20 bg-white/10 p-4 text-xs text-slate-200">
                 Access is provisioned by platform operations. Need onboarding?
-                Start from subscription plans.
+                Contact your organization admin.
               </div>
             )}
           </div>
@@ -322,7 +329,9 @@ export const LoginForm: React.FC = () => {
                       autoComplete="current-password"
                       placeholder="Enter your password"
                       disabled={loading}
-                      aria-invalid={Boolean(passwordForm.formState.errors.password)}
+                      aria-invalid={Boolean(
+                        passwordForm.formState.errors.password,
+                      )}
                       className={`h-12 rounded-xl border px-4 pr-11 text-sm transition focus-visible:ring-cyan-500 ${
                         passwordForm.formState.errors.password
                           ? "border-red-400 bg-red-50"
@@ -334,7 +343,9 @@ export const LoginForm: React.FC = () => {
                       onClick={() => setShowPassword((prev) => !prev)}
                       disabled={loading}
                       className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-700 transition hover:text-slate-900 disabled:cursor-not-allowed"
-                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
                     >
                       {showPassword ? (
                         <EyeOff className="h-5 w-5" />

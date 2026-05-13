@@ -9,7 +9,6 @@ from django.db import connection
 from django.db.models import Avg, Count, Q
 from django.utils import timezone
 from django.db.models import Case, IntegerField, Value, When
-from django_tenants.utils import get_public_schema_name
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -151,7 +150,7 @@ def _scoped_admin_cases_queryset(request):
 
 def _is_public_schema() -> bool:
     try:
-        return connection.schema_name == get_public_schema_name()
+        return connection.schema_name == "public"
     except Exception:
         return False
 

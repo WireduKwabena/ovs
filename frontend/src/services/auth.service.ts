@@ -35,7 +35,6 @@ export interface RegisterData {
   last_name: string;
   phone_number: string;
   department: string;
-  onboarding_token: string;
   // Legacy fields retained for backward-compatible payload tolerance.
   organization?: string;
 }
@@ -104,12 +103,18 @@ export interface OrganizationAdminBootstrapResponse {
   };
 }
 
-
 export const authService = {
   async login(credentials: LoginCredentials): Promise<LoginAttemptResponse> {
     try {
-      const response = await api.post<LoginAttemptResponse>("/auth/login/", credentials);
-      return parseAuthResponse(LoginAttemptResponseSchema, response.data, "login") as unknown as LoginAttemptResponse;
+      const response = await api.post<LoginAttemptResponse>(
+        "/auth/login/",
+        credentials,
+      );
+      return parseAuthResponse(
+        LoginAttemptResponseSchema,
+        response.data,
+        "login",
+      ) as unknown as LoginAttemptResponse;
     } catch (error) {
       throw toServiceError(error, "Login failed");
     }
@@ -117,26 +122,51 @@ export const authService = {
 
   async verifyTwoFactor(data: TwoFactorVerifyPayload): Promise<LoginResponse> {
     try {
-      const response = await api.post<LoginResponse>("/auth/login/verify/", data);
-      return parseAuthResponse(LoginResponseSchema, response.data, "verifyTwoFactor") as unknown as LoginResponse;
+      const response = await api.post<LoginResponse>(
+        "/auth/login/verify/",
+        data,
+      );
+      return parseAuthResponse(
+        LoginResponseSchema,
+        response.data,
+        "verifyTwoFactor",
+      ) as unknown as LoginResponse;
     } catch (error) {
       throw toServiceError(error, "Two-factor verification failed");
     }
   },
 
-  async adminLogin(credentials: LoginCredentials): Promise<LoginAttemptResponse> {
+  async adminLogin(
+    credentials: LoginCredentials,
+  ): Promise<LoginAttemptResponse> {
     try {
-      const response = await api.post<LoginAttemptResponse>("/auth/admin/login/", credentials);
-      return parseAuthResponse(LoginAttemptResponseSchema, response.data, "adminLogin") as unknown as LoginAttemptResponse;
+      const response = await api.post<LoginAttemptResponse>(
+        "/auth/admin/login/",
+        credentials,
+      );
+      return parseAuthResponse(
+        LoginAttemptResponseSchema,
+        response.data,
+        "adminLogin",
+      ) as unknown as LoginAttemptResponse;
     } catch (error) {
       throw toServiceError(error, "Admin login failed");
     }
   },
 
-  async adminVerifyTwoFactor(data: TwoFactorVerifyPayload): Promise<LoginResponse> {
+  async adminVerifyTwoFactor(
+    data: TwoFactorVerifyPayload,
+  ): Promise<LoginResponse> {
     try {
-      const response = await api.post<LoginResponse>("/auth/admin/login/verify/", data);
-      return parseAuthResponse(LoginResponseSchema, response.data, "adminVerifyTwoFactor") as unknown as LoginResponse;
+      const response = await api.post<LoginResponse>(
+        "/auth/admin/login/verify/",
+        data,
+      );
+      return parseAuthResponse(
+        LoginResponseSchema,
+        response.data,
+        "adminVerifyTwoFactor",
+      ) as unknown as LoginResponse;
     } catch (error) {
       throw toServiceError(error, "Admin two-factor verification failed");
     }
@@ -144,7 +174,10 @@ export const authService = {
 
   async register(data: RegisterData): Promise<RegisterResponse> {
     try {
-      const response = await api.post<RegisterResponse>("/auth/register/", data);
+      const response = await api.post<RegisterResponse>(
+        "/auth/register/",
+        data,
+      );
       return response.data;
     } catch (error) {
       throw toServiceError(error, "Registration failed");
@@ -169,15 +202,11 @@ export const authService = {
     token: string;
     email?: string;
   }): Promise<OnboardingTokenValidationResponse> {
-    try {
-      const response = await api.post<OnboardingTokenValidationResponse>(
-        "/billing/onboarding-token/validate/",
-        payload,
-      );
-      return response.data;
-    } catch (error) {
-      throw toServiceError(error, "Onboarding token validation failed");
-    }
+    void payload;
+    return {
+      valid: false,
+      reason: "not_found",
+    };
   },
 
   async logout(refreshToken: string): Promise<void> {
@@ -188,14 +217,20 @@ export const authService = {
     }
   },
 
-  async getProfile(params?: { activeOrganizationId?: string }): Promise<ProfileResponse> {
+  async getProfile(params?: {
+    activeOrganizationId?: string;
+  }): Promise<ProfileResponse> {
     try {
       const response = await api.get<ProfileResponse>("/auth/profile/", {
         params: params?.activeOrganizationId
           ? { active_organization_id: params.activeOrganizationId }
           : undefined,
       });
-      return parseAuthResponse(ProfileResponseSchema, response.data, "getProfile") as unknown as ProfileResponse;
+      return parseAuthResponse(
+        ProfileResponseSchema,
+        response.data,
+        "getProfile",
+      ) as unknown as ProfileResponse;
     } catch (error) {
       throw toServiceError(error, "Profile fetch failed");
     }
@@ -220,9 +255,14 @@ export const authService = {
     }
   },
 
-  async updateProfile(data: Record<string, unknown>): Promise<User | AdminUser> {
+  async updateProfile(
+    data: Record<string, unknown>,
+  ): Promise<User | AdminUser> {
     try {
-      const response = await api.put<User | AdminUser>("/auth/profile/update/", data);
+      const response = await api.put<User | AdminUser>(
+        "/auth/profile/update/",
+        data,
+      );
       return response.data;
     } catch (error) {
       throw toServiceError(error, "Update failed");
@@ -273,7 +313,8 @@ export const authService = {
 
   async getTwoFactorStatus(): Promise<TwoFactorStatusResponse> {
     try {
-      const response = await api.get<TwoFactorStatusResponse>("/auth/2fa/status/");
+      const response =
+        await api.get<TwoFactorStatusResponse>("/auth/2fa/status/");
       return response.data;
     } catch (error) {
       throw toServiceError(error, "Failed to fetch security status");
@@ -282,7 +323,9 @@ export const authService = {
 
   async setupTwoFactor(): Promise<TwoFactorSetupResponse> {
     try {
-      const response = await api.get<TwoFactorSetupResponse>("/auth/admin/2fa/setup/");
+      const response = await api.get<TwoFactorSetupResponse>(
+        "/auth/admin/2fa/setup/",
+      );
       return response.data;
     } catch (error) {
       throw toServiceError(error, "Failed to start 2FA setup");
@@ -291,14 +334,20 @@ export const authService = {
 
   async enableTwoFactor(otp: string): Promise<{ message: string }> {
     try {
-      const response = await api.post<{ message: string }>("/auth/admin/2fa/enable/", { otp });
+      const response = await api.post<{ message: string }>(
+        "/auth/admin/2fa/enable/",
+        { otp },
+      );
       return response.data;
     } catch (error) {
       throw toServiceError(error, "Failed to enable 2FA");
     }
   },
 
-  async regenerateBackupCodes(data: { otp?: string; backup_code?: string }): Promise<TwoFactorBackupCodesResponse> {
+  async regenerateBackupCodes(data: {
+    otp?: string;
+    backup_code?: string;
+  }): Promise<TwoFactorBackupCodesResponse> {
     try {
       const response = await api.post<TwoFactorBackupCodesResponse>(
         "/auth/2fa/backup-codes/regenerate/",
@@ -310,5 +359,3 @@ export const authService = {
     }
   },
 };
-
-

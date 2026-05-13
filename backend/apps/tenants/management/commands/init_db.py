@@ -1,6 +1,5 @@
 """
-Initialize the database for django-tenants. 
-This handles the chicken-egg problem of migrations depending on tenant tables.
+Initialize the database for single-schema runtime.
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
@@ -10,7 +9,7 @@ import os
 
 
 class Command(BaseCommand):
-    help = "Initialize database with proper django-tenants setup"
+    help = "Initialize database with single-schema setup"
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS("=== Database Initialization ===\n"))
@@ -39,9 +38,8 @@ class Command(BaseCommand):
         self.stdout.write("\nStep 2: Creating public organization...")
         try:
             from apps.tenants.models import Organization
-            from django_tenants.utils import get_public_schema_name
 
-            public_schema_name = get_public_schema_name()
+            public_schema_name = "public"
             org, created = Organization.objects.get_or_create(
                 schema_name=public_schema_name,
                 defaults={'name': 'Public Schema', 'code': 'public', 'is_active': True}
@@ -50,7 +48,7 @@ class Command(BaseCommand):
         except Exception as e:
             self.stdout.write(self.style.WARNING(f"⚠ {e}"))
 
-        # Step 3: Run migrations app-by-app in order (using migrate_schemas to handle tenants)
+        # Step 3: Run migrations app-by-app in dependency order
         self.stdout.write("\nStep 3: Running migrations in dependency order...")
         
         migration_order = [

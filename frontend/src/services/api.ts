@@ -18,7 +18,6 @@ const AUTH_ENDPOINTS = [
   '/auth/token/refresh/',
   '/auth/password-reset/',
   '/auth/password-reset-confirm/',
-  '/auth/resolve-tenant/',
 ];
 
 const CANDIDATE_SESSION_ENDPOINT_PREFIXES = [
@@ -29,32 +28,6 @@ const CANDIDATE_SESSION_ENDPOINT_PREFIXES = [
   '/interviews/responses/',
 ];
 
-// Endpoints that must NEVER receive X-Organization-Slug because they run
-// on the public schema unconditionally.
-// Endpoints that must NEVER receive X-Organization-Slug because they run
-// on the public schema unconditionally. Uses exact-path matching — do NOT
-// add prefix entries here; each path must match the full URL segment after
-// the base URL (e.g. '/auth/admin/login/' not '/auth/admin/').
-//
-// Billing checkout confirm calls (stripe/confirm, paystack/confirm) are NOT
-// listed here — they use a standalone publicApi axios instance in
-// subscription.service.ts that has no interceptors and sends no headers.
-//
-// NOTE: /billing/onboarding-token/validate/ is intentionally absent — it
-// queries tenant tables (OrganizationOnboardingToken) and therefore requires
-// X-Organization-Slug so TenantMiddleware can switch to the correct schema.
-const PUBLIC_SCHEMA_ENDPOINTS = [
-  '/auth/admin/login/',
-  '/auth/admin/login/verify/',
-  '/auth/admin/2fa/setup/',
-  '/auth/admin/2fa/enable/',
-  '/auth/register/organization-admin/',
-  '/auth/resolve-tenant/',
-  '/auth/token/refresh/',
-  '/billing/health/',
-  '/billing/exchange-rate/',
-];
-
 const isAuthEndpoint = (url?: string) => {
   if (!url) return false;
   return AUTH_ENDPOINTS.some((endpoint) => url.includes(endpoint));
@@ -63,16 +36,6 @@ const isAuthEndpoint = (url?: string) => {
 const isCandidateSessionEndpoint = (url?: string) => {
   if (!url) return false;
   return CANDIDATE_SESSION_ENDPOINT_PREFIXES.some((prefix) => url.includes(prefix));
-};
-
-const isPublicSchemaEndpoint = (url?: string) => {
-  if (!url) return false;
-  // Use exact match or check if it matches after removing optional baseURL prefix
-  const normalizedUrl = url.replace(API_URL, '');
-  const isPublic = PUBLIC_SCHEMA_ENDPOINTS.some((endpoint) => 
-    normalizedUrl === endpoint || url === endpoint
-  );
-  return isPublic;
 };
 
 const api = axios.create({
@@ -91,41 +54,10 @@ api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const authState = store.getState().auth;
     const token = authState.tokens?.access;
-    const activeOrganizationId = String(authState.activeOrganization?.id || "").trim();
 
     // Attach Bearer token
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
-    }
-
-    // Attach active organization ID
-    if (config.headers) {
-      const explicitOrganizationId = String(config.headers["X-Active-Organization-ID"] || "").trim();
-      if (explicitOrganizationId) {
-        config.headers["X-Active-Organization-ID"] = explicitOrganizationId;
-      } else if (activeOrganizationId) {
-        config.headers["X-Active-Organization-ID"] = activeOrganizationId;
-      } else {
-        delete config.headers["X-Active-Organization-ID"];
-      }
-    }
-
-    // Attach X-Organization-Slug for tenant routing — skip public schema endpoints
-    if (config.headers && !isPublicSchemaEndpoint(config.url)) {
-      // Prefer Redux state, fall back to sessionStorage (survives page refresh)
-      const slugFromState = authState.organizationSlug || "";
-      const slugFromStorage = sessionStorage.getItem("organization_slug") || "";
-      const organizationSlug = (slugFromState || slugFromStorage).trim();
-
-      if (organizationSlug) {
-        config.headers["X-Organization-Slug"] = organizationSlug;
-        console.debug(`[api] Attached X-Organization-Slug: ${organizationSlug} for ${config.url}`);
-      } else {
-        delete config.headers["X-Organization-Slug"];
-        console.debug(`[api] No X-Organization-Slug found for ${config.url}`);
-      }
-    } else if (config.headers) {
-      console.debug(`[api] Skipping X-Organization-Slug for public endpoint: ${config.url}`);
     }
 
     return config;

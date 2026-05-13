@@ -5,62 +5,33 @@ import {
   FolderOpen,
   RefreshCw,
   ChevronRight,
-  AlertCircle,
   Building2,
   UserPlus,
   ShieldCheck,
   Clock,
   AlertTriangle,
-  ExternalLink,
-  Sparkles,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import { useAuth } from "@/hooks/useAuth";
 import { getWorkspacePath } from "@/utils/appPaths";
 import { adminService } from "@/services/admin.service";
 import { governanceService } from "@/services/governance.service";
-import { billingService } from "@/services/billing.service";
-import type {
-  BillingSubscriptionManageResponse,
-  BillingManagedSubscription,
-} from "@/services/billing.service";
 import type {
   DashboardStats,
   GovernanceOrganizationSummaryResponse,
-  OrganizationOnboardingTokenStateResponse,
 } from "@/types";
 import { formatRelativeTime } from "@/utils/helper";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  buildBillingPaymentFailureNotificationTraceHref,
-  buildBillingProcessingErrorNotificationTraceHref,
-} from "@/utils/notificationTrace";
-
-const HEALTHY_PAYMENT_STATUSES = new Set(["paid", "no_payment_required"]);
-
-const isBillingHealthy = (sub: BillingManagedSubscription | null): boolean => {
-  if (!sub) return false;
-  // Backend stores a healthy subscription as status="complete" (see is_subscription_active in services.py).
-  // payment_status can be "paid" or "no_payment_required" for healthy subscriptions.
-  return (
-    sub.status === "complete" &&
-    HEALTHY_PAYMENT_STATUSES.has(sub.payment_status)
-  );
-};
 
 const OrgDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { activeOrganization, activeOrganizationId } = useAuth();
   const [summary, setSummary] =
     useState<GovernanceOrganizationSummaryResponse | null>(null);
-  const [onboarding, setOnboarding] =
-    useState<OrganizationOnboardingTokenStateResponse | null>(null);
-  const [billingData, setBillingData] =
-    useState<BillingSubscriptionManageResponse | null>(null);
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(
     null,
   );
@@ -72,15 +43,11 @@ const OrgDashboardPage: React.FC = () => {
     else setRefreshing(true);
 
     try {
-      const [summaryData, onboardingData, billing, stats] = await Promise.all([
+      const [summaryData, stats] = await Promise.all([
         governanceService.getOrganizationSummary(),
-        billingService.getOnboardingTokenState(),
-        billingService.getSubscriptionManagement(),
         adminService.getDashboard().catch(() => null),
       ]);
       setSummary(summaryData);
-      setOnboarding(onboardingData);
-      setBillingData(billing);
       setDashboardStats(stats);
     } catch {
       toast.error("Failed to sync organization metrics");
@@ -135,9 +102,6 @@ const OrgDashboardPage: React.FC = () => {
       type: "case" as const,
     }));
 
-  const sub = billingData?.subscription ?? null;
-  const billingNeedsAttention = sub !== null && !isBillingHealthy(sub);
-
   if (!activeOrganizationId) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] space-y-4 text-center p-8">
@@ -184,68 +148,6 @@ const OrgDashboardPage: React.FC = () => {
           </Button>
         </div>
       </div>
-
-      {/* Billing Attention Banner */}
-      {billingNeedsAttention && sub && (
-        <Card className="p-5 rounded-2xl border-rose-500/30 bg-rose-500/5 shadow-sm">
-          <div className="flex items-start gap-4">
-            <AlertCircle className="h-5 w-5 text-rose-600 mt-0.5 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-bold text-rose-700">
-                Billing Needs Attention
-              </h3>
-              {sub.latest_incident?.message && (
-                <p className="text-xs text-rose-600 mt-1">
-                  {sub.latest_incident.message}
-                </p>
-              )}
-              <div className="flex flex-wrap gap-3 mt-3">
-                <Link
-                  to={buildBillingPaymentFailureNotificationTraceHref()}
-                  className="text-xs font-bold text-rose-700 underline hover:text-rose-800 flex items-center gap-1"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                  View Payment Failure Alerts
-                </Link>
-                <Link
-                  to={buildBillingProcessingErrorNotificationTraceHref()}
-                  className="text-xs font-bold text-rose-700 underline hover:text-rose-800 flex items-center gap-1"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                  View Processing Error Alerts
-                </Link>
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Trial Plan Banner */}
-      {activeOrganization?.tier === "trial" && !sub && (
-        <Card className="p-5 rounded-2xl border-amber-400/40 bg-amber-400/5 shadow-sm">
-          <div className="flex items-start gap-4">
-            <Sparkles className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-bold text-amber-700">
-                You&apos;re on the Trial Plan
-              </h3>
-              <p className="text-xs text-amber-600 mt-1">
-                Trial includes up to 15 candidates per month and 5 organization
-                seats. Upgrade to a paid plan to unlock higher limits and full
-                platform access.
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="shrink-0 border-amber-400 text-amber-700 hover:bg-amber-50"
-              onClick={() => navigate("/subscribe")}
-            >
-              Upgrade Plan
-            </Button>
-          </div>
-        </Card>
-      )}
 
       {/* Pulse Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

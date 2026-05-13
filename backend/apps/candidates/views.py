@@ -5,7 +5,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.billing.quotas import enforce_candidate_quota
+from apps.core.quotas import enforce_candidate_quota
 from apps.core.permissions import (
     can_access_organization_id,
     get_request_active_organization_id,

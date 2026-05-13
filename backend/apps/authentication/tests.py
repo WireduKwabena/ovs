@@ -18,7 +18,6 @@ Flows covered
 9.  Org-admin bootstrap → creates org + admin user (public endpoint)
 """
 
-from contextlib import contextmanager
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
@@ -480,30 +479,16 @@ class TokenRefreshTests(NoThrottleMixin, APITestCase):
 
 class OrgAdminRegistrationTests(NoThrottleMixin, APITestCase):
     """
-    POST /api/v1/auth/register/organization-admin/ creates a new tenant
-    organisation + initial admin user. In tests we redirect the schema_context
-    call to `test_tenant` because the runner provisions a single shared schema
-    (no per-organisation schemas are created during test runs).
+    POST /api/v1/auth/register/organization-admin/ creates a new
+    organisation + initial admin user.
     """
 
     url = "/api/v1/auth/register/organization-admin/"
 
     def setUp(self):
         super().setUp()
-        # Route all schema_context(any_schema) calls to the already-migrated
-        # test_tenant schema so TENANT_APP tables exist.
-        from django_tenants.utils import schema_context as _real_sc
-
-        @contextmanager
-        def _test_sc(schema):
-            with _real_sc("test_tenant"):
-                yield
-
-        self._sc_patcher = patch("apps.authentication.views.schema_context", _test_sc)
-        self._sc_patcher.start()
 
     def tearDown(self):
-        self._sc_patcher.stop()
         super().tearDown()
 
     def _payload(self, **overrides):

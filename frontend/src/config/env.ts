@@ -42,22 +42,6 @@ export const WS_BASE_URL = (() => {
 })();
 
 // ---------------------------------------------------------------------------
-// Billing / subscription
-// ---------------------------------------------------------------------------
-
-export const SUBSCRIPTION_MODE = get("VITE_SUBSCRIPTION_MODE", "hosted");
-export const SUBSCRIPTION_SUCCESS_URL = get("VITE_SUBSCRIPTION_SUCCESS_URL");
-export const SUBSCRIPTION_CANCEL_URL = get("VITE_SUBSCRIPTION_CANCEL_URL");
-export const SUBSCRIPTION_API_FALLBACK = get("VITE_SUBSCRIPTION_API_FALLBACK");
-export const HOSTED_CHECKOUT_PROVIDERS = get(
-  "VITE_HOSTED_CHECKOUT_PROVIDERS",
-  "stripe",
-)
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
-
-// ---------------------------------------------------------------------------
 // Startup validation — warns once in the browser console when vars that are
 // required in production are missing.  Does not throw so it never breaks
 // non-production builds.

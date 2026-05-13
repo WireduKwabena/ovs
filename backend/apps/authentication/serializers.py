@@ -28,18 +28,14 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         validators=[validate_password]
     )
     password_confirm = serializers.CharField(write_only=True, required=True)
-    # Legacy field retained for backward-compatible payload parsing; no longer used for registration decisions.
-    subscription_reference = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    # Token is mandatory for organization-scoped onboarding.
-    onboarding_token = serializers.CharField(write_only=True, required=True, allow_blank=False)
     # Legacy organization input is ignored to prevent manual org assignment at registration.
     organization = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=200)
     
     class Meta:
         model = User
         fields = [
-            'email', 'password', 'password_confirm', 
-            'first_name', 'last_name', 'phone_number', 'organization', 'department', 'subscription_reference', 'onboarding_token'
+            'email', 'password', 'password_confirm',
+            'first_name', 'last_name', 'phone_number', 'organization', 'department'
         ]
     
     def validate(self, attrs):
@@ -51,8 +47,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         validated_data.pop('password_confirm')
-        validated_data.pop('subscription_reference', None)
-        validated_data.pop('onboarding_token', None)
         validated_data.pop('organization', None)
         # Keep legacy identity default for backward compatibility.
         # Governance authority is resolved through roles/capabilities/memberships.

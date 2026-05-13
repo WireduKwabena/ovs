@@ -28,10 +28,6 @@ import {
 } from "@/services/campaign.service";
 import { invitationService } from "@/services/invitation.service";
 import { candidateService } from "@/services/candidate.service";
-import {
-  billingService,
-  type BillingQuotaCandidate,
-} from "@/services/billing.service";
 import { rubricService } from "@/services/rubric.service";
 import { formatDate, formatDateTime } from "@/utils/helper";
 import {
@@ -39,6 +35,7 @@ import {
   getProjectedUsage,
   isProjectedQuotaExceeded,
   projectCandidateImport,
+  type CandidateQuotaCandidate,
 } from "./campaignWorkspaceQuota";
 import { toast } from "react-toastify";
 import { useAuth } from "@/hooks/useAuth";
@@ -128,7 +125,7 @@ const CampaignWorkspacePage: React.FC = () => {
   const [importing, setImporting] = useState(false);
   const [importSummary, setImportSummary] =
     useState<CandidateImportResult | null>(null);
-  const [quota, setQuota] = useState<BillingQuotaCandidate | null>(null);
+  const [quota, setQuota] = useState<CandidateQuotaCandidate | null>(null);
   const [quotaLoading, setQuotaLoading] = useState(false);
   const [quotaError, setQuotaError] = useState<string | null>(null);
   const [resendingInvitationId, setResendingInvitationId] = useState<
@@ -138,8 +135,7 @@ const CampaignWorkspacePage: React.FC = () => {
     string | null
   >(null);
 
-  const shouldShowQuota =
-    isInternalOrAdmin && userType !== "applicant" && canManageRegistry;
+  const shouldShowQuota = false;
 
   const loadWorkspace = useCallback(async () => {
     if (!campaignId) {
@@ -201,22 +197,9 @@ const CampaignWorkspacePage: React.FC = () => {
   }, [loadWorkspace]);
 
   const fetchQuota = useCallback(async () => {
-    if (!shouldShowQuota) {
-      setQuota(null);
-      setQuotaError(null);
-      return;
-    }
-
-    setQuotaLoading(true);
+    setQuota(null);
     setQuotaError(null);
-    try {
-      const data = await billingService.getQuota();
-      setQuota(data.candidate);
-    } catch (err: unknown) {
-      setQuotaError(getErrorMessage(err, "Failed to load quota status."));
-    } finally {
-      setQuotaLoading(false);
-    }
+    setQuotaLoading(false);
   }, [shouldShowQuota]);
 
   useEffect(() => {

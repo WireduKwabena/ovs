@@ -17,33 +17,32 @@ if [ "${RUN_INIT:-false}" = "true" ]; then
         # Order matters: contenttypes and auth first, then users (creates users_user),
         # then admin (admin.0001_initial has FK → users_user and will fail if run
         # before users_user exists), then the remaining framework apps.
-        python manage.py migrate_schemas --schema=public contenttypes --noinput
-        python manage.py migrate_schemas --schema=public auth --noinput
+        python manage.py migrate contenttypes --noinput
+        python manage.py migrate auth --noinput
 
         echo "  Step 1b: Running users migration..."
-        python manage.py migrate_schemas --schema=public users --noinput
+        python manage.py migrate users --noinput
 
         echo "  Step 1b2: Running admin migration (requires users_user)..."
-        python manage.py migrate_schemas --schema=public admin --noinput
+        python manage.py migrate admin --noinput
 
         echo "  Step 1b3: Running remaining framework migrations..."
-        python manage.py migrate_schemas --schema=public sites --noinput
-        python manage.py migrate_schemas --schema=public sessions --noinput
+        python manage.py migrate sites --noinput
+        python manage.py migrate sessions --noinput
 
         echo "  Step 1c: Running tenants migration..."
-        python manage.py migrate_schemas --schema=public tenants --noinput
+        python manage.py migrate tenants --noinput
 
         echo "  Step 1d: Running all remaining migrations..."
-        python manage.py migrate_schemas --schema=public --noinput
+        python manage.py migrate --noinput
 
         unset DJANGO_SKIP_POST_MIGRATE_SIGNALS
 
         echo "  Step 2: Creating public organization..."
         python manage.py shell << 'ENDSHELL'
 from apps.tenants.models import Organization
-from django_tenants.utils import get_public_schema_name
 
-schema = get_public_schema_name()
+schema = 'public'
 org, created = Organization.objects.get_or_create(
     schema_name=schema,
     defaults={'name': 'Public Schema', 'code': 'public', 'is_active': True}
@@ -70,9 +69,9 @@ ENDSHELL
         export DJANGO_SKIP_POST_MIGRATE_SIGNALS=1
         # Run users before admin to ensure users_user exists before admin.0001_initial
         # tries to create its FK constraint (this is a no-op if already applied).
-        python manage.py migrate_schemas --schema=public users --noinput
-        python manage.py migrate_schemas --schema=public admin --noinput
-        python manage.py migrate_schemas --schema=public --noinput
+        python manage.py migrate users --noinput
+        python manage.py migrate admin --noinput
+        python manage.py migrate --noinput
 
         python manage.py shell << 'ENDSHELL'
 from django.contrib.sites.models import Site

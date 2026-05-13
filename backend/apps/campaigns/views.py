@@ -10,7 +10,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
-from apps.billing.quotas import enforce_candidate_quota, resolve_case_organization_id
+from apps.core.quotas import enforce_candidate_quota, resolve_case_organization_id
 from apps.candidates.models import Candidate, CandidateEnrollment
 from apps.core.authz import CAPABILITY_REGISTRY_MANAGE, has_capability
 from apps.core.permissions import (

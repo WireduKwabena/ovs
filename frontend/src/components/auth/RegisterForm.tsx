@@ -16,11 +16,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 interface RegisterFormProps {
-  onboardingToken: string;
   organizationName?: string;
 }
 
-type RegisterFormValues = Omit<RegisterData, "onboarding_token" | "organization">;
+type RegisterFormValues = Omit<RegisterData, "organization">;
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
   if (!error) return fallback;
@@ -29,10 +28,19 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
 
   const normalizedError = error as {
     message?: string;
-    response?: { data?: { message?: string; detail?: string; error?: string; reason?: string } };
+    response?: {
+      data?: {
+        message?: string;
+        detail?: string;
+        error?: string;
+        reason?: string;
+      };
+    };
   };
 
-  const onboardingReason = String(normalizedError.response?.data?.reason || "").trim().toLowerCase();
+  const onboardingReason = String(normalizedError.response?.data?.reason || "")
+    .trim()
+    .toLowerCase();
   if (onboardingReason === "not_found") {
     return "This onboarding link is invalid. Request a fresh invite from your organization admin.";
   }
@@ -62,7 +70,6 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
 };
 
 export const RegisterForm: React.FC<RegisterFormProps> = ({
-  onboardingToken,
   organizationName,
 }) => {
   const navigate = useNavigate();
@@ -92,10 +99,6 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
 
   const onSubmit: SubmitHandler<RegisterFormValues> = async (data) => {
     if (loading) return;
-    if (!onboardingToken) {
-      toast.error("A valid onboarding token is required to register.");
-      return;
-    }
 
     setLoading(true);
 
@@ -110,7 +113,6 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
           department: (data.department || "").trim(),
           password: data.password,
           password_confirm: data.password_confirm,
-          onboarding_token: onboardingToken,
         }),
       ).unwrap();
 
@@ -118,9 +120,15 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
       dispatch(clearError());
       navigate("/login", { replace: true });
     } catch (error: unknown) {
-      toast.error(getErrorMessage(error, "Registration failed. Please review your details."), {
-        toastId: "register-form-error",
-      });
+      toast.error(
+        getErrorMessage(
+          error,
+          "Registration failed. Please review your details.",
+        ),
+        {
+          toastId: "register-form-error",
+        },
+      );
     } finally {
       setLoading(false);
     }
@@ -148,14 +156,18 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
             </div>
 
             <div>
-              <h1 className="text-3xl font-black leading-tight">Provision Your Firm Workspace</h1>
+              <h1 className="text-3xl font-black leading-tight">
+                Provision Your Firm Workspace
+              </h1>
               <p className="mt-4 text-sm text-slate-200/90">
-                Complete registration with your organization onboarding invite and activate your operations workspace.
+                Complete registration with your organization onboarding invite
+                and activate your operations workspace.
               </p>
             </div>
 
             <div className="rounded-2xl border border-white/20 bg-white/10 p-4 text-xs text-slate-200">
-              This step is available only with a valid onboarding invitation link.
+              This step is available only with a valid onboarding invitation
+              link.
             </div>
           </div>
         </aside>
@@ -167,10 +179,16 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
                 <UserPlus className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">Firm registration</p>
-                <h2 className="text-2xl font-black tracking-tight text-slate-900">Create organization member account</h2>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">
+                  Firm registration
+                </p>
+                <h2 className="text-2xl font-black tracking-tight text-slate-900">
+                  Create organization member account
+                </h2>
                 {organizationName ? (
-                  <p className="mt-1 text-xs font-semibold text-slate-700">Organization: {organizationName}</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-700">
+                    Organization: {organizationName}
+                  </p>
                 ) : null}
               </div>
             </div>
@@ -178,7 +196,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
             <form onSubmit={handleSubmit(onSubmit)} className="mt-7 space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="first_name" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                  <Label
+                    htmlFor="first_name"
+                    className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                  >
                     First Name
                   </Label>
                   <Input
@@ -190,11 +211,18 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
                     aria-invalid={Boolean(errors.first_name)}
                     className={inputClass(Boolean(errors.first_name))}
                   />
-                  {errors.first_name && <p className="text-xs font-medium text-red-600">{errors.first_name.message}</p>}
+                  {errors.first_name && (
+                    <p className="text-xs font-medium text-red-600">
+                      {errors.first_name.message}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="last_name" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                  <Label
+                    htmlFor="last_name"
+                    className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                  >
                     Last Name
                   </Label>
                   <Input
@@ -206,11 +234,18 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
                     aria-invalid={Boolean(errors.last_name)}
                     className={inputClass(Boolean(errors.last_name))}
                   />
-                  {errors.last_name && <p className="text-xs font-medium text-red-600">{errors.last_name.message}</p>}
+                  {errors.last_name && (
+                    <p className="text-xs font-medium text-red-600">
+                      {errors.last_name.message}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5 sm:col-span-2">
-                  <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                  <Label
+                    htmlFor="email"
+                    className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                  >
                     Work Email
                   </Label>
                   <Input
@@ -223,11 +258,18 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
                     aria-invalid={Boolean(errors.email)}
                     className={inputClass(Boolean(errors.email))}
                   />
-                  {errors.email && <p className="text-xs font-medium text-red-600">{errors.email.message}</p>}
+                  {errors.email && (
+                    <p className="text-xs font-medium text-red-600">
+                      {errors.email.message}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="phone_number" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                  <Label
+                    htmlFor="phone_number"
+                    className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                  >
                     Phone Number
                   </Label>
                   <Input
@@ -240,11 +282,18 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
                     aria-invalid={Boolean(errors.phone_number)}
                     className={inputClass(Boolean(errors.phone_number))}
                   />
-                  {errors.phone_number && <p className="text-xs font-medium text-red-600">{errors.phone_number.message}</p>}
+                  {errors.phone_number && (
+                    <p className="text-xs font-medium text-red-600">
+                      {errors.phone_number.message}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="department" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                  <Label
+                    htmlFor="department"
+                    className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                  >
                     Department
                   </Label>
                   <Input
@@ -257,7 +306,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                  <Label
+                    htmlFor="password"
+                    className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                  >
                     Password
                   </Label>
                   <div className="relative">
@@ -276,16 +328,29 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
                       onClick={() => setShowPassword((prev) => !prev)}
                       disabled={loading}
                       className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-700 transition hover:text-slate-900 disabled:cursor-not-allowed"
-                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
                     >
-                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      {showPassword ? (
+                        <EyeOff className="h-5 w-5" />
+                      ) : (
+                        <Eye className="h-5 w-5" />
+                      )}
                     </button>
                   </div>
-                  {errors.password && <p className="text-xs font-medium text-red-600">{errors.password.message}</p>}
+                  {errors.password && (
+                    <p className="text-xs font-medium text-red-600">
+                      {errors.password.message}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="password_confirm" className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                  <Label
+                    htmlFor="password_confirm"
+                    className="text-xs font-semibold uppercase tracking-wide text-slate-700"
+                  >
                     Confirm Password
                   </Label>
                   <div className="relative">
@@ -304,12 +369,22 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
                       onClick={() => setShowConfirmPassword((prev) => !prev)}
                       disabled={loading}
                       className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-700 transition hover:text-slate-900 disabled:cursor-not-allowed"
-                      aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                      aria-label={
+                        showConfirmPassword ? "Hide password" : "Show password"
+                      }
                     >
-                      {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      {showConfirmPassword ? (
+                        <EyeOff className="h-5 w-5" />
+                      ) : (
+                        <Eye className="h-5 w-5" />
+                      )}
                     </button>
                   </div>
-                  {errors.password_confirm && <p className="text-xs font-medium text-red-600">{errors.password_confirm.message}</p>}
+                  {errors.password_confirm && (
+                    <p className="text-xs font-medium text-red-600">
+                      {errors.password_confirm.message}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -335,7 +410,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
 
             <p className="mt-4 text-center text-xs text-slate-700">
               Already provisioned?
-              <Link to="/login" className="ml-1 font-semibold text-cyan-700 hover:underline">
+              <Link
+                to="/login"
+                className="ml-1 font-semibold text-cyan-700 hover:underline"
+              >
                 Sign in
               </Link>
             </p>
@@ -345,5 +423,3 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
     </div>
   );
 };
-
-

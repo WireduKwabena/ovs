@@ -24,7 +24,7 @@ except Exception:  # pragma: no cover - audit app may be optional in some setups
 
     def log_event(**kwargs: object) -> bool:
         return False
-from apps.billing.quotas import resolve_case_organization_id
+from apps.core.quotas import resolve_case_organization_id
 
 from .models import ExternalVerificationResult, VerificationRequest, VerificationSource
 

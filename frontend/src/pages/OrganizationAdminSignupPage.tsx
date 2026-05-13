@@ -18,10 +18,12 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
   return fallback;
 };
 
-const normalizeReturnPath = (value: string | null | undefined, fallback: string): string => {
+const normalizeReturnPath = (
+  value: string | null | undefined,
+  fallback: string,
+): string => {
   if (!value) return fallback;
   if (!value.startsWith("/") || value.startsWith("//")) return fallback;
-  if (value.startsWith("/billing/")) return fallback;
   if (value.startsWith("/login")) return fallback;
   return value;
 };
@@ -31,7 +33,7 @@ const OrganizationAdminSignupPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [submitting, setSubmitting] = useState(false);
   const nextPath = useMemo(
-    () => normalizeReturnPath(searchParams.get("next"), "/subscribe"),
+    () => normalizeReturnPath(searchParams.get("next"), "/organization/setup"),
     [searchParams],
   );
   const [form, setForm] = useState<OrganizationAdminBootstrapData>({
@@ -58,7 +60,9 @@ const OrganizationAdminSignupPage: React.FC = () => {
     event.preventDefault();
     if (submitting) return;
 
-    const requiredFields: Array<[keyof OrganizationAdminBootstrapData, string]> = [
+    const requiredFields: Array<
+      [keyof OrganizationAdminBootstrapData, string]
+    > = [
       ["first_name", "First name is required."],
       ["last_name", "Last name is required."],
       ["email", "Work email is required."],
@@ -88,7 +92,8 @@ const OrganizationAdminSignupPage: React.FC = () => {
         phone_number: form.phone_number.trim(),
         department: String(form.department || "").trim(),
         organization_name: form.organization_name.trim(),
-        organization_code: String(form.organization_code || "").trim() || undefined,
+        organization_code:
+          String(form.organization_code || "").trim() || undefined,
       });
       toast.success("Organization account created. Sign in to continue setup.");
       navigate(`/login?next=${encodeURIComponent(nextPath)}`, {
@@ -98,7 +103,9 @@ const OrganizationAdminSignupPage: React.FC = () => {
         },
       });
     } catch (error: unknown) {
-      toast.error(getErrorMessage(error, "Unable to create organization account."));
+      toast.error(
+        getErrorMessage(error, "Unable to create organization account."),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -118,13 +125,17 @@ const OrganizationAdminSignupPage: React.FC = () => {
               Organization bootstrap
             </div>
             <div>
-              <h1 className="text-3xl font-black leading-tight">Create Your Organization Admin Account</h1>
+              <h1 className="text-3xl font-black leading-tight">
+                Create Your Organization Admin Account
+              </h1>
               <p className="mt-4 text-sm text-slate-200/90">
-                Set up your organization and first administrator. Team members must still join using onboarding links.
+                Set up your organization and first administrator. Team members
+                must still join using onboarding links.
               </p>
             </div>
             <div className="rounded-2xl border border-white/20 bg-white/10 p-4 text-xs text-slate-200">
-              This flow creates one organization and one default registry admin membership.
+              This flow creates one organization and one default registry admin
+              membership.
             </div>
           </div>
         </aside>
@@ -135,14 +146,17 @@ const OrganizationAdminSignupPage: React.FC = () => {
               <UserPlus className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-2xl font-black tracking-tight text-slate-900">Organization Account Setup</h2>
+              <h2 className="text-2xl font-black tracking-tight text-slate-900">
+                Organization Account Setup
+              </h2>
               <p className="text-sm text-slate-700">
                 After setup, sign in and continue to your next step.
               </p>
             </div>
           </div>
           <div className="mb-5 rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-xs text-cyan-900">
-            Next step after sign-in: <span className="font-semibold">{nextPath}</span>
+            Next step after sign-in:{" "}
+            <span className="font-semibold">{nextPath}</span>
           </div>
 
           <form className="space-y-4" onSubmit={handleSubmit}>
@@ -152,7 +166,9 @@ const OrganizationAdminSignupPage: React.FC = () => {
                 <Input
                   id="first_name"
                   value={form.first_name}
-                  onChange={(event) => updateField("first_name", event.target.value)}
+                  onChange={(event) =>
+                    updateField("first_name", event.target.value)
+                  }
                   disabled={submitting}
                   placeholder="Ada"
                 />
@@ -162,7 +178,9 @@ const OrganizationAdminSignupPage: React.FC = () => {
                 <Input
                   id="last_name"
                   value={form.last_name}
-                  onChange={(event) => updateField("last_name", event.target.value)}
+                  onChange={(event) =>
+                    updateField("last_name", event.target.value)
+                  }
                   disabled={submitting}
                   placeholder="Mensah"
                 />
@@ -183,7 +201,9 @@ const OrganizationAdminSignupPage: React.FC = () => {
                 <Input
                   id="phone_number"
                   value={form.phone_number}
-                  onChange={(event) => updateField("phone_number", event.target.value)}
+                  onChange={(event) =>
+                    updateField("phone_number", event.target.value)
+                  }
                   disabled={submitting}
                   placeholder="+12345678901"
                 />
@@ -193,7 +213,9 @@ const OrganizationAdminSignupPage: React.FC = () => {
                 <Input
                   id="department"
                   value={form.department}
-                  onChange={(event) => updateField("department", event.target.value)}
+                  onChange={(event) =>
+                    updateField("department", event.target.value)
+                  }
                   disabled={submitting}
                   placeholder="Registry"
                 />
@@ -204,7 +226,9 @@ const OrganizationAdminSignupPage: React.FC = () => {
                   id="password"
                   type="password"
                   value={form.password}
-                  onChange={(event) => updateField("password", event.target.value)}
+                  onChange={(event) =>
+                    updateField("password", event.target.value)
+                  }
                   disabled={submitting}
                 />
               </div>
@@ -214,7 +238,9 @@ const OrganizationAdminSignupPage: React.FC = () => {
                   id="password_confirm"
                   type="password"
                   value={form.password_confirm}
-                  onChange={(event) => updateField("password_confirm", event.target.value)}
+                  onChange={(event) =>
+                    updateField("password_confirm", event.target.value)
+                  }
                   disabled={submitting}
                 />
               </div>
@@ -223,17 +249,23 @@ const OrganizationAdminSignupPage: React.FC = () => {
                 <Input
                   id="organization_name"
                   value={form.organization_name}
-                  onChange={(event) => updateField("organization_name", event.target.value)}
+                  onChange={(event) =>
+                    updateField("organization_name", event.target.value)
+                  }
                   disabled={submitting}
                   placeholder="Public Service Commission"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="organization_code">Organization Code (Optional)</Label>
+                <Label htmlFor="organization_code">
+                  Organization Code (Optional)
+                </Label>
                 <Input
                   id="organization_code"
                   value={form.organization_code}
-                  onChange={(event) => updateField("organization_code", event.target.value)}
+                  onChange={(event) =>
+                    updateField("organization_code", event.target.value)
+                  }
                   disabled={submitting}
                   placeholder="public-service-commission"
                 />
@@ -242,14 +274,19 @@ const OrganizationAdminSignupPage: React.FC = () => {
                 <Label htmlFor="organization_type">Organization Type</Label>
                 <select
                   id="organization_type"
+                  title="Organization Type"
                   value={form.organization_type}
-                  onChange={(event) => updateField("organization_type", event.target.value)}
+                  onChange={(event) =>
+                    updateField("organization_type", event.target.value)
+                  }
                   disabled={submitting}
                   className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900"
                 >
                   <option value="agency">Agency</option>
                   <option value="ministry">Ministry</option>
-                  <option value="committee_secretariat">Committee Secretariat</option>
+                  <option value="committee_secretariat">
+                    Committee Secretariat
+                  </option>
                   <option value="executive_office">Executive Office</option>
                   <option value="other">Other</option>
                 </select>
@@ -277,7 +314,10 @@ const OrganizationAdminSignupPage: React.FC = () => {
 
           <p className="mt-4 text-center text-xs text-slate-700">
             Already have an account?
-            <Link to="/login" className="ml-1 font-semibold text-cyan-700 hover:underline">
+            <Link
+              to="/login"
+              className="ml-1 font-semibold text-cyan-700 hover:underline"
+            >
               Sign in
             </Link>
           </p>

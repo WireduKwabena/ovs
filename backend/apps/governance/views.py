@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from datetime import timezone as dt_timezone
 from uuid import uuid4
 
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
-from django.utils.dateparse import parse_datetime
 from django.utils.text import slugify
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action
@@ -14,17 +12,12 @@ from rest_framework.exceptions import NotFound, PermissionDenied, ValidationErro
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from django.db import connection
-
 from apps.users.models import User
-from apps.billing.models import BillingSubscription
-from apps.billing.services import is_subscription_active
 from apps.core.authz import get_user_organization_by_id
 from apps.core.permissions import (
     get_request_active_organization_id,
     get_request_tenant_context,
     is_platform_admin_user,
-    request_active_organization_matches_routed_tenant,
 )
 from apps.core.policies.registry_policy import can_manage_registry_governance
 from apps.tenants.models import Organization
@@ -97,19 +90,19 @@ class GovernanceScopeMixin:
         return organization
 
     def _resolve_non_admin_active_organization(self) -> Organization:
-        organization = getattr(self.request, "tenant", None)
-        if organization is None:
-            try:
-                organization = connection.tenant
-            except Exception:
-                organization = None
-
-        if organization is None or not getattr(organization, "is_active", False):
-            raise ValidationError("Select an active organization before accessing governance resources.")
-        if not request_active_organization_matches_routed_tenant(self.request):
-            raise ValidationError(
-                "Active organization context does not match the routed tenant. Refresh and try again."
+        active_org_id = get_request_active_organization_id(self.request)
+        if active_org_id:
+            organization = Organization.objects.filter(id=active_org_id, is_active=True).first()
+        else:
+            organization = (
+                Organization.objects.filter(is_active=True)
+                .exclude(schema_name="public")
+                .order_by("name")
+                .first()
             )
+
+        if organization is None:
+            raise ValidationError("Select an active organization before accessing governance resources.")
 
         if not can_manage_registry_governance(
             self.request.user,
@@ -155,76 +148,19 @@ class GovernanceScopeMixin:
         self._deny_platform_admin_governance_access()
         return self._resolve_non_admin_active_organization()
 
-
-def _parse_iso_datetime_value(raw_value):
-    normalized = str(raw_value or "").strip()
-    if not normalized:
-        return None
-    parsed = parse_datetime(normalized)
-    if parsed is None:
-        return None
-    if timezone.is_naive(parsed):
-        return timezone.make_aware(parsed, timezone=dt_timezone.utc)
-    return parsed
-
-
 def _platform_oversight_queryset():
-    # In the django-tenants model, membership and billing data live in each org's
-    # own schema.  We can't annotate them via FK joins from the public schema.
-    # Per-org stats are fetched lazily in _build_platform_organization_oversight_record.
     return Organization.objects.all().order_by("name")
 
 
 def _build_platform_subscription_summary(organization: Organization):
-    subscriptions = list(getattr(organization, "_platform_billing_subscriptions", []) or [])
-    chosen_subscription = None
-    source = ""
-    for subscription in subscriptions:
-        if is_subscription_active(subscription):
-            chosen_subscription = subscription
-            source = "active"
-            break
-
-    if chosen_subscription is None and subscriptions:
-        chosen_subscription = subscriptions[0]
-        source = "latest"
-
-    if chosen_subscription is None:
-        return None
-
-    metadata = dict(getattr(chosen_subscription, "metadata", {}) or {})
-    return {
-        "id": chosen_subscription.id,
-        "source": source,
-        "provider": str(chosen_subscription.provider or ""),
-        "status": str(chosen_subscription.status or ""),
-        "payment_status": str(chosen_subscription.payment_status or ""),
-        "plan_id": str(chosen_subscription.plan_id or ""),
-        "plan_name": str(chosen_subscription.plan_name or ""),
-        "billing_cycle": str(chosen_subscription.billing_cycle or ""),
-        "payment_method": str(chosen_subscription.payment_method or ""),
-        "amount_usd": chosen_subscription.amount_usd,
-        "current_period_end": _parse_iso_datetime_value(metadata.get("current_period_end")),
-        "cancel_at_period_end": bool(metadata.get("cancel_at_period_end")),
-        "updated_at": chosen_subscription.updated_at,
-    }
+    del organization
+    return None
 
 
 def _build_platform_organization_oversight_record(organization: Organization) -> dict:
-    from django_tenants.utils import schema_context
+    # Memberships are single-schema in this deployment mode.
+    active_member_count = OrganizationMembership.objects.filter(is_active=True).count()
 
-    active_member_count = 0
-    subscriptions: list = []
-    try:
-        with schema_context(organization.schema_name):
-            active_member_count = OrganizationMembership.objects.filter(is_active=True).count()
-            subscriptions = list(
-                BillingSubscription.objects.order_by("-updated_at", "-created_at")
-            )
-    except Exception:
-        pass
-
-    organization._platform_billing_subscriptions = subscriptions
     return {
         "id": organization.id,
         "code": str(organization.code or ""),
@@ -500,11 +436,23 @@ class OrganizationMembershipViewSet(
         if bool(instance.is_active):
             return
 
-        from django.db import connection as _db_conn
-        from apps.billing.quotas import enforce_membership_activation_seat_quota
+        from apps.core.quotas import enforce_membership_activation_seat_quota
+
+        organization_id = str(get_request_active_organization_id(self.request) or "").strip()
+        if not organization_id:
+            organization_id = str(
+                Organization.objects.filter(is_active=True)
+                .exclude(schema_name="public")
+                .order_by("name")
+                .values_list("id", flat=True)
+                .first()
+                or ""
+            ).strip()
+        if not organization_id:
+            return
 
         enforce_membership_activation_seat_quota(
-            organization_id=str(getattr(getattr(_db_conn, "tenant", None), "id", "") or ""),
+            organization_id=organization_id,
             additional=1,
         )
 

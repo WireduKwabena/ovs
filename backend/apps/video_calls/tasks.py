@@ -57,10 +57,9 @@ def _process_reminders_for_schema(
     max_retry_seconds: int,
 ) -> dict[str, int]:
     """
-    Runs all video meeting reminder logic for the current DB schema context.
-    Must be called from within a schema_context() block.
+    Runs all video meeting reminder logic for the active database schema.
     """
-    # Import model here to ensure it resolves in the correct schema context.
+    # Import lazily so the task can initialize even when apps are partially loaded.
     from apps.video_calls.models import VideoMeeting
 
     stats = {
@@ -325,13 +324,8 @@ def _process_reminders_for_schema(
 @shared_task(name="apps.video_calls.tasks.process_video_meeting_reminders")
 def process_video_meeting_reminders() -> dict[str, int]:
     """
-    Iterates over all active tenant schemas and processes video meeting
-    reminders for each one. The public schema has no video_calls tables
-    so it is always skipped.
+    Process video meeting reminders in the current (single) schema.
     """
-    from django_tenants.utils import schema_context
-    from apps.tenants.models import Organization
-
     now = timezone.now()
 
     max_lead_minutes = int(getattr(settings, "VIDEO_CALLS_MAX_REMINDER_BEFORE_MINUTES", 120))
@@ -359,31 +353,22 @@ def process_video_meeting_reminders() -> dict[str, int]:
         "completed_failed": 0,
     }
 
-    tenant_schemas = (
-        Organization.objects.filter(is_active=True)
-        .exclude(schema_name="public")
-        .values_list("schema_name", flat=True)
-    )
-
-    for schema_name in tenant_schemas:
-        try:
-            with schema_context(schema_name):
-                schema_stats = _process_reminders_for_schema(
-                    now=now,
-                    soon_cutoff=soon_cutoff,
-                    claim_until=claim_until,
-                    max_retries=max_retries,
-                    base_retry_seconds=base_retry_seconds,
-                    max_retry_seconds=max_retry_seconds,
-                )
-            for key, value in schema_stats.items():
-                totals[key] += value
-        except Exception as exc:
-            logger.error(
-                "process_video_meeting_reminders failed for schema=%s error=%s",
-                schema_name,
-                f"{exc.__class__.__name__}: {exc}",
-                exc_info=True,
-            )
+    try:
+        schema_stats = _process_reminders_for_schema(
+            now=now,
+            soon_cutoff=soon_cutoff,
+            claim_until=claim_until,
+            max_retries=max_retries,
+            base_retry_seconds=base_retry_seconds,
+            max_retry_seconds=max_retry_seconds,
+        )
+        for key, value in schema_stats.items():
+            totals[key] += value
+    except Exception as exc:
+        logger.error(
+            "process_video_meeting_reminders failed error=%s",
+            f"{exc.__class__.__name__}: {exc}",
+            exc_info=True,
+        )
 
     return totals

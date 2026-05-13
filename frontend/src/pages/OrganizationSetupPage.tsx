@@ -16,10 +16,12 @@ import {
 import { governanceService } from "@/services/governance.service";
 import { useAuth } from "@/hooks/useAuth";
 
-const normalizeReturnPath = (value: string | null | undefined, fallback: string): string => {
+const normalizeReturnPath = (
+  value: string | null | undefined,
+  fallback: string,
+): string => {
   if (!value) return fallback;
   if (!value.startsWith("/") || value.startsWith("//")) return fallback;
-  if (value.startsWith("/billing/")) return fallback;
   return value;
 };
 
@@ -32,13 +34,19 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
     response?: { data?: { detail?: string; message?: string; error?: string } };
   };
   const responseData = candidate.response?.data;
-  return responseData?.detail || responseData?.message || responseData?.error || fallback;
+  return (
+    responseData?.detail ||
+    responseData?.message ||
+    responseData?.error ||
+    fallback
+  );
 };
 
 const OrganizationSetupPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { userType, activeOrganizationId, activeOrganization, refreshProfile } = useAuth();
+  const { userType, activeOrganizationId, activeOrganization, refreshProfile } =
+    useAuth();
 
   const [organizationName, setOrganizationName] = useState("");
   const [organizationCode, setOrganizationCode] = useState("");
@@ -46,11 +54,11 @@ const OrganizationSetupPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
 
   const onboardingPath = "/organization/onboarding";
-  const returnTo = normalizeReturnPath(searchParams.get("next"), "/subscribe");
+  const returnTo = normalizeReturnPath(
+    searchParams.get("next"),
+    onboardingPath,
+  );
   const nextPath = useMemo(() => {
-    if (returnTo === "/subscribe") {
-      return `/subscribe?returnTo=${encodeURIComponent(onboardingPath)}`;
-    }
     return returnTo;
   }, [returnTo]);
 
@@ -58,9 +66,12 @@ const OrganizationSetupPage: React.FC = () => {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-10">
         <section className="w-full max-w-xl rounded-2xl border border-amber-200 bg-white p-8 shadow-sm text-center">
-          <h1 className="text-2xl font-black text-slate-900">Organization Setup Unavailable</h1>
+          <h1 className="text-2xl font-black text-slate-900">
+            Organization Setup Unavailable
+          </h1>
           <p className="mt-3 text-sm text-slate-700">
-            Applicant accounts cannot provision organizations or manage organization billing.
+            Applicant accounts cannot provision organizations or manage
+            organization billing.
           </p>
           <div className="mt-6 flex justify-center">
             <Button type="button" onClick={() => navigate("/candidate/access")}>
@@ -88,11 +99,13 @@ const OrganizationSetupPage: React.FC = () => {
         code: code || undefined,
         organization_type: organizationType,
       });
-      toast.success("Organization created. You can now continue to subscription checkout.");
+      toast.success("Organization created.");
       refreshProfile();
       navigate(nextPath, { replace: true });
     } catch (error: unknown) {
-      toast.error(getErrorMessage(error, "Unable to create organization setup."));
+      toast.error(
+        getErrorMessage(error, "Unable to create organization setup."),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -105,15 +118,25 @@ const OrganizationSetupPage: React.FC = () => {
           <div className="mx-auto mb-4 inline-flex rounded-full bg-emerald-100 p-3 text-emerald-700">
             <CheckCircle2 className="h-6 w-6" />
           </div>
-          <h1 className="text-2xl font-black text-slate-900">Organization Context Ready</h1>
+          <h1 className="text-2xl font-black text-slate-900">
+            Organization Context Ready
+          </h1>
           <p className="mt-3 text-sm text-slate-700">
-            Active organization: <span className="font-semibold">{activeOrganization?.name || "Selected"}</span>.
+            Active organization:{" "}
+            <span className="font-semibold">
+              {activeOrganization?.name || "Selected"}
+            </span>
+            .
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <Button type="button" onClick={() => navigate(nextPath)}>
               Continue to Subscription
             </Button>
-            <Button type="button" variant="outline" onClick={() => navigate("/organization/onboarding")}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate("/organization/onboarding")}
+            >
               Open Onboarding Management
             </Button>
           </div>
@@ -130,9 +153,12 @@ const OrganizationSetupPage: React.FC = () => {
             <Building2 className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-slate-900">Organization Setup</h1>
+            <h1 className="text-2xl font-black text-slate-900">
+              Organization Setup
+            </h1>
             <p className="text-sm text-slate-700">
-              Create your organization context first, then continue to subscription checkout.
+              Create your organization context first, then continue to
+              subscription checkout.
             </p>
           </div>
         </div>
@@ -149,7 +175,9 @@ const OrganizationSetupPage: React.FC = () => {
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="organization-code">Organization Code (Optional)</Label>
+            <Label htmlFor="organization-code">
+              Organization Code (Optional)
+            </Label>
             <Input
               id="organization-code"
               value={organizationCode}
@@ -160,15 +188,23 @@ const OrganizationSetupPage: React.FC = () => {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="organization-type">Organization Type</Label>
-            <Select value={organizationType} onValueChange={setOrganizationType} disabled={submitting}>
+            <Select
+              value={organizationType}
+              onValueChange={setOrganizationType}
+              disabled={submitting}
+            >
               <SelectTrigger id="organization-type">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="agency">Agency</SelectItem>
                 <SelectItem value="ministry">Ministry</SelectItem>
-                <SelectItem value="committee_secretariat">Committee Secretariat</SelectItem>
-                <SelectItem value="executive_office">Executive Office</SelectItem>
+                <SelectItem value="committee_secretariat">
+                  Committee Secretariat
+                </SelectItem>
+                <SelectItem value="executive_office">
+                  Executive Office
+                </SelectItem>
                 <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
@@ -176,7 +212,11 @@ const OrganizationSetupPage: React.FC = () => {
         </div>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
-          <Button type="button" onClick={() => void handleCreateOrganization()} disabled={submitting}>
+          <Button
+            type="button"
+            onClick={() => void handleCreateOrganization()}
+            disabled={submitting}
+          >
             {submitting ? (
               <span className="inline-flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -186,7 +226,12 @@ const OrganizationSetupPage: React.FC = () => {
               "Create Organization and Continue"
             )}
           </Button>
-          <Button type="button" variant="outline" onClick={() => navigate("/workspace")} disabled={submitting}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => navigate("/workspace")}
+            disabled={submitting}
+          >
             Cancel
           </Button>
         </div>

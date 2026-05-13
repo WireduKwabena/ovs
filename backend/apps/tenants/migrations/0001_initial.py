@@ -1,7 +1,6 @@
 import uuid
 
 import django.db.models.deletion
-import django_tenants.postgresql_backend.base
 from django.db import migrations, models
 
 
@@ -30,7 +29,6 @@ class Migration(migrations.Migration):
                         db_index=True,
                         max_length=63,
                         unique=True,
-                        validators=[django_tenants.postgresql_backend.base._check_schema_name],
                     ),
                 ),
                 ("code", models.SlugField(max_length=80, unique=True)),

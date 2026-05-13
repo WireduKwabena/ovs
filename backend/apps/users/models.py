@@ -14,7 +14,7 @@ Implements role-based access control (RBAC) with three user types:
 from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.models import AbstractUser, BaseUserManager
-from django.db import connection, models
+from django.db import models
 from django.core.validators import RegexValidator
 from django.utils import timezone
 from django.utils.text import slugify
@@ -66,40 +66,14 @@ class CustomUserManager(BaseUserManager):
 
 class TenantAwareUserManager(CustomUserManager):
     """
-    Tenant-scoped user manager.
+    Compatibility manager retained for legacy call sites.
 
-    In a tenant schema context every queryset is automatically restricted to
-    users who have an active OrganizationMembership in the current tenant,
-    preventing accidental cross-tenant user exposure.
-
-    In the public schema (platform-admin context) no filter is applied and all
-    users remain visible, preserving existing superuser / admin behaviour.
-
-    Use ``User.all_objects`` when you explicitly need to bypass this scoping
-    (e.g. management commands that must iterate over all users platform-wide).
+    Single-tenant runtime no longer applies tenant schema-based filtering.
+    All user filtering must be explicit at the view/service layer.
     """
 
     def get_queryset(self):
-        from django_tenants.utils import get_public_schema_name
-
-        qs = super().get_queryset()
-
-        # Public schema — no restriction; platform admins see everything.
-        if connection.schema_name == get_public_schema_name():
-            return qs
-
-        # Tenant context — restrict to users with an active membership here.
-        # The import is deferred to avoid a circular import cycle:
-        #   users.models → governance.models → users.models
-        try:
-            from apps.governance.models import OrganizationMembership
-        except ImportError:  # pragma: no cover — governance app not installed
-            return qs
-
-        member_ids = OrganizationMembership.objects.filter(
-            is_active=True
-        ).values("user_id")
-        return qs.filter(pk__in=member_ids)
+        return super().get_queryset()
 
 
 class User(AbstractUser):
@@ -229,31 +203,12 @@ class User(AbstractUser):
     def effective_organization_name(self) -> str:
         """
         Governance-first organization label with legacy fallback.
-
-        In the django-tenants setup, connection.tenant IS the organization for
-        this request's schema context.
         """
-        membership = self.get_primary_organization_membership()
-        if membership is not None:
-            try:
-                tenant = connection.tenant
-                tenant_name = str(getattr(tenant, "name", "") or "").strip()
-                if tenant_name:
-                    return tenant_name
-            except Exception:
-                pass
         return str(self.organization or "").strip()
 
     @property
     def primary_organization_code(self) -> str:
-        membership = self.get_primary_organization_membership()
-        if membership is None:
-            return ""
-        try:
-            tenant = connection.tenant
-            return str(getattr(tenant, "code", "") or "").strip()
-        except Exception:
-            return ""
+        return ""
 
     def get_totp_uri(self, issuer_name="OVS-Redo"):
         if not self.two_factor_secret or pyotp is None:

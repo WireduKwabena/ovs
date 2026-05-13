@@ -16,7 +16,7 @@ from rest_framework.views import APIView
 
 from apps.invitations.permissions import IsAuthenticatedOrCandidateAccessSession
 from apps.applications.models import VettingCase
-from apps.billing.quotas import (
+from apps.core.quotas import (
     VETTING_OPERATION_INTERVIEW_ANALYSIS,
     enforce_vetting_operation_quota,
     resolve_case_organization_id,

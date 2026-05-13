@@ -7,7 +7,7 @@ from django.conf import settings
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from apps.billing.quotas import (
+from apps.core.quotas import (
     VETTING_OPERATION_INTERVIEW_ANALYSIS,
     enforce_vetting_operation_quota,
     resolve_case_organization_id,

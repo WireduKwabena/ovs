@@ -1,5 +1,17 @@
-import type { BillingQuotaCandidate } from '@/services/billing.service';
 import type { CandidateImportRow } from '@/types';
+
+export interface CandidateQuotaCandidate {
+  enforced: boolean;
+  scope: string;
+  reason: string | null;
+  plan_id: string | null;
+  plan_name: string | null;
+  limit: number | null;
+  used: number;
+  remaining: number | null;
+  period_start: string;
+  period_end: string;
+}
 
 export interface CandidateImportProjection {
   count: number;
@@ -9,14 +21,14 @@ export interface CandidateImportProjection {
 interface ProjectedQuotaExceededInput {
   shouldShowQuota: boolean;
   quotaLoading: boolean;
-  quota: BillingQuotaCandidate | null;
+  quota: CandidateQuotaCandidate | null;
   projectedUsage: number | null;
 }
 
 interface CandidateQuotaErrorExtraction {
   code: 'quota_exceeded' | 'subscription_required';
   detail: string;
-  quotaPatch: Partial<BillingQuotaCandidate> | null;
+  quotaPatch: Partial<CandidateQuotaCandidate> | null;
 }
 
 const toRecord = (value: unknown): Record<string, unknown> | null => {
@@ -60,13 +72,12 @@ export const projectCandidateImport = (importPayload: string): CandidateImportPr
 };
 
 export const getProjectedUsage = (
-  quota: BillingQuotaCandidate | null,
+  quota: CandidateQuotaCandidate | null,
   projectedImportCount: number,
 ): number | null => {
-  if (!quota || quota.limit === null) {
-    return null;
-  }
-  return quota.used + projectedImportCount;
+  void quota;
+  void projectedImportCount;
+  return null;
 };
 
 export const isProjectedQuotaExceeded = ({
@@ -75,10 +86,11 @@ export const isProjectedQuotaExceeded = ({
   quota,
   projectedUsage,
 }: ProjectedQuotaExceededInput): boolean => {
-  if (!shouldShowQuota || quotaLoading || !quota || quota.limit === null) {
-    return false;
-  }
-  return projectedUsage !== null && projectedUsage > quota.limit;
+  void shouldShowQuota;
+  void quotaLoading;
+  void quota;
+  void projectedUsage;
+  return false;
 };
 
 export const extractCandidateQuotaError = (error: unknown): CandidateQuotaErrorExtraction | null => {
@@ -101,7 +113,7 @@ export const extractCandidateQuotaError = (error: unknown): CandidateQuotaErrorE
       : 'Candidate quota exceeded for this plan.');
 
   const quotaData = toRecord(data.quota);
-  let quotaPatch: Partial<BillingQuotaCandidate> | null = null;
+  let quotaPatch: Partial<CandidateQuotaCandidate> | null = null;
   if (quotaData) {
     quotaPatch = {
       enforced: true,

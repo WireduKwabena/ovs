@@ -3,7 +3,6 @@ import {
   ShieldCheck,
   Activity,
   Brain,
-  CreditCard,
   RefreshCw,
   ChevronRight,
   Zap,
@@ -22,12 +21,16 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { auditService } from "@/services/audit.service";
 import { governanceService } from "@/services/governance.service";
-import type { AuditLog, GovernancePlatformOrganizationOversight } from "@/types";
+import type {
+  AuditLog,
+  GovernancePlatformOrganizationOversight,
+} from "@/types";
 import { formatRelativeTime } from "@/utils/helper";
-import BillingHealthCard from "@/components/admin/BillingHealthCard";
 
 const PlatformDashboardPage: React.FC = () => {
-  const [organizations, setOrganizations] = useState<GovernancePlatformOrganizationOversight[]>([]);
+  const [organizations, setOrganizations] = useState<
+    GovernancePlatformOrganizationOversight[]
+  >([]);
   const [recentAuditLogs, setRecentAuditLogs] = useState<AuditLog[]>([]);
   const [, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -42,7 +45,9 @@ const PlatformDashboardPage: React.FC = () => {
         governanceService.listPlatformOrganizations(),
         auditService.getRecentActivity().catch(() => [] as AuditLog[]),
       ]);
-      setOrganizations(Array.isArray(orgPayload.results) ? orgPayload.results : []);
+      setOrganizations(
+        Array.isArray(orgPayload.results) ? orgPayload.results : [],
+      );
       setRecentAuditLogs(auditLogs.slice(0, 5));
     } catch {
       toast.error("Failed to sync platform metrics.");
@@ -56,14 +61,23 @@ const PlatformDashboardPage: React.FC = () => {
     void loadDashboardData();
   }, [loadDashboardData]);
 
-  const handleToggleOrgStatus = async (org: GovernancePlatformOrganizationOversight) => {
+  const handleToggleOrgStatus = async (
+    org: GovernancePlatformOrganizationOversight,
+  ) => {
     setUpdatingId(org.id);
     try {
-      const updated = await governanceService.updatePlatformOrganizationStatus(org.id, {
-        is_active: !org.is_active,
-      });
-      setOrganizations((prev) => prev.map((o) => (o.id === org.id ? updated : o)));
-      toast.success(`${org.name} ${updated.is_active ? "activated" : "deactivated"}`);
+      const updated = await governanceService.updatePlatformOrganizationStatus(
+        org.id,
+        {
+          is_active: !org.is_active,
+        },
+      );
+      setOrganizations((prev) =>
+        prev.map((o) => (o.id === org.id ? updated : o)),
+      );
+      toast.success(
+        `${org.name} ${updated.is_active ? "activated" : "deactivated"}`,
+      );
     } catch {
       toast.error("Failed to update organization status");
     } finally {
@@ -77,10 +91,18 @@ const PlatformDashboardPage: React.FC = () => {
     return {
       totalOrgs,
       activeOrgs,
-      premiumOrgs: organizations.filter((o) => o.subscription?.source === "active").length,
-      totalStaff: organizations.reduce((acc, o) => acc + (o.active_member_count || 0), 0),
-      needsAttention: organizations.filter((o) => !o.is_active || !o.subscription).length,
-      activationRate: totalOrgs > 0 ? Math.round((activeOrgs / totalOrgs) * 100) : 0,
+      premiumOrgs: organizations.filter(
+        (o) => o.subscription?.source === "active",
+      ).length,
+      totalStaff: organizations.reduce(
+        (acc, o) => acc + (o.active_member_count || 0),
+        0,
+      ),
+      needsAttention: organizations.filter(
+        (o) => !o.is_active || !o.subscription,
+      ).length,
+      activationRate:
+        totalOrgs > 0 ? Math.round((activeOrgs / totalOrgs) * 100) : 0,
     };
   }, [organizations]);
 
@@ -100,7 +122,8 @@ const PlatformDashboardPage: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Command Center</h1>
           <p className="text-muted-foreground mt-1 text-sm md:text-base">
-            Macro-oversight of the OVS Redo multi-tenant ecosystem and infrastructure health.
+            Macro-oversight of the OVS Redo multi-tenant ecosystem and
+            infrastructure health.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -110,7 +133,9 @@ const PlatformDashboardPage: React.FC = () => {
             onClick={() => void loadDashboardData(true)}
             disabled={refreshing}
           >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+            />
             Sync Platform
           </Button>
         </div>
@@ -172,26 +197,29 @@ const PlatformDashboardPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* Billing Health */}
-      <BillingHealthCard />
-
       {/* Organization Subscription Oversight */}
       <Card className="p-6 rounded-2xl border-border/70 bg-card/50 shadow-sm backdrop-blur-sm">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-lg font-bold">Organization Subscription Oversight</h2>
+            <h2 className="text-lg font-bold">
+              Organization Subscription Oversight
+            </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
               Monitor and manage the lifecycle of all registered organizations.
             </p>
           </div>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <span>
-              <span className="font-bold text-emerald-600">{stats.premiumOrgs}</span>
-              {" "}Active Subscriptions
+              <span className="font-bold text-emerald-600">
+                {stats.premiumOrgs}
+              </span>{" "}
+              Active Subscriptions
             </span>
             <span>
-              <span className="font-bold text-amber-600">{stats.needsAttention}</span>
-              {" "}Needs Attention
+              <span className="font-bold text-amber-600">
+                {stats.needsAttention}
+              </span>{" "}
+              Needs Attention
             </span>
           </div>
         </div>
@@ -226,7 +254,8 @@ const PlatformDashboardPage: React.FC = () => {
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {org.active_member_count} staff · {org.subscription?.plan_name || "Free Tier"}
+                    {org.active_member_count} staff ·{" "}
+                    {org.subscription?.plan_name || "Free Tier"}
                   </p>
                 </div>
               </div>
@@ -234,7 +263,11 @@ const PlatformDashboardPage: React.FC = () => {
                 variant={org.is_active ? "outline" : "default"}
                 className="rounded-xl gap-2 h-9 text-xs font-bold self-end md:self-auto"
                 disabled={updatingId === org.id}
-                aria-label={org.is_active ? "Deactivate Organization" : "Reactivate Organization"}
+                aria-label={
+                  org.is_active
+                    ? "Deactivate Organization"
+                    : "Reactivate Organization"
+                }
                 onClick={() => handleToggleOrgStatus(org)}
               >
                 <Power className="h-3.5 w-3.5" />
@@ -266,12 +299,21 @@ const PlatformDashboardPage: React.FC = () => {
             </div>
             <div className="space-y-2">
               {orgTypeBreakdown.length === 0 && (
-                <p className="text-xs text-muted-foreground">No organizations registered.</p>
+                <p className="text-xs text-muted-foreground">
+                  No organizations registered.
+                </p>
               )}
               {orgTypeBreakdown.map(([type, count]) => (
-                <div key={type} className="flex items-center justify-between p-2 rounded-lg bg-background/50 border border-border/30">
-                  <span className="text-xs font-medium capitalize">{type.replace(/_/g, " ")}</span>
-                  <span className="text-xs font-bold">{count} org{count !== 1 ? "s" : ""}</span>
+                <div
+                  key={type}
+                  className="flex items-center justify-between p-2 rounded-lg bg-background/50 border border-border/30"
+                >
+                  <span className="text-xs font-medium capitalize">
+                    {type.replace(/_/g, " ")}
+                  </span>
+                  <span className="text-xs font-bold">
+                    {count} org{count !== 1 ? "s" : ""}
+                  </span>
                 </div>
               ))}
             </div>
@@ -293,11 +335,16 @@ const PlatformDashboardPage: React.FC = () => {
               </div>
               <div className="p-4 rounded-xl bg-muted/30 border border-border/50">
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Live service metrics and latency telemetry are available on the{" "}
-                  <Link to="/admin/platform/health" className="font-bold text-primary hover:underline">
+                  Live service metrics and latency telemetry are available on
+                  the{" "}
+                  <Link
+                    to="/admin/platform/health"
+                    className="font-bold text-primary hover:underline"
+                  >
                     System Health
                   </Link>{" "}
-                  page. Connect an observability backend (Prometheus / Grafana) for real-time dashboard widgets.
+                  page. Connect an observability backend (Prometheus / Grafana)
+                  for real-time dashboard widgets.
                 </p>
               </div>
             </Card>
@@ -317,13 +364,17 @@ const PlatformDashboardPage: React.FC = () => {
               </div>
               <div className="space-y-4">
                 {recentAuditLogs.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No recent audit activity.</p>
+                  <p className="text-xs text-muted-foreground">
+                    No recent audit activity.
+                  </p>
                 )}
                 {recentAuditLogs.map((log) => (
                   <div key={log.id} className="flex items-start gap-3">
                     <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
                     <div>
-                      <p className="text-xs font-bold">{log.action_display ?? log.action}</p>
+                      <p className="text-xs font-bold">
+                        {log.action_display ?? log.action}
+                      </p>
                       <p className="text-[10px] text-muted-foreground">
                         {log.entity_type}
                         {log.user_name ? ` · ${log.user_name}` : ""}
@@ -346,28 +397,26 @@ const PlatformDashboardPage: React.FC = () => {
               <Zap className="h-8 w-8 mb-4 text-indigo-200" />
               <h2 className="text-xl font-bold mb-2">Platform Actions</h2>
               <p className="text-sm text-indigo-100 mb-6 leading-relaxed">
-                Quick access to high-impact administrative utilities and provisioning tools.
+                Quick access to high-impact administrative utilities and
+                provisioning tools.
               </p>
               <div className="space-y-2">
                 <Link
                   to="/admin/platform/registry"
                   className="flex items-center justify-between w-full p-4 rounded-2xl bg-white/10 hover:bg-white/20 transition-all group/btn border border-white/5"
                 >
-                  <span className="text-sm font-bold">Provision New Tenant</span>
-                  <ChevronRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
-                </Link>
-                <Link
-                  to="/admin/platform/billing"
-                  className="flex items-center justify-between w-full p-4 rounded-2xl bg-white/10 hover:bg-white/20 transition-all group/btn border border-white/5"
-                >
-                  <span className="text-sm font-bold">Manage Billing Plans</span>
+                  <span className="text-sm font-bold">
+                    Provision New Tenant
+                  </span>
                   <ChevronRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
                 </Link>
                 <Link
                   to="/admin/platform/ai-engine"
                   className="flex items-center justify-between w-full p-4 rounded-2xl bg-white/10 hover:bg-white/20 transition-all group/btn border border-white/5"
                 >
-                  <span className="text-sm font-bold">Global AI Safety Policy</span>
+                  <span className="text-sm font-bold">
+                    Global AI Safety Policy
+                  </span>
                   <ChevronRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
                 </Link>
               </div>
@@ -381,30 +430,9 @@ const PlatformDashboardPage: React.FC = () => {
             </h3>
             <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 flex items-center gap-3">
               <ShieldCheck className="h-5 w-5 text-emerald-500" />
-              <p className="text-xs font-medium text-emerald-600">No active system alerts.</p>
-            </div>
-          </Card>
-
-          <Card className="p-6 rounded-[2rem] border-border/70 bg-card/50 shadow-sm backdrop-blur-sm">
-            <div className="flex items-center gap-3 mb-2">
-              <CreditCard className="h-5 w-5 text-muted-foreground" />
-              <h3 className="text-sm font-bold">Billing Posture</h3>
-            </div>
-            <div className="space-y-3 mt-4">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Premium Plans</span>
-                <span className="font-bold">{stats.premiumOrgs}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Trialing Tenants</span>
-                <span className="font-bold">{stats.totalOrgs - stats.premiumOrgs}</span>
-              </div>
-              <div className="pt-3 border-t border-border/50">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">
-                  Revenue Metrics
-                </p>
-                <p className="text-xs text-muted-foreground">Available in Stripe Dashboard</p>
-              </div>
+              <p className="text-xs font-medium text-emerald-600">
+                No active system alerts.
+              </p>
             </div>
           </Card>
         </div>

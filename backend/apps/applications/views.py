@@ -18,7 +18,7 @@ _ALLOWED_DOCUMENT_MIME_TYPES: frozenset[str] = frozenset({
 _MAX_DOCUMENT_UPLOAD_BYTES: int = 20 * 1024 * 1024  # 20 MB
 
 from apps.audit.events import log_event
-from apps.billing.quotas import (
+from apps.core.quotas import (
     VETTING_OPERATION_DOCUMENT_VERIFICATION,
     VETTING_OPERATION_SOCIAL_PROFILE_CHECK,
     enforce_candidate_quota,

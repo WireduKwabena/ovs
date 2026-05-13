@@ -4,7 +4,7 @@ from celery import shared_task
 from django.contrib.auth import get_user_model
 
 from apps.applications.models import VettingCase
-from apps.billing.quotas import (
+from apps.core.quotas import (
     VETTING_OPERATION_RUBRIC_EVALUATION,
     enforce_vetting_operation_quota,
     resolve_case_organization_id,

@@ -8,7 +8,7 @@ from typing import Any
 from ai_ml_services.social.case_profiles import extract_case_social_profiles
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from apps.billing.quotas import (
+from apps.core.quotas import (
     VETTING_OPERATION_SOCIAL_PROFILE_CHECK,
     enforce_vetting_operation_quota,
     resolve_case_organization_id,

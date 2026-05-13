@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   CheckCircle2,
-  CreditCard,
   Loader2,
   RefreshCw,
   ShieldCheck,
@@ -56,16 +55,6 @@ const UserSettingsPage: React.FC = () => {
     ? organizations
     : [];
   const organizationFieldLocked = resolvedOrganizations.length > 0;
-
-  // Billing should only be visible to registry_admin or organization_admin
-  // Not to superuser/platform admin, organization members, or applicants
-  const isRegistryAdmin = hasRole("registry_admin");
-  const canViewBilling =
-    (isOrgAdmin || isRegistryAdmin) &&
-    userType !== "applicant" &&
-    !isPlatformAdmin;
-  const canManageOrganizationBilling =
-    canViewBilling && canManageActiveOrganizationGovernance;
 
   const canEditPhone = useMemo(
     () => Boolean(user && typeof user === "object" && "phone_number" in user),
@@ -613,33 +602,14 @@ const UserSettingsPage: React.FC = () => {
             </Link>
           </div>
 
-          {canViewBilling ? (
-            <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <Link
-                to="/settings/subscription"
-                className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:border-cyan-300 hover:bg-cyan-50"
-              >
-                <CreditCard className="mt-0.5 h-5 w-5 text-cyan-700" />
-                <span>
-                  <span className="block text-sm font-semibold text-slate-900">
-                    Manage Subscription
-                  </span>
-                  <span className="block text-xs text-slate-700">
-                    Open billing plans, payment methods, and renewal settings.
-                  </span>
-                </span>
-              </Link>
-            </div>
-          ) : null}
-
-          {canManageOrganizationBilling ? (
+          {canManageActiveOrganizationGovernance ? (
             <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
               <h3 className="text-sm font-semibold text-slate-900">
                 Organization Administration
               </h3>
               <p className="mt-2 text-[11px] text-slate-700">
-                Governance, committee management, onboarding links, and billing
-                actions are managed in dedicated organization pages.
+                Governance, committee management, and onboarding links are
+                managed in dedicated organization pages.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button

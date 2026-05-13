@@ -15,7 +15,7 @@ from apps.audit.contracts import (
     APPOINTMENT_STAGE_TRANSITION_EVENT,
 )
 from apps.audit.events import log_event
-from apps.billing.quotas import enforce_candidate_quota
+from apps.core.quotas import enforce_candidate_quota
 from apps.candidates.models import Candidate, CandidateEnrollment
 from apps.core.authz import (
     ROLE_APPOINTING_AUTHORITY,

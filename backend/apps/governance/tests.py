@@ -44,14 +44,8 @@ class GovernanceModelTests(TestCase):
         )
 
     def test_user_effective_organization_prefers_governance_membership(self):
-        # effective_organization_name: tenant name when membership is active, falls back to
-        # user.organization string when tenant name is empty.
-        from django.db import connection
-        tenant_name = str(getattr(connection.tenant, "name", "") or "").strip()
-        expected_name = tenant_name if tenant_name else str(self.user.organization or "").strip()
-        self.assertEqual(self.user.effective_organization_name, expected_name)
-        # primary_organization_code reads from connection.tenant.code (schema-scoped approach).
-        self.assertEqual(self.user.primary_organization_code, getattr(connection.tenant, "code", ""))
+        self.assertEqual(self.user.effective_organization_name, "Legacy Secretariat")
+        self.assertEqual(self.user.primary_organization_code, "")
 
     def test_user_effective_organization_falls_back_to_legacy_string(self):
         self.membership.is_active = False
@@ -512,12 +506,10 @@ class GovernanceApiTests(APITestCase):
         self.assertEqual(response.status_code, 403)
 
     def test_org_summary_access_and_platform_override(self):
-        from django.db import connection
         self.client.force_authenticate(self.org_admin)
         response = self.client.get("/api/governance/organization/summary/")
         self.assertEqual(response.status_code, 200)
-        # In django-tenants the summary reflects the current tenant schema, not a per-row FK.
-        self.assertEqual(response.json()["organization"]["id"], str(connection.tenant.id))
+        self.assertEqual(response.json()["organization"]["id"], str(self.org_a.id))
 
         self.client.force_authenticate(self.platform_admin)
         denied = self.client.get("/api/governance/organization/summary/")
@@ -973,17 +965,12 @@ class GovernanceApiTests(APITestCase):
         org_codes = {row["code"] for row in payload["results"]}
         self.assertIn("gov-api-org-a", org_codes)
         self.assertIn("gov-api-org-b", org_codes)
-        # Per-org subscription data is fetched via schema_context; in the test
-        # environment orgs don't have real schemas so subscription is null.
+        # Subscription payload is optional when billing fixtures are minimal.
         for row in payload["results"]:
             self.assertIn("subscription", row)
             self.assertIn("active_member_count", row)
 
-    def test_platform_oversight_subscription_logic_for_tenant_with_schema(self):
-        # In a real tenant schema (test_tenant), active subscription is preferred
-        # over a newer failed attempt.  Test via the test_tenant which has a real schema.
-        from django.db import connection
-        test_tenant = connection.tenant
+    def test_platform_oversight_subscription_logic_prefers_active_over_failed(self):
         BillingSubscription.objects.create(
             provider="sandbox",
             status="complete",
@@ -1011,9 +998,9 @@ class GovernanceApiTests(APITestCase):
         response = self.client.get("/api/governance/platform/organizations/")
 
         self.assertEqual(response.status_code, 200)
-        # Find the test_tenant row (it has a real schema so subscriptions are visible).
+        # Find org A row and ensure active subscription wins over failed latest attempt.
         row = next(
-            (r for r in response.json()["results"] if r["id"] == str(test_tenant.id)),
+            (r for r in response.json()["results"] if r["id"] == str(self.org_a.id)),
             None,
         )
         if row and row.get("subscription"):

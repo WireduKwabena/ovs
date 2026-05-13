@@ -46,12 +46,7 @@ def request_active_organization_matches_routed_tenant(request) -> bool:
     if not tenant_id:
         return True
 
-    try:
-        from django_tenants.utils import get_public_schema_name
-    except Exception:  # pragma: no cover - tenancy app may be unavailable
-        return True
-
-    if tenant_schema == get_public_schema_name():
+    if tenant_schema == "public":
         return True
 
     active_org_id = get_request_active_organization_id(request)

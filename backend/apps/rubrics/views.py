@@ -6,7 +6,7 @@ from rest_framework.response import Response
 
 from apps.applications.models import VettingCase
 from apps.users.permissions import RequiresRecentAuth
-from apps.billing.quotas import (
+from apps.core.quotas import (
     VETTING_OPERATION_RUBRIC_EVALUATION,
     enforce_vetting_operation_quota,
     resolve_case_organization_id,

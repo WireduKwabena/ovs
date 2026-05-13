@@ -5,7 +5,6 @@ import {
   Shield,
   LayoutDashboard,
   Building2,
-  CreditCard,
   Activity,
   FileSearch,
   LogOut,
@@ -53,11 +52,6 @@ export const SystemAdminLayout: React.FC<SystemAdminLayoutProps> = ({
       to: "/admin/platform/registry",
       label: "Organization Registry",
       icon: Building2,
-    },
-    {
-      to: "/admin/platform/billing",
-      label: "Billing & Plans",
-      icon: CreditCard,
     },
     { to: "/admin/platform/health", label: "System Health", icon: Activity },
     {
@@ -226,7 +220,9 @@ export const SystemAdminLayout: React.FC<SystemAdminLayoutProps> = ({
             <div className="absolute bottom-[-10%] right-[-10%] h-[40%] w-[40%] rounded-full bg-indigo-500/5 blur-[120px]" />
           </div>
 
-          <div className="relative px-4 py-4 md:px-8 md:py-6 lg:px-12 lg:py-8">{children}</div>
+          <div className="relative px-4 py-4 md:px-8 md:py-6 lg:px-12 lg:py-8">
+            {children}
+          </div>
         </main>
       </div>
     </div>

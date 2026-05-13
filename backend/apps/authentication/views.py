@@ -14,7 +14,6 @@ except Exception:  # pragma: no cover - optional in some setups
 
 import logging
 import secrets
-from contextlib import nullcontext
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.tokens import default_token_generator
@@ -81,12 +80,8 @@ from apps.users.models import User, UserProfile
 from apps.users.serializers import UserSerializer, AdminUserSerializer
 from apps.users.permissions import RECENT_AUTH_SESSION_KEY, RECENT_AUTH_TOKEN_CLAIM
 from apps.core.authz import ROLE_ADMIN, get_user_capabilities, get_user_roles, has_role, requires_two_factor_for_user
-from apps.billing.models import BillingSubscription
-from apps.billing.quotas import enforce_organization_seat_quota
-from apps.billing.services import validate_organization_onboarding_token
 from apps.governance.models import OrganizationMembership
 from apps.tenants.models import Organization
-from django_tenants.utils import schema_context
 
 logger = logging.getLogger(__name__)
 
@@ -114,14 +109,6 @@ ONBOARDING_REGISTRATION_REASON_MESSAGES = {
 }
 
 
-def _consume_registration_onboarding_token(*, raw_token: str, email: str):
-    return validate_organization_onboarding_token(
-        raw_token=raw_token,
-        email=email,
-        consume=True,
-    )
-
-
 def _two_factor_challenge_ttl_seconds() -> int:
     ttl = int(getattr(settings, 'AUTH_TWO_FACTOR_CHALLENGE_TTL_SECONDS', 300))
     return ttl if ttl > 0 else 300
@@ -140,17 +127,6 @@ def _mark_recent_auth(request, refresh_token: RefreshToken) -> int:
         session.modified = True
     return epoch
 
-
-def _registration_error_for_onboarding_reason(reason: str) -> dict:
-    normalized_reason = str(reason or "invalid").strip().lower() or "invalid"
-    return {
-        "error": ONBOARDING_REGISTRATION_REASON_MESSAGES.get(
-            normalized_reason,
-            "Registration requires a valid organization onboarding token.",
-        ),
-        "code": "ONBOARDING_TOKEN_INVALID",
-        "reason": normalized_reason,
-    }
 
 def _build_two_factor_challenge(user: User):
     """Builds a time-limited 2FA challenge payload for all non-applicant logins."""
@@ -204,57 +180,10 @@ def _resolve_public_bootstrap_organization_code(*, preferred_code: str, organiza
     return candidate
 
 
-def _schema_exists(schema_name: str) -> bool:
-    from django.db import connection
-
-    normalized = str(schema_name or "").strip()
-    if not normalized:
-        return False
-    with connection.cursor() as cursor:
-        cursor.execute(
-            "SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname = %s",
-            [normalized],
-        )
-        return cursor.fetchone() is not None
-
-
-def _resolve_bootstrap_user_schema(preferred_schema: str) -> str:
-    normalized = str(preferred_schema or "").strip()
-    if normalized and _schema_exists(normalized):
-        return normalized
-
-    # Test runner may suppress per-org schema creation; fall back to the
-    # shared test tenant schema when available.
-    fallback = str(getattr(settings, "TEST_TENANT_SCHEMA", "test_tenant") or "").strip()
-    if fallback and _schema_exists(fallback):
-        return fallback
-    return normalized
-
-
-def _resolve_onboarding_organization(token_record) -> Organization | None:
-    metadata = token_record.metadata if isinstance(getattr(token_record, "metadata", None), dict) else {}
-
-    organization_id = str(metadata.get("organization_id", "") or "").strip()
-    if organization_id:
-        org = Organization.objects.filter(id=organization_id, is_active=True).first()
-        if org is not None:
-            return org
-
-    organization_code = str(metadata.get("organization_code", "") or "").strip()
-    if organization_code:
-        org = Organization.objects.filter(code=organization_code, is_active=True).first()
-        if org is not None:
-            return org
-
-    from django.db import connection as _db_conn
-    return getattr(_db_conn, "tenant", None)
-
-
 def _attach_registered_user_to_organization(
     *,
     user: User,
     organization,
-    subscription: BillingSubscription | None = None,
     membership_role: str = "member",
 ) -> None:
     if organization is None:
@@ -267,13 +196,6 @@ def _attach_registered_user_to_organization(
     )
     if locked_organization is None:
         raise PermissionDenied("Target organization is unavailable for onboarding.")
-
-    if subscription is not None:
-        enforce_organization_seat_quota(
-            organization_id=str(locked_organization.id),
-            subscription=subscription,
-            additional=1,
-        )
 
     organization_name = str(getattr(locked_organization, "name", "") or "").strip()
     if organization_name and str(getattr(user, "organization", "") or "").strip().lower() != organization_name.lower():
@@ -312,109 +234,6 @@ def _attach_registered_user_to_organization(
 
     if updated_fields:
         membership.save(update_fields=updated_fields + ["updated_at"])
-
-"""
-Tenant resolution view — add to apps/authentication/views.py
-and register in config/public_urls.py as:
-
-    path(
-        "api/v1/auth/resolve-tenant/",
-        auth_views.ResolveTenantView.as_view(),
-        name="public_resolve_tenant",
-    ),
-"""
-
-class ResolveTenantView(APIView):
-    """
-    POST /api/v1/auth/resolve-tenant/
-
-    Accepts { "email": "user@example.com" } and returns which login
-    flow and institution slug to use.
-
-    Response for platform/system admin (public schema):
-        { "login_type": "admin", "schema": "public" }
-
-    Response for org member/admin (tenant schema):
-        {
-            "login_type": "member",
-            "schema": "demo",
-            "organization_slug": "demo",
-            "organization_name": "GAMS Demo"
-        }
-
-    404 if no account found anywhere.
-    """
-
-    permission_classes = [AllowAny]
-    authentication_classes = []
-
-    def post(self, request):
-        email = str(request.data.get("email") or "").lower().strip()
-        if not email:
-            return Response(
-                {"error": "Email is required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # ── 1. Look up user in the public schema ──────────────────────────
-        # All users live in the public schema (users is a SHARED_APP).
-        # Platform admins (user_type='admin' or is_superuser) always
-        # authenticate against the public schema regardless of org membership.
-        from apps.users.models import User
-
-        try:
-            user = User.all_objects.get(email__iexact=email)
-        except User.DoesNotExist:
-            return Response(
-                {"error": "No account found for this email address."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        if user.user_type == "admin" or user.is_superuser:
-            return Response(
-                {
-                    "login_type": "admin",
-                    "schema": "public",
-                    "organization_name": "Platform Administration",
-                }
-            )
-
-        # ── 2. Search tenant schemas ──────────────────────────────────────
-        # Look for an active OrganizationMembership in each tenant schema.
-        # We must use OrganizationMembership (a TENANT_APP) rather than User
-        # (a SHARED_APP in the public schema) because User.objects.filter()
-        # returns results from the public schema in every schema context,
-        # making every org appear to contain the user.
-        from apps.tenants.models import Organization
-        from django_tenants.utils import schema_context
-
-        from apps.governance.models import OrganizationMembership
-
-        for org in Organization.objects.filter(
-            is_active=True
-        ).exclude(schema_name="public").order_by("name"):
-            try:
-                with schema_context(org.schema_name):
-                    if OrganizationMembership.objects.filter(
-                        user_id=user.pk, is_active=True
-                    ).exists():
-                        return Response(
-                            {
-                                "login_type": "member",
-                                "schema": org.schema_name,
-                                "organization_slug": org.code,
-                                "organization_name": org.name,
-                            }
-                        )
-            except Exception:
-                # Skip schemas that are broken or mid-migration
-                continue
-
-        # ── 3. User exists but has no active membership in any tenant ────────
-        return Response(
-            {"error": "No active organization membership found for this email address."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
 
 class OrganizationAdminRegisterView(generics.CreateAPIView):
     """
@@ -465,13 +284,7 @@ class OrganizationAdminRegisterView(generics.CreateAPIView):
 
         try:
             with transaction.atomic():
-                # Step 1: create the Organization in the public schema.
-                # TenantMixin.save() provisions the tenant schema automatically
-                # (auto_create_schema = True) so the tenant tables are ready
-                # before we switch into it below.
-                # schema_name is required by TenantMixin — derive it from the
-                # code slug, replacing hyphens with underscores (hyphens are not
-                # valid in PostgreSQL schema identifiers).
+                # Step 1: create the organization record.
                 organization = Organization.objects.create(
                     name=organization_name,
                     code=organization_code,
@@ -480,33 +293,28 @@ class OrganizationAdminRegisterView(generics.CreateAPIView):
                     is_active=True,
                 )
 
-                # Step 2: create the admin User and OrganizationMembership inside
-                # the new tenant's schema.  apps.users and apps.governance are
-                # TENANT_APPS so their tables only exist per-schema.
-                target_user_schema = _resolve_bootstrap_user_schema(organization.schema_name)
-                schema_cm = schema_context(target_user_schema) if target_user_schema else nullcontext()
-                with schema_cm:
-                    user = User.objects.create_user(
-                        email=validated["email"],
-                        password=validated["password"],
-                        first_name=str(validated.get("first_name", "")).strip(),
-                        last_name=str(validated.get("last_name", "")).strip(),
-                        phone_number=str(validated.get("phone_number", "")).strip(),
-                        department=str(validated.get("department", "")).strip(),
-                        user_type="internal",
-                    )
-                    membership = OrganizationMembership.objects.create(
-                        user=user,
-                        membership_role="registry_admin",
-                        title=str(validated.get("department", "")).strip()[:120],
-                        is_active=True,
-                        is_default=True,
-                        joined_at=timezone.now(),
-                    )
+                # Step 2: create the admin user and active membership.
+                user = User.objects.create_user(
+                    email=validated["email"],
+                    password=validated["password"],
+                    first_name=str(validated.get("first_name", "")).strip(),
+                    last_name=str(validated.get("last_name", "")).strip(),
+                    phone_number=str(validated.get("phone_number", "")).strip(),
+                    department=str(validated.get("department", "")).strip(),
+                    user_type="internal",
+                )
+                membership = OrganizationMembership.objects.create(
+                    user=user,
+                    membership_role="registry_admin",
+                    title=str(validated.get("department", "")).strip()[:120],
+                    is_active=True,
+                    is_default=True,
+                    joined_at=timezone.now(),
+                )
 
-                    if str(user.organization or "").strip().lower() != organization_name.lower():
-                        user.organization = organization_name
-                        user.save(update_fields=["organization", "updated_at"])
+                if str(user.organization or "").strip().lower() != organization_name.lower():
+                    user.organization = organization_name
+                    user.save(update_fields=["organization", "updated_at"])
         except IntegrityError:
             return Response(
                 {"error": "Organization bootstrap failed due to a conflicting record. Retry with different values."},
@@ -557,41 +365,15 @@ class RegisterView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
 
         email = serializer.validated_data.get("email", "")
-        onboarding_token = str(serializer.validated_data.get("onboarding_token", "")).strip()
 
-        # Prevent onboarding token consumption when the email already exists.
+        # Prevent duplicate registrations for the same email.
         if User.all_objects.filter(email__iexact=str(email).strip()).exists():
             return Response(
                 {"email": ["A user with that email already exists."]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        with transaction.atomic():
-            onboarding_result = _consume_registration_onboarding_token(
-                raw_token=onboarding_token,
-                email=email,
-            )
-            if not onboarding_result.valid or onboarding_result.token_record is None:
-                return Response(
-                    _registration_error_for_onboarding_reason(onboarding_result.reason),
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-
-            consumed_org = _resolve_onboarding_organization(onboarding_result.token_record)
-            consumed_subscription = onboarding_result.subscription
-            if consumed_org is None:
-                return Response(
-                    _registration_error_for_onboarding_reason("organization_mismatch"),
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-
-            user = serializer.save()
-            _attach_registered_user_to_organization(
-                user=user,
-                organization=consumed_org,
-                subscription=consumed_subscription,
-                membership_role="member",
-            )
+        user = serializer.save()
         return Response({
             'user': UserSerializer(user).data,
             'user_type': user.user_type,

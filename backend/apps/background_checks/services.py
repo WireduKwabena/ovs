@@ -6,7 +6,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
-from apps.billing.quotas import (
+from apps.core.quotas import (
     VETTING_OPERATION_BACKGROUND_CHECK_SUBMISSION,
     enforce_vetting_operation_quota,
     resolve_case_organization_id,
